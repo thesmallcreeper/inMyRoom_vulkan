@@ -48,6 +48,7 @@ void Engine::init()
 	camera_ptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float());
 
 	inputManager.bindCameraFreezeOldUnfreezeNew(camera_ptr.get());
+	graphics_ptr->bind_camera(camera_ptr.get());
 }
 
 void Engine::deinit()
@@ -90,5 +91,7 @@ void Engine::run()
 			if (eventIterator == SHOULD_CLOSE)
 				breakMainLoop = true;
 		}
+
+		graphics_ptr->draw_frame();
 	}
 }

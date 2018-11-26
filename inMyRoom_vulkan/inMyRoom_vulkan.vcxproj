@@ -19,9 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="include\InputManager.cpp" />
+    <ClCompile Include="src\InputManager.cpp" />
     <ClCompile Include="src\MovementBaseClass.cpp" />
     <ClCompile Include="src\NaiveCamera.cpp" />
+    <ClCompile Include="src\teapot_data.cpp" />
     <ClCompile Include="src\WindowWithAsyncInput.cpp" />
     <ClCompile Include="src\Engine.cpp" />
     <ClCompile Include="src\Graphics.cpp" />
@@ -31,10 +32,15 @@
     <ClInclude Include="..\Configuru\configuru.hpp" />
     <ClInclude Include="include\MovementBaseClass.h" />
     <ClInclude Include="include\NaiveCamera.h" />
+    <ClInclude Include="include\teapot_data.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\Graphics.h" />
     <ClInclude Include="include\InputManager.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\teapot_glsl.frag" />
+    <None Include="Shaders\teapot_glsl.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
