@@ -79,6 +79,7 @@ void Graphics::deinit()
 {
 	Anvil::Vulkan::vkDeviceWaitIdle(m_device_ptr->get_device_vk());
 
+	m_cmd_buffers.clear();
 
 	m_frame_signal_semaphores.clear();
 	m_frame_wait_semaphores.clear();
@@ -93,6 +94,7 @@ void Graphics::deinit()
 	m_camera_buffer_ptr.reset();
 	m_vertex_buffer_ptr.reset();
 	m_index_buffer_ptr.reset();
+	m_perspective_buffer_ptr.reset();
 
 	m_rendering_surface_ptr.reset();
 	m_swapchain_ptr.reset();
@@ -751,6 +753,13 @@ void Graphics::init_command_buffers()
 void Graphics::bind_camera(MovementBaseClass* in_camera)
 {
 	camera = in_camera;
+}
+
+void Graphics::unregister_window_callback(Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr)
+{
+    window_with_async_input_ptr->m_window_ptr->unregister_from_callbacks(in_callback_id,
+                                                                         in_callback_function,
+                                                                         in_callback_owner_ptr);
 }
 
 void Graphics::register_window_callback(Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr)

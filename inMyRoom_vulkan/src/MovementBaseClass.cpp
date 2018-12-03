@@ -11,7 +11,7 @@ MovementBaseClass::MovementBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in
 
 MovementBaseClass::~MovementBaseClass()
 {
-
+	std::lock_guard<std::mutex> lock(control_mutex);
 }
 
 void MovementBaseClass::freeze()
@@ -89,9 +89,6 @@ void MovementBaseClass::moveCamera(float xRotation_rads, float yRotation_rads)
 		lookingDirection = glm::rotate(lookingDirection, xRotation_rads, upVector);
 
 	}
-
-	//printf("Looking : X= %f, Y= %f, Z= %f\n", lookingDirection.x, lookingDirection.y, lookingDirection.z);
-	//printf("Position: X= %f, Y= %f, Z= %f\n", position.x, position.y, position.z);
 }
 
 void MovementBaseClass::moveForward()

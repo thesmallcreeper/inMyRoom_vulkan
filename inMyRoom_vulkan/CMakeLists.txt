@@ -1,22 +1,12 @@
 cmake_minimum_required(VERSION 3.0.2)
 project (inMyRoom_vulkan)
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    include(CheckCXXCompilerFlag)
-    
-    CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-    
-    if(COMPILER_SUPPORTS_CXX11)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    else()
-        message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-    endif()
-endif()
+add_subdirectory   (../Anvil "${CMAKE_CURRENT_BINARY_DIR}/anvil")
 
-# Add AMD Anvil
-if (NOT ANVIL_LINK_EXAMPLES)
-	add_subdirectory   (../Anvil "${CMAKE_CURRENT_BINARY_DIR}/anvil")
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package (Threads REQUIRED)
 
 target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
 
@@ -43,13 +33,15 @@ SET (SRC      "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
 			  "${inMyRoom_vulkan_SOURCE_DIR}/src/main.cpp")
 			  
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${inMyRoom_vulkan_SOURCE_DIR})
+
 add_executable (inMyRoom_vulkan ${SRC})
 
 add_dependencies     (inMyRoom_vulkan Anvil)
-
 
 if (WIN32)
     target_link_libraries(inMyRoom_vulkan Anvil)
 else()
     target_link_libraries(inMyRoom_vulkan Anvil dl)
 endif()
+
+target_link_libraries (inMyRoom_vulkan Threads::Threads)

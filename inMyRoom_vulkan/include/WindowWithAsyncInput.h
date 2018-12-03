@@ -2,8 +2,16 @@
 
 #include <memory>
 #include <functional>
+#include <thread>
+#include <future>
 
 #include "misc/window_factory.h"
+
+#ifdef _WIN32
+	typedef DWORD THREADID_T;
+#else
+	typedef pthread_t THREADID_T;
+#endif
 
 class WindowWithAsyncInput;
 
@@ -24,7 +32,8 @@ public:
 private:
 
 	std::unique_ptr<std::thread> window_thread_ptr;
-	DWORD threadID;
+
+	THREADID_T threadID;
 
 	volatile bool should_thread_close;
 };

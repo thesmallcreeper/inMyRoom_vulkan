@@ -8,7 +8,10 @@ InputManager::InputManager(configuru::Config& in_cfgFile)
 
 InputManager::~InputManager()
 {
+    std::lock_guard<std::mutex> lock(control_mutex);
 
+    keyToFunction_onKeyReleased_umap.clear();
+	eventVector.clear();
 }
 
 void InputManager::init()
@@ -75,7 +78,8 @@ void InputManager::mouseMoved(const long xOffset, const long yOffset)
 	float xRotation_rads = - xOffset * mouseSensitivity;
 	float yRotation_rads = yOffset * mouseSensitivity;
 
-	camera_ptr->moveCamera(xRotation_rads, yRotation_rads);
+    if (camera_ptr)
+	    camera_ptr->moveCamera(xRotation_rads, yRotation_rads);
 }
 
 void InputManager::keyPressed(const Anvil::KeyID in_key)
@@ -99,7 +103,7 @@ void InputManager::keyReleased(const Anvil::KeyID in_key)
 
 void InputManager::addToQueue(eventInputID event)
 {
-	// keyPressed or keyReleased access this function that are have locked the mutex
+	// keyPressed or keyReleased access this function that are have locked the mutex 2. wtf i sayy
 
 	eventVector.push_back(event);
 }

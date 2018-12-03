@@ -24,7 +24,7 @@ void Engine::init()
 
 	graphics_ptr = std::make_unique<Graphics>(cfgFile);
 	graphics_ptr->init();
-	graphics_ptr->register_window_callback(Anvil::WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
+	graphics_ptr->register_window_callback(Anvil::WINDOW_CALLBACK_ID_CLOSE_EVENT,
 									       std::bind(&Engine::callbackFunction_on_close_event,
 												     this,
 												     std::placeholders::_1),
@@ -45,7 +45,7 @@ void Engine::init()
 												     std::placeholders::_1),
 									       this );
 
-	camera_ptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float());
+	camera_ptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float(), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(-5.0f, 0.0f, 0.0f));
 
 	inputManager.bindCameraFreezeOldUnfreezeNew(camera_ptr.get());
 	graphics_ptr->bind_camera(camera_ptr.get());
@@ -53,7 +53,9 @@ void Engine::init()
 
 void Engine::deinit()
 {
+	inputManager.bindCameraFreezeOldUnfreezeNew(nullptr);
 	graphics_ptr.reset();
+	camera_ptr.reset();
 }
 
 void Engine::callbackFunction_on_close_event(Anvil::CallbackArgument*   in_callback_data_raw_ptr)
@@ -89,9 +91,14 @@ void Engine::run()
 		for (auto eventIterator : inputManager.grabAndResetEventVector())
 		{
 			if (eventIterator == SHOULD_CLOSE)
-				breakMainLoop = true;
+            {
+                breakMainLoop = true;
+                break;
+            }
 		}
 
 		graphics_ptr->draw_frame();
 	}
+
+
 }

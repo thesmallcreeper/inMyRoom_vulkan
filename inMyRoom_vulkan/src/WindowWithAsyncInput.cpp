@@ -1,7 +1,5 @@
 #include "WindowWithAsyncInput.h"
 
-#include <thread>
-#include <future>
 
 WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platform,
 										   const std::string&             in_title,
@@ -13,10 +11,13 @@ WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platfor
 	std::promise<Anvil::WindowUniquePtr> prom_m_window_ptr;
 	std::future<Anvil::WindowUniquePtr> fut_m_window_ptr = prom_m_window_ptr.get_future();
 
-	std::promise<DWORD> prom_threadID;
-	std::future<DWORD> fut_threadID = prom_threadID.get_future();
+	std::promise<THREADID_T> prom_threadID;
+	std::future<THREADID_T> fut_threadID = prom_threadID.get_future();
 
-	window_thread_ptr = std::make_unique<std::thread>([=, &prom_m_window_ptr, &prom_threadID]() {
+#ifdef _WIN32
+
+	window_thread_ptr = std::make_unique<std::thread>([=, &prom_m_window_ptr, &prom_threadID]()
+	{
 		/* Create a window */
 
 		Anvil::WindowUniquePtr m_window_ptr = Anvil::WindowFactory::create_window(platform,
@@ -27,7 +28,7 @@ WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platfor
 																				  nullptr);
 
 		prom_m_window_ptr.set_value(std::move(m_window_ptr));
-		prom_threadID.set_value(::GetCurrentThreadId());
+		prom_eventSocket.set_value(::GetCurrentThreadId());
 
 		::ShowCursor(FALSE);
 
@@ -59,13 +60,46 @@ WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platfor
 
 	});
 
+#else
+
+    window_thread_ptr = std::make_unique<std::thread>([=, &prom_m_window_ptr, &prom_threadID]()
+    {
+        /* Create a window */
+
+        Anvil::WindowUniquePtr m_window_ptr = Anvil::WindowFactory::create_window(platform,
+                                                                                  in_title,
+                                                                                  in_width,
+                                                                                  in_height,
+                                                                                  in_closable, /* in_closable */
+                                                                                  nullptr);
+
+        Anvil::Window* window_ptr = m_window_ptr.get();
+
+        prom_m_window_ptr.set_value(std::move(m_window_ptr));
+		prom_threadID.set_value(pthread_self());
+
+		while(true)
+        {
+            xcb_generic_event_t* event_ptr = static_cast<XCBLoader*>(window_ptr->get_XCBLoader())->get_procs_table()->pfn_xcbWaitForEvent(static_cast<xcb_connection_t*>(window_ptr->get_connection()));
+
+            if (should_thread_close)
+                break;
+
+            window_ptr->msg_callback(event_ptr);
+        }
+    });
+
+#endif
+
 	m_window_ptr = fut_m_window_ptr.get();
-	threadID = fut_threadID.get();
+    threadID = fut_threadID.get();
 }
 
 WindowWithAsyncInput::~WindowWithAsyncInput()
 {
 	should_thread_close = true;
+
+#ifdef _WIN32
 
 	::PostThreadMessage(
 		threadID,
@@ -73,6 +107,21 @@ WindowWithAsyncInput::~WindowWithAsyncInput()
 		0,
 		0
 	);
+#else
+	xcb_configure_notify_event_t event;
+	event.response_type = XCB_DESTROY_NOTIFY;
+
+    static_cast<XCBLoader*>(m_window_ptr->get_XCBLoader())->get_procs_table()->pfn_xcbSendEvent(static_cast<xcb_connection_t*>(m_window_ptr->get_connection()),
+    		                                                                                    true,
+			                                                                                    m_window_ptr->m_window,
+			                                                                                    XCB_EVENT_MASK_STRUCTURE_NOTIFY,
+																								(char*)&event);
+
+
+    static_cast<XCBLoader*>(m_window_ptr->get_XCBLoader())->get_procs_table()->pfn_xcbFlush(static_cast<xcb_connection_t*>(m_window_ptr->get_connection()));
+#endif
+
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
 
 	window_thread_ptr->join();
 	window_thread_ptr.reset();
