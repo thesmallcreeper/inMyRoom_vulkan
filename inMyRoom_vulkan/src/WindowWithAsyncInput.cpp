@@ -28,7 +28,7 @@ WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platfor
 																				  nullptr);
 
 		prom_m_window_ptr.set_value(std::move(m_window_ptr));
-		prom_eventSocket.set_value(::GetCurrentThreadId());
+		prom_threadID.set_value(::GetCurrentThreadId());
 
 		::ShowCursor(FALSE);
 
