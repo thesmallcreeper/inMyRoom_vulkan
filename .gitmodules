@@ -10,3 +10,6 @@
 [submodule "tinygltf"]
 	path = tinygltf
 	url = git@github.com:thesmallcreeper/tinygltf
+[submodule "MathGeoLib"]
+	path = MathGeoLib
+	url = git@github.com:thesmallcreeper/MathGeoLib
