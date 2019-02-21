@@ -7,3 +7,6 @@
 [submodule "Configuru"]
 	path = Configuru
 	url = https://github.com/thesmallcreeper/Configuru
+[submodule "tinygltf"]
+	path = tinygltf
+	url = git@github.com:thesmallcreeper/tinygltf
