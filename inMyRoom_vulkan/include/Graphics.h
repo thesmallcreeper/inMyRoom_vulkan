@@ -1,14 +1,22 @@
 #pragma once
 
 #include <memory>
+#include <thread>
+#include <future>
+#include <fstream>
 
 #include "configuru.hpp"
 #include "glm/mat4x4.hpp"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
+#include "tiny_gltf.h"
+
 #include "WindowWithAsyncInput.h"
 #include "MovementBaseClass.h"
+
+#include "PrimitivesPipelines.h"
+#include "SceneMeshes.h"
 
 class Graphics
 {
@@ -27,12 +35,14 @@ public:
 
 
 private:
-	VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-									VkDebugReportObjectTypeEXT object_type,
-									const char*                layer_prefix,
-									const char*                message);
+	void on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
+								const char*                      in_message_ptr);
+
+	std::string GetFilePathExtension(const std::string &FileName);
 
 	void deinit		();
+
+	void load_scene();
 
 	void init_vulkan();
 	void init_window_with_async_input_ptr();
@@ -46,11 +56,16 @@ private:
 
 	void init_framebuffers();
 	void init_renderpasses();
-	void init_pipelines();
+	void init_scene();
 	void init_command_buffers();
 
 private:
 	configuru::Config& cfgFile;
+	tinygltf::Model model;
+
+	std::unique_ptr<PrimitivesPipelines> pipelinesOfPrimitives_ptr;
+	std::unique_ptr<SceneMeshes> meshesOfScene_ptr;
+
 	MovementBaseClass* camera;
 
 	const float						 m_fov_deg;
@@ -67,8 +82,6 @@ private:
 	Anvil::SwapchainUniquePtr		 m_swapchain_ptr;
 	Anvil::RenderingSurfaceUniquePtr m_rendering_surface_ptr;
 
-	Anvil::BufferUniquePtr			m_index_buffer_ptr;
-	Anvil::BufferUniquePtr			m_vertex_buffer_ptr;
 	Anvil::BufferUniquePtr			m_camera_buffer_ptr;
 	Anvil::BufferUniquePtr			m_perspective_buffer_ptr;
 
@@ -87,12 +100,8 @@ private:
 
 	Anvil::RenderPassUniquePtr						m_renderpass_ptr;
 
-	Anvil::PipelineID						m_pipeline_id;
-
 	std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_cmd_buffers;
 	uint32_t						 m_n_last_semaphore_used;
 
 	Anvil::SubPassID              m_subpass_id;
-
-	uint32_t               m_n_indices;
 };

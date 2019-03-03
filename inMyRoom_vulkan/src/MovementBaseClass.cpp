@@ -85,8 +85,27 @@ void MovementBaseClass::moveCamera(float xRotation_rads, float yRotation_rads)
 
 		last_snap_timePoint = next_snap_timePoint;
 
-		lookingDirection = glm::rotate(lookingDirection, yRotation_rads, glm::normalize(glm::cross(lookingDirection, upVector)));
-		lookingDirection = glm::rotate(lookingDirection, xRotation_rads, upVector);
+		glm::vec3 newLookingDirection = lookingDirection;
+
+		newLookingDirection = glm::rotate(newLookingDirection, yRotation_rads, glm::normalize(glm::cross(newLookingDirection, upVector)));
+		{
+			const float minTheta = 0.01f * glm::half_pi<float>();
+			const float maxAbsDirectionY = glm::cos(minTheta);
+			const float minXZLength = glm::sin(minTheta);
+
+			glm::vec2 oldXZorientation(lookingDirection.x, lookingDirection.z);
+			glm::vec2 newXZorientation(newLookingDirection.x, newLookingDirection.z);
+
+			if (( (glm::dot(oldXZorientation, newXZorientation) < 0.0f) || (glm::dot(oldXZorientation, newXZorientation) == 0.0f) || (glm::dot(oldXZorientation, newXZorientation) == -0.0f)
+				|| (std::abs(newLookingDirection.y) > maxAbsDirectionY) ) && (std::abs(newLookingDirection.y) > 0.5f))
+			{
+				glm::vec2 oldXZorientationNormalized = glm::normalize(oldXZorientation);
+				newLookingDirection = glm::vec3(minXZLength * oldXZorientationNormalized.x, (lookingDirection.y > 0.0f) ? maxAbsDirectionY : -maxAbsDirectionY, minXZLength * oldXZorientationNormalized.y);
+			}
+		}
+		newLookingDirection = glm::rotate(newLookingDirection, xRotation_rads, upVector);
+
+		lookingDirection = glm::normalize(newLookingDirection);
 
 	}
 }

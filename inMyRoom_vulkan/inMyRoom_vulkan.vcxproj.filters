@@ -13,6 +13,15 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\Header-only">
+      <UniqueIdentifier>{3f363aaa-a27a-4d80-96ad-22df54595c09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\SceneImport">
+      <UniqueIdentifier>{1d5cc62f-24cc-4565-b9a2-f008d5c966ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\SceneImport">
+      <UniqueIdentifier>{3d47ba8c-67af-4bf5-82df-16b23b68aa52}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -36,8 +45,11 @@
     <ClCompile Include="src\InputManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\teapot_data.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\PrimitivesPipelines.cpp">
+      <Filter>Source Files\SceneImport</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SceneMeshes.cpp">
+      <Filter>Source Files\SceneImport</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -60,10 +72,16 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Configuru\configuru.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Header-only</Filter>
     </ClInclude>
-    <ClInclude Include="include\teapot_data.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="include\SceneMeshes.h">
+      <Filter>Header Files\SceneImport</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PrimitivesPipelines.h">
+      <Filter>Header Files\SceneImport</Filter>
+    </ClInclude>
+    <ClInclude Include="include\glTFenum.h">
+      <Filter>Header Files\Header-only</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

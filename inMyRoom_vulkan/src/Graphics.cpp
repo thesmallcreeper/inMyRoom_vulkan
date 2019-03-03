@@ -14,6 +14,7 @@
 #include "misc/glsl_to_spirv.h"
 #include "misc/framebuffer_create_info.h"
 #include "misc/render_pass_create_info.h"
+#include "misc/instance_create_info.h"
 #include "wrappers/buffer.h"
 #include "wrappers/command_buffer.h"
 #include "wrappers/command_pool.h"
@@ -31,13 +32,6 @@
 #include "wrappers/graphics_pipeline_manager.h"
 #include "wrappers/shader_module.h"
 #include "wrappers/swapchain.h"
-
-#include <thread>
-#include <future>
-#include <fstream>
-
-#include "teapot_data.h"
-#include "WindowWithAsyncInput.h"
 
 #ifdef _DEBUG
 	#define ENABLE_VALIDATION
@@ -59,6 +53,8 @@ Graphics::~Graphics()
 
 void Graphics::init()
 {
+	load_scene();
+
 	init_vulkan();
 	init_window_with_async_input_ptr();
 	init_swapchain();
@@ -71,7 +67,7 @@ void Graphics::init()
 
 	init_framebuffers();
 	init_renderpasses();
-	init_pipelines();
+	init_scene();
 	init_command_buffers();
 }
 
@@ -88,16 +84,17 @@ void Graphics::deinit()
 	m_renderpass_ptr.reset();
 	m_depth_image_ptr.reset();
 	m_depth_image_view_ptr.reset();
+	pipelinesOfPrimitives_ptr->deinit(m_device_ptr.get());
+	pipelinesOfPrimitives_ptr.reset();
 	m_fs_ptr.reset();
 	m_vs_ptr.reset();
 	m_dsg_ptr.reset();
 	m_camera_buffer_ptr.reset();
-	m_vertex_buffer_ptr.reset();
-	m_index_buffer_ptr.reset();
+	meshesOfScene_ptr.reset();
 	m_perspective_buffer_ptr.reset();
 
-	m_rendering_surface_ptr.reset();
 	m_swapchain_ptr.reset();
+	m_rendering_surface_ptr.reset();
 	
 	m_device_ptr.reset();
 	m_instance_ptr.reset();
@@ -124,8 +121,14 @@ void Graphics::draw_frame()
 	present_wait_semaphore_ptr = curr_frame_signal_semaphore_ptr;
 
 	/* Determine the semaphore which the swapchain image */
-	n_swapchain_image = m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
-													   true); /* in_should_block */
+	{
+		const auto acquire_result = m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
+																   &n_swapchain_image,
+																   true); /* in_should_block */
+
+		ANVIL_REDUNDANT_VARIABLE_CONST(acquire_result);
+		anvil_assert(acquire_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
+	}
 
 	Anvil::Vulkan::vkDeviceWaitIdle(m_device_ptr->get_device_vk());
 
@@ -144,31 +147,71 @@ void Graphics::draw_frame()
 								  &wait_stage_mask,
 								  false /* should_block */)
 	);
+	
+	{
+		Anvil::SwapchainOperationErrorCode present_result = Anvil::SwapchainOperationErrorCode::DEVICE_LOST;
+		present_queue_ptr->present(m_swapchain_ptr.get(),
+								   n_swapchain_image,
+								   1, /* n_wait_semaphores */
+								   &present_wait_semaphore_ptr,
+								   &present_result);
 
-	present_queue_ptr->present(m_swapchain_ptr.get(),
-							   n_swapchain_image,
-							   1, /* n_wait_semaphores */
-							   &present_wait_semaphore_ptr);
+		anvil_assert(present_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
+	}
 
 
 }
 
+void Graphics::load_scene()
+{
+	float scale = cfgFile["sceneInput"]["scale"].as_float();
+	std::string path = cfgFile["sceneInput"]["path"].as_string();
+
+	tinygltf::TinyGLTF loader;
+	std::string err;
+	std::string warn;
+
+	std::string ext = GetFilePathExtension(path);
+
+	bool ret = false;
+	if (ext.compare("glb") == 0) {
+		// assume binary glTF.
+		ret = loader.LoadBinaryFromFile(&model, &err, &warn, path.c_str());
+	}
+	else {
+		// assume ascii glTF.
+		ret = loader.LoadASCIIFromFile(&model, &err, &warn, path.c_str());
+	}
+
+	if (!warn.empty()) {
+		printf("Warn: %s\n", warn.c_str());
+	}
+
+	if (!err.empty()) {
+		printf("ERR: %s\n", err.c_str());
+	}
+	if (!ret) {
+		printf("Failed to load .glTF : %s\n", path.c_str());
+		exit(-1);
+	}
+}
 void Graphics::init_vulkan()
 {
 	/* Create a Vulkan instance */
-	m_instance_ptr = Anvil::Instance::create("inMyRoom_vulkan",  /* app_name */
-											 "inMyRoom_vulkan",  /* engine_name */
+	auto create_info_ptr = Anvil::InstanceCreateInfo::create("inMyRoom_vulkan",  /* app_name */
+															 "inMyRoom_vulkan",  /* engine_name */
 #ifdef ENABLE_VALIDATION
-											 std::bind(&Graphics::on_validation_callback,
-												 this,
-												 std::placeholders::_1,
-												 std::placeholders::_2,
-												 std::placeholders::_3,
-												 std::placeholders::_4),
+															 std::bind(&Graphics::on_validation_callback,
+															 this,
+															 std::placeholders::_1,
+															 std::placeholders::_2
+															 ),
 #else
-											 Anvil::DebugCallbackFunction(),
+															 Anvil::DebugCallbackFunction(),
 #endif
-											 false);			 /* in_mt_safe */
+															 false);			/* in_mt_safe */
+
+	m_instance_ptr = Anvil::Instance::create(std::move(create_info_ptr));
 
 	/* Determine which extensions we need to request for */
 	{
@@ -176,9 +219,9 @@ void Graphics::init_vulkan()
 		m_device_ptr = Anvil::SGPUDevice::create(m_instance_ptr->get_physical_device(0),
 												 true, /* in_enable_shader_module_cache */
 												 Anvil::DeviceExtensionConfiguration(),
-												 std::vector<std::string>(), /* in_layers                               */
-												 false,                      /* in_transient_command_buffer_allocs_only */
-												 false);                     /* in_support_resettable_command_buffers   */
+												 std::vector<std::string>(),						/* in_layers                               */
+												 false,												/* in_transient_command_buffer_allocs_only */
+												 false);											/* in_support_resettable_command_buffers   */
 	}
 }
 
@@ -250,42 +293,12 @@ void Graphics::init_swapchain()
 void Graphics::init_buffers()
 {
 	Anvil::MemoryAllocatorUniquePtr   allocator_ptr;
-	TeapotData                        data(8, 8);
 
 	const Anvil::DeviceType           device_type(m_device_ptr->get_type());
-
-	const VkDeviceSize                index_data_size = data.get_index_data_size();
-	const VkDeviceSize                vertex_data_size = data.get_vertex_data_size();
 
 	const Anvil::MemoryFeatureFlags   required_feature_flags = Anvil::MemoryFeatureFlagBits::NONE;
 
 	allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr.get());
-
-	{
-		auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
-																		index_data_size,
-																		Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-																		Anvil::SharingMode::EXCLUSIVE,
-																		Anvil::BufferCreateFlagBits::NONE,
-																		Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT);
-
-		m_index_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-		m_index_buffer_ptr->set_name("Teapot index buffer");
-	}
-
-	{
-		auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
-																		vertex_data_size,
-																		Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-																		Anvil::SharingMode::EXCLUSIVE,
-																		Anvil::BufferCreateFlagBits::NONE,
-																		Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
-
-		m_vertex_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-		m_vertex_buffer_ptr->set_name("Teapot vertex buffer");
-	}
 
 	{
 		auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
@@ -313,27 +326,11 @@ void Graphics::init_buffers()
 		m_perspective_buffer_ptr->set_name("Camera matrix buffer");
 	}
 
-	allocator_ptr->add_buffer(m_index_buffer_ptr.get(),
-							  required_feature_flags);
-
-	allocator_ptr->add_buffer(m_vertex_buffer_ptr.get(),
-							  required_feature_flags);
-
 	allocator_ptr->add_buffer(m_camera_buffer_ptr.get(),
 							  required_feature_flags);
 
 	allocator_ptr->add_buffer(m_perspective_buffer_ptr.get(),
 							  required_feature_flags);
-
-	m_index_buffer_ptr->write(0,
-							  index_data_size,
-							  data.get_index_data());
-	m_vertex_buffer_ptr->write(0,
-							   vertex_data_size,
-							   data.get_vertex_data());
-
-
-	m_n_indices = static_cast<uint32_t>(index_data_size / sizeof(uint32_t));
 
 	// Camera buffer is being updated every frame
 
@@ -575,40 +572,11 @@ void Graphics::init_renderpasses()
 		m_renderpass_ptr->set_name("Renderpass for swapchain images");
 }
 
-void Graphics::init_pipelines()
+void Graphics::init_scene()
 {
-	auto gfx_manager_ptr(m_device_ptr->get_graphics_pipeline_manager());
-
-	auto pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
-																			  m_renderpass_ptr.get(),
-																			  m_subpass_id,							/* in_subpass_id */
-																			  *m_fs_ptr,
-																			  Anvil::ShaderModuleStageEntryPoint(), /* in_gs_entrypoint */
-																			  Anvil::ShaderModuleStageEntryPoint(), /* in_tc_entrypoint */
-																			  Anvil::ShaderModuleStageEntryPoint(), /* in_te_entrypoint */
-																			  *m_vs_ptr);
-
-	pipeline_create_info_ptr->set_descriptor_set_create_info(m_dsg_ptr->get_descriptor_set_create_info());
-
-	pipeline_create_info_ptr->add_vertex_attribute(0, /* location */
-												   Anvil::Format::R32G32B32_SFLOAT,
-												   0,                 /* offset_in_bytes */
-												   sizeof(float) * 3, /* stride_in_bytes */
-												   Anvil::VertexInputRate::VERTEX);
-
-	pipeline_create_info_ptr->set_primitive_topology(Anvil::PrimitiveTopology::TRIANGLE_LIST);
-	pipeline_create_info_ptr->set_rasterization_properties(Anvil::PolygonMode::FILL,
-														   Anvil::CullModeFlagBits::BACK_BIT,
-														   Anvil::FrontFace::CLOCKWISE,
-														   4.0f); /* line_width */
-	pipeline_create_info_ptr->toggle_depth_test(true, /* should_enable */
-												Anvil::CompareOp::LESS);
-	pipeline_create_info_ptr->toggle_depth_writes(true);
-
-//	pipeline_create_info_ptr->set_rasterization_order(Anvil::RasterizationOrderAMD::STRICT);
-
-	gfx_manager_ptr->add_pipeline(std::move(pipeline_create_info_ptr),
-								  &m_pipeline_id);
+	pipelinesOfPrimitives_ptr = std::make_unique<PrimitivesPipelines>(m_vs_ptr.get(), m_fs_ptr.get());
+	meshesOfScene_ptr = std::make_unique<SceneMeshes>(model, *pipelinesOfPrimitives_ptr,
+													  m_dsg_ptr.get(), m_renderpass_ptr.get(), m_subpass_id, m_device_ptr.get());
 }
 
 void Graphics::init_command_buffers()
@@ -703,43 +671,7 @@ void Graphics::init_command_buffers()
 													m_renderpass_ptr.get(),
 													Anvil::SubpassContents::INLINE);
 
-			cmd_buffer_ptr->record_bind_pipeline(Anvil::PipelineBindPoint::GRAPHICS,
-												 m_pipeline_id);
-
-
-			cmd_buffer_ptr->record_bind_descriptor_sets(Anvil::PipelineBindPoint::GRAPHICS,
-													   gfx_manager_ptr->get_pipeline_layout(m_pipeline_id),
-													   0, /* in_first_set */
-													   1, /* in_set_count */
-													   &ds_ptr,
-													   0,        /* in_dynamic_offset_count */
-													   nullptr); /* in_dynamic_offset_ptrs  */
-
-
-			cmd_buffer_ptr->record_bind_index_buffer(m_index_buffer_ptr.get(),
-													 0, /* in_offset */
-													 Anvil::IndexType::UINT32);
-
-			Anvil::Buffer* vertex_buffers[] =
-			{
-				m_vertex_buffer_ptr.get()
-			};
-			VkDeviceSize vertex_buffer_offsets[] =
-			{
-				0
-			};
-			const uint32_t n_vertex_buffers = sizeof(vertex_buffers) / sizeof(vertex_buffers[0]);
-
-			cmd_buffer_ptr->record_bind_vertex_buffers(0, /* in_start_binding */
-													   n_vertex_buffers,
-													   vertex_buffers,
-													   vertex_buffer_offsets);
-
-			cmd_buffer_ptr->record_draw_indexed(m_n_indices,
-												1,		  /* in_instance_count */
-												0,         /* in_first_index    */
-												0,         /* in_vertex_offset  */
-												0);        /* in_first_instance */
+			meshesOfScene_ptr->draw(0, cmd_buffer_ptr.get(), ds_ptr, m_device_ptr.get());
 
 			cmd_buffer_ptr->record_end_render_pass();
 		}
@@ -770,17 +702,18 @@ void Graphics::register_window_callback(Anvil::CallbackID in_callback_id, Anvil:
 }
 
 
-VkBool32 Graphics::on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-										  VkDebugReportObjectTypeEXT object_type,
-										  const char*                layer_prefix,
-										  const char*                message)
+void Graphics::on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
+								      const char*                      in_message_ptr)
 {
-	if ((message_flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) != 0)
+	if ((in_severity & Anvil::DebugMessageSeverityFlagBits::ERROR_BIT) != 0)
 	{
-		fprintf(stderr,
-			"[!] %s\n",
-			message);
+		printf("[!] %s\n",
+			   in_message_ptr);
 	}
+}
 
-	return false;
+std::string Graphics::GetFilePathExtension(const std::string &FileName) {
+	if (FileName.find_last_of(".") != std::string::npos)
+		return FileName.substr(FileName.find_last_of(".") + 1);
+	return "";
 }

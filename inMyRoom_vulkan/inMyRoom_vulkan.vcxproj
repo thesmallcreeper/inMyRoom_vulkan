@@ -20,9 +20,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\InputManager.cpp" />
+    <ClCompile Include="src\PrimitivesPipelines.cpp" />
+    <ClCompile Include="src\SceneMeshes.cpp" />
     <ClCompile Include="src\MovementBaseClass.cpp" />
     <ClCompile Include="src\NaiveCamera.cpp" />
-    <ClCompile Include="src\teapot_data.cpp" />
     <ClCompile Include="src\WindowWithAsyncInput.cpp" />
     <ClCompile Include="src\Engine.cpp" />
     <ClCompile Include="src\Graphics.cpp" />
@@ -30,9 +31,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Configuru\configuru.hpp" />
+    <ClInclude Include="include\glTFenum.h" />
+    <ClInclude Include="include\PrimitivesPipelines.h" />
+    <ClInclude Include="include\SceneMeshes.h" />
     <ClInclude Include="include\MovementBaseClass.h" />
     <ClInclude Include="include\NaiveCamera.h" />
-    <ClInclude Include="include\teapot_data.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\Graphics.h" />
@@ -108,14 +111,19 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\Configuru;..\Anvil\build\include;..\Anvil\include;..\inMyRoom_vulkan\include;..\inMyRoom_vulkan\Shaders;..\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Configuru;..\Anvil\build\include;..\Anvil\include;..\MathGeoLib\src;..\inMyRoom_vulkan\include;..\glm;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>..\Anvil\build;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>Debug\Anvil.lib;deps\glslang\SPIRV\Debug\SPIRVd.lib;deps\glslang\glslang\Debug\glslangd.lib;deps\glslang\hlsl\Debug\HLSLd.lib;deps\glslang\OGLCompilersDLL\Debug\OGLCompilerd.lib;deps\glslang\glslang\OSDependent\Windows\Debug\OSDependentd.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Debug\Anvil.lib;deps\glslang\SPIRV\Debug\SPIRVd.lib;deps\glslang\glslang\Debug\glslangd.lib;deps\glslang\OGLCompilersDLL\Debug\OGLCompilerd.lib;deps\glslang\glslang\OSDependent\Windows\Debug\OSDependentd.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
@@ -143,8 +151,13 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\Configuru;..\Anvil\build\include;..\Anvil\include;..\inMyRoom_vulkan\include;..\inMyRoom_vulkan\Shaders;..\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\Configuru;..\Anvil\build\include;..\Anvil\include;..\MathGeoLib\src;..\inMyRoom_vulkan\include;..\glm;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);NDEBUG;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -152,7 +165,7 @@
       <AdditionalLibraryDirectories>..\Anvil\build;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <AdditionalDependencies>Release\Anvil.lib;deps\glslang\SPIRV\Release\SPIRV.lib;deps\glslang\glslang\Release\glslang.lib;deps\glslang\hlsl\Release\HLSL.lib;deps\glslang\OGLCompilersDLL\Release\OGLCompiler.lib;deps\glslang\glslang\OSDependent\Windows\Release\OSDependent.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Release\Anvil.lib;deps\glslang\SPIRV\Release\SPIRV.lib;deps\glslang\glslang\Release\glslang.lib;deps\glslang\OGLCompilersDLL\Release\OGLCompiler.lib;deps\glslang\glslang\OSDependent\Windows\Release\OSDependent.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>

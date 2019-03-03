@@ -14,21 +14,21 @@ NaiveCamera::~NaiveCamera()
 
 std::pair<glm::vec3, glm::vec3> NaiveCamera::calculate_snap(const std::chrono::duration<float> durationOfCurrentState)
 {
-	glm::vec3 positionOffset(0.0f, 0.0f, 0.0f);
+	glm::vec3 positionDeltaVector(0.0f, 0.0f, 0.0f);
 
-	if (movementState.movingForward) positionOffset += lookingDirection;
-	if (movementState.movingBackward) positionOffset -= lookingDirection;
+	if (movementState.movingForward) positionDeltaVector += lookingDirection;
+	if (movementState.movingBackward) positionDeltaVector -= lookingDirection;
 
-	if (movementState.movingRight) positionOffset += glm::normalize(glm::cross(lookingDirection, upVector));
-	if (movementState.movingLeft) positionOffset -= glm::normalize(glm::cross(lookingDirection, upVector));
+	if (movementState.movingRight) positionDeltaVector += glm::normalize(glm::cross(lookingDirection, upVector));
+	if (movementState.movingLeft) positionDeltaVector -= glm::normalize(glm::cross(lookingDirection, upVector));
 
-	if (movementState.movingUp) positionOffset += upVector;
-	if (movementState.movingDown) positionOffset -= upVector;
+	if (movementState.movingUp) positionDeltaVector += upVector;
+	if (movementState.movingDown) positionDeltaVector -= upVector;
 
-	if (positionOffset.x != 0.0 || positionOffset.y != 0.0 || positionOffset.z != 0.0)
-		positionOffset = durationOfCurrentState.count() * cameraSpeed * glm::normalize(positionOffset);
+	if (positionDeltaVector.x != 0.0 || positionDeltaVector.y != 0.0 || positionDeltaVector.z != 0.0)
+		positionDeltaVector = durationOfCurrentState.count() * cameraSpeed * glm::normalize(positionDeltaVector);
 
 
 	// Pair first: position ,second: looking direction
-	return std::make_pair(position + positionOffset, lookingDirection);
+	return std::make_pair(position + positionDeltaVector, lookingDirection);
 }

@@ -32,7 +32,7 @@ void InputManager::init()
 			else
 				keyID = static_cast<Anvil::KeyID>(keyName[0]);
 
-			if(std::get<0>(bind.second) != nullptr)
+			if (std::get<0>(bind.second) != nullptr)
 				keyToFunction_onKeyPressed_umap.try_emplace(keyID, std::get<0>(bind.second));
 			if (std::get<1>(bind.second) != nullptr)
 				keyToFunction_onKeyReleased_umap.try_emplace(keyID, std::get<1>(bind.second));
