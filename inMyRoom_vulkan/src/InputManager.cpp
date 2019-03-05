@@ -76,7 +76,7 @@ void InputManager::mouseMoved(const long xOffset, const long yOffset)
 	std::lock_guard<std::mutex> lock(control_mutex);
 
 	float xRotation_rads = - xOffset * mouseSensitivity;
-	float yRotation_rads = yOffset * mouseSensitivity;
+	float yRotation_rads = - yOffset * mouseSensitivity;
 
     if (camera_ptr)
 	    camera_ptr->moveCamera(xRotation_rads, yRotation_rads);

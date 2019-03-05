@@ -48,10 +48,10 @@ public:
 				Anvil::DescriptorSetGroup* in_dsg_ptr, Anvil::RenderPass* in_renderpass_ptr, Anvil::SubPassID in_subpassID, Anvil::BaseDevice* in_device_ptr);
 	~SceneMeshes();
 
-	void draw(size_t in_mesh, Anvil::PrimaryCommandBuffer* in_command_buffer, Anvil::DescriptorSet* in_dsg_ptr, Anvil::BaseDevice* in_device_ptr);
+	void Draw(uint32_t in_mesh, uint32_t in_meshID, Anvil::PrimaryCommandBuffer* in_command_buffer, Anvil::DescriptorSet* in_dsg_ptr, Anvil::BaseDevice* in_device_ptr);
 
 private:
-	Anvil::BufferUniquePtr createBufferForBufferViewAndCopy(tinygltf::Model& in_model, tinygltf::BufferView& in_bufferview, Anvil::BufferUsageFlagBits in_bufferusageflag, Anvil::BaseDevice* in_device_ptr);
+	Anvil::BufferUniquePtr CreateBufferForBufferViewAndCopy(tinygltf::Model& in_model, tinygltf::BufferView& in_bufferview, Anvil::BufferUsageFlagBits in_bufferusageflag, Anvil::BaseDevice* in_device_ptr);
 
 	Anvil::MemoryAllocatorUniquePtr   allocator_ptr;
 

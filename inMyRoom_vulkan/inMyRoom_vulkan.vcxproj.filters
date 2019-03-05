@@ -51,6 +51,9 @@
     <ClCompile Include="src\SceneMeshes.cpp">
       <Filter>Source Files\SceneImport</Filter>
     </ClCompile>
+    <ClCompile Include="src\NodesTree.cpp">
+      <Filter>Source Files\SceneImport</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -83,12 +86,18 @@
     <ClInclude Include="include\glTFenum.h">
       <Filter>Header Files\Header-only</Filter>
     </ClInclude>
+    <ClInclude Include="..\tinygltf\tiny_gltf.h">
+      <Filter>Header Files\Header-only</Filter>
+    </ClInclude>
+    <ClInclude Include="include\NodesTree.h">
+      <Filter>Header Files\SceneImport</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\teapot_glsl.frag">
+    <None Include="shaders\generalMesh_glsl.frag">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="Shaders\teapot_glsl.vert">
+    <None Include="shaders\generalMesh_glsl.vert">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

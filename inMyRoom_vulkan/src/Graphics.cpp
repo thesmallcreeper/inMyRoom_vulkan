@@ -1,4 +1,4 @@
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORECE_DEPTH_ZERO_TO_ONE
 
 #include "Graphics.h"
 
@@ -59,7 +59,8 @@ void Graphics::init()
 	init_window_with_async_input_ptr();
 	init_swapchain();
 	
-	init_buffers();
+	init_camera_buffers();
+	init_scene_nodes();
 	init_dsgs();
 	init_images();
 	init_semaphores();
@@ -67,7 +68,7 @@ void Graphics::init()
 
 	init_framebuffers();
 	init_renderpasses();
-	init_scene();
+	init_scene_meshes();
 	init_command_buffers();
 }
 
@@ -91,6 +92,7 @@ void Graphics::deinit()
 	m_dsg_ptr.reset();
 	m_camera_buffer_ptr.reset();
 	meshesOfScene_ptr.reset();
+	treeOfNodes_ptr.reset();
 	m_perspective_buffer_ptr.reset();
 
 	m_swapchain_ptr.reset();
@@ -164,7 +166,6 @@ void Graphics::draw_frame()
 
 void Graphics::load_scene()
 {
-	float scale = cfgFile["sceneInput"]["scale"].as_float();
 	std::string path = cfgFile["sceneInput"]["path"].as_string();
 
 	tinygltf::TinyGLTF loader;
@@ -290,7 +291,7 @@ void Graphics::init_swapchain()
 }
 
 
-void Graphics::init_buffers()
+void Graphics::init_camera_buffers()
 {
 	Anvil::MemoryAllocatorUniquePtr   allocator_ptr;
 
@@ -334,12 +335,21 @@ void Graphics::init_buffers()
 
 	// Camera buffer is being updated every frame
 
-	glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(m_fov_deg), (float)window_with_async_input_ptr -> m_window_ptr ->get_width_at_creation_time() / (float)window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time(), 1.0f, 50.0f);
+	glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(m_fov_deg), (float)window_with_async_input_ptr->m_window_ptr->get_width_at_creation_time() / (float)window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time(), 1.0f, 50.0f) * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
+																																																																		  0.0f, -1.0f, 0.0f, 0.0f,
+																																																																		  0.0f, 0.0f, 1.0f, 0.0f,
+																																																																		  0.0f, 0.0f, 0.0f, 1.0f);
 
 	m_perspective_buffer_ptr->write(0,
 									sizeof(glm::mat4x4),
 								   &perspective_matrix);
 
+}
+
+void Graphics::init_scene_nodes()
+{
+	const tinygltf::Scene &scene = model.scenes[0];
+	treeOfNodes_ptr = std::make_unique<NodesTree>(model, scene, m_device_ptr.get());
 }
 
 void Graphics::init_dsgs()
@@ -361,6 +371,11 @@ void Graphics::init_dsgs()
 											1, /* in_n_elements */
 											Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
+	new_dsg_create_info_ptr[0]->add_binding(2, /* in_binding */
+											Anvil::DescriptorType::UNIFORM_BUFFER,
+											1, /* in_n_elements */
+											Anvil::ShaderStageFlagBits::VERTEX_BIT);
+
 
 	new_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
 													{ new_dsg_create_info_ptr },
@@ -373,6 +388,10 @@ void Graphics::init_dsgs()
 	new_dsg_ptr->set_binding_item(0, /* n_set         */
 								  1, /* binding_index */
 								  Anvil::DescriptorSet::UniformBufferBindingElement(m_camera_buffer_ptr.get()));
+
+	new_dsg_ptr->set_binding_item(0, /* n_set         */
+								  2, /* binding_index */
+								  Anvil::DescriptorSet::UniformBufferBindingElement(treeOfNodes_ptr->globalTRSmatrixesBuffer.get()));
 
 	m_dsg_ptr = std::move(new_dsg_ptr);
 }
@@ -453,13 +472,13 @@ void Graphics::init_shaders()
 {
 	Anvil::ShaderModuleUniquePtr				fs_module_ptr;
 	Anvil::GLSLShaderToSPIRVGeneratorUniquePtr	fs_ptr;
-	std::ifstream frag_shader_source_file		("Shaders/teapot_glsl.frag");
+	std::ifstream frag_shader_source_file		("Shaders/generalMesh_glsl.frag");
 	std::string frag_shader_source_string		((std::istreambuf_iterator<char>(frag_shader_source_file)),
 												 (std::istreambuf_iterator<char>()));
 
 	Anvil::ShaderModuleUniquePtr				vs_module_ptr;
 	Anvil::GLSLShaderToSPIRVGeneratorUniquePtr	vs_ptr;
-	std::ifstream vert_shader_source_file		("Shaders/teapot_glsl.vert");
+	std::ifstream vert_shader_source_file		("Shaders/generalMesh_glsl.vert");
 	std::string vert_shader_source_string		((std::istreambuf_iterator<char>(vert_shader_source_file)),
 												 (std::istreambuf_iterator<char>()));
 
@@ -471,6 +490,9 @@ void Graphics::init_shaders()
 													   Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
 													   vert_shader_source_string.c_str(),
 													   Anvil::ShaderStage::VERTEX);
+
+	vs_ptr->add_definition_value_pair("N_MESHIDS",
+									   treeOfNodes_ptr->globalTRSmatrixesCount);
 
 	fs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr.get(),
 																	 fs_ptr.get());
@@ -505,10 +527,8 @@ void Graphics::init_framebuffers()
 																		window_with_async_input_ptr -> m_window_ptr -> get_height_at_creation_time(),
 																		1); /* n_layers */
 
-			{
-				create_info_ptr->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
-												nullptr);
-			}
+			create_info_ptr->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
+											nullptr);
 
 			create_info_ptr->add_attachment(m_depth_image_view_ptr.get(),
 											nullptr);
@@ -546,7 +566,7 @@ void Graphics::init_renderpasses()
 		renderpass_create_info_ptr->add_depth_stencil_attachment(m_depth_image_ptr->get_create_info_ptr()->get_format(),
 																	Anvil::SampleCountFlagBits::_1_BIT,
 																	Anvil::AttachmentLoadOp::CLEAR,
-																	Anvil::AttachmentStoreOp::STORE,
+																	Anvil::AttachmentStoreOp::DONT_CARE,
 																	Anvil::AttachmentLoadOp::DONT_CARE,
 																	Anvil::AttachmentStoreOp::DONT_CARE,
 																	Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -572,7 +592,7 @@ void Graphics::init_renderpasses()
 		m_renderpass_ptr->set_name("Renderpass for swapchain images");
 }
 
-void Graphics::init_scene()
+void Graphics::init_scene_meshes()
 {
 	pipelinesOfPrimitives_ptr = std::make_unique<PrimitivesPipelines>(m_vs_ptr.get(), m_fs_ptr.get());
 	meshesOfScene_ptr = std::make_unique<SceneMeshes>(model, *pipelinesOfPrimitives_ptr,
@@ -671,7 +691,7 @@ void Graphics::init_command_buffers()
 													m_renderpass_ptr.get(),
 													Anvil::SubpassContents::INLINE);
 
-			meshesOfScene_ptr->draw(0, cmd_buffer_ptr.get(), ds_ptr, m_device_ptr.get());
+			treeOfNodes_ptr->Draw(*meshesOfScene_ptr, cmd_buffer_ptr.get(), m_dsg_ptr->get_descriptor_set(0), m_device_ptr.get());
 
 			cmd_buffer_ptr->record_end_render_pass();
 		}

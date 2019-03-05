@@ -110,7 +110,7 @@ Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineS
 	pipeline_create_info_ptr->set_primitive_topology(search->second);
 	pipeline_create_info_ptr->set_rasterization_properties(Anvil::PolygonMode::FILL,
 														   Anvil::CullModeFlagBits::BACK_BIT,
-														   Anvil::FrontFace::CLOCKWISE,
+														   Anvil::FrontFace::COUNTER_CLOCKWISE,
 														   4.0f); /* line_width */
 	pipeline_create_info_ptr->toggle_depth_test(true, /* should_enable */
 												Anvil::CompareOp::LESS);

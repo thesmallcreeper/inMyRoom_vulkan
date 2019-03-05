@@ -17,6 +17,7 @@
 
 #include "PrimitivesPipelines.h"
 #include "SceneMeshes.h"
+#include "NodesTree.h"
 
 class Graphics
 {
@@ -48,7 +49,8 @@ private:
 	void init_window_with_async_input_ptr();
 	void init_swapchain();
 
-	void init_buffers();
+	void init_camera_buffers();
+	void init_scene_nodes();
 	void init_dsgs();
 	void init_images();
 	void init_semaphores();
@@ -56,7 +58,7 @@ private:
 
 	void init_framebuffers();
 	void init_renderpasses();
-	void init_scene();
+	void init_scene_meshes();
 	void init_command_buffers();
 
 private:
@@ -65,6 +67,7 @@ private:
 
 	std::unique_ptr<PrimitivesPipelines> pipelinesOfPrimitives_ptr;
 	std::unique_ptr<SceneMeshes> meshesOfScene_ptr;
+	std::unique_ptr<NodesTree> treeOfNodes_ptr;
 
 	MovementBaseClass* camera;
 

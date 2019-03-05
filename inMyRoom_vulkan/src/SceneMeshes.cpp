@@ -22,18 +22,14 @@ SceneMeshes::SceneMeshes(tinygltf::Model& in_model, PrimitivesPipelines& in_pipe
 
 			{
 				tinygltf::Accessor& thisAccessor = in_model.accessors[thisPrimitive.indices];
-				Anvil::BufferUniquePtr bufferUniqueID = createBufferForBufferViewAndCopy(in_model, in_model.bufferViews[thisAccessor.bufferView], Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT, in_device_ptr);
+				Anvil::BufferUniquePtr bufferUniqueID = CreateBufferForBufferViewAndCopy(in_model, in_model.bufferViews[thisAccessor.bufferView], Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT, in_device_ptr);
+
+				thisPrimitiveInfo.indicesCount = static_cast<uint32_t>(thisAccessor.count);
 
 				if (thisAccessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short))
-				{
 					thisPrimitiveInfo.indexBufferType = Anvil::IndexType::UINT16;
-					thisPrimitiveInfo.indicesCount = static_cast<uint32_t>(in_model.bufferViews[thisAccessor.bufferView].byteLength / sizeof(uint16_t));
-				}
 				else if (thisAccessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_int))
-				{
 					thisPrimitiveInfo.indexBufferType = Anvil::IndexType::UINT32;
-					thisPrimitiveInfo.indicesCount = static_cast<uint32_t>(in_model.bufferViews[thisAccessor.bufferView].byteLength / sizeof(uint32_t));
-				}
 				else
 					assert(0);
 
@@ -50,7 +46,7 @@ SceneMeshes::SceneMeshes(tinygltf::Model& in_model, PrimitivesPipelines& in_pipe
 			{
 				int thisPositionAttribute = searchPositionAttribute->second;
 				tinygltf::Accessor& thisAccessor = in_model.accessors[thisPositionAttribute];
-				Anvil::BufferUniquePtr bufferUniqueID = createBufferForBufferViewAndCopy(in_model, in_model.bufferViews[thisAccessor.bufferView], Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, in_device_ptr);
+				Anvil::BufferUniquePtr bufferUniqueID = CreateBufferForBufferViewAndCopy(in_model, in_model.bufferViews[thisAccessor.bufferView], Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, in_device_ptr);
 
 				if (thisAccessor.componentType != static_cast<int>(glTFcomponentType::type_float))
 					assert(0);
@@ -86,7 +82,7 @@ SceneMeshes::~SceneMeshes()
 	textcoord0Buffers.clear();
 }
 
-void SceneMeshes::draw(size_t in_mesh, Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr, Anvil::DescriptorSet* in_dsg_ptr, Anvil::BaseDevice* in_device_ptr)
+void SceneMeshes::Draw(uint32_t in_mesh, uint32_t in_meshID, Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr, Anvil::DescriptorSet* in_dsg_ptr, Anvil::BaseDevice* in_device_ptr)
 {
 	const MeshRange& thisMeshRange = meshes.at(in_mesh);
 	auto gfx_manager_ptr(in_device_ptr->get_graphics_pipeline_manager());
@@ -115,7 +111,7 @@ void SceneMeshes::draw(size_t in_mesh, Anvil::PrimaryCommandBuffer* in_cmd_buffe
 		};
 		VkDeviceSize vertex_buffer_offsets[] =
 		{
-			thisPrimitive.BufferOffsets.positionBufferOffset
+					thisPrimitive.BufferOffsets.positionBufferOffset
 		};
 		const uint32_t n_vertex_buffers = sizeof(vertex_buffers) / sizeof(vertex_buffers[0]);
 
@@ -125,14 +121,14 @@ void SceneMeshes::draw(size_t in_mesh, Anvil::PrimaryCommandBuffer* in_cmd_buffe
 												      vertex_buffer_offsets);
 
 		in_cmd_buffer_ptr->record_draw_indexed(thisPrimitive.indicesCount,
-											   1,		  /* in_instance_count */
-											   0,         /* in_first_index    */
-											   0,         /* in_vertex_offset  */
-											   0);        /* in_first_instance */
+											   1,				  /* in_instance_count */
+											   0,				  /* in_first_index    */
+											   0,				  /* in_vertex_offset  */
+											   in_meshID);        /* in_first_instance_ID */
 	}
 }
 
-Anvil::BufferUniquePtr SceneMeshes::createBufferForBufferViewAndCopy(tinygltf::Model& in_model, tinygltf::BufferView& in_bufferview, Anvil::BufferUsageFlagBits in_bufferusageflag, Anvil::BaseDevice* in_device_ptr)
+Anvil::BufferUniquePtr SceneMeshes::CreateBufferForBufferViewAndCopy(tinygltf::Model& in_model, tinygltf::BufferView& in_bufferview, Anvil::BufferUsageFlagBits in_bufferusageflag, Anvil::BaseDevice* in_device_ptr)
 {
 	auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(in_device_ptr,
 																	in_bufferview.byteLength,

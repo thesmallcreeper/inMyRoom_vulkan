@@ -45,7 +45,7 @@ void Engine::init()
 												     std::placeholders::_1),
 									       this );
 
-	camera_ptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float(), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(-5.0f, 0.0f, 0.0f));
+	camera_ptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float(), glm::vec3(0.0f, 0.0f, +1.0f), glm::vec3(0.0f, -10.0f, -20.0f));
 
 	inputManager.bindCameraFreezeOldUnfreezeNew(camera_ptr.get());
 	graphics_ptr->bind_camera(camera_ptr.get());

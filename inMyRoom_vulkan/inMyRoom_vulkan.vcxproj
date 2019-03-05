@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\InputManager.cpp" />
+    <ClCompile Include="src\NodesTree.cpp" />
     <ClCompile Include="src\PrimitivesPipelines.cpp" />
     <ClCompile Include="src\SceneMeshes.cpp" />
     <ClCompile Include="src\MovementBaseClass.cpp" />
@@ -31,7 +32,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Configuru\configuru.hpp" />
+    <ClInclude Include="..\tinygltf\tiny_gltf.h" />
     <ClInclude Include="include\glTFenum.h" />
+    <ClInclude Include="include\NodesTree.h" />
     <ClInclude Include="include\PrimitivesPipelines.h" />
     <ClInclude Include="include\SceneMeshes.h" />
     <ClInclude Include="include\MovementBaseClass.h" />
@@ -42,8 +45,8 @@
     <ClInclude Include="include\InputManager.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\teapot_glsl.frag" />
-    <None Include="Shaders\teapot_glsl.vert" />
+    <None Include="shaders\generalMesh_glsl.frag" />
+    <None Include="shaders\generalMesh_glsl.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
