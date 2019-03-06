@@ -28,7 +28,7 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  
  ## Windows using CLion with Microsoft Compiler
  
- * Launch CLion, load `inMyRoom_vulkan/CMakeLists.txt` and compiler
+ * Launch CLion, load `inMyRoom_vulkan/CMakeLists.txt` and compile.
  
  ## Linux using CLion with Clang or GCC 7.0
  
