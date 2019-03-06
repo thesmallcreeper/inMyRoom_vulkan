@@ -472,13 +472,13 @@ void Graphics::init_shaders()
 {
 	Anvil::ShaderModuleUniquePtr				fs_module_ptr;
 	Anvil::GLSLShaderToSPIRVGeneratorUniquePtr	fs_ptr;
-	std::ifstream frag_shader_source_file		("Shaders/generalMesh_glsl.frag");
+	std::ifstream frag_shader_source_file		("shaders/generalMesh_glsl.frag");
 	std::string frag_shader_source_string		((std::istreambuf_iterator<char>(frag_shader_source_file)),
 												 (std::istreambuf_iterator<char>()));
 
 	Anvil::ShaderModuleUniquePtr				vs_module_ptr;
 	Anvil::GLSLShaderToSPIRVGeneratorUniquePtr	vs_ptr;
-	std::ifstream vert_shader_source_file		("Shaders/generalMesh_glsl.vert");
+	std::ifstream vert_shader_source_file		("shaders/generalMesh_glsl.vert");
 	std::string vert_shader_source_string		((std::istreambuf_iterator<char>(vert_shader_source_file)),
 												 (std::istreambuf_iterator<char>()));
 
