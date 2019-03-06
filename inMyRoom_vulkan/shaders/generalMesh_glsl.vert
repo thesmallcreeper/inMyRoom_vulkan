@@ -12,7 +12,7 @@ layout( set = 0 , binding = 1 ) uniform UniformBuffer1
 	mat4 CameraMatrix;
 };
 
-layout( set = 0 , binding = 2 ) uniform UniformBuffer2
+layout(std140, set = 0 , binding = 2) restrict readonly buffer StorageBuffer0
 {
 	mat4 GlobalTRSMatrixes[N_MESHIDS];
 };

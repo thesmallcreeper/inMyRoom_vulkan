@@ -372,7 +372,7 @@ void Graphics::init_dsgs()
 											Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
 	new_dsg_create_info_ptr[0]->add_binding(2, /* in_binding */
-											Anvil::DescriptorType::UNIFORM_BUFFER,
+											Anvil::DescriptorType::STORAGE_BUFFER,
 											1, /* in_n_elements */
 											Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
@@ -391,7 +391,7 @@ void Graphics::init_dsgs()
 
 	new_dsg_ptr->set_binding_item(0, /* n_set         */
 								  2, /* binding_index */
-								  Anvil::DescriptorSet::UniformBufferBindingElement(treeOfNodes_ptr->globalTRSmatrixesBuffer.get()));
+								  Anvil::DescriptorSet::StorageBufferBindingElement(treeOfNodes_ptr->globalTRSmatrixesBuffer.get()));
 
 	m_dsg_ptr = std::move(new_dsg_ptr);
 }

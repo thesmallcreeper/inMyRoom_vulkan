@@ -108,7 +108,7 @@ Anvil::BufferUniquePtr NodesTree::CreateBufferForTRSmatrixesAndCopy(const std::v
 																	Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
 																	Anvil::SharingMode::EXCLUSIVE,
 																	Anvil::BufferCreateFlagBits::NONE,
-																	Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
+																	Anvil::BufferUsageFlagBits::STORAGE_BUFFER_BIT);
 
 	Anvil::BufferUniquePtr buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr));
 
