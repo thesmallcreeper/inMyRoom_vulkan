@@ -24,7 +24,7 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  * Run `buildForVS2017.bat` script. This will generate project files for Anvil and MathGeoLib using CMake.
  * Launch solution by openning `inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile.
  
- (Well... you can go with CMake way, but due to my luck of CMake knowledge VS solution is better ;) )
+ (Well... you can go with CMake way, but due to my lack of CMake knowledge VS solution is better ;) )
  
  ## Windows using CLion with Microsoft Compiler
  
