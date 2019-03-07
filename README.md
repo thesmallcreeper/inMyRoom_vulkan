@@ -13,7 +13,7 @@ Feel free to share you opinion on anything, ask, file bugs or suggest enhancemen
 
 # Installation (Compiling)
 
-  First of all, you need a Vulkan-ready graphics driver, a modern C++ compiler, CMake, Vulkan SDK installed and environment variable `VULKAN_SDK_PATH` (Windows),  `VULKAN_SDK` (Linux) pointing to the installation path of SDK.
+  First of all, you need a Vulkan-ready graphics driver, a modern C++ compiler, CMake, Git, Vulkan SDK installed and environment variable `VULKAN_SDK_PATH` (Windows),  `VULKAN_SDK` (Linux) pointing to the installation path of SDK.
   
   Also download all the repo and submodules by running the following command.
   ```
