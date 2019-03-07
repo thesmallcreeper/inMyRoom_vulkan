@@ -22,23 +22,51 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  ## Windows using Visual Studio 2017
  
  * Run `buildForVS2017.bat` script. This will generate project files for Anvil and MathGeoLib using CMake.
- * Launch solution by openning `inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile.
+ * Launch solution by opening `/inMyRoom_vulkan/inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile.
+ * Note: To run application successfully `/inMyRoom_vulkan/inMyRoom_vulkan/` should be your working folder.
  
  (Well... you can go with CMake way, but due to my lack of CMake knowledge VS solution is better ;) )
  
- ## Windows using CLion with Microsoft Compiler
+ ## Linux using CMake with Clang or GCC 7.0
  
- * Launch CLion, load `inMyRoom_vulkan/CMakeLists.txt` and compile.
- 
- ## Linux using CLion with Clang or GCC 7.0
- 
- * For window creation and I/O handling XCB is used. Soo... you need these two packages (Ubuntu enviroment)
+ * For window creation and I/O handling XCB is used. So for Ubuntu environment you need these packages:
  ```
- libxcb-xkb-dev
- libxcb-keysyms1-dev
+ $ apt-get install libxcb-xkb-dev
+ $ apt-get install libxcb-keysyms1-dev
  ```
- * Also you need Clang or GCC 7.0+ setup as your CLion compiler (GCC 8.0+ cannot compile Anvil because it is more restict with using memset/memcpy).
- * Launch CLion ,load `inMyRoom_vulkan/CMakeLists.txt` and compile.
+ and for Arch Linux this one:
+ ```
+ $ pacman -S xcb-util
+ ```
+ * Also you need Clang/Clang++ or GCC/G++ 7 installed (GCC/G++ 8 cannot compile Anvil because it is more restict with using memset/memcpy).
+ * Open terminal with `/inMyRoom_vulkan/inMyRoom_vulkan/` as your working folder and pick up your favorite compiler.
+ 
+ If you want to use Clang/Clang++ type:
+ ```
+ $ export CC=/usr/bin/clang
+ $ export CXX=/usr/bin/clang++
+ ```
+ If you want to use GCC/G++ 7 instead type:
+ ```
+ $ export CC=/usr/bin/gcc-7
+ $ export CXX=/usr/bin/g++-7
+ ```
+ * Create makefile by typing:
+ ```
+ $ cmake -G 'Unix Makefiles'
+ ```
+ * Compile by typing
+ ```
+ $ make
+ ```
+ * Launch application by typing
+ ```
+ $ ./inMyRoom_vulkan
+ ```
+ 
+  ## Using CLion (Linux/Windows)
+ 
+ * If you have environment setup accordingly, launch CLion, load `/inMyRoom_vulkan/inMyRoom_vulkan/CMakeLists.txt` and compile.
  
  gg ez :D (Actually.. I hope so :P )
  
