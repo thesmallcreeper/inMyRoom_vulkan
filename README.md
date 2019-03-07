@@ -29,7 +29,9 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  
  ## Linux using CMake with Clang or GCC 7.0
  
- * For window creation and I/O handling XCB is used. So for Ubuntu environment you need these packages:
+ * For window creation and I/O handling XCB is used.
+ 
+ So for Ubuntu environment you need these packages:
  ```
  $ apt-get install libxcb-xkb-dev
  $ apt-get install libxcb-keysyms1-dev
