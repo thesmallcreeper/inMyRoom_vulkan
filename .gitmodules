@@ -9,7 +9,7 @@
 	url = https://github.com/thesmallcreeper/Configuru
 [submodule "tinygltf"]
 	path = tinygltf
-	url = git@github.com:thesmallcreeper/tinygltf
+	url = https://github.com/thesmallcreeper/tinygltf
 [submodule "MathGeoLib"]
 	path = MathGeoLib
-	url = git@github.com:thesmallcreeper/MathGeoLib
+	url = https://github.com/thesmallcreeper/MathGeoLib
