@@ -25,7 +25,7 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  * Launch solution by opening `/inMyRoom_vulkan/inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile.
  * Note: To run application successfully `/inMyRoom_vulkan/inMyRoom_vulkan/` should be your working folder.
  
- (Well... you can go with CMake way, but due to my lack of CMake knowledge VS solution is better ;) )
+ (Well... you can go with CMake way, but due to my lack of CMake knowledge this solution is better ;) )
  
  ## Linux using CMake with Clang or GCC 7.0
  
@@ -40,7 +40,7 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  ```
  $ pacman -S xcb-util
  ```
- * Also you need Clang/Clang++ or GCC/G++ 7 installed (GCC/G++ 8 cannot compile Anvil because it is more restict with using memset/memcpy).
+ * Also you need Clang/Clang++ or GCC/G++ 7 installed (__GCC/G++ 8 cannot compile__ Anvil because it is more restict with using memset/memcpy).
  * Open terminal with `/inMyRoom_vulkan/inMyRoom_vulkan/` as your working folder and pick up your favorite compiler.
  
  If you want to use Clang/Clang++ type:
