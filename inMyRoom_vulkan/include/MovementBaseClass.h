@@ -15,7 +15,7 @@ class MovementBaseClass
 {
 public:
 	MovementBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up);
-	~MovementBaseClass();
+	virtual ~MovementBaseClass();
 
 	void freeze();
 	void unfreeze();

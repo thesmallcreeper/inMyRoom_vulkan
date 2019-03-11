@@ -9,7 +9,7 @@ NaiveCamera::NaiveCamera(float in_cameraSpeed, glm::vec3 in_lookingDirection, gl
 
 NaiveCamera::~NaiveCamera()
 {
-
+    MovementBaseClass::~MovementBaseClass();
 }
 
 std::pair<glm::vec3, glm::vec3> NaiveCamera::calculate_snap(const std::chrono::duration<float> durationOfCurrentState)
