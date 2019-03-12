@@ -14,56 +14,56 @@
 class MovementBaseClass
 {
 public:
-	MovementBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up);
-	virtual ~MovementBaseClass();
+    MovementBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up);
+    virtual ~MovementBaseClass();
 
-	void freeze();
-	void unfreeze();
+    void freeze();
+    void unfreeze();
 
-	void moveCamera(float xRotation_rads, float yRotation_rads);
+    void moveCamera(float xRotation_rads, float yRotation_rads);
 
-	void moveForward();
-	void moveBackward();
-	void moveRight();
-	void moveLeft();
-	void moveUp();
-	void moveDown();
+    void moveForward();
+    void moveBackward();
+    void moveRight();
+    void moveLeft();
+    void moveUp();
+    void moveDown();
 
-	void stopMovingForward();
-	void stopMovingBackward();
-	void stopMovingRight();
-	void stopMovingLeft();
-	void stopMovingUp();
-	void stopMovingDown();
+    void stopMovingForward();
+    void stopMovingBackward();
+    void stopMovingRight();
+    void stopMovingLeft();
+    void stopMovingUp();
+    void stopMovingDown();
 
-	glm::mat4x4 getLookAtMatrix();
+    glm::mat4x4 getLookAtMatrix();
 
 private:
 
-	virtual std::pair<glm::vec3, glm::vec3> calculate_snap(const std::chrono::duration<float> durationOfCurrentState) = 0;
+    virtual std::pair<glm::vec3, glm::vec3> calculate_snap(const std::chrono::duration<float> durationOfCurrentState) = 0;
 
 protected:
 
-	struct
-	{
-		bool movingForward;
-		bool movingBackward;
-		bool movingRight;
-		bool movingLeft;
-		bool movingUp;
-		bool movingDown;
-	} movementState;
+    struct
+    {
+        bool movingForward;
+        bool movingBackward;
+        bool movingRight;
+        bool movingLeft;
+        bool movingUp;
+        bool movingDown;
+    } movementState;
 
-	glm::vec3 position;
-	glm::vec3 lookingDirection;
+    glm::vec3 position;
+    glm::vec3 lookingDirection;
 
-	glm::vec3 upVector;
+    glm::vec3 upVector;
 
 private:
 
-	std::chrono::steady_clock::time_point last_snap_timePoint;
+    std::chrono::steady_clock::time_point last_snap_timePoint;
 
-	volatile bool freezed = true;
-	std::mutex control_mutex;
-	
+    volatile bool freezed = true;
+    std::mutex control_mutex;
+
 };

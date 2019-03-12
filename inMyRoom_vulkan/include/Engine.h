@@ -12,27 +12,27 @@
 class Engine
 {
 public:
-	Engine(configuru::Config& in_cfgFile);
-	~Engine();
+    Engine(configuru::Config& in_cfgFile);
+    ~Engine();
 
-	void init();
-	void run();
+    void init();
+    void run();
 
 private:
-	configuru::Config& cfgFile;
+    configuru::Config& cfgFile;
 
-	void deinit();
+    void deinit();
 
-	void callbackFunction_on_close_event(Anvil::CallbackArgument*			in_callback_data_raw_ptr);
-	void callbackFunction_on_keypress_was_up(Anvil::CallbackArgument*   in_callback_data_raw_ptr);
-	void callbackFunction_on_keypress_released(Anvil::CallbackArgument*		in_callback_data_raw_ptr);
-	void callbackFunction_on_mouse_movement(Anvil::CallbackArgument*   in_callback_data_raw_ptr);
+    void callbackFunction_on_close_event(Anvil::CallbackArgument*			in_callback_data_raw_ptr);
+    void callbackFunction_on_keypress_was_up(Anvil::CallbackArgument*   in_callback_data_raw_ptr);
+    void callbackFunction_on_keypress_released(Anvil::CallbackArgument*		in_callback_data_raw_ptr);
+    void callbackFunction_on_mouse_movement(Anvil::CallbackArgument*   in_callback_data_raw_ptr);
 
 
-	std::unique_ptr<Graphics> graphics_ptr;
-	std::unique_ptr<MovementBaseClass> camera_ptr;
+    std::unique_ptr<Graphics> graphics_ptr;
+    std::unique_ptr<MovementBaseClass> camera_ptr;
 
-	InputManager inputManager;
+    InputManager inputManager;
 
-	volatile bool breakMainLoop;
+    volatile bool breakMainLoop;
 };

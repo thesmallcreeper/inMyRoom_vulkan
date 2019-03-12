@@ -15,7 +15,7 @@ enum class glTFcomponentType
 	type_unsigned_byte = 5121,
 	type_short = 5122,
 	type_unsigned_short = 5123,
-	type_int = 5124,
+    type_int = 5124,
 	type_unsigned_int = 5125,
 	type_float = 5126,
 	type_double = 5130

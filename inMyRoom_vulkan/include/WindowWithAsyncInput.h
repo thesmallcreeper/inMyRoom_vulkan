@@ -8,9 +8,9 @@
 #include "misc/window_factory.h"
 
 #ifdef _WIN32
-	typedef DWORD THREADID_T;
+    typedef DWORD THREADID_T;
 #else
-	typedef pthread_t THREADID_T;
+    typedef pthread_t THREADID_T;
 #endif
 
 class WindowWithAsyncInput;
@@ -20,21 +20,21 @@ typedef std::unique_ptr<WindowWithAsyncInput, std::function<void(WindowWithAsync
 class WindowWithAsyncInput
 {
 public:
-	WindowWithAsyncInput(const Anvil::WindowPlatform	platform,
-						 const std::string&             in_title,
-						 unsigned int                   in_width,
-						 unsigned int                   in_height,
-						 bool                           in_closable);
-	~WindowWithAsyncInput();
+    WindowWithAsyncInput(const Anvil::WindowPlatform	platform,
+                         const std::string&             in_title,
+                         unsigned int                   in_width,
+                         unsigned int                   in_height,
+                         bool                           in_closable);
+    ~WindowWithAsyncInput();
 
-	Anvil::WindowUniquePtr m_window_ptr;
+    Anvil::WindowUniquePtr m_window_ptr;
 
 private:
 
-	std::unique_ptr<std::thread> window_thread_ptr;
+    std::unique_ptr<std::thread> window_thread_ptr;
 
-	THREADID_T threadID;
+    THREADID_T threadID;
 
-	volatile bool should_thread_close;
+    volatile bool should_thread_close;
 };
 

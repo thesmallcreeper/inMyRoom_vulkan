@@ -22,89 +22,89 @@
 class Graphics
 {
 public:
-	Graphics(configuru::Config& in_cfgFile);
-	~Graphics();
+    Graphics(configuru::Config& in_cfgFile);
+    ~Graphics();
 
-	void init				();
+    void init				();
 
-	void unregister_window_callback(Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr);
-	void register_window_callback  (Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr);
+    void unregister_window_callback(Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr);
+    void register_window_callback  (Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr);
 
-	void bind_camera		(MovementBaseClass* in_camera);
+    void bind_camera		(MovementBaseClass* in_camera);
 
-	void draw_frame			();
+    void draw_frame			();
 
-
-private:
-	void on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
-								const char*                      in_message_ptr);
-
-	std::string GetFilePathExtension(const std::string &FileName);
-
-	void deinit		();
-
-	void load_scene();
-
-	void init_vulkan();
-	void init_window_with_async_input_ptr();
-	void init_swapchain();
-
-	void init_camera_buffers();
-	void init_scene_nodes();
-	void init_dsgs();
-	void init_images();
-	void init_semaphores();
-	void init_shaders();
-
-	void init_framebuffers();
-	void init_renderpasses();
-	void init_scene_meshes();
-	void init_command_buffers();
 
 private:
-	configuru::Config& cfgFile;
-	tinygltf::Model model;
+    void on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
+                                const char*                      in_message_ptr);
 
-	std::unique_ptr<PrimitivesPipelines> pipelinesOfPrimitives_ptr;
-	std::unique_ptr<SceneMeshes> meshesOfScene_ptr;
-	std::unique_ptr<NodesTree> treeOfNodes_ptr;
+    std::string GetFilePathExtension(const std::string &FileName);
 
-	MovementBaseClass* camera;
+    void deinit		();
 
-	const float						 m_fov_deg;
+    void load_scene();
 
-	const unsigned int				 m_n_swapchain_images;
+    void init_vulkan();
+    void init_window_with_async_input_ptr();
+    void init_swapchain();
 
-	Anvil::Queue*                    m_present_queue_ptr;
+    void init_camera_buffers();
+    void init_scene_nodes();
+    void init_dsgs();
+    void init_images();
+    void init_semaphores();
+    void init_shaders();
 
-	Anvil::BaseDeviceUniquePtr		 m_device_ptr;
-	Anvil::InstanceUniquePtr		 m_instance_ptr;
+    void init_framebuffers();
+    void init_renderpasses();
+    void init_scene_meshes();
+    void init_command_buffers();
 
-	WindowWithAsyncInputUniquePtr	 window_with_async_input_ptr;
+private:
+    configuru::Config& cfgFile;
+    tinygltf::Model model;
 
-	Anvil::SwapchainUniquePtr		 m_swapchain_ptr;
-	Anvil::RenderingSurfaceUniquePtr m_rendering_surface_ptr;
+    std::unique_ptr<PrimitivesPipelines> pipelinesOfPrimitives_ptr;
+    std::unique_ptr<SceneMeshes> meshesOfScene_ptr;
+    std::unique_ptr<NodesTree> treeOfNodes_ptr;
 
-	Anvil::BufferUniquePtr			m_camera_buffer_ptr;
-	Anvil::BufferUniquePtr			m_perspective_buffer_ptr;
+    MovementBaseClass* camera;
 
-	Anvil::DescriptorSetGroupUniquePtr	m_dsg_ptr;
+    const float						 m_fov_deg;
 
-	Anvil::ImageUniquePtr           m_depth_image_ptr;
-	Anvil::ImageViewUniquePtr       m_depth_image_view_ptr;
+    const unsigned int				 m_n_swapchain_images;
 
-	std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
-	std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
+    Anvil::Queue*                    m_present_queue_ptr;
 
-	std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
-	std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
+    Anvil::BaseDeviceUniquePtr		 m_device_ptr;
+    Anvil::InstanceUniquePtr		 m_instance_ptr;
 
-	std::vector<Anvil::FramebufferUniquePtr>        m_framebuffers;
+    WindowWithAsyncInputUniquePtr	 window_with_async_input_ptr;
 
-	Anvil::RenderPassUniquePtr						m_renderpass_ptr;
+    Anvil::SwapchainUniquePtr		 m_swapchain_ptr;
+    Anvil::RenderingSurfaceUniquePtr m_rendering_surface_ptr;
 
-	std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_cmd_buffers;
-	uint32_t						 m_n_last_semaphore_used;
+    Anvil::BufferUniquePtr			m_camera_buffer_ptr;
+    Anvil::BufferUniquePtr			m_perspective_buffer_ptr;
 
-	Anvil::SubPassID              m_subpass_id;
+    Anvil::DescriptorSetGroupUniquePtr	m_dsg_ptr;
+
+    Anvil::ImageUniquePtr           m_depth_image_ptr;
+    Anvil::ImageViewUniquePtr       m_depth_image_view_ptr;
+
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
+
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
+
+    std::vector<Anvil::FramebufferUniquePtr>        m_framebuffers;
+
+    Anvil::RenderPassUniquePtr						m_renderpass_ptr;
+
+    std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_cmd_buffers;
+    uint32_t						 m_n_last_semaphore_used;
+
+    Anvil::SubPassID              m_subpass_id;
 };

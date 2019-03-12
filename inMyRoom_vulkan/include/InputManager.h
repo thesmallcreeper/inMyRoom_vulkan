@@ -12,81 +12,81 @@
 
 enum eventInputID
 {
-	/*Quit key bind*/
-	SHOULD_CLOSE
+    /*Quit key bind*/
+    SHOULD_CLOSE
 };
 
 class InputManager
 {
 public:
-	InputManager(configuru::Config& in_cfgFile);
-	~InputManager();
+    InputManager(configuru::Config& in_cfgFile);
+    ~InputManager();
 
-	void init();
+    void init();
 
-	std::vector<eventInputID> grabAndResetEventVector();
+    std::vector<eventInputID> grabAndResetEventVector();
 
-	void bindCameraFreezeOldUnfreezeNew(MovementBaseClass* in_camera_ptr);
+    void bindCameraFreezeOldUnfreezeNew(MovementBaseClass* in_camera_ptr);
 
-	void keyPressed(const Anvil::KeyID in_key);
-	void keyReleased(const Anvil::KeyID in_key);
+    void keyPressed(const Anvil::KeyID in_key);
+    void keyReleased(const Anvil::KeyID in_key);
 
-	void mouseMoved(const long xOffset, const long yOffset);
-
-private:
-	configuru::Config& cfgFile;
-
-	void moveForward();
-	void moveBackward();
-	void moveRight();
-	void moveLeft();
-	void moveUp();
-	void moveDown();
-
-	void stopMovingForward();
-	void stopMovingBackward();
-	void stopMovingRight();
-	void stopMovingLeft();
-	void stopMovingUp();
-	void stopMovingDown();
-
-	void shouldClose();
-
-	void addToQueue(eventInputID event);
-
-	bool ForwardKeyIsPressed = false;
-	bool BackwardKeyIsPressed = false;
-	bool RightKeyIsPressed = false;
-	bool LeftKeyIsPressed = false;
-	bool UpKeyIsPressed = false;
-	bool DownKeyIsPressed = false;
+    void mouseMoved(const long xOffset, const long yOffset);
 
 private:
-	
-	float mouseSensitivity;
+    configuru::Config& cfgFile;
 
-	std::map<std::string, std::pair<std::function<void()>, std::function<void()>>> functionNameToFunction_map =
-	{
-		{"MoveForward",std::make_pair(std::bind(&InputManager::moveForward, this), std::bind(&InputManager::stopMovingForward, this))},
-		{"MoveBackward",std::make_pair(std::bind(&InputManager::moveBackward, this), std::bind(&InputManager::stopMovingBackward, this))},
-		{"MoveLeft",std::make_pair(std::bind(&InputManager::moveLeft, this), std::bind(&InputManager::stopMovingLeft, this))},
-		{"MoveRight",std::make_pair(std::bind(&InputManager::moveRight, this), std::bind(&InputManager::stopMovingRight, this))},
-		{"Exit",std::make_pair(std::bind(&InputManager::shouldClose, this), nullptr)}
-	};
+    void moveForward();
+    void moveBackward();
+    void moveRight();
+    void moveLeft();
+    void moveUp();
+    void moveDown();
 
-	std::unordered_map<std::string, Anvil::KeyID> buttomAliasToKey_umap = 
-	{
-		{"SPACE", Anvil::KEY_ID_SPACE}, {"ESCAPE", Anvil::KEY_ID_ESCAPE}, {"LEFT_MOUSE", Anvil::KEY_ID_LBUTTON}, {"MIDDLE_MOUSE", Anvil::KEY_ID_MBUTTON},
-		{"RIGHT_MOUSE", Anvil::KEY_ID_RBUTTON}, {"UP", Anvil::KEY_ID_UP}, {"DOWN", Anvil::KEY_ID_DOWN}, {"LEFT", Anvil::KEY_ID_LEFT},
-		{"RIGHT", Anvil::KEY_ID_RIGHT}
-	};
+    void stopMovingForward();
+    void stopMovingBackward();
+    void stopMovingRight();
+    void stopMovingLeft();
+    void stopMovingUp();
+    void stopMovingDown();
 
-	std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyPressed_umap;
-	std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyReleased_umap;
+    void shouldClose();
 
-	MovementBaseClass* volatile camera_ptr = nullptr;
+    void addToQueue(eventInputID event);
 
-	std::vector<eventInputID> eventVector;
+    bool ForwardKeyIsPressed = false;
+    bool BackwardKeyIsPressed = false;
+    bool RightKeyIsPressed = false;
+    bool LeftKeyIsPressed = false;
+    bool UpKeyIsPressed = false;
+    bool DownKeyIsPressed = false;
 
-	std::mutex control_mutex;
+private:
+
+    float mouseSensitivity;
+
+    std::map<std::string, std::pair<std::function<void()>, std::function<void()>>> functionNameToFunction_map =
+    {
+        {"MoveForward",std::make_pair(std::bind(&InputManager::moveForward, this), std::bind(&InputManager::stopMovingForward, this))},
+        {"MoveBackward",std::make_pair(std::bind(&InputManager::moveBackward, this), std::bind(&InputManager::stopMovingBackward, this))},
+        {"MoveLeft",std::make_pair(std::bind(&InputManager::moveLeft, this), std::bind(&InputManager::stopMovingLeft, this))},
+        {"MoveRight",std::make_pair(std::bind(&InputManager::moveRight, this), std::bind(&InputManager::stopMovingRight, this))},
+        {"Exit",std::make_pair(std::bind(&InputManager::shouldClose, this), nullptr)}
+    };
+
+    std::unordered_map<std::string, Anvil::KeyID> buttomAliasToKey_umap =
+    {
+        {"SPACE", Anvil::KEY_ID_SPACE}, {"ESCAPE", Anvil::KEY_ID_ESCAPE}, {"LEFT_MOUSE", Anvil::KEY_ID_LBUTTON}, {"MIDDLE_MOUSE", Anvil::KEY_ID_MBUTTON},
+        {"RIGHT_MOUSE", Anvil::KEY_ID_RBUTTON}, {"UP", Anvil::KEY_ID_UP}, {"DOWN", Anvil::KEY_ID_DOWN}, {"LEFT", Anvil::KEY_ID_LEFT},
+        {"RIGHT", Anvil::KEY_ID_RIGHT}
+    };
+
+    std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyPressed_umap;
+    std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyReleased_umap;
+
+    MovementBaseClass* volatile camera_ptr = nullptr;
+
+    std::vector<eventInputID> eventVector;
+
+    std::mutex control_mutex;
 };
