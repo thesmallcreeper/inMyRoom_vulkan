@@ -210,7 +210,7 @@ void Graphics::init_vulkan()
 #else
                                                              Anvil::DebugCallbackFunction(),
 #endif
-                                                             false);			/* in_mt_safe */
+                                                             false);             /* in_mt_safe */
 
     m_instance_ptr = Anvil::Instance::create(std::move(create_info_ptr));
 
@@ -220,9 +220,9 @@ void Graphics::init_vulkan()
         m_device_ptr = Anvil::SGPUDevice::create(m_instance_ptr->get_physical_device(0),
                                                  true, /* in_enable_shader_module_cache */
                                                  Anvil::DeviceExtensionConfiguration(),
-                                                 std::vector<std::string>(),						/* in_layers                               */
-                                                 false,												/* in_transient_command_buffer_allocs_only */
-                                                 false);											/* in_support_resettable_command_buffers   */
+                                                 std::vector<std::string>(),                        /* in_layers                               */
+                                                 false,                                             /* in_transient_command_buffer_allocs_only */
+                                                 false);                                            /* in_support_resettable_command_buffers   */
     }
 }
 
@@ -470,16 +470,16 @@ void Graphics::init_semaphores()
 
 void Graphics::init_shaders()
 {
-    Anvil::ShaderModuleUniquePtr				fs_module_ptr;
-    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr	fs_ptr;
-    std::ifstream frag_shader_source_file		("shaders/generalMesh_glsl.frag");
-    std::string frag_shader_source_string		((std::istreambuf_iterator<char>(frag_shader_source_file)),
+    Anvil::ShaderModuleUniquePtr                fs_module_ptr;
+    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr  fs_ptr;
+    std::ifstream frag_shader_source_file       ("shaders/generalMesh_glsl.frag");
+    std::string frag_shader_source_string       ((std::istreambuf_iterator<char>(frag_shader_source_file)),
                                                  (std::istreambuf_iterator<char>()));
 
-    Anvil::ShaderModuleUniquePtr				vs_module_ptr;
-    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr	vs_ptr;
-    std::ifstream vert_shader_source_file		("shaders/generalMesh_glsl.vert");
-    std::string vert_shader_source_string		((std::istreambuf_iterator<char>(vert_shader_source_file)),
+    Anvil::ShaderModuleUniquePtr                vs_module_ptr;
+    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr  vs_ptr;
+    std::ifstream vert_shader_source_file       ("shaders/generalMesh_glsl.vert");
+    std::string vert_shader_source_string       ((std::istreambuf_iterator<char>(vert_shader_source_file)),
                                                  (std::istreambuf_iterator<char>()));
 
     fs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr.get(),
@@ -627,23 +627,23 @@ void Graphics::init_command_buffers()
             image_subresource_range.layer_count = 1;
             image_subresource_range.level_count = 1;
 
-            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::NONE,								/* source_access_mask       */
-                                              Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,		/* destination_access_mask  */
-                                              Anvil::ImageLayout::UNDEFINED,							/* old_image_layout */
-                                              Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,				/* new_image_layout */
+            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::NONE,                              /* source_access_mask       */
+                                              Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,        /* destination_access_mask  */
+                                              Anvil::ImageLayout::UNDEFINED,                            /* old_image_layout */
+                                              Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,             /* new_image_layout */
                                               universal_queue_family_index,
                                               universal_queue_family_index,
                                               m_swapchain_ptr->get_image(n_command_buffer),
                                               image_subresource_range);
 
-            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT,				/* src_stage_mask                 */
-                                                    Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,	/* dst_stage_mask                 */
+            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT,              /* src_stage_mask                 */
+                                                    Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,  /* dst_stage_mask                 */
                                                     Anvil::DependencyFlagBits::NONE,
-                                                    0,															/* in_memory_barrier_count        */
-                                                    nullptr,													/* in_memory_barrier_ptrs         */
-                                                    0,															/* in_buffer_memory_barrier_count */
-                                                    nullptr,													/* in_buffer_memory_barrier_ptrs  */
-                                                    1,															/* in_image_memory_barrier_count  */
+                                                    0,                                                          /* in_memory_barrier_count        */
+                                                    nullptr,                                                    /* in_memory_barrier_ptrs         */
+                                                    0,                                                          /* in_buffer_memory_barrier_count */
+                                                    nullptr,                                                    /* in_buffer_memory_barrier_ptrs  */
+                                                    1,                                                          /* in_image_memory_barrier_count  */
                                                     &image_barrier);
         }
 
@@ -651,21 +651,21 @@ void Graphics::init_command_buffers()
             /* Make sure CPU-written data is flushed before we start rendering */
             Anvil::BufferBarrier buffer_barrier(Anvil::AccessFlagBits::HOST_WRITE_BIT,                 /* in_source_access_mask      */
                                                 Anvil::AccessFlagBits::UNIFORM_READ_BIT,               /* in_destination_access_mask */
-                                                universal_queue_family_index,						   /* in_src_queue_family_index  */
-                                                universal_queue_family_index,						   /* in_dst_queue_family_index  */
+                                                universal_queue_family_index,                          /* in_src_queue_family_index  */
+                                                universal_queue_family_index,                          /* in_dst_queue_family_index  */
                                                 m_camera_buffer_ptr.get(),
-                                                0,													   /* in_offset                  */
+                                                0,                                                     /* in_offset                  */
                                                 sizeof(glm::mat4x4));
 
             cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::HOST_BIT,
                                                     Anvil::PipelineStageFlagBits::VERTEX_SHADER_BIT,
                                                     Anvil::DependencyFlagBits::NONE,
-                                                    0,													/* in_memory_barrier_count        */
-                                                    nullptr,											/* in_memory_barriers_ptr         */
-                                                    1,													/* in_buffer_memory_barrier_count */
+                                                    0,                                                  /* in_memory_barrier_count        */
+                                                    nullptr,                                            /* in_memory_barriers_ptr         */
+                                                    1,                                                  /* in_buffer_memory_barrier_count */
                                                     &buffer_barrier,
-                                                    0,													/* in_image_memory_barrier_count  */
-                                                    nullptr);											/* in_image_memory_barriers_ptr   */
+                                                    0,                                                  /* in_image_memory_barrier_count  */
+                                                    nullptr);                                           /* in_image_memory_barriers_ptr   */
         }
 
         {

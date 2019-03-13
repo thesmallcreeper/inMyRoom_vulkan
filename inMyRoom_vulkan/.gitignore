@@ -143,4 +143,5 @@ cmake-build-release/
 build/
 
 # Any executable
+inMyRoom_vulkan
 *.exe

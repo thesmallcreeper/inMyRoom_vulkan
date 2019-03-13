@@ -112,7 +112,7 @@ Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineS
                                                            Anvil::CullModeFlagBits::BACK_BIT,
                                                            Anvil::FrontFace::COUNTER_CLOCKWISE,
                                                            4.0f); /* line_width */
-    pipeline_create_info_ptr->toggle_depth_test(true, /* should_enable */
+    pipeline_create_info_ptr->toggle_depth_test(true,
                                                 Anvil::CompareOp::LESS);
     pipeline_create_info_ptr->toggle_depth_writes(true);
 

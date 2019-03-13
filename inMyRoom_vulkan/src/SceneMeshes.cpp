@@ -121,9 +121,9 @@ void SceneMeshes::Draw(uint32_t in_mesh, uint32_t in_meshID, Anvil::PrimaryComma
                                                       vertex_buffer_offsets);
 
         in_cmd_buffer_ptr->record_draw_indexed(thisPrimitive.indicesCount,
-                                               1,				  /* in_instance_count */
-                                               0,				  /* in_first_index    */
-                                               0,				  /* in_vertex_offset  */
+                                               1,                 /* in_instance_count */
+                                               0,                 /* in_first_index    */
+                                               0,                 /* in_vertex_offset  */
                                                in_meshID);        /* in_first_instance_ID */
     }
 }

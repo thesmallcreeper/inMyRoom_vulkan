@@ -25,14 +25,14 @@ public:
     Graphics(configuru::Config& in_cfgFile);
     ~Graphics();
 
-    void init				();
+    void init               ();
 
     void unregister_window_callback(Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr);
     void register_window_callback  (Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr);
 
-    void bind_camera		(MovementBaseClass* in_camera);
+    void bind_camera        (MovementBaseClass* in_camera);
 
-    void draw_frame			();
+    void draw_frame         ();
 
 
 private:
@@ -41,7 +41,7 @@ private:
 
     std::string GetFilePathExtension(const std::string &FileName);
 
-    void deinit		();
+    void deinit    ();
 
     void load_scene();
 
@@ -71,22 +71,22 @@ private:
 
     MovementBaseClass* camera;
 
-    const float						 m_fov_deg;
+    const float	                     m_fov_deg;
 
-    const unsigned int				 m_n_swapchain_images;
+    const unsigned int               m_n_swapchain_images;
 
     Anvil::Queue*                    m_present_queue_ptr;
 
-    Anvil::BaseDeviceUniquePtr		 m_device_ptr;
-    Anvil::InstanceUniquePtr		 m_instance_ptr;
+    Anvil::BaseDeviceUniquePtr       m_device_ptr;
+    Anvil::InstanceUniquePtr         m_instance_ptr;
 
-    WindowWithAsyncInputUniquePtr	 window_with_async_input_ptr;
+    WindowWithAsyncInputUniquePtr    window_with_async_input_ptr;
 
-    Anvil::SwapchainUniquePtr		 m_swapchain_ptr;
+    Anvil::SwapchainUniquePtr        m_swapchain_ptr;
     Anvil::RenderingSurfaceUniquePtr m_rendering_surface_ptr;
 
-    Anvil::BufferUniquePtr			m_camera_buffer_ptr;
-    Anvil::BufferUniquePtr			m_perspective_buffer_ptr;
+    Anvil::BufferUniquePtr          m_camera_buffer_ptr;
+    Anvil::BufferUniquePtr          m_perspective_buffer_ptr;
 
     Anvil::DescriptorSetGroupUniquePtr	m_dsg_ptr;
 
@@ -101,10 +101,10 @@ private:
 
     std::vector<Anvil::FramebufferUniquePtr>        m_framebuffers;
 
-    Anvil::RenderPassUniquePtr						m_renderpass_ptr;
+    Anvil::RenderPassUniquePtr                      m_renderpass_ptr;
 
     std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_cmd_buffers;
-    uint32_t						 m_n_last_semaphore_used;
+    uint32_t                      m_n_last_semaphore_used;
 
     Anvil::SubPassID              m_subpass_id;
 };

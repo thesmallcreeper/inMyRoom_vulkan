@@ -62,7 +62,7 @@ private:
     std::vector<Anvil::BufferUniquePtr> textcoord0Buffers;
 
     std::vector<PrimitiveInfo> primitives;
-    std::vector<MeshRange> meshes;
+    std::vector<MeshRange>     meshes;
 
     PrimitivesPipelines& pipelinesOfPrimitives;
 };
