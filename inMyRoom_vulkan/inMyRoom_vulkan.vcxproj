@@ -20,11 +20,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\InputManager.cpp" />
-    <ClCompile Include="src\NodesTree.cpp" />
+    <ClCompile Include="src\NodesMeshes.cpp" />
+    <ClCompile Include="src\PrimitivesMaterials.cpp" />
+    <ClCompile Include="src\PrimitivesShaders.cpp" />
+    <ClCompile Include="src\SceneNodes.cpp" />
     <ClCompile Include="src\PrimitivesPipelines.cpp" />
-    <ClCompile Include="src\SceneMeshes.cpp" />
+    <ClCompile Include="src\MeshesPrimitives.cpp" />
     <ClCompile Include="src\MovementBaseClass.cpp" />
     <ClCompile Include="src\NaiveCamera.cpp" />
+    <ClCompile Include="src\MaterialsTextures.cpp" />
     <ClCompile Include="src\WindowWithAsyncInput.cpp" />
     <ClCompile Include="src\Engine.cpp" />
     <ClCompile Include="src\Graphics.cpp" />
@@ -32,13 +36,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Configuru\configuru.hpp" />
+    <ClInclude Include="..\tinygltf\stb_image.h" />
     <ClInclude Include="..\tinygltf\tiny_gltf.h" />
     <ClInclude Include="include\glTFenum.h" />
-    <ClInclude Include="include\NodesTree.h" />
+    <ClInclude Include="include\hash_combine.h" />
+    <ClInclude Include="include\PrimitivesMaterials.h" />
+    <ClInclude Include="include\PrimitivesShaders.h" />
+    <ClInclude Include="include\NodesMeshes.h" />
+    <ClInclude Include="include\SceneNodes.h" />
     <ClInclude Include="include\PrimitivesPipelines.h" />
-    <ClInclude Include="include\SceneMeshes.h" />
+    <ClInclude Include="include\MeshesPrimitives.h" />
     <ClInclude Include="include\MovementBaseClass.h" />
     <ClInclude Include="include\NaiveCamera.h" />
+    <ClInclude Include="include\MaterialsTextures.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\Graphics.h" />
@@ -106,6 +116,8 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -140,6 +152,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

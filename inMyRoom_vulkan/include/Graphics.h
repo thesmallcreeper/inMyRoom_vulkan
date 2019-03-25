@@ -4,6 +4,7 @@
 #include <thread>
 #include <future>
 #include <fstream>
+#include <utility>
 
 #include "configuru.hpp"
 #include "glm/mat4x4.hpp"
@@ -15,9 +16,14 @@
 #include "WindowWithAsyncInput.h"
 #include "MovementBaseClass.h"
 
+#include "MaterialsTextures.h"
+#include "PrimitivesMaterials.h"
+#include "PrimitivesShaders.h"
 #include "PrimitivesPipelines.h"
-#include "SceneMeshes.h"
-#include "NodesTree.h"
+#include "SceneNodes.h"
+#include "MeshesPrimitives.h"
+#include "NodesMeshes.h"
+
 
 class Graphics
 {
@@ -50,24 +56,27 @@ private:
     void init_swapchain();
 
     void init_camera_buffers();
-    void init_scene_nodes();
-    void init_dsgs();
     void init_images();
-    void init_semaphores();
-    void init_shaders();
-
     void init_framebuffers();
     void init_renderpasses();
-    void init_scene_meshes();
+    void init_scene();
+    void init_spacial_dsg();
+    void init_semaphores();
+
     void init_command_buffers();
 
 private:
     configuru::Config& cfgFile;
     tinygltf::Model model;
 
-    std::unique_ptr<PrimitivesPipelines> pipelinesOfPrimitives_ptr;
-    std::unique_ptr<SceneMeshes> meshesOfScene_ptr;
-    std::unique_ptr<NodesTree> treeOfNodes_ptr;
+    std::unique_ptr<MaterialsTextures> materialsTextures_ptr;
+    std::unique_ptr<PrimitivesMaterials> primitivesMaterials_ptr;
+    std::unique_ptr<PrimitivesShaders> primitivesShaders_ptr;
+    std::unique_ptr<PrimitivesPipelines> primitivesPipelines_ptr;
+    std::unique_ptr<SceneNodes> sceneNodes_ptr;
+    std::unique_ptr<MeshesPrimitives> meshesPrimitives_ptr;
+    std::unique_ptr<NodesMeshes> nodesMeshes_ptr;
+
 
     MovementBaseClass* camera;
 
@@ -96,9 +105,6 @@ private:
     std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
     std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
 
-    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
-    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
-
     std::vector<Anvil::FramebufferUniquePtr>        m_framebuffers;
 
     Anvil::RenderPassUniquePtr                      m_renderpass_ptr;
@@ -107,4 +113,6 @@ private:
     uint32_t                      m_n_last_semaphore_used;
 
     Anvil::SubPassID              m_subpass_id;
+
+    size_t PrimitivesSetIndex;
 };

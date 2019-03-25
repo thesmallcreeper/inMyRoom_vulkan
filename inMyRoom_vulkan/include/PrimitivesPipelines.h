@@ -2,22 +2,19 @@
 #include <cassert>
 
 #include <unordered_map>
+#include "hash_combine.h"
 
 #include "misc/base_pipeline_create_info.h"
 #include "misc/base_pipeline_manager.h"
+#include "misc/descriptor_set_create_info.h"
 #include "wrappers/device.h"
-#include "wrappers/descriptor_set_group.h"
+#include "wrappers/descriptor_set.h"
 #include "wrappers/shader_module.h"
 #include "wrappers/graphics_pipeline_manager.h"
 
 #include "glTFenum.h"
 
-template <class T>
-inline void hash_combine(std::size_t & s, const T & v)
-{
-    std::hash<T> h;
-    s ^= h(v) + 0x9e3779b9 + (s << 6) + (s >> 2);
-}
+#include "PrimitivesShaders.h"
 
 struct PipelineSpecs
 {
@@ -26,8 +23,10 @@ struct PipelineSpecs
     glTFcomponentType positionComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType normalComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType tangentComponentType = static_cast<glTFcomponentType>(-1);
-    glTFcomponentType textcoord0ComponentType = static_cast<glTFcomponentType>(-1);
-    Anvil::DescriptorSetGroup* dsg_ptr;
+    glTFcomponentType texcoord0ComponentType = static_cast<glTFcomponentType>(-1);
+    glTFcomponentType texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
+    std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetsCreateInfo_ptrs;
+    ShadersSet pipelineShaders;
     Anvil::RenderPass* renderpass_ptr;
     Anvil::SubPassID subpassID;
 };
@@ -44,9 +43,20 @@ namespace std
             hash_combine(result, in_pipelineSpecs.positionComponentType);
             hash_combine(result, in_pipelineSpecs.normalComponentType);
             hash_combine(result, in_pipelineSpecs.tangentComponentType);
-            hash_combine(result, in_pipelineSpecs.dsg_ptr);
+            hash_combine(result, in_pipelineSpecs.texcoord0ComponentType);
+            hash_combine(result, in_pipelineSpecs.texcoord1ComponentType);
             hash_combine(result, in_pipelineSpecs.renderpass_ptr);
             hash_combine(result, in_pipelineSpecs.subpassID);
+            hash_combine(result, in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr);
+            hash_combine(result, in_pipelineSpecs.pipelineShaders.geometryShaderModule_ptr);
+            hash_combine(result, in_pipelineSpecs.pipelineShaders.tessControlShaderModule_ptr);
+            hash_combine(result, in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr);
+            hash_combine(result, in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr);
+
+            //for(const auto& this_descriptorSetCreateInfo_ptr : in_pipelineSpecs.descriptorSetsCreateInfo_ptrs)
+            //{
+            //    hash_combine(result, *this_descriptorSetCreateInfo_ptr);
+            //}
 
             return result;
         }
@@ -54,16 +64,31 @@ namespace std
 
     template <> struct equal_to<PipelineSpecs>
     {
-        constexpr bool operator()(const PipelineSpecs& lhs, const PipelineSpecs& rhs) const
+        bool operator()(const PipelineSpecs& lhs, const PipelineSpecs& rhs) const
         {
-            return (lhs.drawMode == rhs.drawMode) &
-                (lhs.indexComponentType == rhs.indexComponentType) &
-                (lhs.positionComponentType == rhs.positionComponentType) &
-                (lhs.normalComponentType == rhs.normalComponentType) &
-                (lhs.tangentComponentType == rhs.tangentComponentType) &
-                (lhs.dsg_ptr == rhs.dsg_ptr) &
-                (lhs.renderpass_ptr == rhs.renderpass_ptr) &
-                (lhs.subpassID == rhs.subpassID);
+            bool isEqual = (lhs.drawMode == rhs.drawMode) &&
+                           (lhs.indexComponentType == rhs.indexComponentType) &&
+                           (lhs.positionComponentType == rhs.positionComponentType) &&
+                           (lhs.normalComponentType == rhs.normalComponentType) &&
+                           (lhs.tangentComponentType == rhs.tangentComponentType) &&
+                           (lhs.tangentComponentType == rhs.texcoord0ComponentType) &&
+                           (lhs.tangentComponentType == rhs.texcoord1ComponentType) &&
+                           (lhs.renderpass_ptr == rhs.renderpass_ptr) &&
+                           (lhs.subpassID == rhs.subpassID) &&
+                           (lhs.pipelineShaders.fragmentShaderModule_ptr == rhs.pipelineShaders.fragmentShaderModule_ptr) &&
+                           (lhs.pipelineShaders.geometryShaderModule_ptr == rhs.pipelineShaders.geometryShaderModule_ptr) &&
+                           (lhs.pipelineShaders.tessControlShaderModule_ptr == rhs.pipelineShaders.tessControlShaderModule_ptr) &&
+                           (lhs.pipelineShaders.tessEvaluationShaderModule_ptr == rhs.pipelineShaders.tessEvaluationShaderModule_ptr) &&
+                           (lhs.pipelineShaders.vertexShaderModule_ptr == rhs.pipelineShaders.vertexShaderModule_ptr);
+
+            if(lhs.descriptorSetsCreateInfo_ptrs.size() == rhs.descriptorSetsCreateInfo_ptrs.size() && isEqual)
+                for(size_t i = 0; i < lhs.descriptorSetsCreateInfo_ptrs.size() && isEqual; i++)
+                {
+                    isEqual &= *(lhs.descriptorSetsCreateInfo_ptrs[i]) == *(rhs.descriptorSetsCreateInfo_ptrs[i]);
+                }
+
+            return isEqual;
+
         }
     };
 }
@@ -71,22 +96,17 @@ namespace std
 class PrimitivesPipelines
 {
 public:
-    PrimitivesPipelines(Anvil::ShaderModuleStageEntryPoint* in_vs_ptr, Anvil::ShaderModuleStageEntryPoint* in_fs_ptr);
+    PrimitivesPipelines(Anvil::BaseDevice* in_device_ptr);
     ~PrimitivesPipelines();
 
-    void deinit(Anvil::BaseDevice* in_device_ptr);
-
-    size_t getPipelineIDIndex(const PipelineSpecs in_pipelineSpecs, Anvil::BaseDevice* in_device_ptr);
+    size_t getPipelineIDIndex(const PipelineSpecs in_pipelineSpecs);
 
     std::vector<Anvil::PipelineID> pipelineIDs;
 
 private:
-    Anvil::PipelineID createPipeline(PipelineSpecs pipelineSpecs, Anvil::BaseDevice* in_device_ptr);
+    Anvil::PipelineID createPipeline(PipelineSpecs pipelineSpecs);
 
     std::unordered_map<PipelineSpecs, size_t> pipelineSpecsToPipelineIDIndex_umap;
-
-    Anvil::ShaderModuleStageEntryPoint* vs_ptr;
-    Anvil::ShaderModuleStageEntryPoint* fs_ptr;
 
     std::map<glTFmode, Anvil::PrimitiveTopology> glTFmodeToPrimitiveTopology_map
     {
@@ -97,4 +117,6 @@ private:
         {glTFmode::triangle_strip, Anvil::PrimitiveTopology::TRIANGLE_STRIP},
         {glTFmode::triangle_fan, Anvil::PrimitiveTopology::TRIANGLE_FAN}
     };
+
+    Anvil::BaseDevice* device_ptr;
 };

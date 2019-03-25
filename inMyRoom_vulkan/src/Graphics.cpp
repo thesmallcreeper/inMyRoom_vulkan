@@ -60,15 +60,12 @@ void Graphics::init()
     init_swapchain();
 
     init_camera_buffers();
-    init_scene_nodes();
-    init_dsgs();
     init_images();
-    init_semaphores();
-    init_shaders();
-
     init_framebuffers();
     init_renderpasses();
-    init_scene_meshes();
+    init_scene();
+    init_semaphores();
+
     init_command_buffers();
 }
 
@@ -85,14 +82,19 @@ void Graphics::deinit()
     m_renderpass_ptr.reset();
     m_depth_image_ptr.reset();
     m_depth_image_view_ptr.reset();
-    pipelinesOfPrimitives_ptr->deinit(m_device_ptr.get());
-    pipelinesOfPrimitives_ptr.reset();
-    m_fs_ptr.reset();
-    m_vs_ptr.reset();
+
+    nodesMeshes_ptr.reset();
+    materialsTextures_ptr.reset();
+    primitivesMaterials_ptr.reset();
+    primitivesShaders_ptr.reset();
+    primitivesPipelines_ptr.reset();
+    meshesPrimitives_ptr.reset();
+
     m_dsg_ptr.reset();
+
+    sceneNodes_ptr.reset();
+
     m_camera_buffer_ptr.reset();
-    meshesOfScene_ptr.reset();
-    treeOfNodes_ptr.reset();
     m_perspective_buffer_ptr.reset();
 
     m_swapchain_ptr.reset();
@@ -216,11 +218,13 @@ void Graphics::init_vulkan()
 
     /* Determine which extensions we need to request for */
     {
+        std::vector<std::string> vulkan_layers;
+        vulkan_layers.emplace_back("VK_LAYER_LUNARG_api_dump");
         /* Create a Vulkan device */
         m_device_ptr = Anvil::SGPUDevice::create(m_instance_ptr->get_physical_device(0),
                                                  true, /* in_enable_shader_module_cache */
                                                  Anvil::DeviceExtensionConfiguration(),
-                                                 std::vector<std::string>(),                        /* in_layers                               */
+                                                 vulkan_layers,                                                                      /* in_layers                               */
                                                  false,                                             /* in_transient_command_buffer_allocs_only */
                                                  false);                                            /* in_support_resettable_command_buffers   */
     }
@@ -335,7 +339,7 @@ void Graphics::init_camera_buffers()
 
     // Camera buffer is being updated every frame
 
-    glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(m_fov_deg), (float)window_with_async_input_ptr->m_window_ptr->get_width_at_creation_time() / (float)window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time(), 1.0f, 50.0f) * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
+    glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(m_fov_deg), (float)window_with_async_input_ptr->m_window_ptr->get_width_at_creation_time() / (float)window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time(), 1.0f, 100.0f) * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
                                                                                                                                                                                                                                                                           0.0f, -1.0f, 0.0f, 0.0f,
                                                                                                                                                                                                                                                                           0.0f, 0.0f, 1.0f, 0.0f,
                                                                                                                                                                                                                                                                           0.0f, 0.0f, 0.0f, 1.0f);
@@ -346,33 +350,66 @@ void Graphics::init_camera_buffers()
 
 }
 
-void Graphics::init_scene_nodes()
+void Graphics::init_scene()
 {
     const tinygltf::Scene &scene = model.scenes[0];
-    treeOfNodes_ptr = std::make_unique<NodesTree>(model, scene, m_device_ptr.get());
+
+    materialsTextures_ptr = std::make_unique <MaterialsTextures>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), m_device_ptr.get());
+    primitivesMaterials_ptr = std::make_unique<PrimitivesMaterials>(model, materialsTextures_ptr.get(), m_device_ptr.get());
+    {
+        std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
+        ShaderSetFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "General Mesh";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalMesh_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "generalMesh_glsl.vert";
+
+        shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
+
+        primitivesShaders_ptr = std::make_unique<PrimitivesShaders>(shaderSetsInitInfos, m_device_ptr.get());
+    }
+    primitivesPipelines_ptr = std::make_unique<PrimitivesPipelines>(m_device_ptr.get());    
+    sceneNodes_ptr = std::make_unique<SceneNodes>(model, scene, m_device_ptr.get());
+
+    init_spacial_dsg();
+
+    meshesPrimitives_ptr = std::make_unique<MeshesPrimitives>(primitivesPipelines_ptr.get(), primitivesShaders_ptr.get(), primitivesMaterials_ptr.get(), m_device_ptr.get());
+    nodesMeshes_ptr = std::make_unique<NodesMeshes>(model, meshesPrimitives_ptr.get(), m_device_ptr.get());
+
+    meshesPrimitives_ptr->FlashBuffersToDevice();
+    {
+        ShadersSpecs this_shaders_specs;
+        this_shaders_specs.shadersSetFamilyName = "General Mesh";
+        this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", sceneNodes_ptr->globalTRSmatrixesCount));
+        PrimitivesSetIndex = meshesPrimitives_ptr->InitPrimitivesSet(this_shaders_specs, true, m_dsg_ptr->get_descriptor_set_create_info(), m_renderpass_ptr.get(), m_subpass_id);
+    }
+
+    sceneNodes_ptr->BindSceneMeshes(nodesMeshes_ptr.get());
 }
 
-void Graphics::init_dsgs()
+
+void Graphics::init_spacial_dsg()
 {
     std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> new_dsg_create_info_ptr;
-    new_dsg_create_info_ptr.resize(1);
+    new_dsg_create_info_ptr.resize(2);
 
     Anvil::DescriptorSetGroupUniquePtr new_dsg_ptr;
 
     new_dsg_create_info_ptr[0] = Anvil::DescriptorSetCreateInfo::create();
 
     new_dsg_create_info_ptr[0]->add_binding(0, /* in_binding */
-                                            Anvil::DescriptorType::UNIFORM_BUFFER,
-                                            1, /* in_n_elements */
-                                            Anvil::ShaderStageFlagBits::VERTEX_BIT);
-
-    new_dsg_create_info_ptr[0]->add_binding(1, /* in_binding */
-                                            Anvil::DescriptorType::UNIFORM_BUFFER,
-                                            1, /* in_n_elements */
-                                            Anvil::ShaderStageFlagBits::VERTEX_BIT);
-
-    new_dsg_create_info_ptr[0]->add_binding(2, /* in_binding */
                                             Anvil::DescriptorType::STORAGE_BUFFER,
+                                            1, /* in_n_elements */
+                                            Anvil::ShaderStageFlagBits::VERTEX_BIT);
+
+    new_dsg_create_info_ptr[1] = Anvil::DescriptorSetCreateInfo::create();
+
+    new_dsg_create_info_ptr[1]->add_binding(0, /* in_binding */
+                                            Anvil::DescriptorType::UNIFORM_BUFFER,
+                                            1, /* in_n_elements */
+                                            Anvil::ShaderStageFlagBits::VERTEX_BIT);
+
+    new_dsg_create_info_ptr[1]->add_binding(1, /* in_binding */
+                                            Anvil::DescriptorType::UNIFORM_BUFFER,
                                             1, /* in_n_elements */
                                             Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
@@ -383,15 +420,15 @@ void Graphics::init_dsgs()
 
     new_dsg_ptr->set_binding_item(0, /* n_set         */
                                   0, /* binding_index */
+                                  Anvil::DescriptorSet::StorageBufferBindingElement(sceneNodes_ptr->globalTRSmatrixesBuffer.get()));
+
+    new_dsg_ptr->set_binding_item(1, /* n_set         */
+                                  0, /* binding_index */
                                   Anvil::DescriptorSet::UniformBufferBindingElement(m_perspective_buffer_ptr.get()));
 
-    new_dsg_ptr->set_binding_item(0, /* n_set         */
+    new_dsg_ptr->set_binding_item(1, /* n_set         */
                                   1, /* binding_index */
                                   Anvil::DescriptorSet::UniformBufferBindingElement(m_camera_buffer_ptr.get()));
-
-    new_dsg_ptr->set_binding_item(0, /* n_set         */
-                                  2, /* binding_index */
-                                  Anvil::DescriptorSet::StorageBufferBindingElement(treeOfNodes_ptr->globalTRSmatrixesBuffer.get()));
 
     m_dsg_ptr = std::move(new_dsg_ptr);
 }
@@ -466,50 +503,6 @@ void Graphics::init_semaphores()
         m_frame_signal_semaphores.push_back(std::move(new_signal_semaphore_ptr));
         m_frame_wait_semaphores.push_back(std::move(new_wait_semaphore_ptr));
     }
-}
-
-void Graphics::init_shaders()
-{
-    Anvil::ShaderModuleUniquePtr                fs_module_ptr;
-    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr  fs_ptr;
-    std::ifstream frag_shader_source_file       ("shaders/generalMesh_glsl.frag");
-    std::string frag_shader_source_string       ((std::istreambuf_iterator<char>(frag_shader_source_file)),
-                                                 (std::istreambuf_iterator<char>()));
-
-    Anvil::ShaderModuleUniquePtr                vs_module_ptr;
-    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr  vs_ptr;
-    std::ifstream vert_shader_source_file       ("shaders/generalMesh_glsl.vert");
-    std::string vert_shader_source_string       ((std::istreambuf_iterator<char>(vert_shader_source_file)),
-                                                 (std::istreambuf_iterator<char>()));
-
-    fs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr.get(),
-                                                       Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
-                                                       frag_shader_source_string.c_str(),
-                                                       Anvil::ShaderStage::FRAGMENT);
-    vs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr.get(),
-                                                       Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
-                                                       vert_shader_source_string.c_str(),
-                                                       Anvil::ShaderStage::VERTEX);
-
-    vs_ptr->add_definition_value_pair("N_MESHIDS",
-                                       treeOfNodes_ptr->globalTRSmatrixesCount);
-
-    fs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr.get(),
-                                                                     fs_ptr.get());
-
-    vs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr.get(),
-                                                                     vs_ptr.get());
-
-    fs_module_ptr->set_name("Fragment shader module");
-    vs_module_ptr->set_name("Vertex shader module");
-
-    m_fs_ptr.reset(new Anvil::ShaderModuleStageEntryPoint("main",
-                                                          std::move(fs_module_ptr),
-                                                          Anvil::ShaderStage::FRAGMENT));
-
-    m_vs_ptr.reset(new Anvil::ShaderModuleStageEntryPoint("main",
-                                                          std::move(vs_module_ptr),
-                                                          Anvil::ShaderStage::VERTEX));
 }
 
 void Graphics::init_framebuffers()
@@ -590,13 +583,6 @@ void Graphics::init_renderpasses()
                                                     m_swapchain_ptr.get());
 
         m_renderpass_ptr->set_name("Renderpass for swapchain images");
-}
-
-void Graphics::init_scene_meshes()
-{
-    pipelinesOfPrimitives_ptr = std::make_unique<PrimitivesPipelines>(m_vs_ptr.get(), m_fs_ptr.get());
-    meshesOfScene_ptr = std::make_unique<SceneMeshes>(model, *pipelinesOfPrimitives_ptr,
-                                                      m_dsg_ptr.get(), m_renderpass_ptr.get(), m_subpass_id, m_device_ptr.get());
 }
 
 void Graphics::init_command_buffers()
@@ -691,7 +677,11 @@ void Graphics::init_command_buffers()
                                                     m_renderpass_ptr.get(),
                                                     Anvil::SubpassContents::INLINE);
 
-            treeOfNodes_ptr->Draw(*meshesOfScene_ptr, cmd_buffer_ptr.get(), m_dsg_ptr->get_descriptor_set(0), m_device_ptr.get());
+            std::vector<Anvil::DescriptorSet*> descriptor_sets;
+            for (size_t i = 0; i < m_dsg_ptr->get_n_descriptor_sets(); i++)
+                descriptor_sets.emplace_back(m_dsg_ptr->get_descriptor_set(i));
+
+            sceneNodes_ptr->Draw(PrimitivesSetIndex, cmd_buffer_ptr.get(), descriptor_sets);
 
             cmd_buffer_ptr->record_end_render_pass();
         }

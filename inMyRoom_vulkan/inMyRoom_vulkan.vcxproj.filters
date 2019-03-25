@@ -16,11 +16,11 @@
     <Filter Include="Header Files\Header-only">
       <UniqueIdentifier>{3f363aaa-a27a-4d80-96ad-22df54595c09}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\SceneImport">
-      <UniqueIdentifier>{1d5cc62f-24cc-4565-b9a2-f008d5c966ce}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\SceneImport">
+    <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{3d47ba8c-67af-4bf5-82df-16b23b68aa52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Scene">
+      <UniqueIdentifier>{1d5cc62f-24cc-4565-b9a2-f008d5c966ce}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -46,13 +46,25 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\PrimitivesPipelines.cpp">
-      <Filter>Source Files\SceneImport</Filter>
+      <Filter>Source Files\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="src\SceneMeshes.cpp">
-      <Filter>Source Files\SceneImport</Filter>
+    <ClCompile Include="src\SceneNodes.cpp">
+      <Filter>Source Files\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="src\NodesTree.cpp">
-      <Filter>Source Files\SceneImport</Filter>
+    <ClCompile Include="src\MeshesPrimitives.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PrimitivesShaders.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MaterialsTextures.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PrimitivesMaterials.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\NodesMeshes.cpp">
+      <Filter>Source Files\Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -77,11 +89,8 @@
     <ClInclude Include="..\Configuru\configuru.hpp">
       <Filter>Header Files\Header-only</Filter>
     </ClInclude>
-    <ClInclude Include="include\SceneMeshes.h">
-      <Filter>Header Files\SceneImport</Filter>
-    </ClInclude>
     <ClInclude Include="include\PrimitivesPipelines.h">
-      <Filter>Header Files\SceneImport</Filter>
+      <Filter>Header Files\Scene</Filter>
     </ClInclude>
     <ClInclude Include="include\glTFenum.h">
       <Filter>Header Files\Header-only</Filter>
@@ -89,8 +98,29 @@
     <ClInclude Include="..\tinygltf\tiny_gltf.h">
       <Filter>Header Files\Header-only</Filter>
     </ClInclude>
-    <ClInclude Include="include\NodesTree.h">
-      <Filter>Header Files\SceneImport</Filter>
+    <ClInclude Include="..\tinygltf\stb_image.h">
+      <Filter>Header Files\Header-only</Filter>
+    </ClInclude>
+    <ClInclude Include="include\SceneNodes.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\MeshesPrimitives.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\NodesMeshes.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PrimitivesShaders.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\MaterialsTextures.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PrimitivesMaterials.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\hash_combine.h">
+      <Filter>Header Files\Header-only</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
