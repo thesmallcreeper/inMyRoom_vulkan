@@ -8,6 +8,11 @@
 *.userprefs
 
 # Build results
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+anvil/
+CMakeFiles/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/

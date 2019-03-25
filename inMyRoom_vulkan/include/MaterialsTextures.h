@@ -1,10 +1,22 @@
 #pragma once
 
+#ifdef __GNUC__
+#if __GNUC__ < 8
+#define FILESYSTEM_IS_EXPERIMENTAL
+#else
+#endif
+#endif
+
 #include "tiny_gltf.h"
 
 #include <utility>
 #include <cassert>
+
+#ifdef FILESYSTEM_IS_EXPERIMENTAL
+#include <experimental/filesystem>
+#else
 #include <filesystem>
+#endif
 
 #include "glTFenum.h"
 
