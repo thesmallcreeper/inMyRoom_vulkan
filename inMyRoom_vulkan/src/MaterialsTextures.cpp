@@ -26,7 +26,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
             fs::path path_to_original_image = in_imagesFolder + "//" + thisImage.uri;
             path_to_mipmap_folder = in_imagesFolder + "//" + thisImage.uri.substr(0, thisImage.uri.find_last_of('.')) + "_mipmaps";
 
-            fs::path absolute_path_to_original_image = std::filesystem::absolute(path_to_original_image);
+            fs::path absolute_path_to_original_image = fs::absolute(path_to_original_image);
 
             unsigned char* stbi_data = stbi_load(absolute_path_to_original_image.generic_string().c_str(), &width, &height, &imageCompCount, 0);
             assert(stbi_data);

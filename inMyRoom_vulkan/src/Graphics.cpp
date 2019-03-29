@@ -6,6 +6,7 @@
 
 #include "misc/window_factory.h"
 #include "misc/swapchain_create_info.h"
+#include "misc/rendering_surface_create_info.h"
 #include "misc/memory_allocator.h"
 #include "misc/buffer_create_info.h"
 #include "misc/image_create_info.h"
@@ -200,33 +201,38 @@ void Graphics::load_scene()
 }
 void Graphics::init_vulkan()
 {
-    /* Create a Vulkan instance */
-    auto create_info_ptr = Anvil::InstanceCreateInfo::create("inMyRoom_vulkan",  /* app_name */
-                                                             "inMyRoom_vulkan",  /* engine_name */
-#ifdef ENABLE_VALIDATION
-                                                             std::bind(&Graphics::on_validation_callback,
-                                                             this,
-                                                             std::placeholders::_1,
-                                                             std::placeholders::_2
-                                                             ),
-#else
-                                                             Anvil::DebugCallbackFunction(),
-#endif
-                                                             false);             /* in_mt_safe */
-
-    m_instance_ptr = Anvil::Instance::create(std::move(create_info_ptr));
-
-    /* Determine which extensions we need to request for */
     {
+        /* Create a Vulkan instance */
+        auto create_info_ptr = Anvil::InstanceCreateInfo::create("inMyRoom_vulkan",  /* app_name */
+                                                                 "inMyRoom_vulkan",  /* engine_name */
+#ifdef ENABLE_VALIDATION
+        std::bind(&Graphics::on_validation_callback,
+        this,
+        std::placeholders::_1,
+        std::placeholders::_2
+        ),
+#else
+                                                                 Anvil::DebugCallbackFunction(),
+#endif
+                                                                 false);             /* in_mt_safe */
+
+        m_instance_ptr = Anvil::Instance::create(std::move(create_info_ptr));
+    }
+
+
+    {
+        /* Determine which extensions we need to request for */
         std::vector<std::string> vulkan_layers;
-        vulkan_layers.emplace_back("VK_LAYER_LUNARG_api_dump");
+
         /* Create a Vulkan device */
-        m_device_ptr = Anvil::SGPUDevice::create(m_instance_ptr->get_physical_device(0),
-                                                 true, /* in_enable_shader_module_cache */
-                                                 Anvil::DeviceExtensionConfiguration(),
-                                                 vulkan_layers,                                                                      /* in_layers                               */
-                                                 false,                                             /* in_transient_command_buffer_allocs_only */
-                                                 false);                                            /* in_support_resettable_command_buffers   */
+        auto create_info_ptr = Anvil::DeviceCreateInfo::create_sgpu(m_instance_ptr->get_physical_device(0),
+                                                                    true, /* in_enable_shader_module_cache */
+                                                                    Anvil::DeviceExtensionConfiguration(),
+                                                                    vulkan_layers,                                     /* in_layers                               */
+                                                                    Anvil::CommandPoolCreateFlagBits::NONE,            /* in_transient_command_buffer_allocs_only */
+                                                                    false);                                            /* in_support_resettable_command_buffers   */
+
+        m_device_ptr = Anvil::SGPUDevice::create(std::move(create_info_ptr));
     }
 }
 
@@ -251,12 +257,15 @@ void Graphics::init_swapchain()
     static const Anvil::PresentModeKHR  swapchain_present_mode(Anvil::PresentModeKHR::FIFO_KHR);
     static const Anvil::ImageUsageFlags swapchain_usage(Anvil::ImageUsageFlagBits::COLOR_ATTACHMENT_BIT | Anvil::ImageUsageFlagBits::TRANSFER_SRC_BIT | Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT);
 
-    m_rendering_surface_ptr = Anvil::RenderingSurface::create(m_instance_ptr.get(),
-                                                              m_device_ptr.get(),
-                                                              window_with_async_input_ptr -> m_window_ptr.get());
+    {
+        auto create_info_ptr = Anvil::RenderingSurfaceCreateInfo::create(m_instance_ptr.get(),
+                                                                         m_device_ptr.get(),
+                                                                         window_with_async_input_ptr->m_window_ptr.get());
+
+        m_rendering_surface_ptr = Anvil::RenderingSurface::create(std::move(create_info_ptr) );
+    }
 
     m_rendering_surface_ptr->set_name("Main rendering surface");
-
 
     switch (m_device_ptr->get_type())
     {
@@ -265,12 +274,12 @@ void Graphics::init_swapchain()
         Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<Anvil::SGPUDevice*>(m_device_ptr.get()));
 
         m_swapchain_ptr = sgpu_device_ptr->create_swapchain(m_rendering_surface_ptr.get(),
-            window_with_async_input_ptr -> m_window_ptr.get(),
-            swapchain_format,
-            Anvil::ColorSpaceKHR::SRGB_NONLINEAR_KHR,
-            swapchain_present_mode,
-            swapchain_usage,
-            m_n_swapchain_images);
+                                                            window_with_async_input_ptr -> m_window_ptr.get(),
+                                                            swapchain_format,
+                                                            Anvil::ColorSpaceKHR::SRGB_NONLINEAR_KHR,
+                                                            swapchain_present_mode,
+                                                            swapchain_usage,
+                                                            m_n_swapchain_images);
 
         /* Cache the queue we are going to use for presentation */
         const std::vector<uint32_t>* present_queue_fams_ptr = nullptr;
