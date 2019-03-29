@@ -5,6 +5,8 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include "DDS_Helpers.h"
+
 #include <iostream>
 
 MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, Anvil::BaseDevice* in_device_ptr)
@@ -17,10 +19,12 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
         int32_t height;
         int32_t imageCompCount;
 
+        fs::path path_to_mipmap_folder;
+
         if (!thisImage.uri.empty())
         {
-            fs::path path_to_original_image = in_imagesFolder + "/" + thisImage.uri;
-            fs::path path_to_mipmap_folder = in_imagesFolder + "/" + thisImage.uri.substr(0, thisImage.uri.find_last_of('.'));
+            fs::path path_to_original_image = in_imagesFolder + "//" + thisImage.uri;
+            path_to_mipmap_folder = in_imagesFolder + "//" + thisImage.uri.substr(0, thisImage.uri.find_last_of('.')) + "_mipmaps";
 
             fs::path absolute_path_to_original_image = std::filesystem::absolute(path_to_original_image);
 
@@ -39,6 +43,8 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
             assert(0);
         }
 
+        fs::create_directory(path_to_mipmap_folder);
+
         Anvil::Format original_image_vulkan_format = componentsCountToVulkanFormat_map.find(imageCompCount)->second;
         CMP_FORMAT original_image_compressonator_format = vulkanFormatToCompressonatorFormat_map.find(original_image_vulkan_format)->second;
 
@@ -52,11 +58,11 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
         srcTexture.format = original_image_compressonator_format;
         srcTexture.pData = local_original_image_buffer.get();
 
-        std::vector<CMP_Texture> compressed_mipmaps;
+        std::vector<CMP_Texture> mipmaps;
 
         CMP_CompressOptions options = { 0 };
         options.dwSize = sizeof(options);
-        options.fquality = 0.05f;
+        options.fquality = 0.1f;
         options.dwnumThreads = 8;
 
         std::vector<Anvil::MipmapRawData> mipmaps_raw_data;
@@ -70,31 +76,43 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
         uint32_t this_mipmap_width = width;
         uint32_t this_mipmap_height = height;
 
-        std::cout << "Creating mipmaps for image: " << thisImage.uri << "\n";
-
         for (size_t this_mipmap_level = 0; this_mipmap_level < mipmap_levels; this_mipmap_level++)
         {
-            CMP_Texture this_destTexture;
-            this_destTexture.dwSize = sizeof(this_destTexture);
-            this_destTexture.dwWidth = this_mipmap_width;
-            this_destTexture.dwHeight = this_mipmap_height;
-            this_destTexture.dwPitch = 0;
-            this_destTexture.format = vulkanFormatToCompressonatorFormat_map.find(image_format)->second;
-            this_destTexture.dwDataSize = CMP_CalculateBufferSize(&this_destTexture);
-            this_destTexture.pData = (CMP_BYTE*)malloc(this_destTexture.dwDataSize);
+            std::string this_mipmap_filename = path_to_mipmap_folder.string() + "//mipmap_" + std::to_string(this_mipmap_level) + ".DDS";
+            CMP_Texture this_mipmap;
 
-            CMP_ERROR cmp_status;
-            cmp_status = CMP_ConvertTexture(&srcTexture, &this_destTexture, &options, nullptr, NULL, NULL);
+            if (!LoadDDSFile(this_mipmap_filename.c_str(), this_mipmap))
+            {
+                std::cout << thisImage.uri << " , creating mipmap level: " << this_mipmap_level << " width= " << this_mipmap_width << " height= " << this_mipmap_height << "\n";
 
-            compressed_mipmaps.emplace_back(this_destTexture);
+                CMP_Texture new_mipmap;
+
+                new_mipmap.dwSize = sizeof(new_mipmap);
+                new_mipmap.dwWidth = this_mipmap_width;
+                new_mipmap.dwHeight = this_mipmap_height;
+                new_mipmap.dwPitch = 0;
+                new_mipmap.format = vulkanFormatToCompressonatorFormat_map.find(image_preferred_format)->second;
+                new_mipmap.dwDataSize = CMP_CalculateBufferSize(&new_mipmap);
+                new_mipmap.pData = (CMP_BYTE*)malloc(new_mipmap.dwDataSize);
+
+                CMP_ERROR cmp_status;
+                cmp_status = CMP_ConvertTexture(&srcTexture, &new_mipmap, &options, nullptr, NULL, NULL);
+
+                if (cmp_status != CMP_OK)
+                    assert(0);
+
+                SaveDDSFile(this_mipmap_filename.c_str(), new_mipmap);
+
+                this_mipmap = new_mipmap;
+            }
+
+            mipmaps.emplace_back(this_mipmap);
 
             mipmaps_raw_data.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
                                                                                          static_cast<uint32_t>(this_mipmap_level),
-                                                                                         this_destTexture.pData,
-                                                                                         this_destTexture.dwDataSize,
-                                                                                         this_destTexture.dwPitch));
-
-            std::cout << "Mipmap level: " << this_mipmap_level << " width= " << this_mipmap_width << " height= " << this_mipmap_height << " created\n";
+                                                                                         this_mipmap.pData,
+                                                                                         this_mipmap.dwDataSize,
+                                                                                         this_mipmap.dwDataSize/this_mipmap_height));
 
             if (this_mipmap_width > 1) this_mipmap_width /= 2;
             if (this_mipmap_height > 1) this_mipmap_height /= 2;
@@ -107,7 +125,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
         {
             auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(in_device_ptr,
                                                                         Anvil::ImageType::_2D,
-                                                                        image_format,
+                                                                        image_preferred_format,
                                                                         Anvil::ImageTiling::OPTIMAL,
                                                                         Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT | Anvil::ImageUsageFlagBits::SAMPLED_BIT,
                                                                         static_cast<uint32_t>(width),
@@ -126,7 +144,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
             image_ptr = Anvil::Image::create(std::move(create_info_ptr));
         }
 
-        for (auto this_data : compressed_mipmaps)
+        for (auto this_data : mipmaps)
             delete this_data.pData;
 
         {
@@ -136,7 +154,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
                                                                          0,                                                           /* n_base_mipmap_level */
                                                                          mipmap_levels,                                                           /* n_mipmaps           */
                                                                          Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                         image_format,
+                                                                         image_preferred_format,
                                                                          Anvil::ComponentSwizzle::R,
                                                                          (imageCompCount >= 2) ? Anvil::ComponentSwizzle::G : Anvil::ComponentSwizzle::ZERO,
                                                                          (imageCompCount >= 3) ? Anvil::ComponentSwizzle::B : Anvil::ComponentSwizzle::ZERO,

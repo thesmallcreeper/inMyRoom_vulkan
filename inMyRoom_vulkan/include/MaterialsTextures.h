@@ -54,7 +54,7 @@ public:
     std::vector<Anvil::SamplerUniquePtr> samplers;
 
 private:
-    const Anvil::Format image_format = Anvil::Format::BC7_SRGB_BLOCK;
+    const Anvil::Format image_preferred_format = Anvil::Format::BC7_SRGB_BLOCK;
 
     const Anvil::SamplerMipmapMode defaultMipmapMode = Anvil::SamplerMipmapMode::LINEAR;
 
@@ -72,7 +72,8 @@ private:
         {Anvil::Format::R8G8_SRGB, CMP_FORMAT_RG_8},
         {Anvil::Format::R8G8B8_SRGB, CMP_FORMAT_RGB_888},
         {Anvil::Format::R8G8B8A8_SRGB, CMP_FORMAT_RGBA_8888},
-        {Anvil::Format::BC7_SRGB_BLOCK, CMP_FORMAT_BC7}
+        {Anvil::Format::BC7_SRGB_BLOCK, CMP_FORMAT_BC7},
+        {Anvil::Format::BC3_SRGB_BLOCK, CMP_FORMAT_BC3}
     };
 
     std::map<glTFsamplerMagFilter, Anvil::Filter> glTFsamplerMagFilterToFilter_map

@@ -1,3 +1,7 @@
+# DDS mipmaps
+*.dds
+*.DDS
+
 # User-specific files
 *.suo
 *.user
