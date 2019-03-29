@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project (inMyRoom_vulkan)
 
 add_subdirectory   (../Anvil "${CMAKE_CURRENT_BINARY_DIR}/anvil")
+add_subdirectory   (../Compressonator/Compressonator/Make "${CMAKE_CURRENT_BINARY_DIR}/compressonator")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -9,7 +10,6 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package (Threads REQUIRED)
 
 target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
-
 
 include_directories(../Anvil/include                                                   #Include Anvil
                     ../MathGeoLib/src                                                  #Include MathGeoLib
@@ -53,11 +53,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${inMyRoom_vulkan_SOURCE_DIR})
 add_executable (inMyRoom_vulkan ${SRC})
 
 add_dependencies (inMyRoom_vulkan Anvil)
+add_dependencies (inMyRoom_vulkan Compressonator)
 
 if (WIN32)
     target_link_libraries(inMyRoom_vulkan Anvil)
+    target_link_libraries(inMyRoom_vulkan Compressonator)
 else()
     target_link_libraries(inMyRoom_vulkan Anvil dl)
+    target_link_libraries(inMyRoom_vulkan Compressonator dl)
 endif()
 
 if (UNIX)

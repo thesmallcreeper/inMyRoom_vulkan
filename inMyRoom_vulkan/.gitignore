@@ -16,6 +16,7 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile
 anvil/
+compressonator/
 CMakeFiles/
 [Dd]ebug/
 [Dd]ebugPublic/
