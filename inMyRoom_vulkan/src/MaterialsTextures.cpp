@@ -5,109 +5,148 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include <iostream>
+
 MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, Anvil::BaseDevice* in_device_ptr)
 {
     for (tinygltf::Image& thisImage : in_model.images)
     {
-        if (thisImage.uri.size())
-        {
-            std::experimental::filesystem::path pathToImage = in_imagesFolder + "/" + thisImage.uri;
-            std::experimental::filesystem::path adsolutePathToImage = std::experimental::filesystem::absolute(pathToImage);
+        std::unique_ptr<uint8_t[]> local_original_image_buffer;
 
-            int32_t width;
-            int32_t height;
-            int32_t imageCompCount;
-            unsigned char* stbi_data = stbi_load(adsolutePathToImage.generic_string().c_str(), &width, &height, &imageCompCount, 0);
+        int32_t width;
+        int32_t height;
+        int32_t imageCompCount;
+
+        if (!thisImage.uri.empty())
+        {
+            fs::path path_to_original_image = in_imagesFolder + "/" + thisImage.uri;
+            fs::path path_to_mipmap_folder = in_imagesFolder + "/" + thisImage.uri.substr(0, thisImage.uri.find_last_of('.'));
+
+            fs::path absolute_path_to_original_image = std::filesystem::absolute(path_to_original_image);
+
+            unsigned char* stbi_data = stbi_load(absolute_path_to_original_image.generic_string().c_str(), &width, &height, &imageCompCount, 0);
             assert(stbi_data);
 
-            int32_t compCount;
-            if (imageCompCount == 3)
-                compCount = 4;
-            else
-                compCount = imageCompCount;
-
-            std::unique_ptr<uint8_t[]> localImageBuffer (new uint8_t[width*height*compCount]);
-
-            if (imageCompCount == 3)
-            {
-                for(size_t i=0; i < width*height*compCount; i++)
-                {
-                    if (i % 4 == 3)
-                        localImageBuffer[i] = 0xff;
-                    else
-                        localImageBuffer[i] = stbi_data[i - i / 4];
-                }
-
-            }
-            else
-            {
-                for (size_t i = 0; i < width*height*compCount; i++)
-                    localImageBuffer[i] = stbi_data[i];
-                compCount = imageCompCount;
-            }
-
-
-            std::vector<Anvil::MipmapRawData> ImageMipmapsRawData;
-
-            ImageMipmapsRawData.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                                            static_cast<uint32_t>(0),
-                                                                                            localImageBuffer.get(),
-                                                                                            static_cast<uint32_t>(width*height*compCount),
-                                                                                            static_cast<uint32_t>(width*compCount)));
-
-            Anvil::ImageUniquePtr image_ptr;
-            Anvil::ImageViewUniquePtr image_view_ptr;
-
-            Anvil::Format imageFormat;
-            {
-                auto search = componentsCountToFormat_map.find(compCount);
-                imageFormat = search->second;
-            }
-
-            {
-                auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(in_device_ptr,
-                                                                            Anvil::ImageType::_2D,
-                                                                            imageFormat,
-                                                                            Anvil::ImageTiling::OPTIMAL,
-                                                                            Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT | Anvil::ImageUsageFlagBits::SAMPLED_BIT,
-                                                                            static_cast<uint32_t>(width),
-                                                                            static_cast<uint32_t>(height),
-                                                                            1,                                                            /* base_mipmap_depth */
-                                                                            1,                                                            /* n_layers */
-                                                                            Anvil::SampleCountFlagBits::_1_BIT,
-                                                                            Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                            Anvil::SharingMode::EXCLUSIVE,
-                                                                            false,                                                        /* in_use_full_mipmap_chain */
-                                                                            Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
-                                                                            Anvil::ImageCreateFlagBits::NONE,
-                                                                            Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,                 /* in_final_image_layout    */
-                                                                            &ImageMipmapsRawData);                                        /* in_mipmaps_ptr           */
-
-                image_ptr = Anvil::Image::create(std::move(create_info_ptr));
-            }
+            local_original_image_buffer.reset(new uint8_t[width*height*imageCompCount]);
+            
+            for (size_t i = 0; i < width*height*imageCompCount; i++)     //memcpy this shit
+                local_original_image_buffer[i] = stbi_data[i];
 
             stbi_image_free(stbi_data);
+        }
+        else
+        {
+            assert(0);
+        }
 
-            {
-                auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(in_device_ptr,
-                                                                             image_ptr.get(),
-                                                                             0,                                                           /* n_base_layer        */
-                                                                             0,                                                           /* n_base_mipmap_level */
-                                                                             1,                                                           /* n_mipmaps           */
-                                                                             Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                             imageFormat,
-                                                                             Anvil::ComponentSwizzle::R,
-                                                                             (imageCompCount >= 2) ? Anvil::ComponentSwizzle::G : Anvil::ComponentSwizzle::ZERO,
-                                                                             (imageCompCount >= 3) ? Anvil::ComponentSwizzle::B : Anvil::ComponentSwizzle::ZERO,
-                                                                             (imageCompCount >= 4) ? Anvil::ComponentSwizzle::A : Anvil::ComponentSwizzle::ONE);
+        Anvil::Format original_image_vulkan_format = componentsCountToVulkanFormat_map.find(imageCompCount)->second;
+        CMP_FORMAT original_image_compressonator_format = vulkanFormatToCompressonatorFormat_map.find(original_image_vulkan_format)->second;
 
-                image_view_ptr = Anvil::ImageView::create(std::move(create_info_ptr));
-            }
+        CMP_Texture srcTexture;
 
-            images.emplace_back(std::move(image_ptr));
-            imagesViews.emplace_back(std::move(image_view_ptr));
+        srcTexture.dwSize = sizeof(srcTexture);
+        srcTexture.dwDataSize = width * height*imageCompCount;
+        srcTexture.dwPitch = width * imageCompCount;
+        srcTexture.dwWidth = width;
+        srcTexture.dwHeight = height;
+        srcTexture.format = original_image_compressonator_format;
+        srcTexture.pData = local_original_image_buffer.get();
+
+        std::vector<CMP_Texture> compressed_mipmaps;
+
+        CMP_CompressOptions options = { 0 };
+        options.dwSize = sizeof(options);
+        options.fquality = 0.05f;
+        options.dwnumThreads = 8;
+
+        std::vector<Anvil::MipmapRawData> mipmaps_raw_data;
+
+        size_t mipmap_levels;
+        if (width >= height)
+            mipmap_levels = static_cast<size_t>(std::floor(std::log2(width))) - 1;
+        else
+            mipmap_levels = static_cast<size_t>(std::floor(std::log2(height))) - 1;
+
+        uint32_t this_mipmap_width = width;
+        uint32_t this_mipmap_height = height;
+
+        std::cout << "Creating mipmaps for image: " << thisImage.uri << "\n";
+
+        for (size_t this_mipmap_level = 0; this_mipmap_level < mipmap_levels; this_mipmap_level++)
+        {
+            CMP_Texture this_destTexture;
+            this_destTexture.dwSize = sizeof(this_destTexture);
+            this_destTexture.dwWidth = this_mipmap_width;
+            this_destTexture.dwHeight = this_mipmap_height;
+            this_destTexture.dwPitch = 0;
+            this_destTexture.format = vulkanFormatToCompressonatorFormat_map.find(image_format)->second;
+            this_destTexture.dwDataSize = CMP_CalculateBufferSize(&this_destTexture);
+            this_destTexture.pData = (CMP_BYTE*)malloc(this_destTexture.dwDataSize);
+
+            CMP_ERROR cmp_status;
+            cmp_status = CMP_ConvertTexture(&srcTexture, &this_destTexture, &options, nullptr, NULL, NULL);
+
+            compressed_mipmaps.emplace_back(this_destTexture);
+
+            mipmaps_raw_data.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
+                                                                                         static_cast<uint32_t>(this_mipmap_level),
+                                                                                         this_destTexture.pData,
+                                                                                         this_destTexture.dwDataSize,
+                                                                                         this_destTexture.dwPitch));
+
+            std::cout << "Mipmap level: " << this_mipmap_level << " width= " << this_mipmap_width << " height= " << this_mipmap_height << " created\n";
+
+            if (this_mipmap_width > 1) this_mipmap_width /= 2;
+            if (this_mipmap_height > 1) this_mipmap_height /= 2;
 
         }
+
+        Anvil::ImageUniquePtr image_ptr;
+        Anvil::ImageViewUniquePtr image_view_ptr;
+
+        {
+            auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(in_device_ptr,
+                                                                        Anvil::ImageType::_2D,
+                                                                        image_format,
+                                                                        Anvil::ImageTiling::OPTIMAL,
+                                                                        Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT | Anvil::ImageUsageFlagBits::SAMPLED_BIT,
+                                                                        static_cast<uint32_t>(width),
+                                                                        static_cast<uint32_t>(height),
+                                                                        1,                                                            /* base_mipmap_depth */
+                                                                        1,                                                            /* n_layers */
+                                                                        Anvil::SampleCountFlagBits::_1_BIT,
+                                                                        Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::EXCLUSIVE,
+                                                                        true,                                                        /* in_use_full_mipmap_chain */
+                                                                        Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
+                                                                        Anvil::ImageCreateFlagBits::NONE,
+                                                                        Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,                 /* in_final_image_layout    */
+                                                                        &mipmaps_raw_data);                                        /* in_mipmaps_ptr           */
+
+            image_ptr = Anvil::Image::create(std::move(create_info_ptr));
+        }
+
+        for (auto this_data : compressed_mipmaps)
+            delete this_data.pData;
+
+        {
+            auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(in_device_ptr,
+                                                                         image_ptr.get(),
+                                                                         0,                                                           /* n_base_layer        */
+                                                                         0,                                                           /* n_base_mipmap_level */
+                                                                         mipmap_levels,                                                           /* n_mipmaps           */
+                                                                         Anvil::ImageAspectFlagBits::COLOR_BIT,
+                                                                         image_format,
+                                                                         Anvil::ComponentSwizzle::R,
+                                                                         (imageCompCount >= 2) ? Anvil::ComponentSwizzle::G : Anvil::ComponentSwizzle::ZERO,
+                                                                         (imageCompCount >= 3) ? Anvil::ComponentSwizzle::B : Anvil::ComponentSwizzle::ZERO,
+                                                                         (imageCompCount >= 4) ? Anvil::ComponentSwizzle::A : Anvil::ComponentSwizzle::ONE);
+
+            image_view_ptr = Anvil::ImageView::create(std::move(create_info_ptr));
+        }
+
+        images.emplace_back(std::move(image_ptr));
+        imagesViews.emplace_back(std::move(image_view_ptr));
 
     }
 
@@ -126,7 +165,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
                                                                 false,                                                                /* in_compare_enable  */
                                                                 Anvil::CompareOp::NEVER,                                              /* in_compare_enable  */
                                                                 0.0f,                                                                 /* in_min_lod         */
-                                                                0.0f,                                                                 /* in_max_lod         */
+                                                                16.0f,                                                                 /* in_max_lod         */
                                                                 Anvil::BorderColor::INT_OPAQUE_BLACK,
                                                                 false);                                                               /* in_use_unnormalized_coordinates */
 
@@ -152,7 +191,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
                                                                 false,                                                                /* in_compare_enable  */
                                                                 Anvil::CompareOp::NEVER,                                              /* in_compare_enable  */
                                                                 0.0f,                                                                 /* in_min_lod         */
-                                                                0.0f,                                                                 /* in_min_lod         */
+                                                                16.0f,                                                                 /* in_min_lod         */
                                                                 Anvil::BorderColor::INT_OPAQUE_BLACK,
                                                                 false);                                                               /* in_use_unnormalized_coordinates */
 

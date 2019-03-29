@@ -14,8 +14,10 @@
 
 #ifdef FILESYSTEM_IS_EXPERIMENTAL
 #include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
 #else
 #include <filesystem>
+namespace fs = std::filesystem;
 #endif
 
 #include "glTFenum.h"
@@ -28,6 +30,8 @@
 #include "wrappers/image.h"
 #include "wrappers/image_view.h"
 #include "wrappers/sampler.h"
+
+#include "Compressonator.h"
 
 
 
@@ -50,14 +54,25 @@ public:
     std::vector<Anvil::SamplerUniquePtr> samplers;
 
 private:
+    const Anvil::Format image_format = Anvil::Format::BC7_SRGB_BLOCK;
+
     const Anvil::SamplerMipmapMode defaultMipmapMode = Anvil::SamplerMipmapMode::LINEAR;
 
-    std::map<int, Anvil::Format> componentsCountToFormat_map
+    std::map<int, Anvil::Format> componentsCountToVulkanFormat_map
     {
-        {1, Anvil::Format::R8_UNORM},
-        {2, Anvil::Format::R8G8_UNORM},
-        {3, Anvil::Format::R8G8B8_UNORM},
-        {4, Anvil::Format::R8G8B8A8_UNORM}
+        {1, Anvil::Format::R8_SRGB},
+        {2, Anvil::Format::R8G8_SRGB},
+        {3, Anvil::Format::R8G8B8_SRGB},
+        {4, Anvil::Format::R8G8B8A8_SRGB}
+    };
+
+    std::map<Anvil::Format, CMP_FORMAT> vulkanFormatToCompressonatorFormat_map
+    {
+        {Anvil::Format::R8_SRGB, CMP_FORMAT_R_8},
+        {Anvil::Format::R8G8_SRGB, CMP_FORMAT_RG_8},
+        {Anvil::Format::R8G8B8_SRGB, CMP_FORMAT_RGB_888},
+        {Anvil::Format::R8G8B8A8_SRGB, CMP_FORMAT_RGBA_8888},
+        {Anvil::Format::BC7_SRGB_BLOCK, CMP_FORMAT_BC7}
     };
 
     std::map<glTFsamplerMagFilter, Anvil::Filter> glTFsamplerMagFilterToFilter_map
