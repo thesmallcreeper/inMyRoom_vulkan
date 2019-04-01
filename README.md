@@ -17,7 +17,7 @@ Feel free to share you opinion on anything, ask, file bugs or suggest enhancemen
   
   Also download all the repo and submodules by running the following command.
   ```
-git clone --recurse-submodules --shallow-submodules https://github.com/thesmallcreeper/inMyRoom_vulkan.git
+git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/thesmallcreeper/inMyRoom_vulkan.git
   ```
  ## Windows using Visual Studio 2017
  
@@ -27,7 +27,7 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  
  (Well... you can go with CMake way, but due to my lack of CMake knowledge this solution is better ;) )
  
- ## Linux using CMake with Clang or GCC 7.0
+ ## Linux using CMake with Clang or GCC
  
  * For window creation and I/O handling XCB is used.
  
@@ -40,7 +40,7 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  ```
  $ pacman -S xcb-util
  ```
- * Also you need Clang/Clang++ or GCC/G++ 7 installed (__GCC/G++ 8 cannot compile__ Anvil because it is more restict with using memset/memcpy).
+ * Also you need Clang/Clang++ or GCC/G++ installed.
  * Open terminal with `/inMyRoom_vulkan/inMyRoom_vulkan/` as your working folder and pick up your favorite compiler.
  
  If you want to use Clang/Clang++ type:
@@ -48,10 +48,10 @@ git clone --recurse-submodules --shallow-submodules https://github.com/thesmallc
  $ export CC=/usr/bin/clang
  $ export CXX=/usr/bin/clang++
  ```
- If you want to use GCC/G++ 7 instead type:
+ If you want to use GCC/G++ instead type:
  ```
- $ export CC=/usr/bin/gcc-7
- $ export CXX=/usr/bin/g++-7
+ $ export CC=/usr/bin/gcc
+ $ export CXX=/usr/bin/g++
  ```
  * Create makefile by typing:
  ```
