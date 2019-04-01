@@ -1,11 +1,14 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(inMyRoom_vulkan)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${inMyRoom_vulkan_SOURCE_DIR})
+
 add_subdirectory(../Anvil "${CMAKE_CURRENT_BINARY_DIR}/anvil")
 add_subdirectory(../Compressonator/Compressonator/Make "${CMAKE_CURRENT_BINARY_DIR}/compressonator")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+add_compile_options(-m64)
 
 find_package(Threads REQUIRED)
 
@@ -25,6 +28,7 @@ SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/hash_combine.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/InputManager.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/TexturesImagesUsage.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MaterialsTextures.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MeshesPrimitives.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MovementBaseClass.h"
@@ -38,6 +42,7 @@ SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/InputManager.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/TexturesImagesUsage.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MaterialsTextures.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MeshesPrimitives.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MovementBaseClass.cpp"
@@ -49,8 +54,6 @@ SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/SceneNodes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/WindowWithAsyncInput.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/main.cpp")
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${inMyRoom_vulkan_SOURCE_DIR})
 
 add_executable(inMyRoom_vulkan ${SRC})
 

@@ -153,5 +153,7 @@ cmake-build-release/
 build/
 
 # Any executable
+glslangValidator
+spirv-remap
 inMyRoom_vulkan
 *.exe

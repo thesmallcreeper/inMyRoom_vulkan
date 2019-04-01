@@ -7,6 +7,7 @@
 
 #include "DDS_Helpers.h"
 
+#include <cstring>
 #include <iostream>
 
 MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps, TexturesImagesUsage* in_texturesImagesUsage_ptr, Anvil::BaseDevice* in_device_ptr)
@@ -32,9 +33,8 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
             assert(stbi_data);
 
             local_original_image_buffer.reset(new uint8_t[width*height*imageCompCount]);
-            
-            for (size_t i = 0; i < width*height*imageCompCount; i++)     //memcpy this shit
-                local_original_image_buffer[i] = stbi_data[i];
+
+            std::memcpy(local_original_image_buffer.get(), stbi_data, width*height*imageCompCount);
 
             stbi_image_free(stbi_data);
         }
