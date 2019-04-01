@@ -6,6 +6,7 @@ Feel free to share you opinion on anything, ask, file bugs or suggest enhancemen
 
 ### Deps - Submodules
 * Anvil , Vulkan library of AMD that has been modified on user I/O part of it.
+* Compressonator , image compression library. Mipmaps creation not yet available.
 * GLM , math library for OpenGL but can be used with a little bit hacking for Vulkan. Also 50MB .pdf removed
 * configuru , config file library. Got sligthly modified but changes got pulled by the original repo ;)
 * tinygltf , glTF model import.
@@ -41,7 +42,8 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  $ pacman -S xcb-util
  ```
  * Also you need Clang/Clang++ or GCC/G++ installed.
- * Open terminal with `/inMyRoom_vulkan/inMyRoom_vulkan/` as your working folder and pick up your favorite compiler.
+ * Create a `build` folder at `/inMyRoom_vulkan/inMyRoom_vulkan/`.
+ * Open terminal with `/inMyRoom_vulkan/inMyRoom_vulkan/build/` as your working folder and pick up your favorite compiler.
  
  If you want to use Clang/Clang++ type:
  ```
@@ -53,13 +55,17 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  $ export CC=/usr/bin/gcc
  $ export CXX=/usr/bin/g++
  ```
- * Create makefile by typing:
+ * Create makefile using Release mode by typing:
  ```
- $ cmake -G 'Unix Makefiles'
+ $ cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
  ```
  * Compile by typing
  ```
  $ make
+ ```
+ * Go to `/inMyRoom_vulkan/inMyRoom_vulkan/` folder by typing
+ ```
+ $ cd ..
  ```
  * Launch application by typing
  ```
@@ -72,3 +78,5 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  
  gg ez :D (Actually.. I hope so :P )
  
+  #### Note: When application launch and load a scene for first time this is gonna take some time, because mipmaps should be created, compressed and saved/cached for later reuse/relaunch.
+  #### Note 2: Mipmap chain has been disabled until Compressonator SDK does not support mipmaps yet. You can create them on your own and put them in cache folders but "who has time for that??"
