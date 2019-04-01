@@ -29,6 +29,7 @@
     <ClCompile Include="src\MovementBaseClass.cpp" />
     <ClCompile Include="src\NaiveCamera.cpp" />
     <ClCompile Include="src\MaterialsTextures.cpp" />
+    <ClCompile Include="src\TexturesImagesUsage.cpp" />
     <ClCompile Include="src\WindowWithAsyncInput.cpp" />
     <ClCompile Include="src\Engine.cpp" />
     <ClCompile Include="src\Graphics.cpp" />
@@ -49,6 +50,7 @@
     <ClInclude Include="include\MovementBaseClass.h" />
     <ClInclude Include="include\NaiveCamera.h" />
     <ClInclude Include="include\MaterialsTextures.h" />
+    <ClInclude Include="include\TexturesImagesUsage.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\Graphics.h" />

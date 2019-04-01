@@ -16,6 +16,7 @@
 #include "WindowWithAsyncInput.h"
 #include "MovementBaseClass.h"
 
+#include "TexturesImagesUsage.h"
 #include "MaterialsTextures.h"
 #include "PrimitivesMaterials.h"
 #include "PrimitivesShaders.h"
@@ -69,6 +70,7 @@ private:
     configuru::Config& cfgFile;
     tinygltf::Model model;
 
+    std::unique_ptr<TexturesImagesUsage> texturesImagesUsage_ptr;
     std::unique_ptr<MaterialsTextures> materialsTextures_ptr;
     std::unique_ptr<PrimitivesMaterials> primitivesMaterials_ptr;
     std::unique_ptr<PrimitivesShaders> primitivesShaders_ptr;
@@ -79,8 +81,6 @@ private:
 
 
     MovementBaseClass* camera;
-
-    const float	                     m_fov_deg;
 
     const unsigned int               m_n_swapchain_images;
 

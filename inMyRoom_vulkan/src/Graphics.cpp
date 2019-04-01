@@ -40,8 +40,7 @@
 
 Graphics::Graphics(configuru::Config& in_cfgFile)
     :cfgFile(in_cfgFile),
-     m_n_swapchain_images(cfgFile["graphicsSettings"]["swapchain_images"].as_integer<unsigned int>()),
-     m_fov_deg(cfgFile["graphicsSettings"]["FOV"].as_float()),
+     m_n_swapchain_images(2),
      m_n_last_semaphore_used(0)
 {
 
@@ -64,8 +63,9 @@ void Graphics::init()
     init_images();
     init_framebuffers();
     init_renderpasses();
-    init_scene();
     init_semaphores();
+
+    init_scene();
 
     init_command_buffers();
 }
@@ -86,6 +86,7 @@ void Graphics::deinit()
 
     nodesMeshes_ptr.reset();
     materialsTextures_ptr.reset();
+    texturesImagesUsage_ptr.reset();
     primitivesMaterials_ptr.reset();
     primitivesShaders_ptr.reset();
     primitivesPipelines_ptr.reset();
@@ -348,10 +349,14 @@ void Graphics::init_camera_buffers()
 
     // Camera buffer is being updated every frame
 
-    glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(m_fov_deg), (float)window_with_async_input_ptr->m_window_ptr->get_width_at_creation_time() / (float)window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time(), 1.0f, 100.0f) * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
-                                                                                                                                                                                                                                                                          0.0f, -1.0f, 0.0f, 0.0f,
-                                                                                                                                                                                                                                                                          0.0f, 0.0f, 1.0f, 0.0f,
-                                                                                                                                                                                                                                                                          0.0f, 0.0f, 0.0f, 1.0f);
+    glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
+                                                      (float)window_with_async_input_ptr->m_window_ptr->get_width_at_creation_time() / (float)window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time(),
+                                                      cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
+                                                      cfgFile["graphicsSettings"]["farPlaneDistance"].as_float()) *
+                                     glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,                                                                                                                                                                                                                           
+                                               0.0f, -1.0f, 0.0f, 0.0f,
+                                               0.0f, 0.0f, 1.0f, 0.0f,
+                                               0.0f, 0.0f, 0.0f, 1.0f);
 
     m_perspective_buffer_ptr->write(0,
                                     sizeof(glm::mat4x4),
@@ -363,7 +368,8 @@ void Graphics::init_scene()
 {
     const tinygltf::Scene &scene = model.scenes[0];
 
-    materialsTextures_ptr = std::make_unique <MaterialsTextures>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), m_device_ptr.get());
+    texturesImagesUsage_ptr = std::make_unique<TexturesImagesUsage>(model);
+    materialsTextures_ptr = std::make_unique <MaterialsTextures>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), texturesImagesUsage_ptr.get(), m_device_ptr.get());
     primitivesMaterials_ptr = std::make_unique<PrimitivesMaterials>(model, materialsTextures_ptr.get(), m_device_ptr.get());
     {
         std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
@@ -376,7 +382,9 @@ void Graphics::init_scene()
 
         primitivesShaders_ptr = std::make_unique<PrimitivesShaders>(shaderSetsInitInfos, m_device_ptr.get());
     }
-    primitivesPipelines_ptr = std::make_unique<PrimitivesPipelines>(m_device_ptr.get());    
+
+    primitivesPipelines_ptr = std::make_unique<PrimitivesPipelines>(m_device_ptr.get());
+    
     sceneNodes_ptr = std::make_unique<SceneNodes>(model, scene, m_device_ptr.get());
 
     init_spacial_dsg();

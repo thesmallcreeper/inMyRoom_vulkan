@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, Anvil::BaseDevice* in_device_ptr)
+MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps, TexturesImagesUsage* in_texturesImagesUsage_ptr, Anvil::BaseDevice* in_device_ptr)
 {
     for (tinygltf::Image& thisImage : in_model.images)
     {
@@ -68,10 +68,15 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
         std::vector<Anvil::MipmapRawData> mipmaps_raw_data;
 
         size_t mipmap_levels;
-        if (width >= height)
-            mipmap_levels = static_cast<size_t>(std::floor(std::log2(width))) - 1;
+        if (use_mipmaps)
+        {
+            if (width >= height)
+                mipmap_levels = static_cast<size_t>(std::floor(std::log2(width))) - 1;
+            else
+                mipmap_levels = static_cast<size_t>(std::floor(std::log2(height))) - 1;
+        }
         else
-            mipmap_levels = static_cast<size_t>(std::floor(std::log2(height))) - 1;
+            mipmap_levels = 1;
 
         uint32_t this_mipmap_width = width;
         uint32_t this_mipmap_height = height;
@@ -131,15 +136,15 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
                                                                         static_cast<uint32_t>(width),
                                                                         static_cast<uint32_t>(height),
                                                                         1,                                                            /* base_mipmap_depth */
-                                                                        1,                                                            /* n_layers */
+                                                                        1,                                                                         /* n_layers */
                                                                         Anvil::SampleCountFlagBits::_1_BIT,
                                                                         Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                         Anvil::SharingMode::EXCLUSIVE,
-                                                                        true,                                                        /* in_use_full_mipmap_chain */
+                                                                        use_mipmaps,                                                                         /* in_use_full_mipmap_chain */
                                                                         Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
                                                                         Anvil::ImageCreateFlagBits::NONE,
                                                                         Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,                 /* in_final_image_layout    */
-                                                                        &mipmaps_raw_data);                                        /* in_mipmaps_ptr           */
+                                                                        &mipmaps_raw_data);                                                                 /* in_mipmaps_ptr           */
 
             image_ptr = Anvil::Image::create(std::move(create_info_ptr));
         }
@@ -151,8 +156,8 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
             auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(in_device_ptr,
                                                                          image_ptr.get(),
                                                                          0,                                                           /* n_base_layer        */
-                                                                         0,                                                           /* n_base_mipmap_level */
-                                                                         mipmap_levels,                                                           /* n_mipmaps           */
+                                                                         0,                                                     /* n_base_mipmap_level */
+                                                                         mipmap_levels,                                                            /* n_mipmaps           */
                                                                          Anvil::ImageAspectFlagBits::COLOR_BIT,
                                                                          image_preferred_format,
                                                                          Anvil::ComponentSwizzle::R,

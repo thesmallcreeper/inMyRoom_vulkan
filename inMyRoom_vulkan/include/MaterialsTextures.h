@@ -11,7 +11,6 @@
 
 #include <utility>
 #include <cassert>
-
 #ifdef FILESYSTEM_IS_EXPERIMENTAL
 #include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
@@ -21,6 +20,8 @@ namespace fs = std::filesystem;
 #endif
 
 #include "glTFenum.h"
+
+#include "TexturesImagesUsage.h"
 
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
@@ -34,7 +35,6 @@ namespace fs = std::filesystem;
 #include "Compressonator.h"
 
 
-
 struct TextureInfo
 {
     size_t imageIndex;
@@ -44,7 +44,7 @@ struct TextureInfo
 class MaterialsTextures
 {
 public:
-    MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, Anvil::BaseDevice* in_device_ptr);
+    MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps, TexturesImagesUsage* in_texturesImagesUsage_ptr , Anvil::BaseDevice* in_device_ptr);
     ~MaterialsTextures();
 
     std::vector<TextureInfo> textures;
