@@ -63,7 +63,7 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  ```
  $ make
  ```
- * Go to `/inMyRoom_vulkan/inMyRoom_vulkan/` folder by typing
+ * Go back to `/inMyRoom_vulkan/inMyRoom_vulkan/` folder by typing
  ```
  $ cd ..
  ```
@@ -79,4 +79,4 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  gg ez :D (Actually.. I hope so :P )
  
   #### Note: When application launch and load a scene for first time this is gonna take some time, because mipmaps should be created, compressed and saved/cached for later reuse/relaunch.
-  #### Note 2: Mipmap chain has been disabled until Compressonator SDK does not support mipmaps yet. You can create them on your own and put them in cache folders but "who has time for that??"
+  #### Note 2: Mipmap chain creation has been disabled bacause Compressonator SDK does not support mipmaps yet. You can create them on your own and put them in cache folders but "who has time for that??"
