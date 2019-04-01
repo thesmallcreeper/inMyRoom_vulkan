@@ -45,17 +45,21 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  * Create a `build` folder at `/inMyRoom_vulkan/inMyRoom_vulkan/`.
  * Open terminal with `/inMyRoom_vulkan/inMyRoom_vulkan/build/` as your working folder and pick up your favorite compiler.
  
- If you want to use Clang/Clang++ type:
+ If you want to use Clang/Clang++ type: (Clang linker throws errors if you use `-DCMAKE_BUILD_TYPE=Release`)
  ```
  $ export CC=/usr/bin/clang
  $ export CXX=/usr/bin/clang++
  ```
- If you want to use GCC/G++ instead type:
+ If you want to use GCC/G++ instead type: (preferred)
  ```
  $ export CC=/usr/bin/gcc
  $ export CXX=/usr/bin/g++
  ```
  * Create makefile using Release mode by typing:
+ ```
+ $ cmake -G "Unix Makefiles" ..
+ ```
+ or if you want to use Release mode:
  ```
  $ cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
  ```
