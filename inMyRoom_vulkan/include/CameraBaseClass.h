@@ -11,11 +11,11 @@
 
 
 
-class MovementBaseClass
+class CameraBaseClass
 {
 public:
-    MovementBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up);
-    virtual ~MovementBaseClass();
+    CameraBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up);
+    virtual ~CameraBaseClass();
 
     void freeze();
     void unfreeze();

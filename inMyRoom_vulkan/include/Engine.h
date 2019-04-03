@@ -7,7 +7,7 @@
 
 #include "Graphics.h"
 #include "InputManager.h"
-#include "MovementBaseClass.h"
+#include "CameraBaseClass.h"
 
 class Engine
 {
@@ -30,7 +30,7 @@ private:
 
 
     std::unique_ptr<Graphics> graphics_ptr;
-    std::unique_ptr<MovementBaseClass> camera_ptr;
+    std::unique_ptr<CameraBaseClass> camera_ptr;
 
     InputManager inputManager;
 

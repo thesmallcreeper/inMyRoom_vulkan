@@ -42,7 +42,7 @@ void InputManager::init()
     mouseSensitivity = cfgFile["inputSettings"]["mouseSensitivity"].as_float();
 }
 
-void InputManager::bindCameraFreezeOldUnfreezeNew(MovementBaseClass* in_camera_ptr)
+void InputManager::bindCameraFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr)
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 

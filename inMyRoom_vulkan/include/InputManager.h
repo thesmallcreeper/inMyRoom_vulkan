@@ -8,7 +8,7 @@
 
 #include "misc/io.h"
 
-#include "MovementBaseClass.h"
+#include "CameraBaseClass.h"
 
 enum eventInputID
 {
@@ -26,7 +26,7 @@ public:
 
     std::vector<eventInputID> grabAndResetEventVector();
 
-    void bindCameraFreezeOldUnfreezeNew(MovementBaseClass* in_camera_ptr);
+    void bindCameraFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr);
 
     void keyPressed(const Anvil::KeyID in_key);
     void keyReleased(const Anvil::KeyID in_key);
@@ -84,7 +84,7 @@ private:
     std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyPressed_umap;
     std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyReleased_umap;
 
-    MovementBaseClass* volatile camera_ptr = nullptr;
+    CameraBaseClass* volatile camera_ptr = nullptr;
 
     std::vector<eventInputID> eventVector;
 

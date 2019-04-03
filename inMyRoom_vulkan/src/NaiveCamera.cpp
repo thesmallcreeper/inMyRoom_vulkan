@@ -1,7 +1,7 @@
 #include "NaiveCamera.h"
 
 NaiveCamera::NaiveCamera(float in_cameraSpeed, glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up)
-    :MovementBaseClass(in_lookingDirection, in_position, in_up),
+    :CameraBaseClass(in_lookingDirection, in_position, in_up),
      cameraSpeed(in_cameraSpeed)
 {
 

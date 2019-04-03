@@ -20,13 +20,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\InputManager.cpp" />
+    <ClCompile Include="src\CameraBaseClass.cpp" />
     <ClCompile Include="src\NodesMeshes.cpp" />
     <ClCompile Include="src\PrimitivesMaterials.cpp" />
     <ClCompile Include="src\PrimitivesShaders.cpp" />
     <ClCompile Include="src\SceneNodes.cpp" />
     <ClCompile Include="src\PrimitivesPipelines.cpp" />
     <ClCompile Include="src\MeshesPrimitives.cpp" />
-    <ClCompile Include="src\MovementBaseClass.cpp" />
     <ClCompile Include="src\NaiveCamera.cpp" />
     <ClCompile Include="src\MaterialsTextures.cpp" />
     <ClCompile Include="src\TexturesImagesUsage.cpp" />
@@ -47,7 +47,7 @@
     <ClInclude Include="include\SceneNodes.h" />
     <ClInclude Include="include\PrimitivesPipelines.h" />
     <ClInclude Include="include\MeshesPrimitives.h" />
-    <ClInclude Include="include\MovementBaseClass.h" />
+    <ClInclude Include="include\CameraBaseClass.h" />
     <ClInclude Include="include\NaiveCamera.h" />
     <ClInclude Include="include\MaterialsTextures.h" />
     <ClInclude Include="include\TexturesImagesUsage.h" />

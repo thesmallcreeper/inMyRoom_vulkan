@@ -14,7 +14,7 @@
 #include "tiny_gltf.h"
 
 #include "WindowWithAsyncInput.h"
-#include "MovementBaseClass.h"
+#include "CameraBaseClass.h"
 
 #include "TexturesImagesUsage.h"
 #include "MaterialsTextures.h"
@@ -37,7 +37,7 @@ public:
     void unregister_window_callback(Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr);
     void register_window_callback  (Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr);
 
-    void bind_camera        (MovementBaseClass* in_camera);
+    void bind_camera        (CameraBaseClass* in_camera);
 
     void draw_frame         ();
 
@@ -80,7 +80,7 @@ private:
     std::unique_ptr<NodesMeshes> nodesMeshes_ptr;
 
 
-    MovementBaseClass* camera;
+    CameraBaseClass* camera;
 
     const unsigned int               m_n_swapchain_images;
 

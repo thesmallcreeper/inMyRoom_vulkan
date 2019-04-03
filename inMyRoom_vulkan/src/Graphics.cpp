@@ -709,7 +709,7 @@ void Graphics::init_command_buffers()
     }
 }
 
-void Graphics::bind_camera(MovementBaseClass* in_camera)
+void Graphics::bind_camera(CameraBaseClass* in_camera)
 {
     camera = in_camera;
 }

@@ -1,6 +1,6 @@
-#include "MovementBaseClass.h"
+#include "CameraBaseClass.h"
 
-MovementBaseClass::MovementBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up)
+CameraBaseClass::CameraBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up)
     :lookingDirection(in_lookingDirection),
      position(in_position),
      upVector(in_up),
@@ -9,12 +9,12 @@ MovementBaseClass::MovementBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in
 
 }
 
-MovementBaseClass::~MovementBaseClass()
+CameraBaseClass::~CameraBaseClass()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 }
 
-void MovementBaseClass::freeze()
+void CameraBaseClass::freeze()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -32,7 +32,7 @@ void MovementBaseClass::freeze()
     last_snap_timePoint = next_snap_timePoint;
 }
 
-void MovementBaseClass::unfreeze()
+void CameraBaseClass::unfreeze()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -47,7 +47,7 @@ void MovementBaseClass::unfreeze()
     last_snap_timePoint = std::chrono::steady_clock::now();
 }
 
-glm::mat4x4 MovementBaseClass::getLookAtMatrix()
+glm::mat4x4 CameraBaseClass::getLookAtMatrix()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -68,7 +68,7 @@ glm::mat4x4 MovementBaseClass::getLookAtMatrix()
 
 }
 
-void MovementBaseClass::moveCamera(float xRotation_rads, float yRotation_rads)
+void CameraBaseClass::moveCamera(float xRotation_rads, float yRotation_rads)
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -110,7 +110,7 @@ void MovementBaseClass::moveCamera(float xRotation_rads, float yRotation_rads)
     }
 }
 
-void MovementBaseClass::moveForward()
+void CameraBaseClass::moveForward()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -131,7 +131,7 @@ void MovementBaseClass::moveForward()
     }
 }
 
-void MovementBaseClass::moveBackward()
+void CameraBaseClass::moveBackward()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -152,7 +152,7 @@ void MovementBaseClass::moveBackward()
     }
 }
 
-void MovementBaseClass::moveRight()
+void CameraBaseClass::moveRight()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -172,7 +172,7 @@ void MovementBaseClass::moveRight()
         movementState.movingRight = true;
     }
 }
-void MovementBaseClass::moveLeft()
+void CameraBaseClass::moveLeft()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -193,7 +193,7 @@ void MovementBaseClass::moveLeft()
     }
 }
 
-void MovementBaseClass::moveUp()
+void CameraBaseClass::moveUp()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -214,7 +214,7 @@ void MovementBaseClass::moveUp()
     }
 }
 
-void MovementBaseClass::moveDown() 
+void CameraBaseClass::moveDown() 
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -236,7 +236,7 @@ void MovementBaseClass::moveDown()
 }
 
 
-void MovementBaseClass::stopMovingForward()
+void CameraBaseClass::stopMovingForward()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -257,7 +257,7 @@ void MovementBaseClass::stopMovingForward()
     }
 }
 
-void MovementBaseClass::stopMovingBackward()
+void CameraBaseClass::stopMovingBackward()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -278,7 +278,7 @@ void MovementBaseClass::stopMovingBackward()
     }
 }
 
-void MovementBaseClass::stopMovingRight()
+void CameraBaseClass::stopMovingRight()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -299,7 +299,7 @@ void MovementBaseClass::stopMovingRight()
     }
 }
 
-void MovementBaseClass::stopMovingLeft()
+void CameraBaseClass::stopMovingLeft()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -320,7 +320,7 @@ void MovementBaseClass::stopMovingLeft()
     }
 }
 
-void MovementBaseClass::stopMovingUp()
+void CameraBaseClass::stopMovingUp()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
@@ -341,7 +341,7 @@ void MovementBaseClass::stopMovingUp()
     }
 }
 
-void MovementBaseClass::stopMovingDown()
+void CameraBaseClass::stopMovingDown()
 {
     std::lock_guard<std::mutex> lock(control_mutex);
 
