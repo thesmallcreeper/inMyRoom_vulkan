@@ -33,7 +33,8 @@ struct PipelineSpecs
 
 namespace std
 {
-    template <> struct hash<PipelineSpecs>
+    template <>
+    struct hash<PipelineSpecs>
     {
         std::size_t operator()(const PipelineSpecs& in_pipelineSpecs) const
         {
@@ -62,33 +63,33 @@ namespace std
         }
     };
 
-    template <> struct equal_to<PipelineSpecs>
+    template <>
+    struct equal_to<PipelineSpecs>
     {
         bool operator()(const PipelineSpecs& lhs, const PipelineSpecs& rhs) const
         {
             bool isEqual = (lhs.drawMode == rhs.drawMode) &&
-                           (lhs.indexComponentType == rhs.indexComponentType) &&
-                           (lhs.positionComponentType == rhs.positionComponentType) &&
-                           (lhs.normalComponentType == rhs.normalComponentType) &&
-                           (lhs.tangentComponentType == rhs.tangentComponentType) &&
-                           (lhs.tangentComponentType == rhs.texcoord0ComponentType) &&
-                           (lhs.tangentComponentType == rhs.texcoord1ComponentType) &&
-                           (lhs.renderpass_ptr == rhs.renderpass_ptr) &&
-                           (lhs.subpassID == rhs.subpassID) &&
-                           (lhs.pipelineShaders.fragmentShaderModule_ptr == rhs.pipelineShaders.fragmentShaderModule_ptr) &&
-                           (lhs.pipelineShaders.geometryShaderModule_ptr == rhs.pipelineShaders.geometryShaderModule_ptr) &&
-                           (lhs.pipelineShaders.tessControlShaderModule_ptr == rhs.pipelineShaders.tessControlShaderModule_ptr) &&
-                           (lhs.pipelineShaders.tessEvaluationShaderModule_ptr == rhs.pipelineShaders.tessEvaluationShaderModule_ptr) &&
-                           (lhs.pipelineShaders.vertexShaderModule_ptr == rhs.pipelineShaders.vertexShaderModule_ptr);
+                (lhs.indexComponentType == rhs.indexComponentType) &&
+                (lhs.positionComponentType == rhs.positionComponentType) &&
+                (lhs.normalComponentType == rhs.normalComponentType) &&
+                (lhs.tangentComponentType == rhs.tangentComponentType) &&
+                (lhs.texcoord0ComponentType == rhs.texcoord0ComponentType) &&
+                (lhs.texcoord1ComponentType == rhs.texcoord1ComponentType) &&
+                (lhs.renderpass_ptr == rhs.renderpass_ptr) &&
+                (lhs.subpassID == rhs.subpassID) &&
+                (lhs.pipelineShaders.fragmentShaderModule_ptr == rhs.pipelineShaders.fragmentShaderModule_ptr) &&
+                (lhs.pipelineShaders.geometryShaderModule_ptr == rhs.pipelineShaders.geometryShaderModule_ptr) &&
+                (lhs.pipelineShaders.tessControlShaderModule_ptr == rhs.pipelineShaders.tessControlShaderModule_ptr) &&
+                (lhs.pipelineShaders.tessEvaluationShaderModule_ptr == rhs.pipelineShaders.tessEvaluationShaderModule_ptr)&&
+                (lhs.pipelineShaders.vertexShaderModule_ptr == rhs.pipelineShaders.vertexShaderModule_ptr);
 
-            if(lhs.descriptorSetsCreateInfo_ptrs.size() == rhs.descriptorSetsCreateInfo_ptrs.size() && isEqual)
-                for(size_t i = 0; i < lhs.descriptorSetsCreateInfo_ptrs.size() && isEqual; i++)
+            if (lhs.descriptorSetsCreateInfo_ptrs.size() == rhs.descriptorSetsCreateInfo_ptrs.size() && isEqual)
+                for (size_t i = 0; i < lhs.descriptorSetsCreateInfo_ptrs.size() && isEqual; i++)
                 {
                     isEqual &= *(lhs.descriptorSetsCreateInfo_ptrs[i]) == *(rhs.descriptorSetsCreateInfo_ptrs[i]);
                 }
 
             return isEqual;
-
         }
     };
 }
@@ -99,7 +100,7 @@ public:
     PrimitivesPipelines(Anvil::BaseDevice* in_device_ptr);
     ~PrimitivesPipelines();
 
-    size_t getPipelineIDIndex(const PipelineSpecs in_pipelineSpecs);
+    size_t getPipelineIDIndex(PipelineSpecs in_pipelineSpecs);
 
     std::vector<Anvil::PipelineID> pipelineIDs;
 
@@ -113,7 +114,7 @@ private:
         {glTFmode::points, Anvil::PrimitiveTopology::POINT_LIST},
         {glTFmode::line, Anvil::PrimitiveTopology::LINE_LIST},
         {glTFmode::line_strip, Anvil::PrimitiveTopology::LINE_STRIP},
-        {glTFmode::triangles,Anvil::PrimitiveTopology::TRIANGLE_LIST},
+        {glTFmode::triangles, Anvil::PrimitiveTopology::TRIANGLE_LIST},
         {glTFmode::triangle_strip, Anvil::PrimitiveTopology::TRIANGLE_STRIP},
         {glTFmode::triangle_fan, Anvil::PrimitiveTopology::TRIANGLE_FAN}
     };

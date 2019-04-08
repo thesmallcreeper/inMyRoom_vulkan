@@ -3,20 +3,7 @@
 InputManager::InputManager(configuru::Config& in_cfgFile)
     :cfgFile(in_cfgFile)
 {
-
-}
-
-InputManager::~InputManager()
-{
-    std::lock_guard<std::mutex> lock(control_mutex);
-
-    keyToFunction_onKeyReleased_umap.clear();
-    eventVector.clear();
-}
-
-void InputManager::init()
-{
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     for (auto const& bind : functionNameToFunction_map)
     {
@@ -25,9 +12,9 @@ void InputManager::init()
             Anvil::KeyID keyID;
 
             std::string keyName = arrayIterator.as_string();
-            auto search = buttomAliasToKey_umap.find(keyName);
+            auto search = buttomAliasToKey_map.find(keyName);
 
-            if (search != buttomAliasToKey_umap.end())
+            if (search != buttomAliasToKey_map.end())
                 keyID = search->second;
             else
                 keyID = static_cast<Anvil::KeyID>(keyName[0]);
@@ -42,49 +29,57 @@ void InputManager::init()
     mouseSensitivity = cfgFile["inputSettings"]["mouseSensitivity"].as_float();
 }
 
-void InputManager::bindCameraFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr)
+InputManager::~InputManager()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
+
+    keyToFunction_onKeyReleased_umap.clear();
+    eventVector.clear();
+}
+
+void InputManager::BindCameraFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr)
+{
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (camera_ptr)
-        camera_ptr->freeze();
+        camera_ptr->Freeze();
 
     camera_ptr = in_camera_ptr;
 
-    ForwardKeyIsPressed = false;
-    BackwardKeyIsPressed = false;
-    RightKeyIsPressed = false;
-    LeftKeyIsPressed = false;
-    UpKeyIsPressed = false;
-    DownKeyIsPressed = false;
+    forwardKeyIsPressed = false;
+    backwardKeyIsPressed = false;
+    rightKeyIsPressed = false;
+    leftKeyIsPressed = false;
+    upKeyIsPressed = false;
+    downKeyIsPressed = false;
 
     if (camera_ptr)
-        camera_ptr->unfreeze();
+        camera_ptr->Unfreeze();
 }
 
-std::vector<eventInputID> InputManager::grabAndResetEventVector()
+std::vector<eventInputID> InputManager::GrabAndResetEventVector()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     std::vector<eventInputID> returnVector;
     returnVector.swap(eventVector);
     return returnVector;
 }
 
-void InputManager::mouseMoved(const long xOffset, const long yOffset)
+void InputManager::MouseMoved(const long xOffset, const long yOffset)
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     float xRotation_rads = - xOffset * mouseSensitivity;
     float yRotation_rads = - yOffset * mouseSensitivity;
 
     if (camera_ptr)
-        camera_ptr->moveCamera(xRotation_rads, yRotation_rads);
+        camera_ptr->MoveCamera(xRotation_rads, yRotation_rads);
 }
 
-void InputManager::keyPressed(const Anvil::KeyID in_key)
+void InputManager::KeyPressed(const Anvil::KeyID in_key)
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     auto search = keyToFunction_onKeyPressed_umap.find(in_key);
     if (search != keyToFunction_onKeyPressed_umap.end())
@@ -92,132 +87,132 @@ void InputManager::keyPressed(const Anvil::KeyID in_key)
 }
 
 
-void InputManager::keyReleased(const Anvil::KeyID in_key)
+void InputManager::KeyReleased(const Anvil::KeyID in_key)
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     auto search = keyToFunction_onKeyReleased_umap.find(in_key);
     if (search != keyToFunction_onKeyReleased_umap.end())
         search->second();
 }
 
-void InputManager::addToQueue(eventInputID event)
+void InputManager::AddToQueue(eventInputID event)
 {
-    // keyPressed or keyReleased access this function that are have locked the mutex 2. wtf i sayy
+    // KeyPressed or keyReleased access this function that are have locked the mutex 2. wtf i sayy
 
     eventVector.push_back(event);
 }
 
-void InputManager::moveForward()
+void InputManager::MoveForward()
 {
-    if (camera_ptr && !ForwardKeyIsPressed)
+    if (camera_ptr && !forwardKeyIsPressed)
     {
-        camera_ptr->moveForward();
-        ForwardKeyIsPressed = true;
+        camera_ptr->MoveForward();
+        forwardKeyIsPressed = true;
     }
 }
 
-void InputManager::moveBackward()
+void InputManager::MoveBackward()
 {
-    if (camera_ptr && !BackwardKeyIsPressed)
+    if (camera_ptr && !backwardKeyIsPressed)
     {
-        camera_ptr->moveBackward();
-        BackwardKeyIsPressed = true;
+        camera_ptr->MoveBackward();
+        backwardKeyIsPressed = true;
     }
 }
 
-void InputManager::moveLeft()
+void InputManager::MoveLeft()
 {
-    if (camera_ptr && !LeftKeyIsPressed)
+    if (camera_ptr && !leftKeyIsPressed)
     {
-        camera_ptr->moveLeft();
-        LeftKeyIsPressed = true;
+        camera_ptr->MoveLeft();
+        leftKeyIsPressed = true;
     }
 }
 
-void InputManager::moveRight()
+void InputManager::MoveRight()
 {
-    if (camera_ptr && !RightKeyIsPressed)
+    if (camera_ptr && !rightKeyIsPressed)
     {
-        camera_ptr->moveRight();
-        RightKeyIsPressed = true;
+        camera_ptr->MoveRight();
+        rightKeyIsPressed = true;
     }
 }
 
-void InputManager::moveUp()
+void InputManager::MoveUp()
 {
-    if (camera_ptr && !UpKeyIsPressed)
+    if (camera_ptr && !upKeyIsPressed)
     {
-        camera_ptr->moveUp();
-        UpKeyIsPressed = true;
+        camera_ptr->MoveUp();
+        upKeyIsPressed = true;
     }
 }
 
-void InputManager::moveDown()
+void InputManager::MoveDown()
 {
-    if (camera_ptr && !DownKeyIsPressed)
+    if (camera_ptr && !downKeyIsPressed)
     {
-        camera_ptr->moveDown();
-        DownKeyIsPressed = true;
+        camera_ptr->MoveDown();
+        downKeyIsPressed = true;
     }
 }
 
 
-void InputManager::stopMovingForward()
+void InputManager::StopMovingForward()
 {
-    if (camera_ptr && ForwardKeyIsPressed)
+    if (camera_ptr && forwardKeyIsPressed)
     {
-        camera_ptr->stopMovingForward();
-        ForwardKeyIsPressed = false;
+        camera_ptr->StopMovingForward();
+        forwardKeyIsPressed = false;
     }
 }
 
-void InputManager::stopMovingBackward()
+void InputManager::StopMovingBackward()
 {
-    if (camera_ptr && BackwardKeyIsPressed)
+    if (camera_ptr && backwardKeyIsPressed)
     {
-        camera_ptr->stopMovingBackward();
-        BackwardKeyIsPressed = false;
+        camera_ptr->StopMovingBackward();
+        backwardKeyIsPressed = false;
     }
 }
 
-void InputManager::stopMovingLeft()
+void InputManager::StopMovingLeft()
 {
-    if (camera_ptr && LeftKeyIsPressed)
+    if (camera_ptr && leftKeyIsPressed)
     {
-        camera_ptr->stopMovingLeft();
-        LeftKeyIsPressed = false;
+        camera_ptr->StopMovingLeft();
+        leftKeyIsPressed = false;
     }
 }
 
-void InputManager::stopMovingRight()
+void InputManager::StopMovingRight()
 {
-    if (camera_ptr && RightKeyIsPressed)
+    if (camera_ptr && rightKeyIsPressed)
     {
-        camera_ptr->stopMovingRight();
-        RightKeyIsPressed = false;
+        camera_ptr->StopMovingRight();
+        rightKeyIsPressed = false;
     }
 }
 
-void InputManager::stopMovingUp()
+void InputManager::StopMovingUp()
 {
-    if (camera_ptr && UpKeyIsPressed)
+    if (camera_ptr && upKeyIsPressed)
     {
-        camera_ptr->stopMovingUp();
-        UpKeyIsPressed = false;
+        camera_ptr->StopMovingUp();
+        upKeyIsPressed = false;
     }
 }
 
-void InputManager::stopMovingDown()
+void InputManager::StopMovingDown()
 {
-    if (camera_ptr && DownKeyIsPressed)
+    if (camera_ptr && downKeyIsPressed)
     {
-        camera_ptr->stopMovingDown();
-        DownKeyIsPressed = false;
+        camera_ptr->StopMovingDown();
+        downKeyIsPressed = false;
     }
 }
 
-void InputManager::shouldClose()
+void InputManager::ShouldClose()
 {
-    addToQueue(SHOULD_CLOSE);
+    AddToQueue(SHOULD_CLOSE);
 }

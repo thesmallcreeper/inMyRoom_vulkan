@@ -27,12 +27,15 @@ public:
                          bool                           in_closable);
     ~WindowWithAsyncInput();
 
-    Anvil::WindowUniquePtr m_window_ptr;
+    Anvil::Window* GetWindowPtr() const
+    {
+        return m_window_ptr.get();
+    }
 
 private:
 
+    Anvil::WindowUniquePtr m_window_ptr;
     std::unique_ptr<std::thread> window_thread_ptr;
-
     THREADID_T threadID;
 
     volatile bool should_thread_close;

@@ -2,62 +2,46 @@
 
 #include "Graphics.h"
 
-#include "config.h"
+#include "glm/mat4x4.hpp"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
-#include "misc/window_factory.h"
 #include "misc/swapchain_create_info.h"
-#include "misc/rendering_surface_create_info.h"
 #include "misc/memory_allocator.h"
 #include "misc/buffer_create_info.h"
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
 #include "misc/semaphore_create_info.h"
-#include "misc/glsl_to_spirv.h"
 #include "misc/framebuffer_create_info.h"
 #include "misc/render_pass_create_info.h"
-#include "misc/instance_create_info.h"
+#include "wrappers/rendering_surface.h"
 #include "wrappers/buffer.h"
 #include "wrappers/command_buffer.h"
 #include "wrappers/command_pool.h"
-#include "wrappers/device.h"
 #include "wrappers/descriptor_set_group.h"
-#include "wrappers/descriptor_set_layout.h"
 #include "wrappers/framebuffer.h"
-#include "wrappers/event.h"
-#include "wrappers/instance.h"
 #include "wrappers/image.h"
 #include "wrappers/image_view.h"
-#include "wrappers/rendering_surface.h"
+#include "wrappers/swapchain.h"
 #include "wrappers/render_pass.h"
 #include "wrappers/semaphore.h"
-#include "wrappers/graphics_pipeline_manager.h"
-#include "wrappers/shader_module.h"
-#include "wrappers/swapchain.h"
 
 #ifdef _DEBUG
     #define ENABLE_VALIDATION
 #endif
 
-Graphics::Graphics(configuru::Config& in_cfgFile)
-    :cfgFile(in_cfgFile),
-     m_n_swapchain_images(2),
-     m_n_last_semaphore_used(0)
-{
-
-}
-
-Graphics::~Graphics()
-{
-    deinit();
-}
-
-void Graphics::init()
+Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
+                   uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount)
+    :
+    cfgFile(in_cfgFile),
+    m_n_swapchain_images(swapchainImagesCount),
+    m_n_last_semaphore_used(0),
+    m_device_ptr(in_device_ptr),
+    m_swapchain_ptr(in_swapchain_ptr),
+    windowWidth(windowWidth),
+    windowHeight(windowHeight)
 {
     load_scene();
-
-    init_vulkan();
-    init_window_with_async_input_ptr();
-    init_swapchain();
 
     init_camera_buffers();
     init_images();
@@ -70,9 +54,8 @@ void Graphics::init()
     init_command_buffers();
 }
 
-void Graphics::deinit()
+Graphics::~Graphics()
 {
-    Anvil::Vulkan::vkDeviceWaitIdle(m_device_ptr->get_device_vk());
 
     m_cmd_buffers.clear();
 
@@ -98,14 +81,6 @@ void Graphics::deinit()
 
     m_camera_buffer_ptr.reset();
     m_perspective_buffer_ptr.reset();
-
-    m_swapchain_ptr.reset();
-    m_rendering_surface_ptr.reset();
-
-    m_device_ptr.reset();
-    m_instance_ptr.reset();
-
-    window_with_async_input_ptr.reset();
 }
 
 void Graphics::draw_frame()
@@ -130,7 +105,7 @@ void Graphics::draw_frame()
     {
         const auto acquire_result = m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
                                                                    &n_swapchain_image,
-                                                                   true); /* in_should_block */
+                                                                   false); /* in_should_block */
 
         ANVIL_REDUNDANT_VARIABLE_CONST(acquire_result);
         anvil_assert(acquire_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
@@ -138,7 +113,12 @@ void Graphics::draw_frame()
 
     Anvil::Vulkan::vkDeviceWaitIdle(m_device_ptr->get_device_vk());
 
-    glm::mat4x4 camera_matrix = camera->getLookAtMatrix();
+    camera_ptr->RefreshPublicVectors();
+    glm::vec3 cameraPosition = camera_ptr->publicPosition;
+    glm::vec3 cameraLookingDirection = camera_ptr->publicLookingDirection;
+    glm::vec3 cameraUp = camera_ptr->upVector;
+
+    glm::mat4x4 camera_matrix = glm::lookAt(cameraPosition, cameraPosition + cameraLookingDirection, cameraUp);
 
     m_camera_buffer_ptr->write(0,
                                sizeof(glm::mat4x4),
@@ -156,7 +136,7 @@ void Graphics::draw_frame()
 
     {
         Anvil::SwapchainOperationErrorCode present_result = Anvil::SwapchainOperationErrorCode::DEVICE_LOST;
-        present_queue_ptr->present(m_swapchain_ptr.get(),
+        present_queue_ptr->present(m_swapchain_ptr,
                                    n_swapchain_image,
                                    1, /* n_wait_semaphores */
                                    &present_wait_semaphore_ptr,
@@ -200,110 +180,6 @@ void Graphics::load_scene()
         exit(-1);
     }
 }
-void Graphics::init_vulkan()
-{
-    {
-        /* Create a Vulkan instance */
-        auto create_info_ptr = Anvil::InstanceCreateInfo::create("inMyRoom_vulkan",  /* app_name */
-                                                                 "inMyRoom_vulkan",  /* engine_name */
-#ifdef ENABLE_VALIDATION
-        std::bind(&Graphics::on_validation_callback,
-        this,
-        std::placeholders::_1,
-        std::placeholders::_2
-        ),
-#else
-                                                                 Anvil::DebugCallbackFunction(),
-#endif
-                                                                 false);             /* in_mt_safe */
-
-        m_instance_ptr = Anvil::Instance::create(std::move(create_info_ptr));
-    }
-
-
-    {
-        /* Determine which extensions we need to request for */
-        std::vector<std::string> vulkan_layers;
-
-        /* Create a Vulkan device */
-        auto create_info_ptr = Anvil::DeviceCreateInfo::create_sgpu(m_instance_ptr->get_physical_device(0),
-                                                                    true, /* in_enable_shader_module_cache */
-                                                                    Anvil::DeviceExtensionConfiguration(),
-                                                                    vulkan_layers,                                     /* in_layers                               */
-                                                                    Anvil::CommandPoolCreateFlagBits::NONE,            /* in_transient_command_buffer_allocs_only */
-                                                                    false);                                            /* in_support_resettable_command_buffers   */
-
-        m_device_ptr = Anvil::SGPUDevice::create(std::move(create_info_ptr));
-    }
-}
-
-void Graphics::init_window_with_async_input_ptr()
-{
-    #ifdef _WIN32
-        const Anvil::WindowPlatform platform = Anvil::WINDOW_PLATFORM_SYSTEM;
-    #else
-        const Anvil::WindowPlatform platform = Anvil::WINDOW_PLATFORM_XCB;
-    #endif
-
-    window_with_async_input_ptr = std::make_unique<WindowWithAsyncInput>(platform,
-                                                                         "inMyRoom_vulkan",
-                                                                         cfgFile["graphicsSettings"]["xRes"].as_integer<unsigned int>(),
-                                                                         cfgFile["graphicsSettings"]["yRes"].as_integer<unsigned int>(),
-                                                                         true);
-}
-
-void Graphics::init_swapchain()
-{
-    static const Anvil::Format          swapchain_format(Anvil::Format::B8G8R8A8_UNORM);
-    static const Anvil::PresentModeKHR  swapchain_present_mode(Anvil::PresentModeKHR::FIFO_KHR);
-    static const Anvil::ImageUsageFlags swapchain_usage(Anvil::ImageUsageFlagBits::COLOR_ATTACHMENT_BIT | Anvil::ImageUsageFlagBits::TRANSFER_SRC_BIT | Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT);
-
-    {
-        auto create_info_ptr = Anvil::RenderingSurfaceCreateInfo::create(m_instance_ptr.get(),
-                                                                         m_device_ptr.get(),
-                                                                         window_with_async_input_ptr->m_window_ptr.get());
-
-        m_rendering_surface_ptr = Anvil::RenderingSurface::create(std::move(create_info_ptr) );
-    }
-
-    m_rendering_surface_ptr->set_name("Main rendering surface");
-
-    switch (m_device_ptr->get_type())
-    {
-    case Anvil::DeviceType::SINGLE_GPU:
-    {
-        Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<Anvil::SGPUDevice*>(m_device_ptr.get()));
-
-        m_swapchain_ptr = sgpu_device_ptr->create_swapchain(m_rendering_surface_ptr.get(),
-                                                            window_with_async_input_ptr -> m_window_ptr.get(),
-                                                            swapchain_format,
-                                                            Anvil::ColorSpaceKHR::SRGB_NONLINEAR_KHR,
-                                                            swapchain_present_mode,
-                                                            swapchain_usage,
-                                                            m_n_swapchain_images);
-
-        /* Cache the queue we are going to use for presentation */
-        const std::vector<uint32_t>* present_queue_fams_ptr = nullptr;
-
-        if (!m_rendering_surface_ptr->get_queue_families_with_present_support(sgpu_device_ptr->get_physical_device(),
-            &present_queue_fams_ptr))
-        {
-            anvil_assert_fail();
-        }
-
-        m_present_queue_ptr = sgpu_device_ptr->get_queue_for_queue_family_index(present_queue_fams_ptr->at(0),
-            0); /* in_n_queue */
-
-        break;
-    }
-
-    default:
-    {
-        anvil_assert(false);
-    }
-    }
-}
-
 
 void Graphics::init_camera_buffers()
 {
@@ -313,10 +189,10 @@ void Graphics::init_camera_buffers()
 
     const Anvil::MemoryFeatureFlags   required_feature_flags = Anvil::MemoryFeatureFlagBits::NONE;
 
-    allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr.get());
+    allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr);
 
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr,
                                                                         sizeof(glm::mat4),
                                                                         Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                         Anvil::SharingMode::EXCLUSIVE,
@@ -329,7 +205,7 @@ void Graphics::init_camera_buffers()
     }
 
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr,
                                                                         sizeof(glm::mat4),
                                                                         Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                         Anvil::SharingMode::EXCLUSIVE,
@@ -350,7 +226,7 @@ void Graphics::init_camera_buffers()
     // Camera buffer is being updated every frame
 
     glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
-                                                      (float)window_with_async_input_ptr->m_window_ptr->get_width_at_creation_time() / (float)window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time(),
+                                                      static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
                                                       cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
                                                       cfgFile["graphicsSettings"]["farPlaneDistance"].as_float()) *
                                      glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,                                                                                                                                                                                                                           
@@ -369,8 +245,8 @@ void Graphics::init_scene()
     const tinygltf::Scene &scene = model.scenes[0];
 
     texturesImagesUsage_ptr = std::make_unique<TexturesImagesUsage>(model);
-    materialsTextures_ptr = std::make_unique <MaterialsTextures>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), texturesImagesUsage_ptr.get(), m_device_ptr.get());
-    primitivesMaterials_ptr = std::make_unique<PrimitivesMaterials>(model, materialsTextures_ptr.get(), m_device_ptr.get());
+    materialsTextures_ptr = std::make_unique <MaterialsTextures>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), texturesImagesUsage_ptr.get(), m_device_ptr);
+    primitivesMaterials_ptr = std::make_unique<PrimitivesMaterials>(model, materialsTextures_ptr.get(), m_device_ptr);
     {
         std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
         ShaderSetFamilyInitInfo this_shaderSetInitInfo;
@@ -380,17 +256,17 @@ void Graphics::init_scene()
 
         shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
 
-        primitivesShaders_ptr = std::make_unique<PrimitivesShaders>(shaderSetsInitInfos, m_device_ptr.get());
+        primitivesShaders_ptr = std::make_unique<PrimitivesShaders>(shaderSetsInitInfos, m_device_ptr);
     }
 
-    primitivesPipelines_ptr = std::make_unique<PrimitivesPipelines>(m_device_ptr.get());
+    primitivesPipelines_ptr = std::make_unique<PrimitivesPipelines>(m_device_ptr);
     
-    sceneNodes_ptr = std::make_unique<SceneNodes>(model, scene, m_device_ptr.get());
+    sceneNodes_ptr = std::make_unique<SceneNodes>(model, scene, m_device_ptr);
 
     init_spacial_dsg();
 
-    meshesPrimitives_ptr = std::make_unique<MeshesPrimitives>(primitivesPipelines_ptr.get(), primitivesShaders_ptr.get(), primitivesMaterials_ptr.get(), m_device_ptr.get());
-    nodesMeshes_ptr = std::make_unique<NodesMeshes>(model, meshesPrimitives_ptr.get(), m_device_ptr.get());
+    meshesPrimitives_ptr = std::make_unique<MeshesPrimitives>(primitivesPipelines_ptr.get(), primitivesShaders_ptr.get(), primitivesMaterials_ptr.get(), m_device_ptr);
+    nodesMeshes_ptr = std::make_unique<NodesMeshes>(model, meshesPrimitives_ptr.get(), m_device_ptr);
 
     meshesPrimitives_ptr->FlashBuffersToDevice();
     {
@@ -431,7 +307,7 @@ void Graphics::init_spacial_dsg()
                                             Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
 
-    new_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
+    new_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
                                                     { new_dsg_create_info_ptr },
                                                     false); /* in_releaseable_sets */
 
@@ -453,13 +329,13 @@ void Graphics::init_spacial_dsg()
 void Graphics::init_images()
 {
     {
-        auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(m_device_ptr.get(),
+        auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(m_device_ptr,
                                                                     Anvil::ImageType::_2D,
                                                                     Anvil::Format::D32_SFLOAT,
                                                                     Anvil::ImageTiling::OPTIMAL,
                                                                     Anvil::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT_BIT,
-                                                                    window_with_async_input_ptr->m_window_ptr->get_width_at_creation_time(),
-                                                                    window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time(),
+                                                                    windowWidth,
+                                                                    windowHeight,
                                                                     1, /* base_mipmap_depth */
                                                                     1, /* n_layers */
                                                                     Anvil::SampleCountFlagBits::_1_BIT,
@@ -468,17 +344,17 @@ void Graphics::init_images()
                                                                     false, /* in_use_full_mipmap_chain */
                                                                     Anvil::MemoryFeatureFlagBits::NONE,
                                                                     Anvil::ImageCreateFlagBits::NONE,
-                                                                    Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* in_final_image_layout    */
-                                                                    nullptr);                                             /* in_mipmaps_ptr           */
+                                                                    Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* in_final_image_layout */
+                                                                    nullptr); /* in_mipmaps_ptr */
 
         m_depth_image_ptr = Anvil::Image::create(std::move(create_info_ptr));
     }
     {
-        auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(m_device_ptr.get(),
+        auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(m_device_ptr,
                                                                      m_depth_image_ptr.get(),
-                                                                     0, /* n_base_layer        */
+                                                                     0, /* n_base_layer */
                                                                      0, /* n_base_mipmap_level */
-                                                                     1, /* n_mipmaps           */
+                                                                     1, /* n_mipmaps */
                                                                      Anvil::ImageAspectFlagBits::DEPTH_BIT,
                                                                      m_depth_image_ptr->get_create_info_ptr()->get_format(),
                                                                      Anvil::ComponentSwizzle::IDENTITY,
@@ -500,7 +376,7 @@ void Graphics::init_semaphores()
         Anvil::SemaphoreUniquePtr new_wait_semaphore_ptr;
 
         {
-            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(m_device_ptr.get());
+            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(m_device_ptr);
 
             new_signal_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr));
 
@@ -509,7 +385,7 @@ void Graphics::init_semaphores()
         }
 
         {
-            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(m_device_ptr.get());
+            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(m_device_ptr);
 
             new_wait_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr));
 
@@ -532,9 +408,9 @@ void Graphics::init_framebuffers()
         Anvil::FramebufferUniquePtr framebuffer_ptr;
 
         {
-            auto create_info_ptr = Anvil::FramebufferCreateInfo::create(m_device_ptr.get(),
-                                                                        window_with_async_input_ptr -> m_window_ptr -> get_width_at_creation_time(),
-                                                                        window_with_async_input_ptr -> m_window_ptr -> get_height_at_creation_time(),
+            auto create_info_ptr = Anvil::FramebufferCreateInfo::create(m_device_ptr,
+                                                                        windowWidth,
+                                                                        windowHeight,
                                                                         1); /* n_layers */
 
             create_info_ptr->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
@@ -562,16 +438,16 @@ void Graphics::init_renderpasses()
         Anvil::RenderPassAttachmentID color_attachment_id;
         Anvil::RenderPassAttachmentID depth_attachment_id;
 
-        Anvil::RenderPassCreateInfoUniquePtr renderpass_create_info_ptr(new Anvil::RenderPassCreateInfo(m_device_ptr.get()));
+        Anvil::RenderPassCreateInfoUniquePtr renderpass_create_info_ptr(new Anvil::RenderPassCreateInfo(m_device_ptr));
 
         renderpass_create_info_ptr->add_color_attachment(m_swapchain_ptr->get_create_info_ptr()->get_format(),
-                                                            Anvil::SampleCountFlagBits::_1_BIT,
-                                                            Anvil::AttachmentLoadOp::CLEAR,
-                                                            Anvil::AttachmentStoreOp::STORE,
-                                                            Anvil::ImageLayout::UNDEFINED,
-                                                            Anvil::ImageLayout::PRESENT_SRC_KHR,
-                                                            false, /* may_alias */
-                                                            &color_attachment_id);
+                                                         Anvil::SampleCountFlagBits::_1_BIT,
+                                                         Anvil::AttachmentLoadOp::CLEAR,
+                                                         Anvil::AttachmentStoreOp::STORE,
+                                                         Anvil::ImageLayout::UNDEFINED,
+                                                         Anvil::ImageLayout::PRESENT_SRC_KHR,
+                                                         false, /* may_alias */
+                                                         &color_attachment_id);
 
         renderpass_create_info_ptr->add_depth_stencil_attachment(m_depth_image_ptr->get_create_info_ptr()->get_format(),
                                                                     Anvil::SampleCountFlagBits::_1_BIT,
@@ -597,7 +473,7 @@ void Graphics::init_renderpasses()
 
 
         m_renderpass_ptr = Anvil::RenderPass::create(std::move(renderpass_create_info_ptr),
-                                                    m_swapchain_ptr.get());
+                                                    m_swapchain_ptr);
 
         m_renderpass_ptr->set_name("Renderpass for swapchain images");
 }
@@ -682,8 +558,8 @@ void Graphics::init_command_buffers()
             clear_values[1].depthStencil.depth = 1.0f;
 
             VkRect2D  render_area;
-            render_area.extent.height = window_with_async_input_ptr->m_window_ptr->get_height_at_creation_time();
-            render_area.extent.width = window_with_async_input_ptr->m_window_ptr->get_width_at_creation_time();
+            render_area.extent.width = windowWidth;
+            render_area.extent.height = windowHeight;
             render_area.offset.x = 0;
             render_area.offset.y = 0;
 
@@ -711,35 +587,11 @@ void Graphics::init_command_buffers()
 
 void Graphics::bind_camera(CameraBaseClass* in_camera)
 {
-    camera = in_camera;
+    camera_ptr = in_camera;
 }
 
-void Graphics::unregister_window_callback(Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr)
+std::string Graphics::GetFilePathExtension(const std::string &FileName) 
 {
-    window_with_async_input_ptr->m_window_ptr->unregister_from_callbacks(in_callback_id,
-                                                                         in_callback_function,
-                                                                         in_callback_owner_ptr);
-}
-
-void Graphics::register_window_callback(Anvil::CallbackID in_callback_id, Anvil::CallbackFunction in_callback_function, void* in_callback_owner_ptr)
-{
-    window_with_async_input_ptr->m_window_ptr->register_for_callbacks(in_callback_id,
-                                                                      in_callback_function,
-                                                                      in_callback_owner_ptr);
-}
-
-
-void Graphics::on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
-                                      const char*                      in_message_ptr)
-{
-    if ((in_severity & Anvil::DebugMessageSeverityFlagBits::ERROR_BIT) != 0)
-    {
-        printf("[!] %s\n",
-               in_message_ptr);
-    }
-}
-
-std::string Graphics::GetFilePathExtension(const std::string &FileName) {
     if (FileName.find_last_of(".") != std::string::npos)
         return FileName.substr(FileName.find_last_of(".") + 1);
     return "";

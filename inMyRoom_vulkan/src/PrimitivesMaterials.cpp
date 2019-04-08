@@ -1,6 +1,7 @@
 #include "PrimitivesMaterials.h"
 
-PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTextures* in_materialsTextures_ptr, Anvil::BaseDevice* in_device_ptr)
+PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTextures* in_materialsTextures_ptr,
+                                         Anvil::BaseDevice* in_device_ptr)
     :
     materialsTextures_ptr(in_materialsTextures_ptr),
     device_ptr(in_device_ptr)
@@ -17,7 +18,8 @@ PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTex
 
             std::vector<Anvil::DescriptorSet::CombinedImageSamplerBindingElement> this_loop_textures_bindings;
 
-            Anvil::DescriptorSetCreateInfoUniquePtr this_descriptorSetCreateInfo_ptr = Anvil::DescriptorSetCreateInfo::create();
+            Anvil::DescriptorSetCreateInfoUniquePtr this_descriptorSetCreateInfo_ptr = Anvil::DescriptorSetCreateInfo::
+                create();
             size_t bindingCount = 0;
 
             {
@@ -36,19 +38,18 @@ PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTex
                                                                   1,
                                                                   Anvil::ShaderStageFlagBits::FRAGMENT_BIT);
 
-                    Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                                                                                               materialsTextures_ptr->imagesViews[this_texture_info.imageIndex].get(),
-                                                                                               materialsTextures_ptr->samplers[this_texture_info.samplerIndex].get());
+                    Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(
+                        Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                        materialsTextures_ptr->imagesViews[this_texture_info.imageIndex].get(),
+                        materialsTextures_ptr->samplers[this_texture_info.samplerIndex].get());
 
                     this_loop_textures_bindings.emplace_back(this_texture_bind);
                 }
-
             }
             materialsShadersSpecs.emplace_back(this_materialShaderSpecs);
 
             textures_bindings.emplace_back(this_loop_textures_bindings);
             dsg_create_infos_ptr.emplace_back(std::move(this_descriptorSetCreateInfo_ptr));
-
         }
 
         dsg_ptr = Anvil::DescriptorSetGroup::create(device_ptr,
@@ -62,7 +63,6 @@ PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTex
                 dsg_ptr->set_binding_item(set_index,
                                           binding_index,
                                           textures_bindings[set_index][binding_index]);
-
             }
         }
     }

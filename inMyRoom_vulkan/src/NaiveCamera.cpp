@@ -12,7 +12,7 @@ NaiveCamera::~NaiveCamera()
 
 }
 
-std::pair<glm::vec3, glm::vec3> NaiveCamera::calculate_snap(const std::chrono::duration<float> durationOfCurrentState)
+std::pair<glm::vec3, glm::vec3> NaiveCamera::CalculateSnap(const std::chrono::duration<float> durationOfCurrentState)
 {
     glm::vec3 positionDeltaVector(0.0f, 0.0f, 0.0f);
 

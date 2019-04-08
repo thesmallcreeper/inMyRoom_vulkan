@@ -1,9 +1,8 @@
 #include "PrimitivesPipelines.h"
 
 PrimitivesPipelines::PrimitivesPipelines(Anvil::BaseDevice* in_device_ptr)
-    :device_ptr(in_device_ptr)
+    : device_ptr(in_device_ptr)
 {
-
 }
 
 PrimitivesPipelines::~PrimitivesPipelines()
@@ -19,13 +18,10 @@ size_t PrimitivesPipelines::getPipelineIDIndex(const PipelineSpecs in_pipelineSp
     auto search = pipelineSpecsToPipelineIDIndex_umap.find(in_pipelineSpecs);
     if (search != pipelineSpecsToPipelineIDIndex_umap.end())
         return search->second;
-    else
-    {
-        Anvil::PipelineID new_pipelineID = createPipeline(in_pipelineSpecs);
-        pipelineIDs.push_back(new_pipelineID);
-        pipelineSpecsToPipelineIDIndex_umap.emplace(in_pipelineSpecs, pipelineIDs.size() - 1);
-        return pipelineIDs.size() - 1;
-    }
+    Anvil::PipelineID new_pipelineID = createPipeline(in_pipelineSpecs);
+    pipelineIDs.push_back(new_pipelineID);
+    pipelineSpecsToPipelineIDIndex_umap.emplace(in_pipelineSpecs, pipelineIDs.size() - 1);
+    return pipelineIDs.size() - 1;
 }
 
 Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineSpecs)
@@ -35,17 +31,27 @@ Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineS
     auto pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
                                                                               in_pipelineSpecs.renderpass_ptr,
                                                                               in_pipelineSpecs.subpassID,
-                                                                              in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr != nullptr ? *in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr : Anvil::ShaderModuleStageEntryPoint(),
-                                                                              in_pipelineSpecs.pipelineShaders.geometryShaderModule_ptr != nullptr ? *in_pipelineSpecs.pipelineShaders.geometryShaderModule_ptr : Anvil::ShaderModuleStageEntryPoint(),
-                                                                              in_pipelineSpecs.pipelineShaders.tessControlShaderModule_ptr != nullptr ? *in_pipelineSpecs.pipelineShaders.tessControlShaderModule_ptr : Anvil::ShaderModuleStageEntryPoint(),
-                                                                              in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr != nullptr ? *in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr : Anvil::ShaderModuleStageEntryPoint(),
-                                                                              in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr != nullptr ? *in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr : Anvil::ShaderModuleStageEntryPoint());
+                                                                              in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr!= nullptr
+                                                                                  ? *in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr
+                                                                                  : Anvil::ShaderModuleStageEntryPoint(),
+                                                                              in_pipelineSpecs.pipelineShaders.geometryShaderModule_ptr!= nullptr
+                                                                                  ? *in_pipelineSpecs.pipelineShaders.geometryShaderModule_ptr
+                                                                                  : Anvil::ShaderModuleStageEntryPoint(),
+                                                                              in_pipelineSpecs.pipelineShaders.tessControlShaderModule_ptr != nullptr
+                                                                                  ? *in_pipelineSpecs.pipelineShaders.tessControlShaderModule_ptr
+                                                                                  : Anvil::ShaderModuleStageEntryPoint(),
+                                                                              in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr != nullptr
+                                                                                  ? *in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr
+                                                                                  : Anvil::ShaderModuleStageEntryPoint(),
+                                                                              in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr != nullptr
+                                                                                  ? *in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr
+                                                                                  : Anvil::ShaderModuleStageEntryPoint());
 
 
-        pipeline_create_info_ptr->set_descriptor_set_create_info(&in_pipelineSpecs.descriptorSetsCreateInfo_ptrs);
+    pipeline_create_info_ptr->set_descriptor_set_create_info(&in_pipelineSpecs.descriptorSetsCreateInfo_ptrs);
 
 
-	size_t location = 0;
+    uint32_t location = 0;
 
     // vertex attribute
 
@@ -58,7 +64,7 @@ Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineS
                                                        Anvil::VertexInputRate::VERTEX,
                                                        location);
 
-		location++;
+        location++;
     }
 
     // normal attribute
@@ -72,7 +78,7 @@ Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineS
                                                        Anvil::VertexInputRate::VERTEX,
                                                        location);
 
-		location++;
+        location++;
     }
 
     // tangent attribute
@@ -86,7 +92,7 @@ Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineS
                                                        Anvil::VertexInputRate::VERTEX,
                                                        location);
 
-		location++;
+        location++;
     }
 
     // texcoord_0 attribute
@@ -100,29 +106,29 @@ Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineS
                                                        Anvil::VertexInputRate::VERTEX,
                                                        location);
 
-		location++;
+        location++;
     }
     else if (in_pipelineSpecs.texcoord0ComponentType == glTFcomponentType::type_unsigned_byte)
     {
         pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                        Anvil::Format::R8G8_UNORM,
-                                                        0,
-                                                        sizeof(uint8_t) * 2,
-                                                        Anvil::VertexInputRate::VERTEX,
-                                                        location);
+                                                       Anvil::Format::R8G8_UNORM,
+                                                       0,
+                                                       sizeof(uint8_t) * 2,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
 
-		location++;
+        location++;
     }
     else if (in_pipelineSpecs.texcoord0ComponentType == glTFcomponentType::type_unsigned_short)
     {
         pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                        Anvil::Format::R16G16_UNORM,
-                                                        0,
-                                                        sizeof(uint16_t) * 2,
-                                                        Anvil::VertexInputRate::VERTEX,
-                                                        location);
+                                                       Anvil::Format::R16G16_UNORM,
+                                                       0,
+                                                       sizeof(uint16_t) * 2,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
 
-		location++;
+        location++;
     }
 
     // texcoord_1 attribute

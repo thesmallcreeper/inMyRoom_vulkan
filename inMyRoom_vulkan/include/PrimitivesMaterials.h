@@ -2,11 +2,11 @@
 
 #include <string>
 
-#include "tiny_gltf.h"
-
 #include "misc/descriptor_set_create_info.h"
 #include "wrappers/descriptor_set.h"
 #include "wrappers/descriptor_set_group.h"
+
+#include "tiny_gltf.h"
 
 #include "MaterialsTextures.h"
 #include "PrimitivesShaders.h"
@@ -14,10 +14,11 @@
 class PrimitivesMaterials
 {
 public:
-    PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTextures* in_materialsTextures, Anvil::BaseDevice* in_device_ptr);
+    PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTextures* in_materialsTextures,
+                        Anvil::BaseDevice* in_device_ptr);
     ~PrimitivesMaterials();
 
-    Anvil::DescriptorSetGroupUniquePtr	dsg_ptr;
+    Anvil::DescriptorSetGroupUniquePtr dsg_ptr;
     std::vector<ShadersSpecs> materialsShadersSpecs;
 
 private:

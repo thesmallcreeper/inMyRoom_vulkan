@@ -44,10 +44,12 @@ include_directories(
         ../glm                                                             #Include glm
         ${inMyRoom_vulkan_SOURCE_DIR}/include)
 
-SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics.h"
+SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/hash_combine.h"
+ 
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/VulkanInit.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/InputManager.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/TexturesImagesUsage.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MaterialsTextures.h"
@@ -62,6 +64,7 @@ SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/WindowWithAsyncInput.h"
  
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/VulkanInit.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/InputManager.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/TexturesImagesUsage.cpp"

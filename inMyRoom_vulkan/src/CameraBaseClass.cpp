@@ -11,30 +11,30 @@ CameraBaseClass::CameraBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_pos
 
 CameraBaseClass::~CameraBaseClass()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 }
 
-void CameraBaseClass::freeze()
+void CameraBaseClass::Freeze()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     freezed = true;
 
-    auto previous_snap_timePoint = last_snap_timePoint;
+    auto previous_snap_timePoint = lastSnapTimePoint;
     auto next_snap_timePoint = std::chrono::steady_clock::now();
 
     std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-    std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+    std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
     position = new_position_lookingDirection.first;
     position = new_position_lookingDirection.second;
 
-    last_snap_timePoint = next_snap_timePoint;
+    lastSnapTimePoint = next_snap_timePoint;
 }
 
-void CameraBaseClass::unfreeze()
+void CameraBaseClass::Unfreeze()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     freezed = false;
     movementState.movingForward = false;
@@ -44,46 +44,48 @@ void CameraBaseClass::unfreeze()
     movementState.movingUp = false;
     movementState.movingDown = false;
 
-    last_snap_timePoint = std::chrono::steady_clock::now();
+    lastSnapTimePoint = std::chrono::steady_clock::now();
 }
 
-glm::mat4x4 CameraBaseClass::getLookAtMatrix()
+void CameraBaseClass::RefreshPublicVectors()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
-
-        return glm::lookAt(new_position_lookingDirection.first, new_position_lookingDirection.first + new_position_lookingDirection.second, upVector);
-    }
-    else
-    {
-        return glm::lookAt(position, position + lookingDirection, upVector);
-    }
-
-}
-
-void CameraBaseClass::moveCamera(float xRotation_rads, float yRotation_rads)
-{
-    std::lock_guard<std::mutex> lock(control_mutex);
-
-    if (!freezed)
-    {
-        auto previous_snap_timePoint = last_snap_timePoint;
-        auto next_snap_timePoint = std::chrono::steady_clock::now();
-
-        std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        publicPosition = position;
+        publicLookingDirection = lookingDirection;
+
+        lastSnapTimePoint = next_snap_timePoint;
+
+    }
+}
+
+void CameraBaseClass::MoveCamera(float xRotation_rads, float yRotation_rads)
+{
+    std::lock_guard<std::mutex> lock(controlMutex);
+
+    if (!freezed)
+    {
+        auto previous_snap_timePoint = lastSnapTimePoint;
+        auto next_snap_timePoint = std::chrono::steady_clock::now();
+
+        std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
+
+        position = new_position_lookingDirection.first;
+        lookingDirection = new_position_lookingDirection.second;
+
+        lastSnapTimePoint = next_snap_timePoint;
 
         glm::vec3 newLookingDirection = lookingDirection;
 
@@ -110,253 +112,253 @@ void CameraBaseClass::moveCamera(float xRotation_rads, float yRotation_rads)
     }
 }
 
-void CameraBaseClass::moveForward()
+void CameraBaseClass::MoveForward()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingForward = true;
     }
 }
 
-void CameraBaseClass::moveBackward()
+void CameraBaseClass::MoveBackward()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingBackward = true;
     }
 }
 
-void CameraBaseClass::moveRight()
+void CameraBaseClass::MoveRight()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingRight = true;
     }
 }
-void CameraBaseClass::moveLeft()
+void CameraBaseClass::MoveLeft()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingLeft = true;
     }
 }
 
-void CameraBaseClass::moveUp()
+void CameraBaseClass::MoveUp()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingUp = true;
     }
 }
 
-void CameraBaseClass::moveDown() 
+void CameraBaseClass::MoveDown() 
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingDown = true;
     }
 }
 
 
-void CameraBaseClass::stopMovingForward()
+void CameraBaseClass::StopMovingForward()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingForward = false;
     }
 }
 
-void CameraBaseClass::stopMovingBackward()
+void CameraBaseClass::StopMovingBackward()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingBackward = false;
     }
 }
 
-void CameraBaseClass::stopMovingRight()
+void CameraBaseClass::StopMovingRight()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingRight = false;
     }
 }
 
-void CameraBaseClass::stopMovingLeft()
+void CameraBaseClass::StopMovingLeft()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingLeft = false;
     }
 }
 
-void CameraBaseClass::stopMovingUp()
+void CameraBaseClass::StopMovingUp()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingUp = false;
     }
 }
 
-void CameraBaseClass::stopMovingDown()
+void CameraBaseClass::StopMovingDown()
 {
-    std::lock_guard<std::mutex> lock(control_mutex);
+    std::lock_guard<std::mutex> lock(controlMutex);
 
     if (!freezed)
     {
-        auto previous_snap_timePoint = last_snap_timePoint;
+        auto previous_snap_timePoint = lastSnapTimePoint;
         auto next_snap_timePoint = std::chrono::steady_clock::now();
 
         std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = calculate_snap(duration);
+        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
         position = new_position_lookingDirection.first;
         lookingDirection = new_position_lookingDirection.second;
 
-        last_snap_timePoint = next_snap_timePoint;
+        lastSnapTimePoint = next_snap_timePoint;
 
         movementState.movingDown = false;
     }

@@ -24,8 +24,9 @@ int main()
     }
 
     Engine mainEngine(cfgFile);
-    mainEngine.init();
-    mainEngine.run();
+    mainEngine.Run();
 
     return 0;
 }
+
+// Pretty lonely over here for a main.cpp, right?

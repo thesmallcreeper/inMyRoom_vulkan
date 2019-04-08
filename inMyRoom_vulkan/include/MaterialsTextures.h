@@ -7,8 +7,6 @@
 #endif
 #endif
 
-#include "tiny_gltf.h"
-
 #include <utility>
 #include <cassert>
 #ifdef FILESYSTEM_IS_EXPERIMENTAL
@@ -19,10 +17,6 @@ namespace fs = std::experimental::filesystem;
 namespace fs = std::filesystem;
 #endif
 
-#include "glTFenum.h"
-
-#include "TexturesImagesUsage.h"
-
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
 #include "misc/sampler_create_info.h"
@@ -32,7 +26,11 @@ namespace fs = std::filesystem;
 #include "wrappers/image_view.h"
 #include "wrappers/sampler.h"
 
+#include "tiny_gltf.h"
+#include "glTFenum.h"
 #include "Compressonator.h"
+
+#include "TexturesImagesUsage.h"
 
 
 struct TextureInfo
@@ -44,7 +42,8 @@ struct TextureInfo
 class MaterialsTextures
 {
 public:
-    MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps, TexturesImagesUsage* in_texturesImagesUsage_ptr , Anvil::BaseDevice* in_device_ptr);
+    MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps,
+                      TexturesImagesUsage* in_texturesImagesUsage_ptr, Anvil::BaseDevice* in_device_ptr);
     ~MaterialsTextures();
 
     std::vector<TextureInfo> textures;
@@ -82,7 +81,8 @@ private:
         {glTFsamplerMagFilter::linear, Anvil::Filter::LINEAR}
     };
 
-    std::map<glTFsamplerMinFilter, std::pair<Anvil::Filter, Anvil::SamplerMipmapMode>> glTFsamplerMinFilterToFilterAndMipmapMode_map
+    std::map<glTFsamplerMinFilter, std::pair<Anvil::Filter, Anvil::SamplerMipmapMode>>
+    glTFsamplerMinFilterToFilterAndMipmapMode_map
     {
         {glTFsamplerMinFilter::nearest, {Anvil::Filter::NEAREST, defaultMipmapMode}},
         {glTFsamplerMinFilter::linear, {Anvil::Filter::LINEAR, defaultMipmapMode}},

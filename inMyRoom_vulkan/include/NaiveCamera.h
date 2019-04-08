@@ -9,7 +9,7 @@ public:
     ~NaiveCamera() override;
 
 private:
-    std::pair<glm::vec3, glm::vec3> calculate_snap(const std::chrono::duration<float> durationOfCurrentState) override;
+    std::pair<glm::vec3, glm::vec3> CalculateSnap(const std::chrono::duration<float> durationOfCurrentState) override;
 
     float cameraSpeed;
 };

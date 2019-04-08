@@ -17,30 +17,35 @@ public:
     CameraBaseClass(glm::vec3 in_lookingDirection, glm::vec3 in_position, glm::vec3 in_up);
     virtual ~CameraBaseClass();
 
-    void freeze();
-    void unfreeze();
+    void Freeze();
+    void Unfreeze();
 
-    void moveCamera(float xRotation_rads, float yRotation_rads);
+    void RefreshPublicVectors();
 
-    void moveForward();
-    void moveBackward();
-    void moveRight();
-    void moveLeft();
-    void moveUp();
-    void moveDown();
+    void MoveCamera(float xRotation_rads, float yRotation_rads);
 
-    void stopMovingForward();
-    void stopMovingBackward();
-    void stopMovingRight();
-    void stopMovingLeft();
-    void stopMovingUp();
-    void stopMovingDown();
+    void MoveForward();
+    void MoveBackward();
+    void MoveRight();
+    void MoveLeft();
+    void MoveUp();
+    void MoveDown();
 
-    glm::mat4x4 getLookAtMatrix();
+    void StopMovingForward();
+    void StopMovingBackward();
+    void StopMovingRight();
+    void StopMovingLeft();
+    void StopMovingUp();
+    void StopMovingDown();
+
+    glm::vec3 publicPosition;
+    glm::vec3 publicLookingDirection;
+    glm::vec3 upVector;
+
 
 private:
 
-    virtual std::pair<glm::vec3, glm::vec3> calculate_snap(const std::chrono::duration<float> durationOfCurrentState) = 0;
+    virtual std::pair<glm::vec3, glm::vec3> CalculateSnap(const std::chrono::duration<float> durationOfCurrentState) = 0;
 
 protected:
 
@@ -57,13 +62,11 @@ protected:
     glm::vec3 position;
     glm::vec3 lookingDirection;
 
-    glm::vec3 upVector;
-
 private:
 
-    std::chrono::steady_clock::time_point last_snap_timePoint;
+    std::chrono::steady_clock::time_point lastSnapTimePoint;
 
     volatile bool freezed = true;
-    std::mutex control_mutex;
+    std::mutex controlMutex;
 
 };

@@ -4,7 +4,8 @@
 #include <cassert>
 
 
-PrimitivesShaders::PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_shadersSetFamilyInitInfos, Anvil::BaseDevice* in_device_ptr)
+PrimitivesShaders::PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_shadersSetFamilyInitInfos,
+                                     Anvil::BaseDevice* in_device_ptr)
     :
     device_ptr(in_device_ptr)
 {
@@ -16,7 +17,7 @@ PrimitivesShaders::PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_sha
         {
             std::ifstream source_file("shaders/" + thisInitInfo.fragmentShaderSourceFilename);
             std::string source_string((std::istreambuf_iterator<char>(source_file)),
-                (std::istreambuf_iterator<char>()));
+                                      (std::istreambuf_iterator<char>()));
             thisShaderSetSourceString.fragmentShaderSourceString = source_string;
         }
 
@@ -24,7 +25,7 @@ PrimitivesShaders::PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_sha
         {
             std::ifstream source_file("shaders/" + thisInitInfo.geometryShaderSourceFilename);
             std::string source_string((std::istreambuf_iterator<char>(source_file)),
-                (std::istreambuf_iterator<char>()));
+                                      (std::istreambuf_iterator<char>()));
             thisShaderSetSourceString.geometryShaderSourceString = source_string;
         }
 
@@ -32,7 +33,7 @@ PrimitivesShaders::PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_sha
         {
             std::ifstream source_file("shaders/" + thisInitInfo.tessControlShaderSourceFilename);
             std::string source_string((std::istreambuf_iterator<char>(source_file)),
-                (std::istreambuf_iterator<char>()));
+                                      (std::istreambuf_iterator<char>()));
             thisShaderSetSourceString.tessControlShaderSourceString = source_string;
         }
 
@@ -40,7 +41,7 @@ PrimitivesShaders::PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_sha
         {
             std::ifstream source_file("shaders/" + thisInitInfo.tessEvaluationShaderSourceFilename);
             std::string source_string((std::istreambuf_iterator<char>(source_file)),
-                (std::istreambuf_iterator<char>()));
+                                      (std::istreambuf_iterator<char>()));
             thisShaderSetSourceString.tessEvaluationShaderSourceString = source_string;
         }
 
@@ -48,11 +49,12 @@ PrimitivesShaders::PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_sha
         {
             std::ifstream source_file("shaders/" + thisInitInfo.vertexShaderSourceFilename);
             std::string source_string((std::istreambuf_iterator<char>(source_file)),
-                (std::istreambuf_iterator<char>()));
+                                      (std::istreambuf_iterator<char>()));
             thisShaderSetSourceString.vertexShaderSourceString = source_string;
         }
 
-        shadersSetFamilyNameToShadersSetFamilySourceStrings_umap.emplace(thisInitInfo.shadersSetFamilyName, thisShaderSetSourceString);
+        shadersSetFamilyNameToShadersSetFamilySourceStrings_umap.emplace(
+            thisInitInfo.shadersSetFamilyName, thisShaderSetSourceString);
     }
 }
 
@@ -60,7 +62,6 @@ PrimitivesShaders::~PrimitivesShaders()
 {
     shadersSets.clear();
     shaderModulesStageEntryPoints_ptrs.clear();
-
 }
 
 size_t PrimitivesShaders::getShaderSetIndex(ShadersSpecs in_shaderSpecs)
@@ -68,13 +69,10 @@ size_t PrimitivesShaders::getShaderSetIndex(ShadersSpecs in_shaderSpecs)
     auto search = shaderSpecsToShaderSetIndex_umap.find(in_shaderSpecs);
     if (search != shaderSpecsToShaderSetIndex_umap.end())
         return search->second;
-    else
-    {
-        ShadersSet newShaderSet = createShadersSet(in_shaderSpecs);
-        shadersSets.emplace_back(newShaderSet);
-        shaderSpecsToShaderSetIndex_umap.emplace(in_shaderSpecs, shadersSets.size() - 1);
-        return shadersSets.size() - 1;
-    }
+    ShadersSet newShaderSet = createShadersSet(in_shaderSpecs);
+    shadersSets.emplace_back(newShaderSet);
+    shaderSpecsToShaderSetIndex_umap.emplace(in_shaderSpecs, shadersSets.size() - 1);
+    return shadersSets.size() - 1;
 }
 
 ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
@@ -89,8 +87,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
     if (thisShaderSetFamilySourceString.fragmentShaderSourceString.size())
     {
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
-                                                                    Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString.fragmentShaderSourceString.c_str(),
+                                                                    Anvil::GLSLShaderToSPIRVGenerator::
+                                                                    MODE_USE_SPECIFIED_SOURCE,
+                                                                    thisShaderSetFamilySourceString
+                                                                    .fragmentShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::FRAGMENT);
 
 
@@ -106,10 +106,11 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
 
         module_ptr->set_name("Fragment shader module of " + in_shaderSpecs.shadersSetFamilyName);
 
-        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint("main",
-                                                                                                                  std::move(module_ptr),
-                                                                                                                  Anvil::ShaderStage::FRAGMENT));
-        
+        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint(
+            "main",
+            std::move(module_ptr),
+            Anvil::ShaderStage::FRAGMENT));
+
         thisShaderSet.fragmentShaderModule_ptr = entryPoint_ptr.get();
 
         shaderModulesStageEntryPoints_ptrs.emplace_back(std::move(entryPoint_ptr));
@@ -118,8 +119,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
     if (thisShaderSetFamilySourceString.geometryShaderSourceString.size())
     {
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
-                                                                    Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString.geometryShaderSourceString.c_str(),
+                                                                    Anvil::GLSLShaderToSPIRVGenerator::
+                                                                    MODE_USE_SPECIFIED_SOURCE,
+                                                                    thisShaderSetFamilySourceString
+                                                                    .geometryShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::GEOMETRY);
 
 
@@ -135,9 +138,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
 
         module_ptr->set_name("Geometry shader module of " + in_shaderSpecs.shadersSetFamilyName);
 
-        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint("main",
-                                                                                                                  std::move(module_ptr),
-                                                                                                                  Anvil::ShaderStage::GEOMETRY));
+        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint(
+            "main",
+            std::move(module_ptr),
+            Anvil::ShaderStage::GEOMETRY));
 
         thisShaderSet.geometryShaderModule_ptr = entryPoint_ptr.get();
 
@@ -147,8 +151,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
     if (thisShaderSetFamilySourceString.tessControlShaderSourceString.size())
     {
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
-                                                                    Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString.tessControlShaderSourceString.c_str(),
+                                                                    Anvil::GLSLShaderToSPIRVGenerator::
+                                                                    MODE_USE_SPECIFIED_SOURCE,
+                                                                    thisShaderSetFamilySourceString
+                                                                    .tessControlShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::TESSELLATION_CONTROL);
 
 
@@ -164,9 +170,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
 
         module_ptr->set_name("Tesselation control shader module of " + in_shaderSpecs.shadersSetFamilyName);
 
-        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint("main",
-                                                                                                                  std::move(module_ptr),
-                                                                                                                  Anvil::ShaderStage::TESSELLATION_CONTROL));
+        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint(
+            "main",
+            std::move(module_ptr),
+            Anvil::ShaderStage::TESSELLATION_CONTROL));
 
         thisShaderSet.tessControlShaderModule_ptr = entryPoint_ptr.get();
 
@@ -176,8 +183,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
     if (thisShaderSetFamilySourceString.tessEvaluationShaderSourceString.size())
     {
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
-                                                                    Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString.tessEvaluationShaderSourceString.c_str(),
+                                                                    Anvil::GLSLShaderToSPIRVGenerator::
+                                                                    MODE_USE_SPECIFIED_SOURCE,
+                                                                    thisShaderSetFamilySourceString
+                                                                    .tessEvaluationShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::TESSELLATION_EVALUATION);
 
 
@@ -193,9 +202,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
 
         module_ptr->set_name("Tesselation evaluation shader module of " + in_shaderSpecs.shadersSetFamilyName);
 
-        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint("main",
-                                                                                                                  std::move(module_ptr),
-                                                                                                                  Anvil::ShaderStage::TESSELLATION_EVALUATION));
+        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint(
+            "main",
+            std::move(module_ptr),
+            Anvil::ShaderStage::TESSELLATION_EVALUATION));
 
         thisShaderSet.tessEvaluationShaderModule_ptr = entryPoint_ptr.get();
 
@@ -205,8 +215,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
     if (thisShaderSetFamilySourceString.vertexShaderSourceString.size())
     {
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
-                                                                    Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString.vertexShaderSourceString.c_str(),
+                                                                    Anvil::GLSLShaderToSPIRVGenerator::
+                                                                    MODE_USE_SPECIFIED_SOURCE,
+                                                                    thisShaderSetFamilySourceString
+                                                                    .vertexShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::VERTEX);
 
 
@@ -223,9 +235,10 @@ ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
 
         module_ptr->set_name("Vertex shader module of " + in_shaderSpecs.shadersSetFamilyName);
 
-        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint("main",
-                                                                                                                  std::move(module_ptr),
-                                                                                                                  Anvil::ShaderStage::VERTEX));
+        std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> entryPoint_ptr(new Anvil::ShaderModuleStageEntryPoint(
+            "main",
+            std::move(module_ptr),
+            Anvil::ShaderStage::VERTEX));
 
         thisShaderSet.vertexShaderModule_ptr = entryPoint_ptr.get();
 
