@@ -48,8 +48,9 @@ private:
     void InitScene();
     void InitSpacialDsg();
     void InitSemaphores();
-
     void InitCommandBuffers();
+
+    void RecordCommandBuffer(uint32_t swapchainImageIndex);
 
 private:
     Anvil::BaseDevice* const     device_ptr;
@@ -87,12 +88,13 @@ private:
 
     Anvil::RenderPassUniquePtr                      renderpass_uptr;
 
-    std::vector<Anvil::PrimaryCommandBufferUniquePtr> cmdBuffers_uptrs;
     uint32_t                      lastSemaphoreUsed;
 
     Anvil::SubPassID              colorSubpassID;
 
     size_t generalPrimitivesSetIndex;
+
+    std::vector<Anvil::PrimaryCommandBufferUniquePtr> cmdBuffers_uptrs;
 
     const configuru::Config& cfgFile;
 };

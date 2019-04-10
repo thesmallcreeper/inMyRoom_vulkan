@@ -2,6 +2,11 @@
 
 #include <iostream>
 
+
+#ifdef _DEBUG
+#define ENABLE_VALIDATION
+#endif
+
 VulkanInit::VulkanInit(const configuru::Config& in_cfgFile)
     :
     cfgFile(in_cfgFile),
@@ -32,7 +37,7 @@ void VulkanInit::InitVulkan()
         auto create_info_ptr = Anvil::InstanceCreateInfo::create("inMyRoom_vulkan", /* app_name */
                                                                  "inMyRoom_vulkan", /* engine_name */
 #ifdef ENABLE_VALIDATION
-                                                                 std::bind(&Graphics::on_validation_callback,
+                                                                 std::bind(&VulkanInit::OnValidationCallback,
                                                                            this,
                                                                            std::placeholders::_1,
                                                                            std::placeholders::_2
@@ -55,7 +60,7 @@ void VulkanInit::InitVulkan()
                                                                     true, /* in_enable_shader_module_cache */
                                                                     Anvil::DeviceExtensionConfiguration(),
                                                                     vulkan_layers, /* in_layers                               */
-                                                                    Anvil::CommandPoolCreateFlagBits::NONE, /* in_transient_command_buffer_allocs_only */
+                                                                    Anvil::CommandPoolCreateFlagBits::CREATE_RESET_COMMAND_BUFFER_BIT, /* in_transient_command_buffer_allocs_only */
                                                                     false); /* in_support_resettable_command_buffers   */
 
         device_uptr = Anvil::SGPUDevice::create(std::move(create_info_ptr));

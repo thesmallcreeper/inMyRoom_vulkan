@@ -18,10 +18,9 @@ PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTex
 
             std::vector<Anvil::DescriptorSet::CombinedImageSamplerBindingElement> this_loop_textures_bindings;
 
-            Anvil::DescriptorSetCreateInfoUniquePtr this_descriptorSetCreateInfo_ptr = Anvil::DescriptorSetCreateInfo::
-                create();
-            size_t bindingCount = 0;
+            Anvil::DescriptorSetCreateInfoUniquePtr this_descriptorSetCreateInfo_ptr = Anvil::DescriptorSetCreateInfo::create();
 
+            size_t bindingCount = 0;
             {
                 auto search = this_material.values.find("baseColorTexture");
 
@@ -53,16 +52,16 @@ PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTex
         }
 
         texturesOfMaterialsDescriptorSetGroup_uptr = Anvil::DescriptorSetGroup::create(device_ptr,
-                                                    dsg_create_infos_ptr,
-                                                    false); /* in_releaseable_sets */
+                                                                                       dsg_create_infos_ptr,
+                                                                                       false); /* in_releaseable_sets */
 
         for (size_t set_index = 0; set_index < textures_bindings.size(); set_index++)
         {
             for (size_t binding_index = 0; binding_index < textures_bindings[set_index].size(); binding_index++)
             {
                 texturesOfMaterialsDescriptorSetGroup_uptr->set_binding_item(set_index,
-                                          binding_index,
-                                          textures_bindings[set_index][binding_index]);
+                                                                             binding_index,
+                                                                             textures_bindings[set_index][binding_index]);
             }
         }
     }

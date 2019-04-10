@@ -26,9 +26,6 @@
 #include "wrappers/render_pass.h"
 #include "wrappers/semaphore.h"
 
-#ifdef _DEBUG
-    #define ENABLE_VALIDATION
-#endif
 
 Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
                    uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount)
@@ -48,16 +45,13 @@ Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_p
     InitFramebuffers();
     InitRenderpasses();
     InitSemaphores();
+    InitCommandBuffers();
 
     InitScene();
-
-    InitCommandBuffers();
 }
 
 Graphics::~Graphics()
 {
-
-    cmdBuffers_uptrs.clear();
 
     frameSignalSemaphores_uptrs.clear();
     frameWaitSemaphores_uptrs.clear();
@@ -122,6 +116,8 @@ void Graphics::DrawFrame()
                              &camera_matrix,
                              present_queue_ptr);
 
+    RecordCommandBuffer(n_swapchain_image);
+
     present_queue_ptr->submit(
         Anvil::SubmitInfo::create(cmdBuffers_uptrs[n_swapchain_image].get(),
                                   1,
@@ -142,9 +138,111 @@ void Graphics::DrawFrame()
 
         anvil_assert(present_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
     }
-
-
 }
+
+void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
+{
+    const uint32_t                 universal_queue_family_index = device_ptr->get_universal_queue(0)->get_queue_family_index();
+
+    Anvil::PrimaryCommandBuffer* cmd_buffer_ptr = cmdBuffers_uptrs[swapchainImageIndex].get();
+
+    /* Reset command buffer*/
+    cmd_buffer_ptr->reset(false);
+
+    /* Start recording commands */
+    cmd_buffer_ptr->start_recording(true,  /* one_time_submit          */
+                                    true); /* simultaneous_use_allowed */
+
+        {
+            /* Switch the swap-chain image to the color_attachment_optimal image layout */
+            Anvil::ImageSubresourceRange  image_subresource_range;
+            image_subresource_range.aspect_mask = Anvil::ImageAspectFlagBits::COLOR_BIT;
+            image_subresource_range.base_array_layer = 0;
+            image_subresource_range.base_mip_level = 0;
+            image_subresource_range.layer_count = 1;
+            image_subresource_range.level_count = 1;
+
+            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::NONE,                              /* source_access_mask       */
+                                              Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,        /* destination_access_mask  */
+                                              Anvil::ImageLayout::UNDEFINED,                            /* old_image_layout */
+                                              Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,             /* new_image_layout */
+                                              universal_queue_family_index,
+                                              universal_queue_family_index,
+                                              swapchain_ptr->get_image(swapchainImageIndex),
+                                              image_subresource_range);
+
+            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT,              /* src_stage_mask                 */
+                                                    Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,  /* dst_stage_mask                 */
+                                                    Anvil::DependencyFlagBits::NONE,
+                                                    0,                                                          /* in_memory_barrier_count        */
+                                                    nullptr,                                                    /* in_memory_barrier_ptrs         */
+                                                    0,                                                          /* in_buffer_memory_barrier_count */
+                                                    nullptr,                                                    /* in_buffer_memory_barrier_ptrs  */
+                                                    1,                                                          /* in_image_memory_barrier_count  */
+                                                    &image_barrier);
+        }
+
+        {
+            /* Make sure CPU-written data is flushed before we start rendering */
+            Anvil::BufferBarrier buffer_barrier(Anvil::AccessFlagBits::MEMORY_WRITE_BIT,               /* in_source_access_mask      */
+                                                Anvil::AccessFlagBits::UNIFORM_READ_BIT,               /* in_destination_access_mask */
+                                                universal_queue_family_index,                          /* in_src_queue_family_index  */
+                                                universal_queue_family_index,                          /* in_dst_queue_family_index  */
+                                                cameraBuffer_uptr.get(),
+                                                0,                                                     /* in_offset                  */
+                                                sizeof(glm::mat4x4));
+
+            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TRANSFER_BIT,
+                                                    Anvil::PipelineStageFlagBits::VERTEX_SHADER_BIT,
+                                                    Anvil::DependencyFlagBits::NONE,
+                                                    0,                                                  /* in_memory_barrier_count        */
+                                                    nullptr,                                            /* in_memory_barriers_ptr         */
+                                                    1,                                                  /* in_buffer_memory_barrier_count */
+                                                    &buffer_barrier,
+                                                    0,                                                  /* in_image_memory_barrier_count  */
+                                                    nullptr);                                           /* in_image_memory_barriers_ptr   */
+}
+
+    {
+        Anvil::DescriptorSet*                ds_ptr(spacialDSG_uptr->get_descriptor_set(0));
+
+        VkClearValue  clear_values[2];
+        clear_values[0].color.float32[0] = 0.0f;
+        clear_values[0].color.float32[1] = 0.0f;
+        clear_values[0].color.float32[2] = 0.0f;
+        clear_values[0].color.float32[3] = 1.0f;
+        clear_values[1].depthStencil.depth = 1.0f;
+
+        VkRect2D  render_area;
+        render_area.extent.width = windowWidth;
+        render_area.extent.height = windowHeight;
+        render_area.offset.x = 0;
+        render_area.offset.y = 0;
+
+        cmd_buffer_ptr->record_begin_render_pass(sizeof(clear_values) / sizeof(clear_values[0]),
+                                                  clear_values,
+                                                  framebuffers_uptrs[swapchainImageIndex].get(),
+                                                  render_area,
+                                                  renderpass_uptr.get(),
+                                                  Anvil::SubpassContents::INLINE);
+
+        std::vector<Anvil::DescriptorSet*> descriptor_sets;
+        for (size_t i = 0; i < spacialDSG_uptr->get_n_descriptor_sets(); i++)
+            descriptor_sets.emplace_back(spacialDSG_uptr->get_descriptor_set(i));
+
+        sceneNodes_uptr->Draw(generalPrimitivesSetIndex, cmd_buffer_ptr, descriptor_sets);
+
+        cmd_buffer_ptr->record_end_render_pass();
+    }
+
+    cmd_buffer_ptr->stop_recording();
+}
+
+void Graphics::BindCamera(CameraBaseClass* in_camera)
+{
+    camera_ptr = in_camera;
+}
+
 
 void Graphics::LoadScene()
 {
@@ -178,6 +276,7 @@ void Graphics::LoadScene()
         exit(-1);
     }
 }
+
 
 void Graphics::InitCameraBuffers()
 {
@@ -478,103 +577,17 @@ void Graphics::InitRenderpasses()
 void Graphics::InitCommandBuffers()
 {
     const Anvil::DeviceType        device_type = device_ptr->get_type();
-    auto                           gfx_manager_ptr = device_ptr->get_graphics_pipeline_manager();
-    const uint32_t                 n_swapchain_images = swapchain_ptr->get_create_info_ptr()->get_n_images();
+
     const uint32_t                 universal_queue_family_index = device_ptr->get_universal_queue(0)->get_queue_family_index();
 
-    for (uint32_t n_command_buffer = 0;
-         n_command_buffer < swapchainImagesCount;
-         ++n_command_buffer)
+    for (size_t i = 0; i < swapchainImagesCount; i++)
     {
-        Anvil::PrimaryCommandBufferUniquePtr cmd_buffer_ptr;
+        Anvil::PrimaryCommandBufferUniquePtr cmd_buffer_uptr;
+        cmd_buffer_uptr = device_ptr->get_command_pool_for_queue_family_index(universal_queue_family_index)->alloc_primary_level_command_buffer();
 
-        cmd_buffer_ptr = device_ptr->get_command_pool_for_queue_family_index(universal_queue_family_index)->alloc_primary_level_command_buffer();
-
-        /* Start recording commands */
-        cmd_buffer_ptr->start_recording(false, /* one_time_submit          */
-                                        true); /* simultaneous_use_allowed */
-
-        {
-            /* Switch the swap-chain image to the color_attachment_optimal image layout */
-            Anvil::ImageSubresourceRange  image_subresource_range;
-            image_subresource_range.aspect_mask = Anvil::ImageAspectFlagBits::COLOR_BIT;
-            image_subresource_range.base_array_layer = 0;
-            image_subresource_range.base_mip_level = 0;
-            image_subresource_range.layer_count = 1;
-            image_subresource_range.level_count = 1;
-
-            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::NONE,                              /* source_access_mask       */
-                                              Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,        /* destination_access_mask  */
-                                              Anvil::ImageLayout::UNDEFINED,                            /* old_image_layout */
-                                              Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,             /* new_image_layout */
-                                              universal_queue_family_index,
-                                              universal_queue_family_index,
-                                              swapchain_ptr->get_image(n_command_buffer),
-                                              image_subresource_range);
-
-            /* Make sure CPU-written data is flushed before we start rendering */
-            Anvil::BufferBarrier buffer_barrier(Anvil::AccessFlagBits::HOST_WRITE_BIT,                 /* in_source_access_mask      */
-                                                Anvil::AccessFlagBits::UNIFORM_READ_BIT,               /* in_destination_access_mask */
-                                                universal_queue_family_index,                          /* in_src_queue_family_index  */
-                                                universal_queue_family_index,                          /* in_dst_queue_family_index  */
-                                                cameraBuffer_uptr.get(),
-                                                0,                                                     /* in_offset                  */
-                                                sizeof(glm::mat4x4));
-
-            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT,              /* src_stage_mask                 */
-                                                    Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,  /* dst_stage_mask                 */
-                                                    Anvil::DependencyFlagBits::NONE,
-                                                    0,                                                          /* in_memory_barrier_count        */
-                                                    nullptr,                                                    /* in_memory_barrier_ptrs         */
-                                                    1,                                                          /* in_buffer_memory_barrier_count */
-                                                    &buffer_barrier,                                                    /* in_buffer_memory_barrier_ptrs  */
-                                                    1,                                                          /* in_image_memory_barrier_count  */
-                                                    &image_barrier);
-        }
-
-        {
-            Anvil::DescriptorSet*                ds_ptr(spacialDSG_uptr->get_descriptor_set(0));
-
-            VkClearValue  clear_values[2];
-            clear_values[0].color.float32[0] = 0.0f;
-            clear_values[0].color.float32[1] = 0.0f;
-            clear_values[0].color.float32[2] = 0.0f;
-            clear_values[0].color.float32[3] = 1.0f;
-            clear_values[1].depthStencil.depth = 1.0f;
-
-            VkRect2D  render_area;
-            render_area.extent.width = windowWidth;
-            render_area.extent.height = windowHeight;
-            render_area.offset.x = 0;
-            render_area.offset.y = 0;
-
-            cmd_buffer_ptr->record_begin_render_pass(sizeof(clear_values) / sizeof(clear_values[0]),
-                                                    clear_values,
-                                                    framebuffers_uptrs[n_command_buffer].get(),
-                                                    render_area,
-                                                    renderpass_uptr.get(),
-                                                    Anvil::SubpassContents::INLINE);
-
-            std::vector<Anvil::DescriptorSet*> descriptor_sets;
-            for (size_t i = 0; i < spacialDSG_uptr->get_n_descriptor_sets(); i++)
-                descriptor_sets.emplace_back(spacialDSG_uptr->get_descriptor_set(i));
-
-            sceneNodes_uptr->Draw(generalPrimitivesSetIndex, cmd_buffer_ptr.get(), descriptor_sets);
-
-            cmd_buffer_ptr->record_end_render_pass();
-        }
-
-        cmd_buffer_ptr->stop_recording();
-
-        cmdBuffers_uptrs.push_back(std::move(cmd_buffer_ptr));
+        cmdBuffers_uptrs.emplace_back(std::move(cmd_buffer_uptr));
     }
 }
-
-void Graphics::BindCamera(CameraBaseClass* in_camera)
-{
-    camera_ptr = in_camera;
-}
-
 std::string Graphics::GetFilePathExtension(const std::string &FileName) 
 {
     if (FileName.find_last_of(".") != std::string::npos)
