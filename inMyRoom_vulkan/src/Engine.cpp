@@ -12,9 +12,6 @@ Engine::Engine(configuru::Config& in_cfgFile)
     inputManager(in_cfgFile),
     breakMainLoop(false)
 {
-    graphics_uptr = std::make_unique<Graphics>(cfgFile, device_uptr.get(), swapchain_uptr.get(),
-                                               windowWidth, windowHeight, swapchainImagesCount);
-
     windowAsync_uptr->GetWindowPtr()->register_for_callbacks(Anvil::WINDOW_CALLBACK_ID_CLOSE_EVENT,
                                                              std::bind(&Engine::CallbackFunction_on_close_event,
                                                                        this,
@@ -36,15 +33,40 @@ Engine::Engine(configuru::Config& in_cfgFile)
                                                                        std::placeholders::_1),
                                                              this);
 
+    graphics_uptr = std::make_unique<Graphics>(cfgFile, device_uptr.get(), swapchain_uptr.get(),
+                                               windowWidth, windowHeight, swapchainImagesCount);
+
     camera_uptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float(), glm::vec3(0.f, 0.f, +1.f), glm::vec3(0.f, -10.f, -20.f));
 
-    graphics_uptr->bind_camera(camera_uptr.get());
+    graphics_uptr->BindCamera(camera_uptr.get());
+
     inputManager.BindCameraFreezeOldUnfreezeNew(camera_uptr.get());
 
 }
 
 Engine::~Engine()
 {
+    windowAsync_uptr->GetWindowPtr()->unregister_from_callbacks(Anvil::WINDOW_CALLBACK_ID_CLOSE_EVENT,
+                                                                std::bind(&Engine::CallbackFunction_on_close_event,
+                                                                          this,
+                                                                          std::placeholders::_1),
+                                                                this);
+    windowAsync_uptr->GetWindowPtr()->unregister_from_callbacks(Anvil::WINDOW_CALLBACK_ID_KEYPRESS_PRESSED_WAS_UP,
+                                                                std::bind(&Engine::CallbackFunction_on_keypress_was_up,
+                                                                          this,
+                                                                          std::placeholders::_1),
+                                                                this);
+    windowAsync_uptr->GetWindowPtr()->unregister_from_callbacks(Anvil::WINDOW_CALLBACK_ID_KEYPRESS_RELEASED,
+                                                                std::bind(&Engine::CallbackFunction_on_keypress_released,
+                                                                          this,
+                                                                          std::placeholders::_1),
+                                                                this);
+    windowAsync_uptr->GetWindowPtr()->unregister_from_callbacks(Anvil::WINDOW_CALLBACK_ID_MOUSE_MOVED,
+                                                                std::bind(&Engine::CallbackFunction_on_mouse_movement,
+                                                                          this,
+                                                                          std::placeholders::_1),
+                                                                this);
+
     inputManager.BindCameraFreezeOldUnfreezeNew(nullptr);
     graphics_uptr.reset();
     camera_uptr.reset();
@@ -92,6 +114,6 @@ void Engine::Run()
             }
         }
 
-        graphics_uptr->draw_frame();
+        graphics_uptr->DrawFrame();
     }
 }

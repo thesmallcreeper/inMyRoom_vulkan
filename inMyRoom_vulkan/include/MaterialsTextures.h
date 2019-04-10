@@ -43,14 +43,16 @@ class MaterialsTextures
 {
 public:
     MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps,
-                      TexturesImagesUsage* in_texturesImagesUsage_ptr, Anvil::BaseDevice* in_device_ptr);
+                      TexturesImagesUsage* in_texturesImagesUsage_ptr,
+                      Anvil::BaseDevice* const in_device_ptr);
     ~MaterialsTextures();
 
-    std::vector<TextureInfo> textures;
+public:
+    std::vector<TextureInfo> texturesInfos;
 
-    std::vector<Anvil::ImageUniquePtr> images;
-    std::vector<Anvil::ImageViewUniquePtr> imagesViews;
-    std::vector<Anvil::SamplerUniquePtr> samplers;
+    std::vector<Anvil::ImageUniquePtr> images_uptrs;
+    std::vector<Anvil::ImageViewUniquePtr> imagesViews_upts;
+    std::vector<Anvil::SamplerUniquePtr> samplers_uptrs;
 
 private:
     const Anvil::Format image_preferred_format = Anvil::Format::BC7_SRGB_BLOCK;
@@ -81,8 +83,7 @@ private:
         {glTFsamplerMagFilter::linear, Anvil::Filter::LINEAR}
     };
 
-    std::map<glTFsamplerMinFilter, std::pair<Anvil::Filter, Anvil::SamplerMipmapMode>>
-    glTFsamplerMinFilterToFilterAndMipmapMode_map
+    std::map<glTFsamplerMinFilter, std::pair<Anvil::Filter, Anvil::SamplerMipmapMode>> glTFsamplerMinFilterToFilterAndMipmapMode_map
     {
         {glTFsamplerMinFilter::nearest, {Anvil::Filter::NEAREST, defaultMipmapMode}},
         {glTFsamplerMinFilter::linear, {Anvil::Filter::LINEAR, defaultMipmapMode}},

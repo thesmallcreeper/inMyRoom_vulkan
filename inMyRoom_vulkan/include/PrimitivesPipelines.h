@@ -97,15 +97,18 @@ namespace std
 class PrimitivesPipelines
 {
 public:
-    PrimitivesPipelines(Anvil::BaseDevice* in_device_ptr);
+    PrimitivesPipelines(Anvil::BaseDevice* const in_device_ptr);
     ~PrimitivesPipelines();
 
-    size_t getPipelineIDIndex(PipelineSpecs in_pipelineSpecs);
+    size_t GetPipelineIDIndex(PipelineSpecs in_pipelineSpecs);
 
     std::vector<Anvil::PipelineID> pipelineIDs;
 
 private:
     Anvil::PipelineID createPipeline(PipelineSpecs pipelineSpecs);
+
+private:
+    Anvil::BaseDevice* const device_ptr;
 
     std::unordered_map<PipelineSpecs, size_t> pipelineSpecsToPipelineIDIndex_umap;
 
@@ -119,5 +122,4 @@ private:
         {glTFmode::triangle_fan, Anvil::PrimitiveTopology::TRIANGLE_FAN}
     };
 
-    Anvil::BaseDevice* device_ptr;
 };

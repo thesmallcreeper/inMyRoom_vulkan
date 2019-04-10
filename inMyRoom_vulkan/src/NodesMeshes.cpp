@@ -3,7 +3,7 @@
 #include "MeshesPrimitives.h"
 
 NodesMeshes::NodesMeshes(tinygltf::Model& in_model, MeshesPrimitives* in_meshesPrimitives_ptr,
-                         Anvil::BaseDevice* in_device_ptr)
+                         Anvil::BaseDevice* const in_device_ptr)
     :
     meshesPrimitives_ptr(in_meshesPrimitives_ptr),
     device_ptr(in_device_ptr)
@@ -60,34 +60,34 @@ void NodesMeshes::Draw(size_t in_mesh, uint32_t in_meshDeviceID, size_t in_primi
                                                        0, /* in_dynamic_offset_count */
                                                        nullptr); /* in_dynamic_offset_ptrs  */
 
-        in_cmd_buffer_ptr->record_bind_index_buffer(meshesPrimitives_ptr->indexBuffer.get(),
+        in_cmd_buffer_ptr->record_bind_index_buffer(meshesPrimitives_ptr->indexBuffer_uptr.get(),
                                                     this_primitive.indexBufferOffset,
                                                     this_primitive.indexBufferType);
 
         std::vector<Anvil::Buffer*> vertex_buffers;
         std::vector<VkDeviceSize> vertex_buffer_offsets;
 
-        vertex_buffers.emplace_back(meshesPrimitives_ptr->positionBuffer.get());
+        vertex_buffers.emplace_back(meshesPrimitives_ptr->positionBuffer_uptr.get());
         vertex_buffer_offsets.emplace_back(this_primitive.positionBufferOffset);
 
         if (this_primitive.normalBufferOffset != -1)
         {
-            vertex_buffers.emplace_back(meshesPrimitives_ptr->normalBuffer.get());
+            vertex_buffers.emplace_back(meshesPrimitives_ptr->normalBuffer_uptr.get());
             vertex_buffer_offsets.emplace_back(this_primitive.normalBufferOffset);
         }
         if (this_primitive.tangentBufferOffset != -1)
         {
-            vertex_buffers.emplace_back(meshesPrimitives_ptr->tangentBuffer.get());
+            vertex_buffers.emplace_back(meshesPrimitives_ptr->tangentBuffer_uptr.get());
             vertex_buffer_offsets.emplace_back(this_primitive.tangentBufferOffset);
         }
         if (this_primitive.texcoord0BufferOffset != -1)
         {
-            vertex_buffers.emplace_back(meshesPrimitives_ptr->texcoord0Buffer.get());
+            vertex_buffers.emplace_back(meshesPrimitives_ptr->texcoord0Buffer_uptr.get());
             vertex_buffer_offsets.emplace_back(this_primitive.texcoord0BufferOffset);
         }
         if (this_primitive.texcoord1BufferOffset != -1)
         {
-            vertex_buffers.emplace_back(meshesPrimitives_ptr->texcoord1Buffer.get());
+            vertex_buffers.emplace_back(meshesPrimitives_ptr->texcoord1Buffer_uptr.get());
             vertex_buffer_offsets.emplace_back(this_primitive.texcoord1BufferOffset);
         }
 

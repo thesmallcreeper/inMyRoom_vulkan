@@ -7,7 +7,7 @@
 
 
 SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& in_scene,
-                       Anvil::BaseDevice* in_device_ptr)
+                       Anvil::BaseDevice* const in_device_ptr)
     : device_ptr(in_device_ptr)
 {
     std::vector<glm::mat4> meshes_by_id_TRS;
@@ -52,12 +52,12 @@ SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& i
     }
 
     globalTRSmatrixesCount = meshes_by_id_TRS.size();
-    globalTRSmatrixesBuffer = CreateBufferForTRSmatrixesAndCopy(meshes_by_id_TRS);
+    globalTRSmatrixesBuffer_uptr = CreateBufferForTRSmatrixesAndCopy(meshes_by_id_TRS);
 }
 
 SceneNodes::~SceneNodes()
 {
-    globalTRSmatrixesBuffer.reset();
+    globalTRSmatrixesBuffer_uptr.reset();
 }
 
 void SceneNodes::BindSceneMeshes(NodesMeshes* in_nodesMeshes)
@@ -146,7 +146,7 @@ Anvil::BufferUniquePtr SceneNodes::CreateBufferForTRSmatrixesAndCopy(const std::
 
 glm::mat4 SceneNodes::CreateTRSmatrix(const tinygltf::Node& in_node) const
 {
-    if (in_node.matrix.size() == 16)
+    if (in_node.matrix.size() == 16) // It is buggy
     {
         return glm::mat4(in_node.matrix[0], in_node.matrix[1], in_node.matrix[2], in_node.matrix[3],
                          in_node.matrix[4], in_node.matrix[5], in_node.matrix[6], in_node.matrix[7],

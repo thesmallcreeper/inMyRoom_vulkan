@@ -7,7 +7,7 @@
 MeshesPrimitives::MeshesPrimitives(PrimitivesPipelines* in_primitivesPipelines_ptr,
                                    PrimitivesShaders* in_primitivesShaders_ptr,
                                    PrimitivesMaterials* in_primitivesMaterials_ptr,
-                                   Anvil::BaseDevice* in_device_ptr)
+                                   Anvil::BaseDevice* const in_device_ptr)
     :
     primitivesPipelines_ptr(in_primitivesPipelines_ptr),
     primitivesShaders_ptr(in_primitivesShaders_ptr),
@@ -18,11 +18,11 @@ MeshesPrimitives::MeshesPrimitives(PrimitivesPipelines* in_primitivesPipelines_p
 
 MeshesPrimitives::~MeshesPrimitives()
 {
-    indexBuffer.reset();
-    positionBuffer.reset();
-    normalBuffer.reset();
-    tangentBuffer.reset();
-    texcoord0Buffer.reset();
+    indexBuffer_uptr.reset();
+    positionBuffer_uptr.reset();
+    normalBuffer_uptr.reset();
+    tangentBuffer_uptr.reset();
+    texcoord0Buffer_uptr.reset();
 }
 
 void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primitive& in_primitive)
@@ -161,21 +161,21 @@ void MeshesPrimitives::FlashBuffersToDevice()
     assert(hasBuffersBeenFlashed == false);
 
     if (!localIndexBuffer.empty())
-        indexBuffer = CreateDeviceBufferForLocalBuffer(localIndexBuffer, Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT);
+        indexBuffer_uptr = CreateDeviceBufferForLocalBuffer(localIndexBuffer, Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT);
     if (!localPositionBuffer.empty())
-        positionBuffer = CreateDeviceBufferForLocalBuffer(localPositionBuffer,
+        positionBuffer_uptr = CreateDeviceBufferForLocalBuffer(localPositionBuffer,
                                                           Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
     if (!localNormalBuffer.empty())
-        normalBuffer = CreateDeviceBufferForLocalBuffer(localNormalBuffer,
+        normalBuffer_uptr = CreateDeviceBufferForLocalBuffer(localNormalBuffer,
                                                         Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
     if (!localTangentBuffer.empty())
-        tangentBuffer = CreateDeviceBufferForLocalBuffer(localTangentBuffer,
+        tangentBuffer_uptr = CreateDeviceBufferForLocalBuffer(localTangentBuffer,
                                                          Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
     if (!localTexcoord0Buffer.empty())
-        texcoord0Buffer = CreateDeviceBufferForLocalBuffer(localTexcoord0Buffer,
+        texcoord0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord0Buffer,
                                                            Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
     if (!localTexcoord1Buffer.empty())
-        texcoord1Buffer = CreateDeviceBufferForLocalBuffer(localTexcoord1Buffer,
+        texcoord1Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord1Buffer,
                                                            Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
 
     hasBuffersBeenFlashed = true;
@@ -183,9 +183,8 @@ void MeshesPrimitives::FlashBuffersToDevice()
 
 
 size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material,
-                                           const std::vector<const Anvil::DescriptorSetCreateInfo*>*
-                                           in_lower_descriptorSetCreateInfos, Anvil::RenderPass* renderpass_ptr,
-                                           Anvil::SubPassID subpassID)
+                                           const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
+                                           Anvil::RenderPass* renderpass_ptr, Anvil::SubPassID subpassID)
 {
     std::vector<PrimitiveInfo> this_set_primitiveInfo;
 
@@ -243,23 +242,17 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
                 this_primitiveInfo.texcoord1BufferOffset = this_primitivesInitInfo.texcoord1BufferOffset;
             }
 
-            this_descriptorSetCreateInfos_ptrs.emplace_back(
-                primitivesMaterials_ptr->dsg_ptr->get_descriptor_set_create_info(
-                    this_primitivesInitInfo.materialIndex));
-            this_primitiveInfo.material_descriptorSet_ptr = primitivesMaterials_ptr->dsg_ptr->get_descriptor_set(this_primitivesInitInfo.materialIndex);
+            this_descriptorSetCreateInfos_ptrs.emplace_back(primitivesMaterials_ptr->texturesOfMaterialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(this_primitivesInitInfo.materialIndex));
+            this_primitiveInfo.material_descriptorSet_ptr = primitivesMaterials_ptr->texturesOfMaterialsDescriptorSetGroup_uptr->get_descriptor_set(this_primitivesInitInfo.materialIndex);
 
             std::copy(
-                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex]
-                .emptyDefinition.begin(),
-                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex]
-                .emptyDefinition.end(),
+                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.begin(),
+                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.end(),
                 std::back_inserter(this_shaderSpecs.emptyDefinition));
 
             std::copy(
-                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex]
-                .definitionValuePairs.begin(),
-                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex]
-                .definitionValuePairs.end(),
+                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].definitionValuePairs.begin(),
+                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].definitionValuePairs.end(),
                 std::back_inserter(this_shaderSpecs.definitionValuePairs));
         }
         else
@@ -270,7 +263,7 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
             this_pipelineSpecs.texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
         }
 
-        size_t shaderSet_index = primitivesShaders_ptr->getShaderSetIndex(this_shaderSpecs);
+        size_t shaderSet_index = primitivesShaders_ptr->GetShaderSetIndex(this_shaderSpecs);
 
         this_pipelineSpecs.descriptorSetsCreateInfo_ptrs = std::move(this_descriptorSetCreateInfos_ptrs);
 
@@ -278,7 +271,7 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
         this_pipelineSpecs.renderpass_ptr = renderpass_ptr;
         this_pipelineSpecs.subpassID = subpassID;
 
-        this_primitiveInfo.thisPipelineID = primitivesPipelines_ptr->getPipelineIDIndex(this_pipelineSpecs);
+        this_primitiveInfo.thisPipelineID = primitivesPipelines_ptr->GetPipelineIDIndex(this_pipelineSpecs);
 
         this_set_primitiveInfo.emplace_back(this_primitiveInfo);
     }

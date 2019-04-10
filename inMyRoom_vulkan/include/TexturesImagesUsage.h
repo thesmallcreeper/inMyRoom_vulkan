@@ -20,5 +20,6 @@ public:
     TexturesImagesUsage(tinygltf::Model& in_model);
     ~TexturesImagesUsage();
 
+public:
     std::vector<ImageUsage> imagesUsage;
 };

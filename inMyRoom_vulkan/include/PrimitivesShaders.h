@@ -110,20 +110,22 @@ class PrimitivesShaders
 {
 public:
     PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_shadersSetFamilyInitInfos,
-                      Anvil::BaseDevice* in_device_ptr);
+                      Anvil::BaseDevice* const in_device_ptr);
     ~PrimitivesShaders();
 
-    size_t getShaderSetIndex(ShadersSpecs in_shaderSpecs);
+    size_t GetShaderSetIndex(ShadersSpecs in_shaderSpecs);
+
+public:
     std::vector<ShadersSet> shadersSets;
 
 private:
     ShadersSet createShadersSet(ShadersSpecs in_shaderSpecs);
 
-    std::vector<std::unique_ptr<Anvil::ShaderModuleStageEntryPoint>> shaderModulesStageEntryPoints_ptrs;
+private:
+    Anvil::BaseDevice* const device_ptr;
 
-    std::unordered_map<std::string, ShaderSetFamilySourceStrings>
-    shadersSetFamilyNameToShadersSetFamilySourceStrings_umap;
+    std::vector<std::unique_ptr<Anvil::ShaderModuleStageEntryPoint>> shaderModulesStageEntryPoints_uptrs;
+
+    std::unordered_map<std::string, ShaderSetFamilySourceStrings> shadersSetFamilyNameToShadersSetFamilySourceStrings_umap;
     std::unordered_map<ShadersSpecs, size_t> shaderSpecsToShaderSetIndex_umap;
-
-    Anvil::BaseDevice* device_ptr;
 };

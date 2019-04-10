@@ -44,30 +44,37 @@ class MeshesPrimitives
 {
 public:
     MeshesPrimitives(PrimitivesPipelines* in_primitivesPipelines_ptr, PrimitivesShaders* in_primitivesShaders_ptr,
-                     PrimitivesMaterials* in_primitivesMaterials_ptr, Anvil::BaseDevice* in_device_ptr);
+                     PrimitivesMaterials* in_primitivesMaterials_ptr,
+                     Anvil::BaseDevice* const in_device_ptr);
     ~MeshesPrimitives();
 
     void AddPrimitive(tinygltf::Model& in_model, tinygltf::Primitive& in_primitive);
     void FlashBuffersToDevice();
     size_t InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material,
-                             const std::vector<const Anvil::DescriptorSetCreateInfo*>*
-                             in_lower_descriptorSetCreateInfos, Anvil::RenderPass* renderpass_ptr,
-                             Anvil::SubPassID subpassID);
+                             const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
+                             Anvil::RenderPass* renderpass_ptr, Anvil::SubPassID subpassID);
 
+public:
     std::vector<std::vector<PrimitiveInfo>> primitivesSets;
 
-    Anvil::BufferUniquePtr indexBuffer;
-    Anvil::BufferUniquePtr positionBuffer;
-    Anvil::BufferUniquePtr normalBuffer;
-    Anvil::BufferUniquePtr tangentBuffer;
-    Anvil::BufferUniquePtr texcoord0Buffer;
-    Anvil::BufferUniquePtr texcoord1Buffer;
+    Anvil::BufferUniquePtr indexBuffer_uptr;
+    Anvil::BufferUniquePtr positionBuffer_uptr;
+    Anvil::BufferUniquePtr normalBuffer_uptr;
+    Anvil::BufferUniquePtr tangentBuffer_uptr;
+    Anvil::BufferUniquePtr texcoord0Buffer_uptr;
+    Anvil::BufferUniquePtr texcoord1Buffer_uptr;
 
 private:
     void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, tinygltf::Model& in_model,
                                       tinygltf::Accessor in_accessor);
     Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
                                                             Anvil::BufferUsageFlagBits in_bufferusageflag);
+private:
+    Anvil::BaseDevice* const device_ptr;
+
+    PrimitivesPipelines* primitivesPipelines_ptr;
+    PrimitivesShaders* primitivesShaders_ptr;
+    PrimitivesMaterials* primitivesMaterials_ptr;
 
     Anvil::MemoryAllocatorUniquePtr allocator_ptr;
 
@@ -81,10 +88,4 @@ private:
     bool hasBuffersBeenFlashed = false;
 
     std::vector<PrimitiveInitInfo> primitivesInitInfos;
-
-    PrimitivesPipelines* primitivesPipelines_ptr;
-    PrimitivesShaders* primitivesShaders_ptr;
-    PrimitivesMaterials* primitivesMaterials_ptr;
-
-    Anvil::BaseDevice* device_ptr;
 };

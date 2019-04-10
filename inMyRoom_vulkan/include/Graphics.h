@@ -31,68 +31,68 @@ public:
              uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount);
     ~Graphics();
 
-    void bind_camera        (CameraBaseClass* in_camera);
+    void BindCamera        (CameraBaseClass* in_camera);
 
-    void draw_frame         ();
+    void DrawFrame         ();
 
 
 private:
     std::string GetFilePathExtension(const std::string &FileName);
 
-    void load_scene();
+    void LoadScene();
 
-    void init_camera_buffers();
-    void init_images();
-    void init_framebuffers();
-    void init_renderpasses();
-    void init_scene();
-    void init_spacial_dsg();
-    void init_semaphores();
+    void InitCameraBuffers();
+    void InitImages();
+    void InitFramebuffers();
+    void InitRenderpasses();
+    void InitScene();
+    void InitSpacialDsg();
+    void InitSemaphores();
 
-    void init_command_buffers();
+    void InitCommandBuffers();
 
 private:
-    Anvil::BaseDevice* const     m_device_ptr;
-    Anvil::Swapchain* const      m_swapchain_ptr;
+    Anvil::BaseDevice* const     device_ptr;
+    Anvil::Swapchain* const      swapchain_ptr;
 
     tinygltf::Model model;
 
-    std::unique_ptr<TexturesImagesUsage> texturesImagesUsage_ptr;
-    std::unique_ptr<MaterialsTextures> materialsTextures_ptr;
-    std::unique_ptr<PrimitivesMaterials> primitivesMaterials_ptr;
-    std::unique_ptr<PrimitivesShaders> primitivesShaders_ptr;
-    std::unique_ptr<PrimitivesPipelines> primitivesPipelines_ptr;
-    std::unique_ptr<SceneNodes> sceneNodes_ptr;
-    std::unique_ptr<MeshesPrimitives> meshesPrimitives_ptr;
-    std::unique_ptr<NodesMeshes> nodesMeshes_ptr;
+    std::unique_ptr<TexturesImagesUsage> texturesImagesUsage_uptr;
+    std::unique_ptr<MaterialsTextures> materialsTextures_uptr;
+    std::unique_ptr<PrimitivesMaterials> primitivesMaterials_uptr;
+    std::unique_ptr<PrimitivesShaders> primitivesShaders_uptr;
+    std::unique_ptr<PrimitivesPipelines> primitivesPipelines_uptr;
+    std::unique_ptr<SceneNodes> sceneNodes_uptr;
+    std::unique_ptr<MeshesPrimitives> meshesPrimitives_uptr;
+    std::unique_ptr<NodesMeshes> nodesMeshes_uptr;
 
     CameraBaseClass* camera_ptr;
 
-    const uint32_t              m_n_swapchain_images;
+    const uint32_t              swapchainImagesCount;
     const uint32_t              windowWidth;
     const uint32_t              windowHeight;
 
-    Anvil::BufferUniquePtr          m_camera_buffer_ptr;
-    Anvil::BufferUniquePtr          m_perspective_buffer_ptr;
+    Anvil::BufferUniquePtr          cameraBuffer_uptr;
+    Anvil::BufferUniquePtr          perspectiveBuffer_uptr;
 
-    Anvil::DescriptorSetGroupUniquePtr	m_dsg_ptr;
+    Anvil::DescriptorSetGroupUniquePtr	spacialDSG_uptr;
 
-    Anvil::ImageUniquePtr           m_depth_image_ptr;
-    Anvil::ImageViewUniquePtr       m_depth_image_view_ptr;
+    Anvil::ImageUniquePtr           depthImage_uptr;
+    Anvil::ImageViewUniquePtr       depthImageView_uptr;
 
-    std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
-    std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> frameSignalSemaphores_uptrs;
+    std::vector<Anvil::SemaphoreUniquePtr> frameWaitSemaphores_uptrs;
 
-    std::vector<Anvil::FramebufferUniquePtr>        m_framebuffers;
+    std::vector<Anvil::FramebufferUniquePtr>        framebuffers_uptrs;
 
-    Anvil::RenderPassUniquePtr                      m_renderpass_ptr;
+    Anvil::RenderPassUniquePtr                      renderpass_uptr;
 
-    std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_cmd_buffers;
-    uint32_t                      m_n_last_semaphore_used;
+    std::vector<Anvil::PrimaryCommandBufferUniquePtr> cmdBuffers_uptrs;
+    uint32_t                      lastSemaphoreUsed;
 
-    Anvil::SubPassID              m_subpass_id;
+    Anvil::SubPassID              colorSubpassID;
 
-    size_t PrimitivesSetIndex;
+    size_t generalPrimitivesSetIndex;
 
     const configuru::Config& cfgFile;
 };

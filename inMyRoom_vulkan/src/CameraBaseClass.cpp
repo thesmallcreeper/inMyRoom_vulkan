@@ -49,24 +49,33 @@ void CameraBaseClass::Unfreeze()
 
 void CameraBaseClass::RefreshPublicVectors()
 {
-    std::lock_guard<std::mutex> lock(controlMutex);
+    std::unique_lock<std::mutex> try_to_lock(controlMutex, std::try_to_lock);
 
-    if (!freezed)
+    if (try_to_lock.owns_lock())
     {
-        auto previous_snap_timePoint = lastSnapTimePoint;
-        auto next_snap_timePoint = std::chrono::steady_clock::now();
+        if (!freezed)
+        {
+            auto previous_snap_timePoint = lastSnapTimePoint;
+            auto next_snap_timePoint = std::chrono::steady_clock::now();
 
-        std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
-        std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
+            std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
+            std::pair<glm::vec3, glm::vec3> new_position_lookingDirection = CalculateSnap(duration);
 
-        position = new_position_lookingDirection.first;
-        lookingDirection = new_position_lookingDirection.second;
+            position = new_position_lookingDirection.first;
+            lookingDirection = new_position_lookingDirection.second;
+
+            lastSnapTimePoint = next_snap_timePoint;
+        }
 
         publicPosition = position;
         publicLookingDirection = lookingDirection;
+    }
+    else   // If the input thread was just refreshing then there is no need for a new snap. Will be almost identical.
+    {
+        std::lock_guard<std::mutex> lock(controlMutex);
 
-        lastSnapTimePoint = next_snap_timePoint;
-
+        publicPosition = position;
+        publicLookingDirection = lookingDirection;
     }
 }
 

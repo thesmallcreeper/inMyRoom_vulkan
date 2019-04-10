@@ -11,7 +11,8 @@
 #include <iostream>
 
 MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps,
-                                     TexturesImagesUsage* in_texturesImagesUsage_ptr, Anvil::BaseDevice* in_device_ptr)
+                                     TexturesImagesUsage* in_texturesImagesUsage_ptr,
+                                     Anvil::BaseDevice* const in_device_ptr)
 {
     for (tinygltf::Image& thisImage : in_model.images)
     {
@@ -183,8 +184,8 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
             image_view_ptr = Anvil::ImageView::create(std::move(create_info_ptr));
         }
 
-        images.emplace_back(std::move(image_ptr));
-        imagesViews.emplace_back(std::move(image_view_ptr));
+        images_uptrs.emplace_back(std::move(image_ptr));
+        imagesViews_upts.emplace_back(std::move(image_view_ptr));
     }
 
     {
@@ -209,7 +210,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
 
         image_sampler_ptr = Anvil::Sampler::create(std::move(create_info_ptr));
 
-        samplers.emplace_back(std::move(image_sampler_ptr));
+        samplers_uptrs.emplace_back(std::move(image_sampler_ptr));
     }
 
     for (tinygltf::Sampler& thisSampler : in_model.samplers)
@@ -244,7 +245,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
 
         image_sampler_ptr = Anvil::Sampler::create(std::move(create_info_ptr));
 
-        samplers.emplace_back(std::move(image_sampler_ptr));
+        samplers_uptrs.emplace_back(std::move(image_sampler_ptr));
     }
 
     for (tinygltf::Texture& thisTexture : in_model.textures)
@@ -256,13 +257,13 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
         else
             thisTextureInfo.samplerIndex = 0;
 
-        textures.emplace_back(thisTextureInfo);
+        texturesInfos.emplace_back(thisTextureInfo);
     }
 }
 
 MaterialsTextures::~MaterialsTextures()
 {
-    samplers.clear();
-    imagesViews.clear();
-    images.clear();
+    samplers_uptrs.clear();
+    imagesViews_upts.clear();
+    images_uptrs.clear();
 }

@@ -19,7 +19,8 @@ struct MeshRange
 class NodesMeshes
 {
 public:
-    NodesMeshes(tinygltf::Model& in_model, MeshesPrimitives* in_meshesPrimitives_ptr, Anvil::BaseDevice* in_device_ptr);
+    NodesMeshes(tinygltf::Model& in_model, MeshesPrimitives* in_meshesPrimitives_ptr,
+                Anvil::BaseDevice* const in_device_ptr);
     ~NodesMeshes();
 
     void Draw(size_t in_mesh, uint32_t in_meshDeviceID, size_t in_primitivesSet_index,
@@ -27,9 +28,10 @@ public:
               std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs);
 
 private:
-    std::vector<MeshRange> meshes;
+    Anvil::BaseDevice* const device_ptr;
 
     MeshesPrimitives* meshesPrimitives_ptr;
 
-    Anvil::BaseDevice* device_ptr;
+    std::vector<MeshRange> meshes;
+
 };

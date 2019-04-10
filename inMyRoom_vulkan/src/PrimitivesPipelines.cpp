@@ -1,6 +1,6 @@
 #include "PrimitivesPipelines.h"
 
-PrimitivesPipelines::PrimitivesPipelines(Anvil::BaseDevice* in_device_ptr)
+PrimitivesPipelines::PrimitivesPipelines(Anvil::BaseDevice* const in_device_ptr)
     : device_ptr(in_device_ptr)
 {
 }
@@ -13,7 +13,7 @@ PrimitivesPipelines::~PrimitivesPipelines()
     pipelineIDs.clear();
 }
 
-size_t PrimitivesPipelines::getPipelineIDIndex(const PipelineSpecs in_pipelineSpecs)
+size_t PrimitivesPipelines::GetPipelineIDIndex(const PipelineSpecs in_pipelineSpecs)
 {
     auto search = pipelineSpecsToPipelineIDIndex_umap.find(in_pipelineSpecs);
     if (search != pipelineSpecsToPipelineIDIndex_umap.end())

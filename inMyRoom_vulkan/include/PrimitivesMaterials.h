@@ -15,16 +15,17 @@ class PrimitivesMaterials
 {
 public:
     PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTextures* in_materialsTextures,
-                        Anvil::BaseDevice* in_device_ptr);
+                        Anvil::BaseDevice* const in_device_ptr);
     ~PrimitivesMaterials();
 
-    Anvil::DescriptorSetGroupUniquePtr dsg_ptr;
+public:
+    Anvil::DescriptorSetGroupUniquePtr texturesOfMaterialsDescriptorSetGroup_uptr;
     std::vector<ShadersSpecs> materialsShadersSpecs;
 
 private:
-    std::vector<Anvil::BufferUniquePtr> materialsFactorsBuffer_ptrs;
+    Anvil::BaseDevice* const device_ptr;
 
     MaterialsTextures* materialsTextures_ptr;
 
-    Anvil::BaseDevice* device_ptr;
+    std::vector<Anvil::BufferUniquePtr> materialsFactorsBuffer_ptrs;
 };
