@@ -52,6 +52,9 @@ Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_p
 
 Graphics::~Graphics()
 {
+    Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());
+
+    cmdBuffers_uptrs.clear();
 
     frameSignalSemaphores_uptrs.clear();
     frameWaitSemaphores_uptrs.clear();
@@ -227,7 +230,7 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
                                                   Anvil::SubpassContents::INLINE);
 
         std::vector<Anvil::DescriptorSet*> descriptor_sets;
-        for (size_t i = 0; i < spacialDSG_uptr->get_n_descriptor_sets(); i++)
+        for (uint32_t i = 0; i < spacialDSG_uptr->get_n_descriptor_sets(); i++)
             descriptor_sets.emplace_back(spacialDSG_uptr->get_descriptor_set(i));
 
         sceneNodes_uptr->Draw(generalPrimitivesSetIndex, cmd_buffer_ptr, descriptor_sets);
@@ -369,11 +372,11 @@ void Graphics::InitScene()
     {
         ShadersSpecs this_shaders_specs;
         this_shaders_specs.shadersSetFamilyName = "General Mesh";
-        this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", sceneNodes_uptr->globalTRSmatrixesCount));
+        this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(sceneNodes_uptr->globalTRSmatrixesCount)));
         generalPrimitivesSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, spacialDSG_uptr->get_descriptor_set_create_info(), renderpass_uptr.get(), colorSubpassID);
     }
 
-    sceneNodes_uptr->BindSceneMeshes(nodesMeshes_uptr.get());
+    sceneNodes_uptr->BindNodesMeshes(nodesMeshes_uptr.get());
 }
 
 

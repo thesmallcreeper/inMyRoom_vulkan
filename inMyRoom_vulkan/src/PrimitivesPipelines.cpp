@@ -10,21 +10,24 @@ PrimitivesPipelines::~PrimitivesPipelines()
     auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
     for (Anvil::PipelineID thisPipelineID : pipelineIDs)
         gfx_manager_ptr->delete_pipeline(thisPipelineID);
-    pipelineIDs.clear();
 }
 
-size_t PrimitivesPipelines::GetPipelineIDIndex(const PipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PrimitivesPipelines::GetPipelineID(const PipelineSpecs in_pipelineSpecs)
 {
-    auto search = pipelineSpecsToPipelineIDIndex_umap.find(in_pipelineSpecs);
-    if (search != pipelineSpecsToPipelineIDIndex_umap.end())
-        return search->second;
-    Anvil::PipelineID new_pipelineID = createPipeline(in_pipelineSpecs);
-    pipelineIDs.push_back(new_pipelineID);
-    pipelineSpecsToPipelineIDIndex_umap.emplace(in_pipelineSpecs, pipelineIDs.size() - 1);
-    return pipelineIDs.size() - 1;
+    auto search = pipelineSpecsToPipelineID_umap.find(in_pipelineSpecs);
+	if (search != pipelineSpecsToPipelineID_umap.end())
+	{
+		return search->second;
+	}
+	else
+	{
+		Anvil::PipelineID new_pipelineID = CreatePipeline(in_pipelineSpecs);
+		pipelineSpecsToPipelineID_umap.emplace(in_pipelineSpecs, new_pipelineID);
+		return new_pipelineID;
+	}
 }
 
-Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PrimitivesPipelines::CreatePipeline(PipelineSpecs in_pipelineSpecs)
 {
     auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 
@@ -185,6 +188,8 @@ Anvil::PipelineID PrimitivesPipelines::createPipeline(PipelineSpecs in_pipelineS
     Anvil::PipelineID pipelineID;
     gfx_manager_ptr->add_pipeline(std::move(pipeline_create_info_ptr),
                                   &pipelineID);
+
+	pipelineIDs.push_back(pipelineID);
 
     return pipelineID;
 }

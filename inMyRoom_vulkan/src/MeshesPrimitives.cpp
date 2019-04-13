@@ -48,8 +48,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
         AddAccessorDataToLocalBuffer(localIndexBuffer, in_model, this_accessor);
 
-        this_primitiveInitInfo.pipelineSpecs.indexComponentType = static_cast<glTFcomponentType>(this_accessor.
-            componentType);
+        this_primitiveInitInfo.pipelineSpecs.indexComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
     }
 
     {
@@ -66,8 +65,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             AddAccessorDataToLocalBuffer(localPositionBuffer, in_model, this_accessor);
 
-            this_primitiveInitInfo.pipelineSpecs.positionComponentType = static_cast<glTFcomponentType>(this_accessor.
-                componentType);
+            this_primitiveInitInfo.pipelineSpecs.positionComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
     }
 
@@ -85,8 +83,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             AddAccessorDataToLocalBuffer(localNormalBuffer, in_model, this_accessor);
 
-            this_primitiveInitInfo.pipelineSpecs.normalComponentType = static_cast<glTFcomponentType>(this_accessor.
-                componentType);
+            this_primitiveInitInfo.pipelineSpecs.normalComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
     }
 
@@ -104,8 +101,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             AddAccessorDataToLocalBuffer(localTangentBuffer, in_model, this_accessor);
 
-            this_primitiveInitInfo.pipelineSpecs.tangentComponentType = static_cast<glTFcomponentType>(this_accessor.
-                componentType);
+            this_primitiveInitInfo.pipelineSpecs.tangentComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
     }
 
@@ -125,8 +121,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             AddAccessorDataToLocalBuffer(localTexcoord0Buffer, in_model, this_accessor);
 
-            this_primitiveInitInfo.pipelineSpecs.texcoord0ComponentType = static_cast<glTFcomponentType>(this_accessor.
-                componentType);
+            this_primitiveInitInfo.pipelineSpecs.texcoord0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
     }
 
@@ -146,8 +141,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             AddAccessorDataToLocalBuffer(localTexcoord1Buffer, in_model, this_accessor);
 
-            this_primitiveInitInfo.pipelineSpecs.texcoord1ComponentType = static_cast<glTFcomponentType>(this_accessor.
-                componentType);
+            this_primitiveInitInfo.pipelineSpecs.texcoord1ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
     }
 
@@ -163,20 +157,15 @@ void MeshesPrimitives::FlashBuffersToDevice()
     if (!localIndexBuffer.empty())
         indexBuffer_uptr = CreateDeviceBufferForLocalBuffer(localIndexBuffer, Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT);
     if (!localPositionBuffer.empty())
-        positionBuffer_uptr = CreateDeviceBufferForLocalBuffer(localPositionBuffer,
-                                                          Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+        positionBuffer_uptr = CreateDeviceBufferForLocalBuffer(localPositionBuffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
     if (!localNormalBuffer.empty())
-        normalBuffer_uptr = CreateDeviceBufferForLocalBuffer(localNormalBuffer,
-                                                        Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+        normalBuffer_uptr = CreateDeviceBufferForLocalBuffer(localNormalBuffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
     if (!localTangentBuffer.empty())
-        tangentBuffer_uptr = CreateDeviceBufferForLocalBuffer(localTangentBuffer,
-                                                         Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+        tangentBuffer_uptr = CreateDeviceBufferForLocalBuffer(localTangentBuffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
     if (!localTexcoord0Buffer.empty())
-        texcoord0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord0Buffer,
-                                                           Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+        texcoord0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
     if (!localTexcoord1Buffer.empty())
-        texcoord1Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord1Buffer,
-                                                           Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+        texcoord1Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord1Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
 
     hasBuffersBeenFlashed = true;
 }
@@ -193,7 +182,7 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
         PrimitiveInfo this_primitiveInfo;
         ShadersSpecs this_shaderSpecs = in_shader_specs;
 
-        size_t layout_location = 0;
+        int32_t layout_location = 0;
 
         this_primitiveInfo.indexBufferType = this_primitivesInitInfo.indexBufferType;
         this_primitiveInfo.indicesCount = this_primitivesInitInfo.indicesCount;
@@ -242,8 +231,8 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
                 this_primitiveInfo.texcoord1BufferOffset = this_primitivesInitInfo.texcoord1BufferOffset;
             }
 
-            this_descriptorSetCreateInfos_ptrs.emplace_back(primitivesMaterials_ptr->texturesOfMaterialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(this_primitivesInitInfo.materialIndex));
-            this_primitiveInfo.material_descriptorSet_ptr = primitivesMaterials_ptr->texturesOfMaterialsDescriptorSetGroup_uptr->get_descriptor_set(this_primitivesInitInfo.materialIndex);
+            this_descriptorSetCreateInfos_ptrs.emplace_back(primitivesMaterials_ptr->texturesOfMaterialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex)));
+            this_primitiveInfo.materialDescriptorSet_ptr = primitivesMaterials_ptr->texturesOfMaterialsDescriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex));
 
             std::copy(
                 primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.begin(),
@@ -271,7 +260,11 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
         this_pipelineSpecs.renderpass_ptr = renderpass_ptr;
         this_pipelineSpecs.subpassID = subpassID;
 
-        this_primitiveInfo.thisPipelineID = primitivesPipelines_ptr->GetPipelineIDIndex(this_pipelineSpecs);
+		Anvil::PipelineID this_pipelineID = primitivesPipelines_ptr->GetPipelineID(this_pipelineSpecs);
+		auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
+
+		this_primitiveInfo.thisPipelineID = this_pipelineID;
+		this_primitiveInfo.pipelineLayout_ptr = gfx_manager_ptr->get_pipeline_layout(this_pipelineID);
 
         this_set_primitiveInfo.emplace_back(this_primitiveInfo);
     }

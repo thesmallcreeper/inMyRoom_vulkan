@@ -100,17 +100,16 @@ public:
     PrimitivesPipelines(Anvil::BaseDevice* const in_device_ptr);
     ~PrimitivesPipelines();
 
-    size_t GetPipelineIDIndex(PipelineSpecs in_pipelineSpecs);
-
-    std::vector<Anvil::PipelineID> pipelineIDs;
+    Anvil::PipelineID GetPipelineID(PipelineSpecs in_pipelineSpecs);
 
 private:
-    Anvil::PipelineID createPipeline(PipelineSpecs pipelineSpecs);
+    Anvil::PipelineID CreatePipeline(PipelineSpecs pipelineSpecs);
 
 private:
     Anvil::BaseDevice* const device_ptr;
 
-    std::unordered_map<PipelineSpecs, size_t> pipelineSpecsToPipelineIDIndex_umap;
+    std::unordered_map<PipelineSpecs, Anvil::PipelineID> pipelineSpecsToPipelineID_umap;
+	std::vector<Anvil::PipelineID> pipelineIDs;
 
     std::map<glTFmode, Anvil::PrimitiveTopology> glTFmodeToPrimitiveTopology_map
     {

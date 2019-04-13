@@ -37,7 +37,8 @@ struct PrimitiveInfo
     VkDeviceSize texcoord0BufferOffset = -1;
     VkDeviceSize texcoord1BufferOffset = -1;
     Anvil::PipelineID thisPipelineID;
-    Anvil::DescriptorSet* material_descriptorSet_ptr = nullptr;
+    Anvil::DescriptorSet* materialDescriptorSet_ptr = nullptr;
+	Anvil::PipelineLayout* pipelineLayout_ptr = nullptr;
 };
 
 class MeshesPrimitives

@@ -42,8 +42,8 @@ void NodesMeshes::Draw(size_t in_mesh, uint32_t in_meshDeviceID, size_t in_primi
         const PrimitiveInfo& this_primitive = this_primitivesSet[primitiveIndex];
 
         std::vector<Anvil::DescriptorSet*> descriptor_sets_ptrs = in_low_descriptor_sets_ptrs;
-        if (this_primitive.material_descriptorSet_ptr != nullptr)
-            descriptor_sets_ptrs.emplace_back(this_primitive.material_descriptorSet_ptr);
+        if (this_primitive.materialDescriptorSet_ptr != nullptr)
+            descriptor_sets_ptrs.emplace_back(this_primitive.materialDescriptorSet_ptr);
 
         const uint32_t descriptor_sets_count = static_cast<const uint32_t>(descriptor_sets_ptrs.size());
 
@@ -52,8 +52,7 @@ void NodesMeshes::Draw(size_t in_mesh, uint32_t in_meshDeviceID, size_t in_primi
                                                 this_primitive.thisPipelineID);
 
         in_cmd_buffer_ptr->record_bind_descriptor_sets(Anvil::PipelineBindPoint::GRAPHICS,
-                                                       gfx_manager_ptr->get_pipeline_layout(
-                                                           this_primitive.thisPipelineID),
+                                                       this_primitive.pipelineLayout_ptr,
                                                        0, /* in_first_set */
                                                        descriptor_sets_count, /* in_set_count */
                                                        descriptor_sets_ptrs.data(),

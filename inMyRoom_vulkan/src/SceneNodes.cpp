@@ -60,7 +60,7 @@ SceneNodes::~SceneNodes()
     globalTRSmatrixesBuffer_uptr.reset();
 }
 
-void SceneNodes::BindSceneMeshes(NodesMeshes* in_nodesMeshes)
+void SceneNodes::BindNodesMeshes(NodesMeshes* in_nodesMeshes)
 {
     nodesMeshes_ptr = in_nodesMeshes;
 }
@@ -156,13 +156,13 @@ glm::mat4 SceneNodes::CreateTRSmatrix(const tinygltf::Node& in_node) const
     glm::mat4 return_matrix = glm::mat4(1.0f);
     if (in_node.scale.size() == 3)
     {
-        return_matrix = scale(glm::mat4(1.0f), glm::vec3(in_node.scale[0], in_node.scale[1], in_node.scale[2])) *
+        return_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(in_node.scale[0], in_node.scale[1], in_node.scale[2])) *
             return_matrix;
     }
     if (in_node.rotation.size() == 4)
     {
-        const glm::qua<float> rotation_qua(in_node.rotation[3], in_node.rotation[0], -in_node.rotation[1],
-                                           -in_node.rotation[2]);
+        const glm::qua<float> rotation_qua(static_cast<float>(in_node.rotation[3]), static_cast<float>(in_node.rotation[0]), static_cast<float>(-in_node.rotation[1]),
+                                           static_cast<float>(-in_node.rotation[2]));
 
         return_matrix = glm::toMat4<float, glm::packed_highp>(rotation_qua) * return_matrix;
     }
