@@ -88,8 +88,9 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
 
         for (size_t this_mipmap_level = 0; this_mipmap_level < mipmap_levels; this_mipmap_level++)
         {
-            std::string this_mipmap_filename = path_to_mipmap_folder.string() + "//mipmap_" + std::to_string(
-                this_mipmap_level) + ".DDS";
+            std::string this_mipmap_filename = path_to_mipmap_folder.string() + "//mipmap_" + 
+				std::to_string(this_mipmap_level) + ".DDS";
+
             CMP_Texture this_mipmap;
 
             if (!LoadDDSFile(this_mipmap_filename.c_str(), this_mipmap))
@@ -154,7 +155,6 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
                                                                         Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
                                                                         /* in_final_image_layout    */
                                                                         &mipmaps_raw_data);
-            /* in_mipmaps_ptr           */
 
             image_ptr = Anvil::Image::create(std::move(create_info_ptr));
         }

@@ -36,7 +36,7 @@ Engine::Engine(configuru::Config& in_cfgFile)
     graphics_uptr = std::make_unique<Graphics>(cfgFile, device_uptr.get(), swapchain_uptr.get(),
                                                windowWidth, windowHeight, swapchainImagesCount);
 
-    camera_uptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float(), glm::vec3(0.f, 0.f, +1.f), glm::vec3(0.f, -10.f, -20.f));
+    camera_uptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float(), glm::vec3(0.f, 0.f, +1.f), glm::vec3(0.f, 0.f, 0.f));
 
     graphics_uptr->BindCamera(camera_uptr.get());
 

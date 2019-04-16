@@ -27,10 +27,7 @@ SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& i
             root_node.meshIndex = this_node.mesh;
 
             nodes.emplace_back(root_node);
-            meshes_by_id_TRS.emplace_back(node_global_trs_matrix * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
-                                                                             0.0f, -1.0f, 0.0f, 0.0f,
-                                                                             0.0f, 0.0f, -1.0f, 0.0f,
-                                                                             0.0f, 0.0f, 0.0f, 1.0f));
+            meshes_by_id_TRS.emplace_back(node_global_trs_matrix);
         }
         else if (!this_node.children.empty())
         {
@@ -96,10 +93,7 @@ uint32_t SceneNodes::AddNode(const tinygltf::Model& in_model, const tinygltf::No
         thisNode.meshIndex = in_node.mesh;
 
         nodes.emplace_back(thisNode);
-        meshesByIdTRS.emplace_back(parent_trs_matrix * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
-                                                                 0.0f, -1.0f, 0.0f, 0.0f,
-                                                                 0.0f, 0.0f, -1.0f, 0.0f,
-                                                                 0.0f, 0.0f, 0.0f, 1.0f));
+        meshesByIdTRS.emplace_back(parent_trs_matrix);
     }
     else if (!in_node.children.empty())
     {
@@ -121,7 +115,7 @@ uint32_t SceneNodes::AddNode(const tinygltf::Model& in_model, const tinygltf::No
     return nodeAndChildrenSize;
 }
 
-Anvil::BufferUniquePtr SceneNodes::CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS)
+Anvil::BufferUniquePtr SceneNodes::CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS) const
 {
     auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
                                                                     meshesByIdTRS.size() * sizeof(glm::mat4),

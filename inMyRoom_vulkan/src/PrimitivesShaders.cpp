@@ -69,13 +69,13 @@ size_t PrimitivesShaders::GetShaderSetIndex(ShadersSpecs in_shaderSpecs)
     auto search = shaderSpecsToShaderSetIndex_umap.find(in_shaderSpecs);
     if (search != shaderSpecsToShaderSetIndex_umap.end())
         return search->second;
-    ShadersSet newShaderSet = createShadersSet(in_shaderSpecs);
+    ShadersSet newShaderSet = CreateShadersSet(in_shaderSpecs);
     shadersSets.emplace_back(newShaderSet);
     shaderSpecsToShaderSetIndex_umap.emplace(in_shaderSpecs, shadersSets.size() - 1);
     return shadersSets.size() - 1;
 }
 
-ShadersSet PrimitivesShaders::createShadersSet(ShadersSpecs in_shaderSpecs)
+ShadersSet PrimitivesShaders::CreateShadersSet(ShadersSpecs in_shaderSpecs)
 {
     auto search = shadersSetFamilyNameToShadersSetFamilySourceStrings_umap.find(in_shaderSpecs.shadersSetFamilyName);
     assert(search != shadersSetFamilyNameToShadersSetFamilySourceStrings_umap.end());

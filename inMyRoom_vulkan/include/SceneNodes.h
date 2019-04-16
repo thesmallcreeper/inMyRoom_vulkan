@@ -45,6 +45,8 @@ public:
               std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs);
 
 public:
+	std::vector<Node> nodes;
+
     Anvil::BufferUniquePtr globalTRSmatrixesBuffer_uptr;
     size_t globalTRSmatrixesCount;
 
@@ -52,7 +54,7 @@ private:
     uint32_t AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_node, glm::mat4 parentTRSmatrix,
                      std::vector<glm::mat4>& meshesByIdTRS);
 
-    Anvil::BufferUniquePtr CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS);
+    Anvil::BufferUniquePtr CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS) const;
 
     glm::mat4 CreateTRSmatrix(const tinygltf::Node& in_node) const;
 
@@ -61,5 +63,5 @@ private:
 
     NodesMeshes* nodesMeshes_ptr;
 
-    std::vector<Node> nodes;
+
 };

@@ -65,11 +65,20 @@ public:
     Anvil::BufferUniquePtr texcoord0Buffer_uptr;
     Anvil::BufferUniquePtr texcoord1Buffer_uptr;
 
+	std::vector<unsigned char> localIndexBuffer;
+	std::vector<unsigned char> localPositionBuffer;
+	std::vector<unsigned char> localNormalBuffer;
+	std::vector<unsigned char> localTangentBuffer;
+	std::vector<unsigned char> localTexcoord0Buffer;
+	std::vector<unsigned char> localTexcoord1Buffer;
+
+	bool hasBuffersBeenFlashed = false;
+
 private:
-    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, tinygltf::Model& in_model,
-                                      tinygltf::Accessor in_accessor);
+    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool itIsPositionData,
+									  tinygltf::Model& in_model,tinygltf::Accessor in_accessor) const;
     Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
-                                                            Anvil::BufferUsageFlagBits in_bufferusageflag);
+                                                            Anvil::BufferUsageFlagBits in_bufferusageflag) const;
 private:
     Anvil::BaseDevice* const device_ptr;
 
@@ -78,15 +87,6 @@ private:
     PrimitivesMaterials* primitivesMaterials_ptr;
 
     Anvil::MemoryAllocatorUniquePtr allocator_ptr;
-
-    std::vector<unsigned char> localIndexBuffer;
-    std::vector<unsigned char> localPositionBuffer;
-    std::vector<unsigned char> localNormalBuffer;
-    std::vector<unsigned char> localTangentBuffer;
-    std::vector<unsigned char> localTexcoord0Buffer;
-    std::vector<unsigned char> localTexcoord1Buffer;
-
-    bool hasBuffersBeenFlashed = false;
 
     std::vector<PrimitiveInitInfo> primitivesInitInfos;
 };

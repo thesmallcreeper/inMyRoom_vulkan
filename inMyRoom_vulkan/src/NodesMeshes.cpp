@@ -26,7 +26,6 @@ NodesMeshes::~NodesMeshes()
 {
 }
 
-
 void NodesMeshes::Draw(size_t in_mesh, uint32_t in_meshDeviceID, size_t in_primitivesSet_index,
                        Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                        std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs)

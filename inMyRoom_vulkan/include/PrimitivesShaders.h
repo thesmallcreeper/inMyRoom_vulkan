@@ -119,7 +119,7 @@ public:
     std::vector<ShadersSet> shadersSets;
 
 private:
-    ShadersSet createShadersSet(ShadersSpecs in_shaderSpecs);
+    ShadersSet CreateShadersSet(ShadersSpecs in_shaderSpecs);
 
 private:
     Anvil::BaseDevice* const device_ptr;
