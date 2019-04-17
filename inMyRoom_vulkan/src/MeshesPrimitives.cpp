@@ -260,11 +260,11 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
         this_pipelineSpecs.renderpass_ptr = renderpass_ptr;
         this_pipelineSpecs.subpassID = subpassID;
 
-		Anvil::PipelineID this_pipelineID = primitivesPipelines_ptr->GetPipelineID(this_pipelineSpecs);
-		auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
+        Anvil::PipelineID this_pipelineID = primitivesPipelines_ptr->GetPipelineID(this_pipelineSpecs);
+        auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 
-		this_primitiveInfo.thisPipelineID = this_pipelineID;
-		this_primitiveInfo.pipelineLayout_ptr = gfx_manager_ptr->get_pipeline_layout(this_pipelineID);
+        this_primitiveInfo.thisPipelineID = this_pipelineID;
+        this_primitiveInfo.pipelineLayout_ptr = gfx_manager_ptr->get_pipeline_layout(this_pipelineID);
 
         this_set_primitiveInfo.emplace_back(this_primitiveInfo);
     }
@@ -324,35 +324,35 @@ void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& 
 
     tinygltf::Buffer& this_buffer = in_model.buffers[this_bufferView.buffer];
 
-	if(!itIsPositionData)
-	    std::copy(&this_buffer.data[bufferview_byte_offset + accessor_byte_offset],
-	              &this_buffer.data[bufferview_byte_offset + accessor_byte_offset] + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
-	              std::back_inserter(localBuffer_ref));
-	else
-	{
-		std::unique_ptr<float[]> temp_buffer_uptr;
-		temp_buffer_uptr.reset(new float[count_of_elements * number_of_components_per_type]);
+    if(!itIsPositionData)
+        std::copy(&this_buffer.data[bufferview_byte_offset + accessor_byte_offset],
+                  &this_buffer.data[bufferview_byte_offset + accessor_byte_offset] + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
+                  std::back_inserter(localBuffer_ref));
+    else
+    {
+        std::unique_ptr<float[]> temp_buffer_uptr;
+        temp_buffer_uptr.reset(new float[count_of_elements * number_of_components_per_type]);
 
-		uint8_t* temp_buffer_uint8_ptr;
-		temp_buffer_uint8_ptr = reinterpret_cast<unsigned char*>(temp_buffer_uptr.get());
+        uint8_t* temp_buffer_uint8_ptr;
+        temp_buffer_uint8_ptr = reinterpret_cast<unsigned char*>(temp_buffer_uptr.get());
 
-		std::memcpy(temp_buffer_uint8_ptr, &this_buffer.data[bufferview_byte_offset + accessor_byte_offset], count_of_elements * size_of_each_component_in_byte * number_of_components_per_type);
+        std::memcpy(temp_buffer_uint8_ptr, &this_buffer.data[bufferview_byte_offset + accessor_byte_offset], count_of_elements * size_of_each_component_in_byte * number_of_components_per_type);
 
-		for (size_t i = 0; i < count_of_elements * number_of_components_per_type; i++)
-			if (i % 3 == 1 || i % 3 == 2)
-				temp_buffer_uptr[i] *= -1.f;
+        for (size_t i = 0; i < count_of_elements * number_of_components_per_type; i++)
+            if (i % 3 == 1 || i % 3 == 2)
+                temp_buffer_uptr[i] *= -1.f;
 
-		std::copy(temp_buffer_uint8_ptr,
-			      temp_buffer_uint8_ptr + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
-			      std::back_inserter(localBuffer_ref));
-	}
+        std::copy(temp_buffer_uint8_ptr,
+                  temp_buffer_uint8_ptr + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
+                  std::back_inserter(localBuffer_ref));
+    }
 
-	if (nativeCompSize != -1)
-	{
-		const size_t loops_needed_to_align = localBuffer_ref.size() % nativeCompSize;
-		for (size_t i = 0; i < loops_needed_to_align; i++)
-			localBuffer_ref.emplace_back(0);
-	}
+    if (nativeCompSize != -1)
+    {
+        const size_t loops_needed_to_align = localBuffer_ref.size() % nativeCompSize;
+        for (size_t i = 0; i < loops_needed_to_align; i++)
+            localBuffer_ref.emplace_back(0);
+    }
 
 }
 

@@ -38,7 +38,7 @@ struct PrimitiveInfo
     VkDeviceSize texcoord1BufferOffset = -1;
     Anvil::PipelineID thisPipelineID;
     Anvil::DescriptorSet* materialDescriptorSet_ptr = nullptr;
-	Anvil::PipelineLayout* pipelineLayout_ptr = nullptr;
+    Anvil::PipelineLayout* pipelineLayout_ptr = nullptr;
 };
 
 class MeshesPrimitives
@@ -65,18 +65,18 @@ public:
     Anvil::BufferUniquePtr texcoord0Buffer_uptr;
     Anvil::BufferUniquePtr texcoord1Buffer_uptr;
 
-	std::vector<unsigned char> localIndexBuffer;
-	std::vector<unsigned char> localPositionBuffer;
-	std::vector<unsigned char> localNormalBuffer;
-	std::vector<unsigned char> localTangentBuffer;
-	std::vector<unsigned char> localTexcoord0Buffer;
-	std::vector<unsigned char> localTexcoord1Buffer;
+    std::vector<unsigned char> localIndexBuffer;
+    std::vector<unsigned char> localPositionBuffer;
+    std::vector<unsigned char> localNormalBuffer;
+    std::vector<unsigned char> localTangentBuffer;
+    std::vector<unsigned char> localTexcoord0Buffer;
+    std::vector<unsigned char> localTexcoord1Buffer;
 
-	bool hasBuffersBeenFlashed = false;
+    bool hasBuffersBeenFlashed = false;
 
 private:
     void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool itIsPositionData, size_t nativeCompSize,
-									  tinygltf::Model& in_model,tinygltf::Accessor in_accessor) const;
+                                      tinygltf::Model& in_model,tinygltf::Accessor in_accessor) const;
     Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
                                                             Anvil::BufferUsageFlagBits in_bufferusageflag) const;
 private:

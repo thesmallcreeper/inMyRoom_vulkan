@@ -22,7 +22,7 @@ public:
 
     void RefreshPublicVectors();
 
-	void ToggleCullingDubugging();
+    void ToggleCullingDubugging();
 
     void MoveCamera(float xRotation_rads, float yRotation_rads);
 
@@ -43,8 +43,8 @@ public:
     glm::vec3 cameraPosition;
     glm::vec3 cameraLookingDirection;
 
-	glm::vec3 cullingPosition;
-	glm::vec3 cullingLookingDirection;
+    glm::vec3 cullingPosition;
+    glm::vec3 cullingLookingDirection;
 
     glm::vec3 upVector;
 
@@ -71,7 +71,7 @@ private:
 
     std::chrono::steady_clock::time_point lastSnapTimePoint;
 
-	bool cullingDebugging = false;
+    bool cullingDebugging = false;
 
     volatile bool freezed = true;
     std::mutex controlMutex;
