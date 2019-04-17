@@ -108,8 +108,8 @@ void Graphics::DrawFrame()
     Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());
 
     camera_ptr->RefreshPublicVectors();
-    glm::vec3 cameraPosition = camera_ptr->publicPosition;
-    glm::vec3 cameraLookingDirection = camera_ptr->publicLookingDirection;
+    glm::vec3 cameraPosition = camera_ptr->cameraPosition;
+    glm::vec3 cameraLookingDirection = camera_ptr->cameraLookingDirection;
     glm::vec3 cameraUp = camera_ptr->upVector;
 
     glm::mat4x4 camera_matrix = glm::lookAt(cameraPosition, cameraPosition + cameraLookingDirection, cameraUp);

@@ -109,7 +109,12 @@ void Engine::Run()
             case SHOULD_CLOSE:
                 {
                     breakMainLoop = true;
-                    continue;
+                    break;
+                }
+            case TOGGLE_CULLING_DEBUG:
+                {
+                    camera_uptr->ToggleCullingDubugging();
+                    break;
                 }
             }
         }

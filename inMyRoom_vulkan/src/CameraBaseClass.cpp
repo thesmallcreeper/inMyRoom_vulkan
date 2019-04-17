@@ -67,16 +67,38 @@ void CameraBaseClass::RefreshPublicVectors()
             lastSnapTimePoint = next_snap_timePoint;
         }
 
-        publicPosition = position;
-        publicLookingDirection = lookingDirection;
+        cameraPosition = position;
+        cameraLookingDirection = lookingDirection;
+
+		if(!cullingDebugging)
+		{
+			cullingPosition = position;
+			cullingLookingDirection = lookingDirection;
+		}
     }
     else   // If the input thread was just refreshing then there is no need for a new snap. Will be almost identical.
     {
         std::lock_guard<std::mutex> lock(controlMutex);
 
-        publicPosition = position;
-        publicLookingDirection = lookingDirection;
+        cameraPosition = position;
+        cameraLookingDirection = lookingDirection;
+
+		if (!cullingDebugging)
+		{
+			cullingPosition = position;
+			cullingLookingDirection = lookingDirection;
+		}
     }
+}
+
+void CameraBaseClass::ToggleCullingDubugging()
+{
+	std::lock_guard<std::mutex> lock(controlMutex);
+
+	if (cullingDebugging)
+		cullingDebugging = false;
+	else
+		cullingDebugging = true;
 }
 
 void CameraBaseClass::MoveCamera(float xRotation_rads, float yRotation_rads)

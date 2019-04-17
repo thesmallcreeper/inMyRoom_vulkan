@@ -211,8 +211,3 @@ void InputManager::StopMovingDown()
         downKeyIsPressed = false;
     }
 }
-
-void InputManager::ShouldClose()
-{
-    AddToQueue(SHOULD_CLOSE);
-}

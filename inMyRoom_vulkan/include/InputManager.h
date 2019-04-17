@@ -13,7 +13,9 @@
 enum eventInputID
 {
     /*Quit key bind*/
-    SHOULD_CLOSE
+    SHOULD_CLOSE,
+	/*Debug culling key bind*/
+	TOGGLE_CULLING_DEBUG
 };
 
 class InputManager
@@ -48,8 +50,6 @@ private:
     void StopMovingUp();
     void StopMovingDown();
 
-    void ShouldClose();
-
     void AddToQueue(eventInputID event);
 
     bool forwardKeyIsPressed = false;
@@ -76,13 +76,11 @@ private:
     {
         {
             "MoveForward",
-            std::make_pair(std::bind(&InputManager::MoveForward, this),
-                           std::bind(&InputManager::StopMovingForward, this))
+            std::make_pair(std::bind(&InputManager::MoveForward, this), std::bind(&InputManager::StopMovingForward, this))
         },
         {
             "MoveBackward",
-            std::make_pair(std::bind(&InputManager::MoveBackward, this),
-                           std::bind(&InputManager::StopMovingBackward, this))
+            std::make_pair(std::bind(&InputManager::MoveBackward, this), std::bind(&InputManager::StopMovingBackward, this))
         },
         {
             "MoveLeft",
@@ -92,15 +90,15 @@ private:
             "MoveRight",
             std::make_pair(std::bind(&InputManager::MoveRight, this), std::bind(&InputManager::StopMovingRight, this))
         },
-        {"Exit", std::make_pair(std::bind(&InputManager::ShouldClose, this), nullptr)}
+        {"Exit", std::make_pair(std::bind(&InputManager::AddToQueue, this, SHOULD_CLOSE), nullptr)},
+        {"CullingDebug", std::make_pair(std::bind(&InputManager::AddToQueue, this, TOGGLE_CULLING_DEBUG), nullptr)}
     };
 
     std::unordered_map<std::string, Anvil::KeyID> buttomAliasToKey_map =
     {
-        {"SPACE", Anvil::KEY_ID_SPACE}, {"ESCAPE", Anvil::KEY_ID_ESCAPE}, {"LEFT_MOUSE", Anvil::KEY_ID_LBUTTON},
-        {"MIDDLE_MOUSE", Anvil::KEY_ID_MBUTTON},
-        {"RIGHT_MOUSE", Anvil::KEY_ID_RBUTTON}, {"UP", Anvil::KEY_ID_UP}, {"DOWN", Anvil::KEY_ID_DOWN},
-        {"LEFT", Anvil::KEY_ID_LEFT},
-        {"RIGHT", Anvil::KEY_ID_RIGHT}
+        {"SPACE", Anvil::KEY_ID_SPACE}, {"ESCAPE", Anvil::KEY_ID_ESCAPE}, {"TAB", Anvil::KEY_ID_TAB},
+        {"LEFT_MOUSE", Anvil::KEY_ID_LBUTTON}, {"MIDDLE_MOUSE", Anvil::KEY_ID_MBUTTON}, {"RIGHT_MOUSE", Anvil::KEY_ID_RBUTTON}, 
+        {"UP", Anvil::KEY_ID_UP}, {"DOWN", Anvil::KEY_ID_DOWN},
+        {"LEFT", Anvil::KEY_ID_LEFT}, {"RIGHT", Anvil::KEY_ID_RIGHT}
     };
 };
