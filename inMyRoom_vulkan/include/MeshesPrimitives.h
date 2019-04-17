@@ -75,7 +75,7 @@ public:
 	bool hasBuffersBeenFlashed = false;
 
 private:
-    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool itIsPositionData,
+    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool itIsPositionData, size_t nativeCompSize,
 									  tinygltf::Model& in_model,tinygltf::Accessor in_accessor) const;
     Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
                                                             Anvil::BufferUsageFlagBits in_bufferusageflag) const;

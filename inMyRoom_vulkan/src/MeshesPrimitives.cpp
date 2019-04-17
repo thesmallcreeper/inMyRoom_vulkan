@@ -46,7 +46,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
         this_primitiveInitInfo.indexBufferOffset = localIndexBuffer.size();
 
-        AddAccessorDataToLocalBuffer(localIndexBuffer, false, in_model, this_accessor);
+        AddAccessorDataToLocalBuffer(localIndexBuffer, false, sizeof(uint32_t), in_model, this_accessor);
 
         this_primitiveInitInfo.pipelineSpecs.indexComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
     }
@@ -63,7 +63,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             this_primitiveInitInfo.positionBufferOffset = localPositionBuffer.size();
 
-            AddAccessorDataToLocalBuffer(localPositionBuffer, true, in_model, this_accessor);
+            AddAccessorDataToLocalBuffer(localPositionBuffer, true, sizeof(float), in_model, this_accessor);
 
             this_primitiveInitInfo.pipelineSpecs.positionComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
@@ -81,7 +81,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             this_primitiveInitInfo.normalBufferOffset = localNormalBuffer.size();
 
-            AddAccessorDataToLocalBuffer(localNormalBuffer, false, in_model, this_accessor);
+            AddAccessorDataToLocalBuffer(localNormalBuffer, false, sizeof(float), in_model, this_accessor);
 
             this_primitiveInitInfo.pipelineSpecs.normalComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
@@ -99,7 +99,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             this_primitiveInitInfo.tangentBufferOffset = localTangentBuffer.size();
 
-            AddAccessorDataToLocalBuffer(localTangentBuffer, false, in_model, this_accessor);
+            AddAccessorDataToLocalBuffer(localTangentBuffer, false, sizeof(float), in_model, this_accessor);
 
             this_primitiveInitInfo.pipelineSpecs.tangentComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
@@ -119,7 +119,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             this_primitiveInitInfo.texcoord0BufferOffset = localTexcoord0Buffer.size();
 
-            AddAccessorDataToLocalBuffer(localTexcoord0Buffer, false, in_model, this_accessor);
+            AddAccessorDataToLocalBuffer(localTexcoord0Buffer, false, sizeof(float), in_model, this_accessor);
 
             this_primitiveInitInfo.pipelineSpecs.texcoord0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
@@ -139,7 +139,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
 
             this_primitiveInitInfo.texcoord1BufferOffset = localTexcoord1Buffer.size();
 
-            AddAccessorDataToLocalBuffer(localTexcoord1Buffer, false, in_model, this_accessor);
+            AddAccessorDataToLocalBuffer(localTexcoord1Buffer, false, sizeof(float), in_model, this_accessor);
 
             this_primitiveInitInfo.pipelineSpecs.texcoord1ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
         }
@@ -273,7 +273,7 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
     return primitivesSets.size() - 1;
 }
 
-void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool itIsPositionData,
+void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool itIsPositionData, size_t nativeCompSize,
                                                     tinygltf::Model& in_model, tinygltf::Accessor in_accessor) const
 {
     size_t count_of_elements = in_accessor.count;
@@ -345,6 +345,13 @@ void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& 
 		std::copy(temp_buffer_uint8_ptr,
 			      temp_buffer_uint8_ptr + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
 			      std::back_inserter(localBuffer_ref));
+	}
+
+	if (nativeCompSize != -1)
+	{
+		const size_t loops_needed_to_align = localBuffer_ref.size() % nativeCompSize;
+		for (size_t i = 0; i < loops_needed_to_align; i++)
+			localBuffer_ref.emplace_back(0);
 	}
 
 }
