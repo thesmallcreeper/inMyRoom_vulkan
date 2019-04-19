@@ -9,17 +9,25 @@ layout( location = 1 ) in vec2 vert_texcoord;
 
 layout( location = 0 ) out vec4 frag_color;
 
+#ifdef USE_MATERIAL
+layout (set = 2, binding = 0) uniform UniformBuffer0
+{
+	vec4 baseColorFactor;
+};
+#endif
 
-#ifdef FRAG_BASE_COLOR_TEXTURE_TEXCOORD0
-layout (set = 2, binding = 0) uniform sampler2D base_color_texture;
+#ifdef USE_BASE_COLOR_TEXTURE_TEXCOORD0
+layout (set = 2, binding = 1) uniform sampler2D base_color_texture;
 #endif
 
 
 void main() 
 {
-#ifdef FRAG_BASE_COLOR_TEXTURE_TEXCOORD0
-	frag_color = texture(base_color_texture, vert_texcoord).rgba;
+#ifdef USE_BASE_COLOR_TEXTURE_TEXCOORD0
+//	const vec4 color= baseColorFactor * texture(base_color_texture, vert_texcoord).rgba;
+	const vec4 color= texture(base_color_texture, vert_texcoord).rgba;
+	frag_color = color;
 #else
-	frag_color = vec4(1.0, 1.0, 1.0, 1.0);
+	frag_color = vec4(0.8, 0.8, 0.8, 1.0);
 #endif
 }

@@ -68,26 +68,28 @@ namespace std
     {
         bool operator()(const PipelineSpecs& lhs, const PipelineSpecs& rhs) const
         {
-            bool isEqual = (lhs.drawMode == rhs.drawMode) &&
-                (lhs.indexComponentType == rhs.indexComponentType) &&
-                (lhs.positionComponentType == rhs.positionComponentType) &&
-                (lhs.normalComponentType == rhs.normalComponentType) &&
-                (lhs.tangentComponentType == rhs.tangentComponentType) &&
-                (lhs.texcoord0ComponentType == rhs.texcoord0ComponentType) &&
-                (lhs.texcoord1ComponentType == rhs.texcoord1ComponentType) &&
-                (lhs.renderpass_ptr == rhs.renderpass_ptr) &&
-                (lhs.subpassID == rhs.subpassID) &&
-                (lhs.pipelineShaders.fragmentShaderModule_ptr == rhs.pipelineShaders.fragmentShaderModule_ptr) &&
-                (lhs.pipelineShaders.geometryShaderModule_ptr == rhs.pipelineShaders.geometryShaderModule_ptr) &&
-                (lhs.pipelineShaders.tessControlShaderModule_ptr == rhs.pipelineShaders.tessControlShaderModule_ptr) &&
-                (lhs.pipelineShaders.tessEvaluationShaderModule_ptr == rhs.pipelineShaders.tessEvaluationShaderModule_ptr)&&
-                (lhs.pipelineShaders.vertexShaderModule_ptr == rhs.pipelineShaders.vertexShaderModule_ptr);
+            bool isEqual =  (lhs.drawMode == rhs.drawMode) &&
+                            (lhs.indexComponentType == rhs.indexComponentType) &&
+                            (lhs.positionComponentType == rhs.positionComponentType) &&
+                            (lhs.normalComponentType == rhs.normalComponentType) &&
+                            (lhs.tangentComponentType == rhs.tangentComponentType) &&
+                            (lhs.texcoord0ComponentType == rhs.texcoord0ComponentType) &&
+                            (lhs.texcoord1ComponentType == rhs.texcoord1ComponentType) &&
+                            (lhs.renderpass_ptr == rhs.renderpass_ptr) &&
+                            (lhs.subpassID == rhs.subpassID) &&
+                            (lhs.pipelineShaders.fragmentShaderModule_ptr == rhs.pipelineShaders.fragmentShaderModule_ptr) &&
+                            (lhs.pipelineShaders.geometryShaderModule_ptr == rhs.pipelineShaders.geometryShaderModule_ptr) &&
+                            (lhs.pipelineShaders.tessControlShaderModule_ptr == rhs.pipelineShaders.tessControlShaderModule_ptr) &&
+                            (lhs.pipelineShaders.tessEvaluationShaderModule_ptr == rhs.pipelineShaders.tessEvaluationShaderModule_ptr)&&
+                            (lhs.pipelineShaders.vertexShaderModule_ptr == rhs.pipelineShaders.vertexShaderModule_ptr);
 
-            if (lhs.descriptorSetsCreateInfo_ptrs.size() == rhs.descriptorSetsCreateInfo_ptrs.size() && isEqual)
-                for (size_t i = 0; i < lhs.descriptorSetsCreateInfo_ptrs.size() && isEqual; i++)
+            if ((lhs.descriptorSetsCreateInfo_ptrs.size() == rhs.descriptorSetsCreateInfo_ptrs.size()) && isEqual)
+                for (size_t i = 0; (i < lhs.descriptorSetsCreateInfo_ptrs.size()) && isEqual; i++)
                 {
                     isEqual &= *(lhs.descriptorSetsCreateInfo_ptrs[i]) == *(rhs.descriptorSetsCreateInfo_ptrs[i]);
                 }
+            else
+                return false;
 
             return isEqual;
         }

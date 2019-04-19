@@ -2,9 +2,12 @@
 
 #include <string>
 
+#include "misc/memory_allocator.h"
+#include "misc/buffer_create_info.h"
 #include "misc/descriptor_set_create_info.h"
 #include "wrappers/descriptor_set.h"
 #include "wrappers/descriptor_set_group.h"
+#include "wrappers/buffer.h"
 
 #include "tiny_gltf.h"
 
@@ -18,14 +21,17 @@ public:
                         Anvil::BaseDevice* const in_device_ptr);
     ~PrimitivesMaterials();
 
-public:
-    Anvil::DescriptorSetGroupUniquePtr texturesOfMaterialsDescriptorSetGroup_uptr;
+public:public:
+    Anvil::DescriptorSetGroupUniquePtr materialsDescriptorSetGroup_uptr;
     std::vector<ShadersSpecs> materialsShadersSpecs;
 
 private:
-    Anvil::BaseDevice* const device_ptr;
+    Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer, Anvil::BufferUsageFlagBits in_bufferusageflag) const;
+private:
+    Anvil::BufferUniquePtr materialsFactorsBuffer_uptr;
+    std::vector<unsigned char> localMaterialsFactorsBuffer;
 
     MaterialsTextures* materialsTextures_ptr;
 
-    std::vector<Anvil::BufferUniquePtr> materialsFactorsBuffer_ptrs;
+    Anvil::BaseDevice* const device_ptr;
 };

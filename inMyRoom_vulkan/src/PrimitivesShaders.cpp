@@ -89,8 +89,7 @@ ShadersSet PrimitivesShaders::CreateShadersSet(ShadersSpecs in_shaderSpecs)
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
                                                                     Anvil::GLSLShaderToSPIRVGenerator::
                                                                     MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString
-                                                                    .fragmentShaderSourceString.c_str(),
+                                                                    thisShaderSetFamilySourceString.fragmentShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::FRAGMENT);
 
 
@@ -121,8 +120,7 @@ ShadersSet PrimitivesShaders::CreateShadersSet(ShadersSpecs in_shaderSpecs)
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
                                                                     Anvil::GLSLShaderToSPIRVGenerator::
                                                                     MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString
-                                                                    .geometryShaderSourceString.c_str(),
+                                                                    thisShaderSetFamilySourceString.geometryShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::GEOMETRY);
 
 
@@ -153,8 +151,7 @@ ShadersSet PrimitivesShaders::CreateShadersSet(ShadersSpecs in_shaderSpecs)
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
                                                                     Anvil::GLSLShaderToSPIRVGenerator::
                                                                     MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString
-                                                                    .tessControlShaderSourceString.c_str(),
+                                                                    thisShaderSetFamilySourceString.tessControlShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::TESSELLATION_CONTROL);
 
 
@@ -185,8 +182,7 @@ ShadersSet PrimitivesShaders::CreateShadersSet(ShadersSpecs in_shaderSpecs)
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
                                                                     Anvil::GLSLShaderToSPIRVGenerator::
                                                                     MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString
-                                                                    .tessEvaluationShaderSourceString.c_str(),
+                                                                    thisShaderSetFamilySourceString.tessEvaluationShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::TESSELLATION_EVALUATION);
 
 
@@ -217,8 +213,7 @@ ShadersSet PrimitivesShaders::CreateShadersSet(ShadersSpecs in_shaderSpecs)
         auto shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(device_ptr,
                                                                     Anvil::GLSLShaderToSPIRVGenerator::
                                                                     MODE_USE_SPECIFIED_SOURCE,
-                                                                    thisShaderSetFamilySourceString
-                                                                    .vertexShaderSourceString.c_str(),
+                                                                    thisShaderSetFamilySourceString.vertexShaderSourceString.c_str(),
                                                                     Anvil::ShaderStage::VERTEX);
 
 

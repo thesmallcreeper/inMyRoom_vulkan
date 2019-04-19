@@ -140,32 +140,39 @@ Anvil::BufferUniquePtr SceneNodes::CreateBufferForTRSmatrixesAndCopy(const std::
 
 glm::mat4 SceneNodes::CreateTRSmatrix(const tinygltf::Node& in_node) const
 {
-    if (in_node.matrix.size() == 16) // It is buggy
+    if (in_node.matrix.size() == 16)
     {
-        return glm::mat4(in_node.matrix[0], in_node.matrix[1], in_node.matrix[2], in_node.matrix[3],
-                         in_node.matrix[4], in_node.matrix[5], in_node.matrix[6], in_node.matrix[7],
-                         in_node.matrix[8], in_node.matrix[9], in_node.matrix[10], in_node.matrix[11],
-                         in_node.matrix[12], in_node.matrix[13], in_node.matrix[14], in_node.matrix[15]);
+        return  glm::mat4( 1.f, 0.f, 0.f, 0.f,
+                           0.f,-1.f, 0.f, 0.f,
+                           0.f, 0.f,-1.f, 0.f,
+                           0.f, 0.f, 0.f, 1.f) *
+                glm::mat4(in_node.matrix[0] , in_node.matrix[1] , in_node.matrix[2] , in_node.matrix[3] ,
+                          in_node.matrix[4] , in_node.matrix[5] , in_node.matrix[6] , in_node.matrix[7] ,
+                          in_node.matrix[8] , in_node.matrix[9] , in_node.matrix[10], in_node.matrix[11],
+                          in_node.matrix[12], in_node.matrix[13], in_node.matrix[14], in_node.matrix[15]) *
+                glm::mat4(1.f, 0.f, 0.f, 0.f,
+                          0.f,-1.f, 0.f, 0.f,
+                          0.f, 0.f,-1.f, 0.f,
+                          0.f, 0.f, 0.f, 1.f);
     }
-    glm::mat4 return_matrix = glm::mat4(1.0f);
-    if (in_node.scale.size() == 3)
+    else
     {
-        return_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(in_node.scale[0], in_node.scale[1], in_node.scale[2])) *
-            return_matrix;
-    }
-    if (in_node.rotation.size() == 4)
-    {
-        const glm::qua<float> rotation_qua(static_cast<float>(in_node.rotation[3]), static_cast<float>(in_node.rotation[0]), static_cast<float>(-in_node.rotation[1]),
-                                           static_cast<float>(-in_node.rotation[2]));
+        glm::mat4 return_matrix = glm::mat4(1.0f);
+        if (in_node.scale.size() == 3)
+        {
+            return_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(in_node.scale[0], in_node.scale[1], in_node.scale[2])) * return_matrix;
+        }
+        if (in_node.rotation.size() == 4)
+        {
+            const glm::qua<float> rotation_qua(static_cast<float>(in_node.rotation[3]), static_cast<float>(in_node.rotation[0]), static_cast<float>(-in_node.rotation[1]), static_cast<float>(-in_node.rotation[2]));
 
-        return_matrix = glm::toMat4<float, glm::packed_highp>(rotation_qua) * return_matrix;
-    }
-    if (in_node.translation.size() == 3)
-    {
-        return_matrix = translate(glm::mat4(1.0f),
-                                  glm::vec3(in_node.translation[0], -in_node.translation[1],
-                                            -in_node.translation[2])) * return_matrix;
-    }
+            return_matrix = glm::toMat4<float, glm::packed_highp>(rotation_qua) * return_matrix;
+        }
+        if (in_node.translation.size() == 3)
+        {
+            return_matrix = translate(glm::mat4(1.0f), glm::vec3( in_node.translation[0], -in_node.translation[1], -in_node.translation[2])) * return_matrix;
+        }
 
-    return return_matrix;
+        return return_matrix;
+    }
 }

@@ -231,8 +231,8 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
                 this_primitiveInfo.texcoord1BufferOffset = this_primitivesInitInfo.texcoord1BufferOffset;
             }
 
-            this_descriptorSetCreateInfos_ptrs.emplace_back(primitivesMaterials_ptr->texturesOfMaterialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex)));
-            this_primitiveInfo.materialDescriptorSet_ptr = primitivesMaterials_ptr->texturesOfMaterialsDescriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex));
+            this_descriptorSetCreateInfos_ptrs.emplace_back(primitivesMaterials_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex)));
+            this_primitiveInfo.materialDescriptorSet_ptr = primitivesMaterials_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex));
 
             std::copy(
                 primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.begin(),

@@ -22,11 +22,11 @@ struct ShadersSet
 
 inline bool operator==(const ShadersSet& lhs, const ShadersSet& rhs)
 {
-    bool isEqual = (lhs.fragmentShaderModule_ptr == rhs.fragmentShaderModule_ptr) &&
-        (lhs.geometryShaderModule_ptr == rhs.geometryShaderModule_ptr) &&
-        (lhs.tessControlShaderModule_ptr == rhs.tessControlShaderModule_ptr) &&
-        (lhs.tessEvaluationShaderModule_ptr == rhs.tessEvaluationShaderModule_ptr) &&
-        (lhs.vertexShaderModule_ptr == rhs.vertexShaderModule_ptr);
+    bool isEqual =  (lhs.fragmentShaderModule_ptr == rhs.fragmentShaderModule_ptr) &&
+                    (lhs.geometryShaderModule_ptr == rhs.geometryShaderModule_ptr) &&
+                    (lhs.tessControlShaderModule_ptr == rhs.tessControlShaderModule_ptr) &&
+                    (lhs.tessEvaluationShaderModule_ptr == rhs.tessEvaluationShaderModule_ptr) &&
+                    (lhs.vertexShaderModule_ptr == rhs.vertexShaderModule_ptr);
 
     return isEqual;
 }
@@ -94,12 +94,16 @@ namespace std
                 {
                     isEqual &= lhs.emptyDefinition[i] == rhs.emptyDefinition[i];
                 }
+            else
+                return false;
 
             if (lhs.definitionValuePairs.size() == rhs.definitionValuePairs.size() && isEqual)
                 for (size_t i = 0; i < lhs.definitionValuePairs.size() && isEqual; i++)
                 {
                     isEqual &= lhs.definitionValuePairs[i] == rhs.definitionValuePairs[i];
                 }
+            else
+                return false;
 
             return isEqual;
         }
