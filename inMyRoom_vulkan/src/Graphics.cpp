@@ -38,16 +38,27 @@ Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_p
     windowWidth(windowWidth),
     windowHeight(windowHeight)
 {
+    printf("Loading scene\n");
     LoadScene();
 
+    printf("Initializing camera buffers\n");
     InitCameraBuffers();
+    printf("Initializing camera descriptor set\n");
+    InitCameraDsg();
+    printf("Initializing GPU images (z-buffers etc)\n");
     InitImages();
+    printf("Initializing framebuffers\n");
     InitFramebuffers();
+    printf("Initializing renderpasses\n");
     InitRenderpasses();
+    printf("Initializing semaphores\n");
     InitSemaphores();
+    printf("Initializing command buffers\n");
     InitCommandBuffers();
 
+    printf("Initializing scene\n");
     InitScene();
+    printf("Finished initialization\n");
 }
 
 Graphics::~Graphics()
@@ -115,9 +126,9 @@ void Graphics::DrawFrame()
     glm::mat4x4 camera_matrix = glm::lookAt(cameraPosition, cameraPosition + cameraLookingDirection, cameraUp);
 
     cameraBuffer_uptrs[n_swapchain_image]->write(0,
-                                                             sizeof(glm::mat4x4),
-                                                             &camera_matrix,
-                                                             present_queue_ptr);
+                                                 sizeof(glm::mat4x4),
+                                                 &camera_matrix,
+                                                 present_queue_ptr);
 
     RecordCommandBuffer(n_swapchain_image);
 
@@ -352,9 +363,17 @@ void Graphics::InitScene()
 {
     const tinygltf::Scene &scene = model.scenes[0];
 
+    // Find out how each texture is being used (color, normal, etc..)
+    printf("-Initializing texturesImagesUsage\n");
     texturesImagesUsage_uptr = std::make_unique<TexturesImagesUsage>(model);
+    // Compress textures and copy to GPU
+    printf("-Initializing materialsTextures\n");
     materialsTextures_uptr = std::make_unique <MaterialsTextures>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), texturesImagesUsage_uptr.get(), device_ptr);
+    // Create materials description sets
+    printf("-Initializing primitivesMaterials\n");
     primitivesMaterials_uptr = std::make_unique<PrimitivesMaterials>(model, materialsTextures_uptr.get(), device_ptr);
+    // Load shaders sources ready to get compiled
+    printf("-Initializing primitivesShaders\n");
     {
         std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
         ShaderSetFamilyInitInfo this_shaderSetInitInfo;
@@ -363,20 +382,22 @@ void Graphics::InitScene()
         this_shaderSetInitInfo.vertexShaderSourceFilename = "generalMesh_glsl.vert";
 
         shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
-
         primitivesShaders_uptr = std::make_unique<PrimitivesShaders>(shaderSetsInitInfos, device_ptr);
     }
-
+    // Initialize pipeline reuse map
+    printf("-Initializing primitivesPipelines\n");
     primitivesPipelines_uptr = std::make_unique<PrimitivesPipelines>(device_ptr);
-    
+    // Create scene nodes
+    printf("-Initializing sceneNodes\n");
     sceneNodes_uptr = std::make_unique<SceneNodes>(model, scene, device_ptr);
-
-    InitCameraDsg();
-
+    // Initialize models-primtives handler to GPU
+    printf("-Initializing meshesPrimitives\n");
     meshesPrimitives_uptr = std::make_unique<MeshesPrimitives>(primitivesPipelines_uptr.get(), primitivesShaders_uptr.get(), primitivesMaterials_uptr.get(), device_ptr);
+    // For every mesh copy primitives of it to GPU
+    printf("-Initializing nodesMeshes\n");
     nodesMeshes_uptr = std::make_unique<NodesMeshes>(model, meshesPrimitives_uptr.get(), device_ptr);
-
-    meshesPrimitives_uptr->FlashBuffersToDevice();
+    // Create primitives sets (shaders-pipelines for each kind of primitive)
+    printf("-Initializing \"General Mesh\" primitives set\n");
     {
         ShadersSpecs this_shaders_specs;
         this_shaders_specs.shadersSetFamilyName = "General Mesh";
@@ -387,7 +408,7 @@ void Graphics::InitScene()
         descriptorSetCreateInfos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
         generalPrimitivesSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, &descriptorSetCreateInfos, renderpass_uptr.get(), colorSubpassID);
     }
-
+    // Bind meshes to nodes
     sceneNodes_uptr->BindNodesMeshes(nodesMeshes_uptr.get());
 }
 

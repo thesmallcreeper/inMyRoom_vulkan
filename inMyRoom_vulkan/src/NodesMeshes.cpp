@@ -20,6 +20,8 @@ NodesMeshes::NodesMeshes(tinygltf::Model& in_model, MeshesPrimitives* in_meshesP
         meshes.emplace_back(this_mesh_range);
         primitives_so_far += this_mesh.primitives.size();
     }
+
+    meshesPrimitives_ptr->FlashBuffersToDevice();
 }
 
 NodesMeshes::~NodesMeshes()
