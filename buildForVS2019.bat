@@ -4,7 +4,7 @@ cd Anvil
 if exist "build" rmdir /s/q build
 mkdir build
 cd build
-cmake -G "Visual Studio 16 2019 Win64" ..
+cmake -G "Visual Studio 16 2019" ..
 cd ..
 cd ..
 
@@ -13,7 +13,7 @@ cd Compressonator
 if exist "build" rmdir /s/q build
 mkdir build
 cd build
-cmake -G "Visual Studio 16 2019 Win64" ../Make
+cmake -G "Visual Studio 16 2019" ../Make
 cd ..
 cd ..
 cd ..
@@ -22,7 +22,7 @@ cd MathGeoLib
 if exist "build" rmdir /s/q build
 mkdir build
 cd build
-cmake .. -DMATH_AVX=ON -G "Visual Studio 16 2019 Win64"
+cmake .. -DMATH_AVX=ON -G "Visual Studio 16 2019"
 cd ..
 cd ..
 
