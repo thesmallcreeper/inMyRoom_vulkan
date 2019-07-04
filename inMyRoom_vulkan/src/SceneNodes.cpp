@@ -50,6 +50,30 @@ SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& i
 
     globalTRSmatrixesCount = meshes_by_id_TRS.size();
     globalTRSmatrixesBuffer_uptr = CreateBufferForTRSmatrixesAndCopy(meshes_by_id_TRS);
+
+    {   // Create descriptor set group
+        std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> new_dsg_create_info_ptr;
+        new_dsg_create_info_ptr.resize(1);
+
+        Anvil::DescriptorSetGroupUniquePtr new_dsg_ptr;
+
+        new_dsg_create_info_ptr[0] = Anvil::DescriptorSetCreateInfo::create();
+
+        new_dsg_create_info_ptr[0]->add_binding(0, /* in_binding */
+                                                Anvil::DescriptorType::STORAGE_BUFFER,
+                                                1, /* in_n_elements */
+                                                Anvil::ShaderStageFlagBits::VERTEX_BIT);
+
+        new_dsg_ptr = Anvil::DescriptorSetGroup::create(device_ptr,
+                                                        { new_dsg_create_info_ptr },
+                                                        false); /* in_releaseable_sets */
+
+        new_dsg_ptr->set_binding_item(0, /* n_set         */
+                                      0, /* binding_index */
+                                      Anvil::DescriptorSet::UniformBufferBindingElement(globalTRSmatrixesBuffer_uptr.get()));
+
+        TRSmatrixDescriptorSetGroup_uptr = std::move(new_dsg_ptr);
+    }
 }
 
 SceneNodes::~SceneNodes()

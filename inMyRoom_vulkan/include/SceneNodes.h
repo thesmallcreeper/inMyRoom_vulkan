@@ -47,6 +47,7 @@ public:
 public:
 	std::vector<Node> nodes;
 
+    Anvil::DescriptorSetGroupUniquePtr TRSmatrixDescriptorSetGroup_uptr;
     Anvil::BufferUniquePtr globalTRSmatrixesBuffer_uptr;
     size_t globalTRSmatrixesCount;
 

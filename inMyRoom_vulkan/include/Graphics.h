@@ -46,7 +46,7 @@ private:
     void InitFramebuffers();
     void InitRenderpasses();
     void InitScene();
-    void InitSpacialDsg();
+    void InitCameraDsg();
     void InitSemaphores();
     void InitCommandBuffers();
 
@@ -73,10 +73,10 @@ private:
     const uint32_t              windowWidth;
     const uint32_t              windowHeight;
 
-    Anvil::BufferUniquePtr          cameraBuffer_uptr;
-    Anvil::BufferUniquePtr          perspectiveBuffer_uptr;
+    std::vector<Anvil::BufferUniquePtr>          cameraBuffer_uptrs;
+    std::vector<Anvil::BufferUniquePtr>          perspectiveBuffer_uptrs;
 
-    Anvil::DescriptorSetGroupUniquePtr	spacialDSG_uptr;
+    Anvil::DescriptorSetGroupUniquePtr	cameraDescriptorSetGroup_uptr;
 
     Anvil::ImageUniquePtr           depthImage_uptr;
     Anvil::ImageViewUniquePtr       depthImageView_uptr;

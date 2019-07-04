@@ -144,5 +144,8 @@ void VulkanInit::OnValidationCallback(Anvil::DebugMessageSeverityFlags in_severi
     {
         printf("[!] %s\n",
                in_message_ptr);
+#ifdef _DEBUG
+        printf("");
+#endif
     }
 }

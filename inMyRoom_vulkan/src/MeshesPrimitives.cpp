@@ -202,8 +202,7 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
         }
 
 
-        std::vector<const Anvil::DescriptorSetCreateInfo*> this_descriptorSetCreateInfos_ptrs = *
-            in_lower_descriptorSetCreateInfos;
+        std::vector<const Anvil::DescriptorSetCreateInfo*> this_descriptorSetCreateInfos_ptrs = *in_lower_descriptorSetCreateInfos;
         if (this_primitivesInitInfo.materialIndex != -1 && use_material)
         {
             if (this_primitivesInitInfo.normalBufferOffset != -1)

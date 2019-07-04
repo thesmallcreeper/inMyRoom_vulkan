@@ -72,19 +72,19 @@ Graphics::~Graphics()
     primitivesPipelines_uptr.reset();
     meshesPrimitives_uptr.reset();
 
-    spacialDSG_uptr.reset();
+    cameraDescriptorSetGroup_uptr.reset();
 
     sceneNodes_uptr.reset();
 
-    cameraBuffer_uptr.reset();
-    perspectiveBuffer_uptr.reset();
+    cameraBuffer_uptrs.clear();
+    perspectiveBuffer_uptrs.clear();
 }
 
 void Graphics::DrawFrame()
 {
     Anvil::Semaphore*               curr_frame_signal_semaphore_ptr = nullptr;
     Anvil::Semaphore*               curr_frame_wait_semaphore_ptr = nullptr;
-    static uint32_t                 n_frames_rendered = 0;
+    static size_t                   n_frames_rendered = 0;
     uint32_t                        n_swapchain_image;
     Anvil::Queue*                   present_queue_ptr = device_ptr->get_universal_queue(0);
     const Anvil::PipelineStageFlags wait_stage_mask = Anvil::PipelineStageFlagBits::ALL_COMMANDS_BIT;
@@ -98,26 +98,26 @@ void Graphics::DrawFrame()
     /* Determine the semaphore which the swapchain image */
     {
         const auto acquire_result = swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
-                                                                   &n_swapchain_image,
-                                                                   false); /* in_should_block */
+                                                                 &n_swapchain_image,
+                                                                 false); /* in_should_block */
 
         ANVIL_REDUNDANT_VARIABLE_CONST(acquire_result);
         anvil_assert(acquire_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
     }
 
-    Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());
+    Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());   // CPU-GPU sync
 
-    camera_ptr->RefreshPublicVectors();
+    camera_ptr->RefreshPublicVectors();     // Input-Main thread data sync
     glm::vec3 cameraPosition = camera_ptr->cameraPosition;
     glm::vec3 cameraLookingDirection = camera_ptr->cameraLookingDirection;
     glm::vec3 cameraUp = camera_ptr->upVector;
 
     glm::mat4x4 camera_matrix = glm::lookAt(cameraPosition, cameraPosition + cameraLookingDirection, cameraUp);
 
-    cameraBuffer_uptr->write(0,
-                             sizeof(glm::mat4x4),
-                             &camera_matrix,
-                             present_queue_ptr);
+    cameraBuffer_uptrs[n_swapchain_image]->write(0,
+                                                             sizeof(glm::mat4x4),
+                                                             &camera_matrix,
+                                                             present_queue_ptr);
 
     RecordCommandBuffer(n_swapchain_image);
 
@@ -141,6 +141,8 @@ void Graphics::DrawFrame()
 
         anvil_assert(present_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
     }
+
+    n_frames_rendered++;
 }
 
 void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
@@ -156,59 +158,57 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
     cmd_buffer_ptr->start_recording(true,  /* one_time_submit          */
                                     true); /* simultaneous_use_allowed */
 
-        {
-            /* Switch the swap-chain image to the color_attachment_optimal image layout */
-            Anvil::ImageSubresourceRange  image_subresource_range;
-            image_subresource_range.aspect_mask = Anvil::ImageAspectFlagBits::COLOR_BIT;
-            image_subresource_range.base_array_layer = 0;
-            image_subresource_range.base_mip_level = 0;
-            image_subresource_range.layer_count = 1;
-            image_subresource_range.level_count = 1;
+    {
+        /* Switch the swap-chain image to the color_attachment_optimal image layout */
+        Anvil::ImageSubresourceRange  image_subresource_range;
+        image_subresource_range.aspect_mask = Anvil::ImageAspectFlagBits::COLOR_BIT;
+        image_subresource_range.base_array_layer = 0;
+        image_subresource_range.base_mip_level = 0;
+        image_subresource_range.layer_count = 1;
+        image_subresource_range.level_count = 1;
 
-            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::NONE,                              /* source_access_mask       */
-                                              Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,        /* destination_access_mask  */
-                                              Anvil::ImageLayout::UNDEFINED,                            /* old_image_layout */
-                                              Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,             /* new_image_layout */
-                                              universal_queue_family_index,
-                                              universal_queue_family_index,
-                                              swapchain_ptr->get_image(swapchainImageIndex),
-                                              image_subresource_range);
+        Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::NONE,                              /* source_access_mask       */
+                                          Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,        /* destination_access_mask  */
+                                          Anvil::ImageLayout::UNDEFINED,                            /* old_image_layout */
+                                          Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,             /* new_image_layout */
+                                          universal_queue_family_index,
+                                          universal_queue_family_index,
+                                          swapchain_ptr->get_image(swapchainImageIndex),
+                                          image_subresource_range);
 
-            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT,              /* src_stage_mask                 */
-                                                    Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,  /* dst_stage_mask                 */
-                                                    Anvil::DependencyFlagBits::NONE,
-                                                    0,                                                          /* in_memory_barrier_count        */
-                                                    nullptr,                                                    /* in_memory_barrier_ptrs         */
-                                                    0,                                                          /* in_buffer_memory_barrier_count */
-                                                    nullptr,                                                    /* in_buffer_memory_barrier_ptrs  */
-                                                    1,                                                          /* in_image_memory_barrier_count  */
-                                                    &image_barrier);
-        }
-
-        {
-            /* Make sure CPU-written data is flushed before we start rendering */
-            Anvil::BufferBarrier buffer_barrier(Anvil::AccessFlagBits::MEMORY_WRITE_BIT,               /* in_source_access_mask      */
-                                                Anvil::AccessFlagBits::UNIFORM_READ_BIT,               /* in_destination_access_mask */
-                                                universal_queue_family_index,                          /* in_src_queue_family_index  */
-                                                universal_queue_family_index,                          /* in_dst_queue_family_index  */
-                                                cameraBuffer_uptr.get(),
-                                                0,                                                     /* in_offset                  */
-                                                sizeof(glm::mat4x4));
-
-            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TRANSFER_BIT,
-                                                    Anvil::PipelineStageFlagBits::VERTEX_SHADER_BIT,
-                                                    Anvil::DependencyFlagBits::NONE,
-                                                    0,                                                  /* in_memory_barrier_count        */
-                                                    nullptr,                                            /* in_memory_barriers_ptr         */
-                                                    1,                                                  /* in_buffer_memory_barrier_count */
-                                                    &buffer_barrier,
-                                                    0,                                                  /* in_image_memory_barrier_count  */
-                                                    nullptr);                                           /* in_image_memory_barriers_ptr   */
-}
+        cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT,              /* src_stage_mask                 */
+                                                Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,  /* dst_stage_mask                 */
+                                                Anvil::DependencyFlagBits::NONE,
+                                                0,                                                          /* in_memory_barrier_count        */
+                                                nullptr,                                                    /* in_memory_barrier_ptrs         */
+                                                0,                                                          /* in_buffer_memory_barrier_count */
+                                                nullptr,                                                    /* in_buffer_memory_barrier_ptrs  */
+                                                1,                                                          /* in_image_memory_barrier_count  */
+                                                &image_barrier);
+    }
 
     {
-        Anvil::DescriptorSet*                ds_ptr(spacialDSG_uptr->get_descriptor_set(0));
+        /* Make sure CPU-written data is flushed before we start rendering */
+        Anvil::BufferBarrier buffer_barrier(Anvil::AccessFlagBits::MEMORY_WRITE_BIT,               /* in_source_access_mask      */
+                                            Anvil::AccessFlagBits::UNIFORM_READ_BIT,               /* in_destination_access_mask */
+                                            universal_queue_family_index,                          /* in_src_queue_family_index  */
+                                            universal_queue_family_index,                          /* in_dst_queue_family_index  */
+                                            cameraBuffer_uptrs[swapchainImageIndex].get(),
+                                            0,                                                     /* in_offset                  */
+                                            sizeof(glm::mat4x4));
 
+        cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TRANSFER_BIT,
+                                                Anvil::PipelineStageFlagBits::VERTEX_SHADER_BIT,
+                                                Anvil::DependencyFlagBits::NONE,
+                                                0,                                                  /* in_memory_barrier_count        */
+                                                nullptr,                                            /* in_memory_barriers_ptr         */
+                                                1,                                                  /* in_buffer_memory_barrier_count */
+                                                &buffer_barrier,
+                                                0,                                                  /* in_image_memory_barrier_count  */
+                                                nullptr);                                           /* in_image_memory_barriers_ptr   */
+    }
+
+    {
         VkClearValue  clear_values[2];
         clear_values[0].color.float32[0] = 0.0f;
         clear_values[0].color.float32[1] = 0.0f;
@@ -230,8 +230,8 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
                                                   Anvil::SubpassContents::INLINE);
 
         std::vector<Anvil::DescriptorSet*> descriptor_sets;
-        for (uint32_t i = 0; i < spacialDSG_uptr->get_n_descriptor_sets(); i++)
-            descriptor_sets.emplace_back(spacialDSG_uptr->get_descriptor_set(i));
+        descriptor_sets.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set(0));
+        descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
 
         sceneNodes_uptr->Draw(generalPrimitivesSetIndex, cmd_buffer_ptr, descriptor_sets);
 
@@ -291,53 +291,61 @@ void Graphics::InitCameraBuffers()
 
     allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
 
+    cameraBuffer_uptrs.resize(swapchainImagesCount);
+    perspectiveBuffer_uptrs.resize(swapchainImagesCount);
+
+    for (uint32_t i = 0; i < swapchainImagesCount; i++)
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                        sizeof(glm::mat4),
-                                                                        Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                        Anvil::SharingMode::EXCLUSIVE,
-                                                                        Anvil::BufferCreateFlagBits::NONE,
-                                                                        Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
+        {
+            auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
+                sizeof(glm::mat4),
+                Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                Anvil::SharingMode::EXCLUSIVE,
+                Anvil::BufferCreateFlagBits::NONE,
+                Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
 
-        cameraBuffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
+            cameraBuffer_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
 
-        cameraBuffer_uptr->set_name("Camera matrix buffer");
+            cameraBuffer_uptrs[i]->set_name("Camera matrix buffer");
+        }
+
+        {
+            auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
+                sizeof(glm::mat4),
+                Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                Anvil::SharingMode::EXCLUSIVE,
+                Anvil::BufferCreateFlagBits::NONE,
+                Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
+
+            perspectiveBuffer_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
+
+            perspectiveBuffer_uptrs[i]->set_name("Camera matrix buffer");
+        }
+
+
+        allocator_ptr->add_buffer(cameraBuffer_uptrs[i].get(),
+                                  required_feature_flags);
+
+        allocator_ptr->add_buffer(perspectiveBuffer_uptrs[i].get(),
+                                  required_feature_flags);
     }
 
+    for(uint32_t i = 0; i < swapchainImagesCount; i++)
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                        sizeof(glm::mat4),
-                                                                        Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                        Anvil::SharingMode::EXCLUSIVE,
-                                                                        Anvil::BufferCreateFlagBits::NONE,
-                                                                        Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
+        // Camera buffer is being updated every frame
+        glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
+                                                          static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
+                                                          cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
+                                                          cfgFile["graphicsSettings"]["farPlaneDistance"].as_float()) *
+                                         glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,    // Multiply with diag(1,-1,1,1) in order to make glm::perspective "vulkan-ready"                                                                                                                                                                                                                       
+                                                   0.0f, -1.0f, 0.0f, 0.0f,
+                                                   0.0f, 0.0f, 1.0f, 0.0f,
+                                                   0.0f, 0.0f, 0.0f, 1.0f);
 
-        perspectiveBuffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-        perspectiveBuffer_uptr->set_name("Camera matrix buffer");
+        perspectiveBuffer_uptrs[i]->write(0,
+                                          sizeof(glm::mat4x4),
+                                          &perspective_matrix);
     }
-
-    allocator_ptr->add_buffer(cameraBuffer_uptr.get(),
-                              required_feature_flags);
-
-    allocator_ptr->add_buffer(perspectiveBuffer_uptr.get(),
-                              required_feature_flags);
-
-    // Camera buffer is being updated every frame
-
-    glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
-                                                      static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
-                                                      cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
-                                                      cfgFile["graphicsSettings"]["farPlaneDistance"].as_float()) *
-                                     glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,                                                                                                                                                                                                                           
-                                               0.0f, -1.0f, 0.0f, 0.0f,
-                                               0.0f, 0.0f, 1.0f, 0.0f,
-                                               0.0f, 0.0f, 0.0f, 1.0f);
-
-    perspectiveBuffer_uptr->write(0,
-                                    sizeof(glm::mat4x4),
-                                    &perspective_matrix);
-
 }
 
 void Graphics::InitScene()
@@ -363,7 +371,7 @@ void Graphics::InitScene()
     
     sceneNodes_uptr = std::make_unique<SceneNodes>(model, scene, device_ptr);
 
-    InitSpacialDsg();
+    InitCameraDsg();
 
     meshesPrimitives_uptr = std::make_unique<MeshesPrimitives>(primitivesPipelines_uptr.get(), primitivesShaders_uptr.get(), primitivesMaterials_uptr.get(), device_ptr);
     nodesMeshes_uptr = std::make_unique<NodesMeshes>(model, meshesPrimitives_uptr.get(), device_ptr);
@@ -373,57 +381,56 @@ void Graphics::InitScene()
         ShadersSpecs this_shaders_specs;
         this_shaders_specs.shadersSetFamilyName = "General Mesh";
         this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(sceneNodes_uptr->globalTRSmatrixesCount)));
-        generalPrimitivesSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, spacialDSG_uptr->get_descriptor_set_create_info(), renderpass_uptr.get(), colorSubpassID);
+
+        std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetCreateInfos;
+        descriptorSetCreateInfos.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
+        descriptorSetCreateInfos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
+        generalPrimitivesSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, &descriptorSetCreateInfos, renderpass_uptr.get(), colorSubpassID);
     }
 
     sceneNodes_uptr->BindNodesMeshes(nodesMeshes_uptr.get());
 }
 
 
-void Graphics::InitSpacialDsg()
+void Graphics::InitCameraDsg()
 {
     std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> new_dsg_create_info_ptr;
-    new_dsg_create_info_ptr.resize(2);
+    new_dsg_create_info_ptr.resize(swapchainImagesCount);
 
     Anvil::DescriptorSetGroupUniquePtr new_dsg_ptr;
 
-    new_dsg_create_info_ptr[0] = Anvil::DescriptorSetCreateInfo::create();
+    for(uint32_t i = 0; i < swapchainImagesCount; i++)
+    {
+        new_dsg_create_info_ptr[i] = Anvil::DescriptorSetCreateInfo::create();
 
-    new_dsg_create_info_ptr[0]->add_binding(0, /* in_binding */
-                                            Anvil::DescriptorType::STORAGE_BUFFER,
-                                            1, /* in_n_elements */
-                                            Anvil::ShaderStageFlagBits::VERTEX_BIT);
+        new_dsg_create_info_ptr[i]->add_binding(0, /* in_binding */
+                                                Anvil::DescriptorType::UNIFORM_BUFFER,
+                                                1, /* in_n_elements */
+                                                Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
-    new_dsg_create_info_ptr[1] = Anvil::DescriptorSetCreateInfo::create();
-
-    new_dsg_create_info_ptr[1]->add_binding(0, /* in_binding */
-                                            Anvil::DescriptorType::UNIFORM_BUFFER,
-                                            1, /* in_n_elements */
-                                            Anvil::ShaderStageFlagBits::VERTEX_BIT);
-
-    new_dsg_create_info_ptr[1]->add_binding(1, /* in_binding */
-                                            Anvil::DescriptorType::UNIFORM_BUFFER,
-                                            1, /* in_n_elements */
-                                            Anvil::ShaderStageFlagBits::VERTEX_BIT);
+        new_dsg_create_info_ptr[i]->add_binding(1, /* in_binding */
+                                                Anvil::DescriptorType::UNIFORM_BUFFER,
+                                                1, /* in_n_elements */
+                                                Anvil::ShaderStageFlagBits::VERTEX_BIT);
+    }
 
 
     new_dsg_ptr = Anvil::DescriptorSetGroup::create(device_ptr,
                                                     { new_dsg_create_info_ptr },
                                                     false); /* in_releaseable_sets */
 
-    new_dsg_ptr->set_binding_item(0, /* n_set         */
-                                  0, /* binding_index */
-                                  Anvil::DescriptorSet::StorageBufferBindingElement(sceneNodes_uptr->globalTRSmatrixesBuffer_uptr.get()));
+    for (uint32_t i = 0; i < swapchainImagesCount; i++)
+    {
+        new_dsg_ptr->set_binding_item(i, /* n_set         */
+                                      0, /* binding_index */
+                                      Anvil::DescriptorSet::UniformBufferBindingElement(perspectiveBuffer_uptrs[i].get()));
 
-    new_dsg_ptr->set_binding_item(1, /* n_set         */
-                                  0, /* binding_index */
-                                  Anvil::DescriptorSet::UniformBufferBindingElement(perspectiveBuffer_uptr.get()));
+        new_dsg_ptr->set_binding_item(i, /* n_set         */
+                                      1, /* binding_index */
+                                      Anvil::DescriptorSet::UniformBufferBindingElement(cameraBuffer_uptrs[i].get()));
+    }
 
-    new_dsg_ptr->set_binding_item(1, /* n_set         */
-                                  1, /* binding_index */
-                                  Anvil::DescriptorSet::UniformBufferBindingElement(cameraBuffer_uptr.get()));
-
-    spacialDSG_uptr = std::move(new_dsg_ptr);
+    cameraDescriptorSetGroup_uptr = std::move(new_dsg_ptr);
 }
 
 void Graphics::InitImages()
