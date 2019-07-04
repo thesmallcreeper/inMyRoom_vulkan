@@ -54,10 +54,10 @@ namespace std
             hash_combine(result, in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr);
             hash_combine(result, in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr);
 
-            //for(const auto& this_descriptorSetCreateInfo_ptr : in_pipelineSpecs.descriptorSetsCreateInfo_ptrs)
-            //{
-            //    hash_combine(result, *this_descriptorSetCreateInfo_ptr);
-            //}
+         //   for(const auto& this_descriptorSetCreateInfo_ptr : in_pipelineSpecs.descriptorSetsCreateInfo_ptrs)
+         //   {
+         //       hash_combine(result, *this_descriptorSetCreateInfo_ptr);
+         //   }
 
             return result;
         }

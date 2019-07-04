@@ -273,7 +273,7 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
     return primitivesSets.size() - 1;
 }
 
-void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool itIsPositionData, size_t nativeCompSize,
+void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool shouldFlipYZ, size_t allignBufferSize,
                                                     tinygltf::Model& in_model, tinygltf::Accessor in_accessor) const
 {
     size_t count_of_elements = in_accessor.count;
@@ -324,7 +324,7 @@ void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& 
 
     tinygltf::Buffer& this_buffer = in_model.buffers[this_bufferView.buffer];
 
-    if(!itIsPositionData)
+    if(!shouldFlipYZ)
         std::copy(&this_buffer.data[bufferview_byte_offset + accessor_byte_offset],
                   &this_buffer.data[bufferview_byte_offset + accessor_byte_offset] + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
                   std::back_inserter(localBuffer_ref));
@@ -339,7 +339,7 @@ void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& 
         std::memcpy(temp_buffer_uint8_ptr, &this_buffer.data[bufferview_byte_offset + accessor_byte_offset], count_of_elements * size_of_each_component_in_byte * number_of_components_per_type);
 
         for (size_t i = 0; i < count_of_elements * number_of_components_per_type; i++)
-            if (i % 3 == 1 || i % 3 == 2)
+            if (i % number_of_components_per_type == 1 || i % number_of_components_per_type == 2)
                 temp_buffer_uptr[i] *= -1.f;
 
         std::copy(temp_buffer_uint8_ptr,
@@ -347,9 +347,9 @@ void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& 
                   std::back_inserter(localBuffer_ref));
     }
 
-    if (nativeCompSize != -1)
+    if (allignBufferSize != -1)
     {
-        const size_t loops_needed_to_align = localBuffer_ref.size() % nativeCompSize;
+        const size_t loops_needed_to_align = localBuffer_ref.size() % allignBufferSize;
         for (size_t i = 0; i < loops_needed_to_align; i++)
             localBuffer_ref.emplace_back(0);
     }

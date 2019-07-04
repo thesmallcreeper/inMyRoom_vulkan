@@ -27,8 +27,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
         if (!thisImage.uri.empty())
         {
             fs::path path_to_original_image = in_imagesFolder + "//" + thisImage.uri;
-            path_to_mipmap_folder = in_imagesFolder + "//" + thisImage.uri.substr(0, thisImage.uri.find_last_of('.')) +
-                "_mipmaps";
+            path_to_mipmap_folder = in_imagesFolder + "//" + thisImage.uri.substr(0, thisImage.uri.find_last_of('.')) + "_mipmaps";
 
             fs::path absolute_path_to_original_image = absolute(path_to_original_image);
 
@@ -95,8 +94,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
 
             if (!LoadDDSFile(this_mipmap_filename.c_str(), this_mipmap))
             {
-                std::cout << thisImage.uri << " , creating mipmap level: " << this_mipmap_level << " width= " <<
-                    this_mipmap_width << " height= " << this_mipmap_height << "\n";
+                std::cout << thisImage.uri << " , creating mipmap level: " << this_mipmap_level << " width= " << this_mipmap_width << " height= " << this_mipmap_height << "\n";
 
                 CMP_Texture new_mipmap;
 
@@ -140,8 +138,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
                                                                         Anvil::ImageType::_2D,
                                                                         image_preferred_format,
                                                                         Anvil::ImageTiling::OPTIMAL,
-                                                                        Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT |
-                                                                        Anvil::ImageUsageFlagBits::SAMPLED_BIT,
+                                                                        Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT | Anvil::ImageUsageFlagBits::SAMPLED_BIT,
                                                                         static_cast<uint32_t>(width),
                                                                         static_cast<uint32_t>(height),
                                                                         1, /* base_mipmap_depth */
@@ -218,21 +215,11 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
         Anvil::SamplerUniquePtr image_sampler_ptr;
 
         auto create_info_ptr = Anvil::SamplerCreateInfo::create(in_device_ptr,
-                                                                glTFsamplerMagFilterToFilter_map
-                                                                .find(static_cast<glTFsamplerMagFilter>(thisSampler.
-                                                                    magFilter))->second,
-                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map
-                                                                .find(static_cast<glTFsamplerMinFilter>(thisSampler.
-                                                                    magFilter))->second.first,
-                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map
-                                                                .find(static_cast<glTFsamplerMinFilter>(thisSampler.
-                                                                    magFilter))->second.second,
-                                                                glTFsamplerWrapToAddressMode_map
-                                                                .find(static_cast<glTFsamplerWrap>(thisSampler.wrapS))->
-                                                                second,
-                                                                glTFsamplerWrapToAddressMode_map
-                                                                .find(static_cast<glTFsamplerWrap>(thisSampler.wrapT))->
-                                                                second,
+                                                                glTFsamplerMagFilterToFilter_map.find(static_cast<glTFsamplerMagFilter>(thisSampler.magFilter))->second,
+                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map.find(static_cast<glTFsamplerMinFilter>(thisSampler.magFilter))->second.first,
+                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map.find(static_cast<glTFsamplerMinFilter>(thisSampler.magFilter))->second.second,
+                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(thisSampler.wrapS))->second,
+                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(thisSampler.wrapT))->second,
                                                                 Anvil::SamplerAddressMode::REPEAT,
                                                                 0.0f, /* in_lod_bias        */
                                                                 16.0f, /* in_max_anisotropy  */
