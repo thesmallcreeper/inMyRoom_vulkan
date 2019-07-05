@@ -379,16 +379,17 @@ void Graphics::InitScene()
     printf("-Initializing primitivesShaders\n");
     {
         std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
-        ShaderSetFamilyInitInfo this_shaderSetInitInfo;
         {
+            ShaderSetFamilyInitInfo this_shaderSetInitInfo;
             this_shaderSetInitInfo.shadersSetFamilyName = "Texture Pass";
             this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalShader_glsl.frag";
             this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
             shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
         }
         {
+            ShaderSetFamilyInitInfo this_shaderSetInitInfo;
             this_shaderSetInitInfo.shadersSetFamilyName = "Z-Prepass Pass";
-            this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
+            this_shaderSetInitInfo.vertexShaderSourceFilename = "zprepassShader_glsl.vert";
             shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
         }
         primitivesShaders_uptr = std::make_unique<PrimitivesShaders>(shaderSetsInitInfos, device_ptr);
@@ -422,6 +423,7 @@ void Graphics::InitScene()
             printf("-Initializing \"Texture Pass\" primitives set\n");
             ShadersSpecs this_shaders_specs;
             this_shaders_specs.shadersSetFamilyName = "Texture Pass";
+            this_shaders_specs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");
             this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(sceneNodes_uptr->globalTRSmatrixesCount)));
 
             texturePassSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, Anvil::CompareOp::EQUAL, false, &descriptorSetCreateInfos, renderpass_uptr.get(), textureSubpassID);

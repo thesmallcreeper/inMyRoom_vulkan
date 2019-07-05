@@ -54,7 +54,7 @@ void main()
 	vec4 position = CameraMatrix * thisGlobalTRSMatrix * app_position;
 	
 	
-    gl_Position = ProjectionMatrix * position;	
+    gl_Position = ProjectionMatrix * position;
 	
 	vert_position = position.xyz;
 	

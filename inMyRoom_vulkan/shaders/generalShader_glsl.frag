@@ -1,5 +1,9 @@
 #version 450
 
+#ifdef USE_EARLY_FRAGMENT_TESTS
+layout(early_fragment_tests) in;
+#endif
+
 layout( location = 0 ) in vec3 vert_position;
 
 #ifdef VERT_TEXCOORD0
