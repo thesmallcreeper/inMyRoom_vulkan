@@ -51,7 +51,7 @@ public:
 
     void AddPrimitive(tinygltf::Model& in_model, tinygltf::Primitive& in_primitive);
     void FlashBuffersToDevice();
-    size_t InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material,
+    size_t InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material, Anvil::CompareOp in_depth_compare, bool use_depth_write,
                              const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
                              Anvil::RenderPass* renderpass_ptr, Anvil::SubPassID subpassID);
 

@@ -171,7 +171,7 @@ void MeshesPrimitives::FlashBuffersToDevice()
 }
 
 
-size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material,
+size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material, Anvil::CompareOp in_depth_compare, bool use_depth_write,
                                            const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
                                            Anvil::RenderPass* renderpass_ptr, Anvil::SubPassID subpassID)
 {
@@ -255,6 +255,8 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
 
         this_pipelineSpecs.descriptorSetsCreateInfo_ptrs = std::move(this_descriptorSetCreateInfos_ptrs);
 
+        this_pipelineSpecs.depthCompare = in_depth_compare;
+        this_pipelineSpecs.depthWriteEnable = use_depth_write;
         this_pipelineSpecs.pipelineShaders = primitivesShaders_ptr->shadersSets[shaderSet_index];
         this_pipelineSpecs.renderpass_ptr = renderpass_ptr;
         this_pipelineSpecs.subpassID = subpassID;

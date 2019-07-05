@@ -19,6 +19,8 @@
 struct PipelineSpecs
 {
     glTFmode drawMode = static_cast<glTFmode>(-1);
+    Anvil::CompareOp depthCompare = static_cast<Anvil::CompareOp>(-1);
+    bool depthWriteEnable = false;
     glTFcomponentType indexComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType positionComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType normalComponentType = static_cast<glTFcomponentType>(-1);
@@ -40,6 +42,8 @@ namespace std
         {
             std::size_t result = 0;
             hash_combine(result, in_pipelineSpecs.drawMode);
+            hash_combine(result, in_pipelineSpecs.depthCompare);
+            hash_combine(result, in_pipelineSpecs.depthWriteEnable);
             hash_combine(result, in_pipelineSpecs.indexComponentType);
             hash_combine(result, in_pipelineSpecs.positionComponentType);
             hash_combine(result, in_pipelineSpecs.normalComponentType);
@@ -69,6 +73,8 @@ namespace std
         bool operator()(const PipelineSpecs& lhs, const PipelineSpecs& rhs) const
         {
             bool isEqual =  (lhs.drawMode == rhs.drawMode) &&
+                            (lhs.depthCompare == rhs.depthCompare) && 
+                            (lhs.depthWriteEnable == rhs.depthWriteEnable) &&
                             (lhs.indexComponentType == rhs.indexComponentType) &&
                             (lhs.positionComponentType == rhs.positionComponentType) &&
                             (lhs.normalComponentType == rhs.normalComponentType) &&

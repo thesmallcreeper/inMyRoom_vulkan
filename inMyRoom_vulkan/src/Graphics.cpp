@@ -234,17 +234,20 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
         render_area.offset.y = 0;
 
         cmd_buffer_ptr->record_begin_render_pass(sizeof(clear_values) / sizeof(clear_values[0]),
-                                                  clear_values,
-                                                  framebuffers_uptrs[swapchainImageIndex].get(),
-                                                  render_area,
-                                                  renderpass_uptr.get(),
-                                                  Anvil::SubpassContents::INLINE);
+                                                 clear_values,
+                                                 framebuffers_uptrs[swapchainImageIndex].get(),
+                                                 render_area,
+                                                 renderpass_uptr.get(),
+                                                 Anvil::SubpassContents::INLINE);
 
         std::vector<Anvil::DescriptorSet*> descriptor_sets;
         descriptor_sets.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set(0));
         descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
 
-        sceneNodes_uptr->Draw(generalPrimitivesSetIndex, cmd_buffer_ptr, descriptor_sets);
+        sceneNodes_uptr->Draw(zprepassPassSetIndex, cmd_buffer_ptr, descriptor_sets);
+
+        cmd_buffer_ptr->record_next_subpass(Anvil::SubpassContents::INLINE);
+        sceneNodes_uptr->Draw(texturePassSetIndex, cmd_buffer_ptr, descriptor_sets);
 
         cmd_buffer_ptr->record_end_render_pass();
     }
@@ -317,7 +320,7 @@ void Graphics::InitCameraBuffers()
 
             cameraBuffer_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
 
-            cameraBuffer_uptrs[i]->set_name("Camera matrix buffer");
+            cameraBuffer_uptrs[i]->set_name("Camera matrix buffer " + std::to_string(i));
         }
 
         {
@@ -330,7 +333,7 @@ void Graphics::InitCameraBuffers()
 
             perspectiveBuffer_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
 
-            perspectiveBuffer_uptrs[i]->set_name("Camera matrix buffer");
+            perspectiveBuffer_uptrs[i]->set_name("Camera matrix buffer " + std::to_string(i));
         }
 
 
@@ -377,11 +380,17 @@ void Graphics::InitScene()
     {
         std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
         ShaderSetFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "General Mesh";
-        this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalMesh_glsl.frag";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "generalMesh_glsl.vert";
-
-        shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
+        {
+            this_shaderSetInitInfo.shadersSetFamilyName = "Texture Pass";
+            this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalShader_glsl.frag";
+            this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
+            shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
+        }
+        {
+            this_shaderSetInitInfo.shadersSetFamilyName = "Z-Prepass Pass";
+            this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
+            shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
+        }
         primitivesShaders_uptr = std::make_unique<PrimitivesShaders>(shaderSetsInitInfos, device_ptr);
     }
     // Initialize pipeline reuse map
@@ -397,16 +406,26 @@ void Graphics::InitScene()
     printf("-Initializing nodesMeshes\n");
     nodesMeshes_uptr = std::make_unique<NodesMeshes>(model, meshesPrimitives_uptr.get(), device_ptr);
     // Create primitives sets (shaders-pipelines for each kind of primitive)
-    printf("-Initializing \"General Mesh\" primitives set\n");
     {
-        ShadersSpecs this_shaders_specs;
-        this_shaders_specs.shadersSetFamilyName = "General Mesh";
-        this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(sceneNodes_uptr->globalTRSmatrixesCount)));
-
         std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetCreateInfos;
         descriptorSetCreateInfos.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
         descriptorSetCreateInfos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
-        generalPrimitivesSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, &descriptorSetCreateInfos, renderpass_uptr.get(), colorSubpassID);
+        {
+            printf("-Initializing \"Z-Prepass Pass\" primitives set\n");
+            ShadersSpecs this_shaders_specs;
+            this_shaders_specs.shadersSetFamilyName = "Z-Prepass Pass";
+            this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(sceneNodes_uptr->globalTRSmatrixesCount)));
+          
+            zprepassPassSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, false, Anvil::CompareOp::LESS, true, &descriptorSetCreateInfos, renderpass_uptr.get(), zprepassSubpassID);
+        }
+        {
+            printf("-Initializing \"Texture Pass\" primitives set\n");
+            ShadersSpecs this_shaders_specs;
+            this_shaders_specs.shadersSetFamilyName = "Texture Pass";
+            this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(sceneNodes_uptr->globalTRSmatrixesCount)));
+
+            texturePassSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, Anvil::CompareOp::EQUAL, false, &descriptorSetCreateInfos, renderpass_uptr.get(), textureSubpassID);
+        }
     }
     // Bind meshes to nodes
     sceneNodes_uptr->BindNodesMeshes(nodesMeshes_uptr.get());
@@ -577,26 +596,44 @@ void Graphics::InitRenderpasses()
                                                          &color_attachment_id);
 
         renderpass_create_info_ptr->add_depth_stencil_attachment(depthImage_uptr->get_create_info_ptr()->get_format(),
-                                                                    Anvil::SampleCountFlagBits::_1_BIT,
-                                                                    Anvil::AttachmentLoadOp::CLEAR,
-                                                                    Anvil::AttachmentStoreOp::DONT_CARE,
-                                                                    Anvil::AttachmentLoadOp::DONT_CARE,
-                                                                    Anvil::AttachmentStoreOp::DONT_CARE,
-                                                                    Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                    Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                    false, /* may_alias */
-                                                                    &depth_attachment_id);
+                                                                 Anvil::SampleCountFlagBits::_1_BIT,
+                                                                 Anvil::AttachmentLoadOp::CLEAR,
+                                                                 Anvil::AttachmentStoreOp::DONT_CARE,
+                                                                 Anvil::AttachmentLoadOp::DONT_CARE,
+                                                                 Anvil::AttachmentStoreOp::DONT_CARE,
+                                                                 Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                 Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                 false, /* may_alias */
+                                                                 &depth_attachment_id);
 
-        /* Define the only subpass we're going to use there */
-        renderpass_create_info_ptr->add_subpass(&colorSubpassID);
-        renderpass_create_info_ptr->add_subpass_color_attachment(colorSubpassID,
-                                                                    Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                                                                    color_attachment_id,
-                                                                    0,        /* in_location                      */
-                                                                    nullptr); /* in_opt_attachment_resolve_id_ptr */
-        renderpass_create_info_ptr->add_subpass_depth_stencil_attachment(colorSubpassID,
-                                                                            Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                            depth_attachment_id);
+        // z-prepass pass
+        renderpass_create_info_ptr->add_subpass(&zprepassSubpassID);
+        renderpass_create_info_ptr->add_subpass_depth_stencil_attachment(zprepassSubpassID,
+                                                                         Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                         depth_attachment_id);
+        renderpass_create_info_ptr->add_external_to_subpass_dependency(zprepassSubpassID,
+                                                                       Anvil::PipelineStageFlagBits::LATE_FRAGMENT_TESTS_BIT,
+                                                                       Anvil::PipelineStageFlagBits::EARLY_FRAGMENT_TESTS_BIT,
+                                                                       Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+                                                                       Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                                                       Anvil::DependencyFlagBits::BY_REGION_BIT);
+        // texture pass
+        renderpass_create_info_ptr->add_subpass(&textureSubpassID);
+        renderpass_create_info_ptr->add_subpass_color_attachment(textureSubpassID,
+                                                                 Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                                                                 color_attachment_id,
+                                                                 0,        /* in_location                      */
+                                                                 nullptr); /* in_opt_attachment_resolve_id_ptr */
+        renderpass_create_info_ptr->add_subpass_depth_stencil_attachment(textureSubpassID,
+                                                                         Anvil::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                                                                         depth_attachment_id);
+        renderpass_create_info_ptr->add_subpass_to_subpass_dependency(zprepassSubpassID,
+                                                                      textureSubpassID,
+                                                                      Anvil::PipelineStageFlagBits::LATE_FRAGMENT_TESTS_BIT,
+                                                                      Anvil::PipelineStageFlagBits::EARLY_FRAGMENT_TESTS_BIT,
+                                                                      Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                                                      Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+                                                                      Anvil::DependencyFlagBits::BY_REGION_BIT);
 
 
         renderpass_uptr = Anvil::RenderPass::create(std::move(renderpass_create_info_ptr),

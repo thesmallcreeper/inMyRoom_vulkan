@@ -181,9 +181,18 @@ Anvil::PipelineID PrimitivesPipelines::CreatePipeline(PipelineSpecs in_pipelineS
                                                            Anvil::CullModeFlagBits::BACK_BIT,
                                                            Anvil::FrontFace::COUNTER_CLOCKWISE,
                                                            4.0f); /* line_width */
-    pipeline_create_info_ptr->toggle_depth_test(true,
-                                                Anvil::CompareOp::LESS);
-    pipeline_create_info_ptr->toggle_depth_writes(true);
+
+    if (in_pipelineSpecs.depthCompare != static_cast<Anvil::CompareOp> (-1))
+    {
+        pipeline_create_info_ptr->toggle_depth_test(true,
+                                                    in_pipelineSpecs.depthCompare);
+    }
+    else
+    {
+        pipeline_create_info_ptr->toggle_depth_test(false,
+                                                    Anvil::CompareOp::NEVER);
+    }
+    pipeline_create_info_ptr->toggle_depth_writes(in_pipelineSpecs.depthWriteEnable);
 
     Anvil::PipelineID pipelineID;
     gfx_manager_ptr->add_pipeline(std::move(pipeline_create_info_ptr),

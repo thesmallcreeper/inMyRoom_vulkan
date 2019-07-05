@@ -90,10 +90,12 @@ private:
 
     uint32_t                      lastSemaphoreUsed;
 
-    Anvil::SubPassID              colorSubpassID;
+    Anvil::SubPassID              zprepassSubpassID;
+    Anvil::SubPassID              textureSubpassID;
 
-    size_t generalPrimitivesSetIndex;
-
+    size_t zprepassPassSetIndex;
+    size_t texturePassSetIndex;
+ 
     std::vector<Anvil::PrimaryCommandBufferUniquePtr> cmdBuffers_uptrs;
 
     const configuru::Config& cfgFile;
