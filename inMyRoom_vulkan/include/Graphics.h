@@ -22,7 +22,7 @@
 #include "SceneNodes.h"
 #include "MeshesPrimitives.h"
 #include "NodesMeshes.h"
-
+#include "Drawer.h"
 
 class Graphics
 {

@@ -86,17 +86,27 @@ void SceneNodes::BindNodesMeshes(NodesMeshes* in_nodesMeshes)
     nodesMeshes_ptr = in_nodesMeshes;
 }
 
-void SceneNodes::Draw(size_t in_primitivesSet_index, Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
-                      std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs)
+std::vector<DrawRequest> SceneNodes::Draw()
 {
     assert(nodesMeshes_ptr != nullptr);
+
+    std::vector<DrawRequest> draw_requests;
 
     for (const Node& this_node : nodes)
         if (this_node.isMesh)
         {
-            nodesMeshes_ptr->Draw(this_node.meshIndex, this_node.meshID, in_primitivesSet_index, in_cmd_buffer_ptr,
-                                  in_low_descriptor_sets_ptrs);
+            MeshRange this_mesh_range = nodesMeshes_ptr->meshes[this_node.meshIndex];
+
+            for (size_t primitive_index = this_mesh_range.primitiveFirstOffset; primitive_index < this_mesh_range.primitiveFirstOffset + this_mesh_range.primitiveRangeSize; primitive_index++)
+            {
+                DrawRequest this_draw_request;
+                this_draw_request.primitive_index = primitive_index;
+                this_draw_request.meshID = this_node.meshID;
+                draw_requests.emplace_back(this_draw_request);
+            }
         }
+
+    return draw_requests;
 }
 
 uint32_t SceneNodes::AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_node,
@@ -169,12 +179,12 @@ glm::mat4 SceneNodes::CreateTRSmatrix(const tinygltf::Node& in_node) const
         return  glm::mat4( 1.f, 0.f, 0.f, 0.f,
                            0.f,-1.f, 0.f, 0.f,
                            0.f, 0.f,-1.f, 0.f,
-                           0.f, 0.f, 0.f, 1.f) *
-                glm::mat4(in_node.matrix[0] , in_node.matrix[1] , in_node.matrix[2] , in_node.matrix[3] ,
+                           0.f, 0.f, 0.f, 1.f)
+              * glm::mat4(in_node.matrix[0] , in_node.matrix[1] , in_node.matrix[2] , in_node.matrix[3] ,
                           in_node.matrix[4] , in_node.matrix[5] , in_node.matrix[6] , in_node.matrix[7] ,
                           in_node.matrix[8] , in_node.matrix[9] , in_node.matrix[10], in_node.matrix[11],
-                          in_node.matrix[12], in_node.matrix[13], in_node.matrix[14], in_node.matrix[15]) *
-                glm::mat4(1.f, 0.f, 0.f, 0.f,
+                          in_node.matrix[12], in_node.matrix[13], in_node.matrix[14], in_node.matrix[15])
+              * glm::mat4(1.f, 0.f, 0.f, 0.f,
                           0.f,-1.f, 0.f, 0.f,
                           0.f, 0.f,-1.f, 0.f,
                           0.f, 0.f, 0.f, 1.f);

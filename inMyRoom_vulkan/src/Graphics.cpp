@@ -240,14 +240,23 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
                                                  renderpass_uptr.get(),
                                                  Anvil::SubpassContents::INLINE);
 
-        std::vector<Anvil::DescriptorSet*> descriptor_sets;
-        descriptor_sets.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set(0));
-        descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
+        std::vector<Anvil::DescriptorSet*> lower_descriptor_sets;
+        lower_descriptor_sets.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set(0));
+        lower_descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
 
-        sceneNodes_uptr->Draw(zprepassPassSetIndex, cmd_buffer_ptr, descriptor_sets);
+        std::vector<DrawRequest> draw_requests = sceneNodes_uptr->Draw();
+
+        Drawer none_drawer(sorting::none, 0, meshesPrimitives_uptr.get(), device_ptr);
+        Drawer by_pipeline_drawer(sorting::by_pipeline, texturePassSetIndex, meshesPrimitives_uptr.get(), device_ptr);
+
+        none_drawer.AddDrawRequests(draw_requests);
+        by_pipeline_drawer.AddDrawRequests(draw_requests);
+
+        none_drawer.DrawCallRequests(std::initializer_list{ std::make_pair(cmd_buffer_ptr, zprepassPassSetIndex) }, lower_descriptor_sets);
 
         cmd_buffer_ptr->record_next_subpass(Anvil::SubpassContents::INLINE);
-        sceneNodes_uptr->Draw(texturePassSetIndex, cmd_buffer_ptr, descriptor_sets);
+
+        by_pipeline_drawer.DrawCallRequests(std::initializer_list{ std::make_pair(cmd_buffer_ptr, texturePassSetIndex) }, lower_descriptor_sets);
 
         cmd_buffer_ptr->record_end_render_pass();
     }
@@ -350,8 +359,8 @@ void Graphics::InitCameraBuffers()
         glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
                                                           static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
                                                           cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
-                                                          cfgFile["graphicsSettings"]["farPlaneDistance"].as_float()) *
-                                         glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,    // Multiply with diag(1,-1,1,1) in order to make glm::perspective "vulkan-ready"                                                                                                                                                                                                                       
+                                                          cfgFile["graphicsSettings"]["farPlaneDistance"].as_float())
+                                       * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,    // Multiply with diag(1,-1,1,1) in order to make glm::perspective "vulkan-ready"                                                                                                                                                                                                                       
                                                    0.0f, -1.0f, 0.0f, 0.0f,
                                                    0.0f, 0.0f, 1.0f, 0.0f,
                                                    0.0f, 0.0f, 0.0f, 1.0f);

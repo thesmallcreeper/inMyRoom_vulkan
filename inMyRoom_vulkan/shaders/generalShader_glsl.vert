@@ -20,27 +20,37 @@ layout( location = VERT_TEXCOORD0_LOCATION ) in vec2 app_texcoord0;
 layout( location = VERT_TEXCOORD1_LOCATION ) in vec2 app_texcoord1;
 #endif
 
-
+#ifdef VERT_COLOR0
+layout( location = VERT_COLOR0_LOCATION ) in vec4 app_color0;
+#endif
 
 
 layout( location = 0 ) out vec3 vert_position;
 
+
 #ifdef VERT_TEXCOORD0
-layout( location = 1 ) out vec2 vert_texcoord;
+layout( location = 1 ) out vec2 vert_texcoord0;
 #endif
 
+#ifdef VERT_TEXCOORD1
+layout( location = 2 ) out vec2 vert_texcoord1;
+#endif
 
-layout(std140, set = 0 , binding = 0) restrict readonly buffer StorageBuffer0
+#ifdef VERT_COLOR0
+layout( location = 3 ) out vec4 vert_color0;
+#endif
+
+layout(std140, set = 0 , binding = 0) restrict readonly buffer SB0
 {
     mat4 GlobalTRSMatrixes[N_MESHIDS];
 };
 
-layout( set = 1 , binding = 0 ) uniform UniformBuffer0
+layout( set = 1 , binding = 0 ) uniform UB1_0
 {
     mat4 ProjectionMatrix;
 };
 
-layout( set = 1 , binding = 1 ) uniform UniformBuffer1
+layout( set = 1 , binding = 1 ) uniform UB1_1
 {
     mat4 CameraMatrix;
 };
@@ -59,6 +69,14 @@ void main()
 	vert_position = position.xyz;
 	
 	#ifdef VERT_TEXCOORD0
-	vert_texcoord = vec2(app_texcoord0.x, app_texcoord0.y);
+	vert_texcoord0 = vec2(app_texcoord0.x, app_texcoord0.y);
+	#endif
+	
+	#ifdef VERT_TEXCOORD1
+	vert_texcoord1 = vec2(app_texcoord1.x, app_texcoord1.y);
+	#endif
+	
+	#ifdef VERT_COLOR0
+	vert_color0 = app_color0;
 	#endif
 }

@@ -170,6 +170,43 @@ Anvil::PipelineID PrimitivesPipelines::CreatePipeline(PipelineSpecs in_pipelineS
         location++;
     }
 
+    // color_0 attribute
+
+    if (in_pipelineSpecs.color0ComponentType == glTFcomponentType::type_float)
+    {
+        pipeline_create_info_ptr->add_vertex_attribute(location,
+                                                       Anvil::Format::R32G32B32A32_SFLOAT,
+                                                       0,
+                                                       sizeof(float) * 4,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
+
+        location++;
+    }
+    else if (in_pipelineSpecs.color0ComponentType == glTFcomponentType::type_unsigned_byte)
+    {
+        pipeline_create_info_ptr->add_vertex_attribute(location,
+                                                       Anvil::Format::R8G8B8A8_UNORM,
+                                                       0,
+                                                       sizeof(uint8_t) * 4,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
+
+        location++;
+    }
+    else if (in_pipelineSpecs.color0ComponentType == glTFcomponentType::type_unsigned_short)
+    {
+        pipeline_create_info_ptr->add_vertex_attribute(location,
+                                                       Anvil::Format::R16G16B16A16_UNORM,
+                                                       0,
+                                                       sizeof(uint16_t) * 4,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
+
+        location++;
+    }
+
+
     Anvil::PrimitiveTopology thisPrimitiveTopology;
     {
         auto search = glTFmodeToPrimitiveTopology_map.find(in_pipelineSpecs.drawMode);
@@ -180,7 +217,7 @@ Anvil::PipelineID PrimitivesPipelines::CreatePipeline(PipelineSpecs in_pipelineS
     pipeline_create_info_ptr->set_rasterization_properties(Anvil::PolygonMode::FILL,
                                                            Anvil::CullModeFlagBits::BACK_BIT,
                                                            Anvil::FrontFace::COUNTER_CLOCKWISE,
-                                                           4.0f); /* line_width */
+                                                           1.0f); /* line_width */
 
     if (in_pipelineSpecs.depthCompare != static_cast<Anvil::CompareOp> (-1))
     {

@@ -94,7 +94,7 @@ MaterialsTextures::MaterialsTextures(tinygltf::Model& in_model, const std::strin
 
             if (!LoadDDSFile(this_mipmap_filename.c_str(), this_mipmap))
             {
-                std::cout << thisImage.uri << " , creating mipmap level: " << this_mipmap_level << " width= " << this_mipmap_width << " height= " << this_mipmap_height << "\n";
+                std::cout << "--" <<thisImage.uri << " , creating mipmap level: " << this_mipmap_level << " width= " << this_mipmap_width << " height= " << this_mipmap_height << "\n";
 
                 CMP_Texture new_mipmap;
 

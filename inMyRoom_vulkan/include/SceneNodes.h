@@ -11,6 +11,7 @@
 #include "tiny_gltf.h"
 
 #include "NodesMeshes.h"
+#include "Drawer.h"
 
 struct Node
 {
@@ -41,8 +42,7 @@ public:
     ~SceneNodes();
 
     void BindNodesMeshes(NodesMeshes* in_nodesMeshes);
-    void Draw(size_t in_primitivesSet_index, Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
-              std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs);
+    std::vector<DrawRequest> Draw();
 
 public:
 	std::vector<Node> nodes;

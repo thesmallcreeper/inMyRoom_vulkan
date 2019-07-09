@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Drawer.cpp" />
     <ClCompile Include="src\InputManager.cpp" />
     <ClCompile Include="src\CameraBaseClass.cpp" />
     <ClCompile Include="src\NodesMeshes.cpp" />
@@ -40,6 +41,7 @@
     <ClInclude Include="..\Configuru\configuru.hpp" />
     <ClInclude Include="..\tinygltf\stb_image.h" />
     <ClInclude Include="..\tinygltf\tiny_gltf.h" />
+    <ClInclude Include="include\Drawer.h" />
     <ClInclude Include="include\glTFenum.h" />
     <ClInclude Include="include\hash_combine.h" />
     <ClInclude Include="include\PrimitivesMaterials.h" />

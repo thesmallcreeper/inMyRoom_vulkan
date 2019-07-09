@@ -22,6 +22,7 @@ struct PrimitiveInitInfo
     VkDeviceSize tangentBufferOffset = -1;
     VkDeviceSize texcoord0BufferOffset = -1;
     VkDeviceSize texcoord1BufferOffset = -1;
+    VkDeviceSize color0BufferOffset = -1;
     PipelineSpecs pipelineSpecs;
     size_t materialIndex = -1;
 };
@@ -36,6 +37,7 @@ struct PrimitiveInfo
     VkDeviceSize tangentBufferOffset = -1;
     VkDeviceSize texcoord0BufferOffset = -1;
     VkDeviceSize texcoord1BufferOffset = -1;
+    VkDeviceSize color0BufferOffset = -1;
     Anvil::PipelineID thisPipelineID;
     Anvil::DescriptorSet* materialDescriptorSet_ptr = nullptr;
     Anvil::PipelineLayout* pipelineLayout_ptr = nullptr;
@@ -57,6 +59,7 @@ public:
 
 public:
     std::vector<std::vector<PrimitiveInfo>> primitivesSets;
+    std::vector<PrimitiveInitInfo> primitivesInitInfos;
 
     Anvil::BufferUniquePtr indexBuffer_uptr;
     Anvil::BufferUniquePtr positionBuffer_uptr;
@@ -64,6 +67,7 @@ public:
     Anvil::BufferUniquePtr tangentBuffer_uptr;
     Anvil::BufferUniquePtr texcoord0Buffer_uptr;
     Anvil::BufferUniquePtr texcoord1Buffer_uptr;
+    Anvil::BufferUniquePtr color0Buffer_uptr;
 
     std::vector<unsigned char> localIndexBuffer;
     std::vector<unsigned char> localPositionBuffer;
@@ -71,14 +75,15 @@ public:
     std::vector<unsigned char> localTangentBuffer;
     std::vector<unsigned char> localTexcoord0Buffer;
     std::vector<unsigned char> localTexcoord1Buffer;
+    std::vector<unsigned char> localColor0Buffer;
 
     bool hasBuffersBeenFlashed = false;
 
 private:
-    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool shouldFlipYZ, size_t allignBufferSize,
+    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool shouldFlipYZ_position, bool vec3_to_vec4, size_t allignBufferSize,
                                       tinygltf::Model& in_model,tinygltf::Accessor in_accessor) const;
     Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
-                                                            Anvil::BufferUsageFlagBits in_bufferusageflag) const;
+                                                            Anvil::BufferUsageFlagBits in_bufferusageflag, std::string buffers_name) const;
 private:
     Anvil::BaseDevice* const device_ptr;
 
@@ -87,6 +92,5 @@ private:
     PrimitivesMaterials* primitivesMaterials_ptr;
 
     Anvil::MemoryAllocatorUniquePtr allocator_ptr;
-
-    std::vector<PrimitiveInitInfo> primitivesInitInfos;
 };
+

@@ -1,4 +1,4 @@
-#pragma once
+ #pragma once
 #include <cassert>
 
 #include <unordered_map>
@@ -27,10 +27,11 @@ struct PipelineSpecs
     glTFcomponentType tangentComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType texcoord0ComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
+    glTFcomponentType color0ComponentType = static_cast<glTFcomponentType>(-1);
     std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetsCreateInfo_ptrs;
     ShadersSet pipelineShaders;
-    Anvil::RenderPass* renderpass_ptr;
-    Anvil::SubPassID subpassID;
+    Anvil::RenderPass* renderpass_ptr = nullptr;
+    Anvil::SubPassID subpassID = 0;
 };
 
 namespace std
@@ -50,6 +51,7 @@ namespace std
             hash_combine(result, in_pipelineSpecs.tangentComponentType);
             hash_combine(result, in_pipelineSpecs.texcoord0ComponentType);
             hash_combine(result, in_pipelineSpecs.texcoord1ComponentType);
+            hash_combine(result, in_pipelineSpecs.color0ComponentType);
             hash_combine(result, in_pipelineSpecs.renderpass_ptr);
             hash_combine(result, in_pipelineSpecs.subpassID);
             hash_combine(result, in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr);
@@ -81,6 +83,7 @@ namespace std
                             (lhs.tangentComponentType == rhs.tangentComponentType) &&
                             (lhs.texcoord0ComponentType == rhs.texcoord0ComponentType) &&
                             (lhs.texcoord1ComponentType == rhs.texcoord1ComponentType) &&
+                            (lhs.color0ComponentType == rhs.color0ComponentType) &&
                             (lhs.renderpass_ptr == rhs.renderpass_ptr) &&
                             (lhs.subpassID == rhs.subpassID) &&
                             (lhs.pipelineShaders.fragmentShaderModule_ptr == rhs.pipelineShaders.fragmentShaderModule_ptr) &&
