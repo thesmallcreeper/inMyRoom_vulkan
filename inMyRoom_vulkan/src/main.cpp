@@ -1,5 +1,4 @@
 #include <memory>
-// #define NDEBUG
 #include <cassert>
 
 #include "Engine.h"

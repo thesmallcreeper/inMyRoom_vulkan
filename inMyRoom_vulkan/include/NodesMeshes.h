@@ -5,6 +5,8 @@
 #include "wrappers/descriptor_set.h"
 #include "wrappers/command_buffer.h"
 
+#include "MathGeoLib.h"
+
 #include "tiny_gltf.h"
 
 #include "MeshesPrimitives.h"
@@ -13,6 +15,7 @@ struct MeshRange
 {
     size_t primitiveFirstOffset;
     size_t primitiveRangeSize;
+    math::Sphere boundSphere;
 };
 
 

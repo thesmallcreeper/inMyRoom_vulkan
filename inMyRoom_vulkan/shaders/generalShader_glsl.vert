@@ -1,8 +1,6 @@
 #version 450
 
-#ifdef VERT_POSITION
 layout( location = VERT_POSITION_LOCATION ) in vec4 app_position;
-#endif
 
 #ifdef VERT_NORMAL
 layout( location = VERT_NORMAL_LOCATION ) in vec4 app_normal;
@@ -61,22 +59,28 @@ void main()
     const int thisIndex = gl_InstanceIndex;
     const mat4 thisGlobalTRSMatrix = GlobalTRSMatrixes[thisIndex];
 
-	vec4 position = CameraMatrix * thisGlobalTRSMatrix * app_position;
-	
-	
+    vec4 position = CameraMatrix * thisGlobalTRSMatrix * app_position;
+    
+    
     gl_Position = ProjectionMatrix * position;
-	
-	vert_position = position.xyz;
-	
-	#ifdef VERT_TEXCOORD0
-	vert_texcoord0 = vec2(app_texcoord0.x, app_texcoord0.y);
-	#endif
-	
-	#ifdef VERT_TEXCOORD1
-	vert_texcoord1 = vec2(app_texcoord1.x, app_texcoord1.y);
-	#endif
-	
-	#ifdef VERT_COLOR0
-	vert_color0 = app_color0;
-	#endif
+    
+    vert_position = position.xyz;
+    
+    #ifdef VERT_TEXCOORD0 
+    {
+        vert_texcoord0 = vec2(app_texcoord0.x, app_texcoord0.y);
+    }
+    #endif
+    
+    #ifdef VERT_TEXCOORD1
+    {
+        vert_texcoord1 = vec2(app_texcoord1.x, app_texcoord1.y);
+    } 
+    #endif
+    
+    #ifdef VERT_COLOR0 
+    {
+        vert_color0 = app_color0;
+    }
+    #endif
 }

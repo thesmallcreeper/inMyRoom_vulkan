@@ -1,10 +1,4 @@
-#define GLM_FORECE_DEPTH_ZERO_TO_ONE
-
 #include "Graphics.h"
-
-#include "glm/mat4x4.hpp"
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
 
 #include "misc/swapchain_create_info.h"
 #include "misc/memory_allocator.h"
@@ -38,6 +32,16 @@ Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_p
     windowWidth(windowWidth),
     windowHeight(windowHeight)
 {
+    cameraFrustum.UpdatePerspectiveMatrix(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
+                                          static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
+                                          cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
+                                          cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
+
+    cullingFrustum.UpdatePerspectiveMatrix(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
+                                          static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
+                                          cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
+                                          cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
+
     printf("Loading scene\n");
     LoadScene();
 
@@ -119,11 +123,22 @@ void Graphics::DrawFrame()
     Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());   // CPU-GPU sync
 
     camera_ptr->RefreshPublicVectors();     // Input-Main thread data sync
-    glm::vec3 cameraPosition = camera_ptr->cameraPosition;
-    glm::vec3 cameraLookingDirection = camera_ptr->cameraLookingDirection;
-    glm::vec3 cameraUp = camera_ptr->upVector;
 
-    glm::mat4x4 camera_matrix = glm::lookAt(cameraPosition, cameraPosition + cameraLookingDirection, cameraUp);
+    {
+        glm::vec3 camera_position = camera_ptr->cameraPosition;
+        glm::vec3 camera_looking_direction = camera_ptr->cameraLookingDirection;
+        glm::vec3 camera_up = camera_ptr->upVector;
+        cameraFrustum.UpdateViewMatrix(camera_position, camera_looking_direction, camera_up);
+    }
+
+    {
+        glm::vec3 camera_position = camera_ptr->cullingPosition;
+        glm::vec3 camera_looking_direction = camera_ptr->cullingLookingDirection;
+        glm::vec3 camera_up = camera_ptr->upVector;
+        cullingFrustum.UpdateViewMatrix(camera_position, camera_looking_direction, camera_up);
+    }
+
+    glm::mat4x4 camera_matrix = cameraFrustum.GetViewMatrix();
 
     cameraBuffer_uptrs[n_swapchain_image]->write(0,
                                                  sizeof(glm::mat4x4),
@@ -244,7 +259,7 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
         lower_descriptor_sets.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set(0));
         lower_descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
 
-        std::vector<DrawRequest> draw_requests = sceneNodes_uptr->Draw();
+        std::vector<DrawRequest> draw_requests = sceneNodes_uptr->Draw(cullingFrustum.GetWorldSpacePlanesOfFrustum());
 
         Drawer none_drawer(sorting::none, 0, meshesPrimitives_uptr.get(), device_ptr);
         Drawer by_pipeline_drawer(sorting::by_pipeline, texturePassSetIndex, meshesPrimitives_uptr.get(), device_ptr);
@@ -356,14 +371,7 @@ void Graphics::InitCameraBuffers()
     for(uint32_t i = 0; i < swapchainImagesCount; i++)
     {
         // Camera buffer is being updated every frame
-        glm::mat4x4 perspective_matrix = glm::perspective(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
-                                                          static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
-                                                          cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
-                                                          cfgFile["graphicsSettings"]["farPlaneDistance"].as_float())
-                                       * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,    // Multiply with diag(1,-1,1,1) in order to make glm::perspective "vulkan-ready"                                                                                                                                                                                                                       
-                                                   0.0f, -1.0f, 0.0f, 0.0f,
-                                                   0.0f, 0.0f, 1.0f, 0.0f,
-                                                   0.0f, 0.0f, 0.0f, 1.0f);
+        glm::mat4x4 perspective_matrix = cameraFrustum.GetPerspectiveMatrix();
 
         perspectiveBuffer_uptrs[i]->write(0,
                                           sizeof(glm::mat4x4),

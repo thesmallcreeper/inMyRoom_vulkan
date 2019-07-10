@@ -8,11 +8,11 @@
 
 #include "configuru.hpp"
 
-
 #include "tiny_gltf.h"
 
 #include "WindowWithAsyncInput.h"
 #include "CameraBaseClass.h"
+#include "ViewportFrustum.h"
 
 #include "TexturesImagesUsage.h"
 #include "MaterialsTextures.h"
@@ -68,6 +68,8 @@ private:
     std::unique_ptr<NodesMeshes> nodesMeshes_uptr;
 
     CameraBaseClass* camera_ptr;
+    ViewportFrustum cameraFrustum;
+    ViewportFrustum cullingFrustum;
 
     const uint32_t              swapchainImagesCount;
     const uint32_t              windowWidth;

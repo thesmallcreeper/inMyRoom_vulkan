@@ -75,6 +75,9 @@
     <ClCompile Include="src\Drawer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\ViewportFrustum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -140,12 +143,21 @@
     <ClInclude Include="include\Drawer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\ViewportFrustum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\generalMesh_glsl.frag">
+    <None Include="config.cfg">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="shaders\generalMesh_glsl.vert">
+    <None Include="shaders\zprepassShader_glsl.vert">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shaders\generalShader_glsl.frag">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="shaders\generalShader_glsl.vert">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

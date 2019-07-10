@@ -74,6 +74,15 @@ SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& i
 
         TRSmatrixDescriptorSetGroup_uptr = std::move(new_dsg_ptr);
     }
+
+    for (const glm::mat4x4& this_glm : meshes_by_id_TRS)
+    {
+        math::float4x4 this_mathgeolib(this_glm[0].x, this_glm[1].x, this_glm[2].x, this_glm[3].x,
+                                       this_glm[0].y, this_glm[1].y, this_glm[2].y, this_glm[3].y,
+                                       this_glm[0].z, this_glm[1].z, this_glm[2].z, this_glm[3].z,
+                                       this_glm[0].w, this_glm[1].w, this_glm[2].w, this_glm[3].w );
+        globalTRSperIDMatrixes.push_back(this_mathgeolib);
+    }
 }
 
 SceneNodes::~SceneNodes()
@@ -86,24 +95,34 @@ void SceneNodes::BindNodesMeshes(NodesMeshes* in_nodesMeshes)
     nodesMeshes_ptr = in_nodesMeshes;
 }
 
-std::vector<DrawRequest> SceneNodes::Draw()
+std::vector<DrawRequest> SceneNodes::Draw(const std::array<math::Plane, 6> in_viewport_planes)
 {
     assert(nodesMeshes_ptr != nullptr);
 
     std::vector<DrawRequest> draw_requests;
+
+    PBVolume<in_viewport_planes.size()> frustum_culling;
+    for (size_t this_plane_index = 0; this_plane_index < in_viewport_planes.size(); this_plane_index++)
+        frustum_culling.p[this_plane_index] = in_viewport_planes[this_plane_index];
 
     for (const Node& this_node : nodes)
         if (this_node.isMesh)
         {
             MeshRange this_mesh_range = nodesMeshes_ptr->meshes[this_node.meshIndex];
 
-            for (size_t primitive_index = this_mesh_range.primitiveFirstOffset; primitive_index < this_mesh_range.primitiveFirstOffset + this_mesh_range.primitiveRangeSize; primitive_index++)
-            {
-                DrawRequest this_draw_request;
-                this_draw_request.primitive_index = primitive_index;
-                this_draw_request.meshID = this_node.meshID;
-                draw_requests.emplace_back(this_draw_request);
-            }
+            math::float4x4& this_TRS_matrix = globalTRSperIDMatrixes[this_node.meshID];
+            math::Sphere& this_sphere = this_mesh_range.boundSphere;
+
+            math::CullTestResult culling_test = frustum_culling.InsideOrIntersects(this_TRS_matrix * this_sphere);
+
+            if(culling_test != math::CullTestResult::TestOutside)
+                for (size_t primitive_index = this_mesh_range.primitiveFirstOffset; primitive_index < this_mesh_range.primitiveFirstOffset + this_mesh_range.primitiveRangeSize; primitive_index++)
+                {
+                    DrawRequest this_draw_request;
+                    this_draw_request.primitive_index = primitive_index;
+                    this_draw_request.meshID = this_node.meshID;
+                    draw_requests.emplace_back(this_draw_request);
+                }
         }
 
     return draw_requests;

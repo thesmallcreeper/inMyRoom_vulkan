@@ -1,8 +1,6 @@
 #version 450
 
-#ifdef VERT_POSITION
 layout( location = VERT_POSITION_LOCATION ) in vec4 app_position;
-#endif
 
 
 layout(std140, set = 0 , binding = 0) restrict readonly buffer StorageBuffer0

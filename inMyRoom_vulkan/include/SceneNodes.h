@@ -8,6 +8,8 @@
 #include "wrappers/device.h"
 #include "wrappers/buffer.h"
 
+#include "Math/float4x4.h"
+
 #include "tiny_gltf.h"
 
 #include "NodesMeshes.h"
@@ -42,10 +44,12 @@ public:
     ~SceneNodes();
 
     void BindNodesMeshes(NodesMeshes* in_nodesMeshes);
-    std::vector<DrawRequest> Draw();
+    std::vector<DrawRequest> Draw(const std::array<math::Plane, 6> in_viewport_planes);
 
 public:
 	std::vector<Node> nodes;
+
+    std::vector<math::float4x4> globalTRSperIDMatrixes;
 
     Anvil::DescriptorSetGroupUniquePtr TRSmatrixDescriptorSetGroup_uptr;
     Anvil::BufferUniquePtr globalTRSmatrixesBuffer_uptr;
@@ -63,6 +67,5 @@ private:
     Anvil::BaseDevice* const device_ptr;
 
     NodesMeshes* nodesMeshes_ptr;
-
 
 };
