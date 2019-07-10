@@ -22,7 +22,7 @@ cd MathGeoLib
 if exist "build" rmdir /s/q build
 mkdir build
 cd build
-cmake .. -DMATH_AVX=ON -G "Visual Studio 16 2019"
+cmake .. -G "Visual Studio 16 2019"
 cd ..
 cd ..
 
