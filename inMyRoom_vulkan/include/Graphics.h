@@ -47,7 +47,7 @@ private:
     void InitRenderpasses();
     void InitScene();
     void InitCameraDsg();
-    void InitSemaphores();
+    void InitSemaphoresAndFences();
     void InitCommandBuffers();
 
     void RecordCommandBuffer(uint32_t swapchainImageIndex);
@@ -89,6 +89,8 @@ private:
     std::vector<Anvil::FramebufferUniquePtr>        framebuffers_uptrs;
 
     Anvil::RenderPassUniquePtr                      renderpass_uptr;
+
+    Anvil::FenceUniquePtr                           fence_last_submit_uptr;
 
     uint32_t                      lastSemaphoreUsed;
 

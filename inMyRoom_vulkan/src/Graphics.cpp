@@ -6,6 +6,7 @@
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
 #include "misc/semaphore_create_info.h"
+#include "misc/fence_create_info.h"
 #include "misc/framebuffer_create_info.h"
 #include "misc/render_pass_create_info.h"
 #include "wrappers/rendering_surface.h"
@@ -19,6 +20,7 @@
 #include "wrappers/swapchain.h"
 #include "wrappers/render_pass.h"
 #include "wrappers/semaphore.h"
+#include "wrappers/fence.h"
 
 
 Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
@@ -56,7 +58,7 @@ Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_p
     printf("Initializing renderpasses\n");
     InitRenderpasses();
     printf("Initializing semaphores\n");
-    InitSemaphores();
+    InitSemaphoresAndFences();
     printf("Initializing command buffers\n");
     InitCommandBuffers();
 
@@ -120,7 +122,8 @@ void Graphics::DrawFrame()
         anvil_assert(acquire_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
     }
 
-    Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());   // CPU-GPU sync
+    while(Anvil::Vulkan::vkWaitForFences(device_ptr->get_device_vk(), 1, fence_last_submit_uptr->get_fence_ptr(), VK_TRUE, 1000 * 1000) == VK_TIMEOUT);
+    fence_last_submit_uptr->reset();
 
     camera_ptr->RefreshPublicVectors();     // Input-Main thread data sync
 
@@ -154,7 +157,8 @@ void Graphics::DrawFrame()
                                   1,
                                   &curr_frame_wait_semaphore_ptr,
                                   &wait_stage_mask,
-                                  false /* should_block */)
+                                  false /* should_block */,
+                                  fence_last_submit_uptr.get())
     );
 
     {
@@ -532,7 +536,7 @@ void Graphics::InitImages()
     }
 }
 
-void Graphics::InitSemaphores()
+void Graphics::InitSemaphoresAndFences()
 {
     for (uint32_t n_semaphore = 0;
          n_semaphore < swapchainImagesCount;
@@ -561,6 +565,14 @@ void Graphics::InitSemaphores()
 
         frameSignalSemaphores_uptrs.push_back(std::move(new_signal_semaphore_ptr));
         frameWaitSemaphores_uptrs.push_back(std::move(new_wait_semaphore_ptr));
+    }
+
+    {
+        auto create_info_ptr = Anvil::FenceCreateInfo::create(device_ptr, true);
+
+        fence_last_submit_uptr = Anvil::Fence::create(std::move(create_info_ptr));
+
+        fence_last_submit_uptr->set_name("Fence of last submit");
     }
 }
 
