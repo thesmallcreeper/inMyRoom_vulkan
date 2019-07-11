@@ -3,8 +3,6 @@ project(inMyRoom_vulkan)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${inMyRoom_vulkan_SOURCE_DIR})
 
-set(MATH_AVX ON)                                                           #Enable AVX at MathGeoLib. FM3 and FM4 can be also enabled
-
 add_subdirectory(../Anvil "${CMAKE_CURRENT_BINARY_DIR}/anvil")
 add_subdirectory(../Compressonator/Compressonator/Make "${CMAKE_CURRENT_BINARY_DIR}/compressonator")
 add_subdirectory(../MathGeoLib "${CMAKE_CURRENT_BINARY_DIR}/mathgeolib")
@@ -54,6 +52,7 @@ SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/TexturesImagesUsage.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MaterialsTextures.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MeshesPrimitives.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/ViewportFrustum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/CameraBaseClass.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/NaiveCamera.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/NodesMeshes.h"
@@ -61,6 +60,7 @@ SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/PrimitivesPipelines.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/PrimitivesShaders.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/SceneNodes.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Drawer.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/WindowWithAsyncInput.h"
  
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
@@ -70,6 +70,7 @@ SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/TexturesImagesUsage.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MaterialsTextures.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MeshesPrimitives.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/ViewportFrustum.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/CameraBaseClass.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/NaiveCamera.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/NodesMeshes.cpp"
@@ -77,6 +78,7 @@ SET(SRC "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/PrimitivesPipelines.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/PrimitivesShaders.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/SceneNodes.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Drawer.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/WindowWithAsyncInput.cpp"
  
         "${inMyRoom_vulkan_SOURCE_DIR}/src/main.cpp")
