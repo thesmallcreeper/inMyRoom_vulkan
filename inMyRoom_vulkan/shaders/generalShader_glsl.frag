@@ -39,7 +39,7 @@ layout (set = 2, binding = 1) uniform sampler2D base_color_texture;
 
 void main() 
 {
-    frag_color = vec4(0.0, 0.0, 0.0, 1.0);
+    frag_color = vec4(1.0, 1.0, 1.0, 1.0);
     #ifdef USE_BASE_COLOR_TEXTURE_TEXCOORD0
     {
         vec4 text_color= texture(base_color_texture, vert_texcoord0).rgba;

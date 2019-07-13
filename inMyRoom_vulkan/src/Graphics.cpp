@@ -418,15 +418,15 @@ void Graphics::InitScene()
     // Initialize pipeline reuse map
     printf("-Initializing primitivesPipelines\n");
     primitivesPipelines_uptr = std::make_unique<PrimitivesPipelines>(device_ptr);
-    // Create scene nodes
-    printf("-Initializing sceneNodes\n");
-    sceneNodes_uptr = std::make_unique<SceneNodes>(model, scene, device_ptr);
     // Initialize models-primtives handler to GPU
     printf("-Initializing meshesPrimitives\n");
     meshesPrimitives_uptr = std::make_unique<MeshesPrimitives>(primitivesPipelines_uptr.get(), primitivesShaders_uptr.get(), primitivesMaterials_uptr.get(), device_ptr);
     // For every mesh copy primitives of it to GPU
     printf("-Initializing nodesMeshes\n");
     nodesMeshes_uptr = std::make_unique<NodesMeshes>(model, meshesPrimitives_uptr.get(), device_ptr);
+    // Create scene nodes
+    printf("-Initializing sceneNodes\n");
+    sceneNodes_uptr = std::make_unique<SceneNodes>(model, scene, nodesMeshes_uptr.get(), device_ptr);
     // Create primitives sets (shaders-pipelines for each kind of primitive)
     {
         std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetCreateInfos;
@@ -450,8 +450,6 @@ void Graphics::InitScene()
             texturePassSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, Anvil::CompareOp::EQUAL, false, &descriptorSetCreateInfos, renderpass_uptr.get(), textureSubpassID);
         }
     }
-    // Bind meshes to nodes
-    sceneNodes_uptr->BindNodesMeshes(nodesMeshes_uptr.get());
 }
 
 

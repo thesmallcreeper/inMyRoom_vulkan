@@ -1,13 +1,13 @@
 #pragma once
 #include <vector>
 
+#include "tiny_gltf.h"
+
 #include "wrappers/device.h"
 #include "wrappers/descriptor_set.h"
 #include "wrappers/command_buffer.h"
 
-#include "MathGeoLib.h"
-
-#include "tiny_gltf.h"
+#include "Geometry/Sphere.h"
 
 #include "MeshesPrimitives.h"
 

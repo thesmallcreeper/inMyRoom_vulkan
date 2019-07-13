@@ -52,16 +52,22 @@ void VulkanInit::InitVulkan()
 
 
     {
-        /* Determine which extensions we need to request for */
+        /* Determine which layers we need to request for */
         std::vector<std::string> vulkan_layers;
 
+        /* Determine which extensions we need to request for */
+        Anvil::DeviceExtensionConfiguration vk_extensions;
+#ifdef ENABLE_VALIDATION
+        vk_extensions.extension_status[VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME] = Anvil::ExtensionAvailability::ENABLE_IF_AVAILABLE;
+#endif
         /* Create a Vulkan device */
+
         auto create_info_ptr = Anvil::DeviceCreateInfo::create_sgpu(instance_uptr->get_physical_device(0),
                                                                     true, /* in_enable_shader_module_cache */
-                                                                    Anvil::DeviceExtensionConfiguration(),
-                                                                    vulkan_layers, /* in_layers                               */
+                                                                    vk_extensions,
+                                                                    vulkan_layers, /* in_layers */
                                                                     Anvil::CommandPoolCreateFlagBits::CREATE_RESET_COMMAND_BUFFER_BIT, /* in_transient_command_buffer_allocs_only */
-                                                                    false); /* in_support_resettable_command_buffers   */
+                                                                    false); 
 
         device_uptr = Anvil::SGPUDevice::create(std::move(create_info_ptr));
     }

@@ -15,13 +15,13 @@ if (MSVC)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     set(relFlags "/Ox /Ob2 /Oi /Ot /GT /GF /GS- /fp:fast /fp:except- /MP")
     set(relLinkFlags "/OPT:ICF /INCREMENTAL:NO")
-	set(relFlags "${relFlags} /GL")
-	set(relLinkFlags "${relLinkFlags} /LTCG")
-	set(CMAKE_C_FLAGS_RELEASE     "${CMAKE_C_FLAGS_RELEASE} /Oy ${relFlags}")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Oy ${relFlags}")
-	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${relLinkFlags}")
-	set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} ${relLinkFlags}")
-	set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} ${relLinkFlags}")
+    set(relFlags "${relFlags} /GL")
+    set(relLinkFlags "${relLinkFlags} /LTCG")
+    set(CMAKE_C_FLAGS_RELEASE     "${CMAKE_C_FLAGS_RELEASE} /Oy ${relFlags}")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Oy ${relFlags}")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} ${relLinkFlags}")
+    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} ${relLinkFlags}")
+    set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} ${relLinkFlags}")
 else ()
     add_definitions(-mavx -march=corei7-avx -mtune=corei7-avx)
     set(OPT_FLAGS "-O3 -ffast-math")
@@ -31,7 +31,16 @@ endif()
 
 find_package(Threads REQUIRED)
 
-target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
+##target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
+
+if (WIN32)
+    include_directories($ENV{VK_SDK_PATH}/Include
+                        $ENV{VULKAN_SDK}/Include)
+else()
+    include_directories($ENV{VK_SDK_PATH}/x86_64/include
+                        $ENV{VULKAN_SDK}/include
+                        $ENV{VULKAN_SDK}/x86_64/include)
+endif()
 
 include_directories(
         ../Anvil/include                                                   #Include Anvil

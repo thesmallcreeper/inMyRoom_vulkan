@@ -1,5 +1,6 @@
 #include "SceneNodes.h"
 
+#include <stack>
 #include <cassert>
 
 #include "glm/gtc/matrix_transform.hpp"
@@ -7,46 +8,73 @@
 
 
 SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& in_scene,
-                       Anvil::BaseDevice* const in_device_ptr)
-    : device_ptr(in_device_ptr)
+                       NodesMeshes* in_nodesMeshes_ptr, Anvil::BaseDevice* const in_device_ptr)
+    :nodesMeshes_ptr(in_nodesMeshes_ptr),
+     device_ptr(in_device_ptr)
 {
     std::vector<glm::mat4> meshes_by_id_TRS;
+
+    NodeRef root_emtry_node;
+    uint32_t emtry_node_childrenCount = 0;      // Useful hack
+
+    nodes.emplace_back(root_emtry_node);
 
     for (size_t i : in_scene.nodes)
     {
         const tinygltf::Node& this_node = in_model.nodes[i];
-        const glm::mat4 node_global_trs_matrix = CreateTRSmatrix(this_node);
+        const glm::mat4 parent_global_trs_matrix = CreateTRSmatrix(this_node);
 
-        Node root_node;
-        root_node.globalTRSmatrix = node_global_trs_matrix;
+        NodeRef root_nodeRef;
+
+        math::AABB this_AABB;
+        this_AABB.SetNegativeInfinity();
 
         if (this_node.mesh > -1)
         {
-            root_node.isMesh = true;
-            root_node.meshID = static_cast<uint32_t>(meshes_by_id_TRS.size());
-            root_node.meshIndex = this_node.mesh;
 
-            nodes.emplace_back(root_node);
-            meshes_by_id_TRS.emplace_back(node_global_trs_matrix);
+            math::float4x4 parent_math_trs_matrix(parent_global_trs_matrix[0].x, parent_global_trs_matrix[1].x, parent_global_trs_matrix[2].x, parent_global_trs_matrix[3].x,
+                                                  parent_global_trs_matrix[0].y, parent_global_trs_matrix[1].y, parent_global_trs_matrix[2].y, parent_global_trs_matrix[3].y,
+                                                  parent_global_trs_matrix[0].z, parent_global_trs_matrix[1].z, parent_global_trs_matrix[2].z, parent_global_trs_matrix[3].z,
+                                                  parent_global_trs_matrix[0].w, parent_global_trs_matrix[1].w, parent_global_trs_matrix[2].w, parent_global_trs_matrix[3].w);
+
+            root_nodeRef.isMesh = true;
+            root_nodeRef.meshID = static_cast<uint32_t>(meshes_by_id_TRS.size());
+            root_nodeRef.meshIndex = this_node.mesh;
+            root_nodeRef.globalTRSmatrix = parent_math_trs_matrix;
+
+            this_AABB.Enclose(parent_math_trs_matrix * nodesMeshes_ptr->meshes[this_node.mesh].boundSphere);  //useless
+
+            emtry_node_childrenCount++;
+
+            nodes.emplace_back(root_nodeRef);
+            meshes_by_id_TRS.emplace_back(parent_global_trs_matrix);
         }
         else if (!this_node.children.empty())
         {
-            root_node.isMesh = false;
-            root_node.childrenCount = static_cast<uint32_t>(this_node.children.size());
+            root_nodeRef.isMesh = false;
+            root_nodeRef.childrenCount = static_cast<uint32_t>(this_node.children.size());
+
+            emtry_node_childrenCount++;
 
             const size_t node_index = nodes.size();
-            nodes.emplace_back(root_node);
+            nodes.emplace_back(root_nodeRef);
 
-            uint32_t node_and_children_size(0);
+            size_t size_of_nodes_vector_before = nodes.size();
             for (int this_child : this_node.children)
             {
-                node_and_children_size += AddNode(in_model, in_model.nodes[this_child], node_global_trs_matrix,
-                                                  std::ref(meshes_by_id_TRS));
+                math::AABB returned_AABB = AddNode(in_model, in_model.nodes[this_child], parent_global_trs_matrix,
+                                                   std::ref(meshes_by_id_TRS));
+
+                this_AABB.Enclose(returned_AABB);
             }
 
-            nodes[node_index].nodeAndChildrenSize = node_and_children_size;
+            size_t size_of_nodes_vector_after = nodes.size();
+            nodes[node_index].nodeAndChildrenSize = size_of_nodes_vector_after - size_of_nodes_vector_before;
+            nodes[node_index].globalAABB = this_AABB;
         }
     }
+
+    nodes[0].childrenCount = emtry_node_childrenCount;
 
     globalTRSmatrixesCount = meshes_by_id_TRS.size();
     globalTRSmatrixesBuffer_uptr = CreateBufferForTRSmatrixesAndCopy(meshes_by_id_TRS);
@@ -74,15 +102,6 @@ SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& i
 
         TRSmatrixDescriptorSetGroup_uptr = std::move(new_dsg_ptr);
     }
-
-    for (const glm::mat4x4& this_glm : meshes_by_id_TRS)
-    {
-        math::float4x4 this_mathgeolib(this_glm[0].x, this_glm[1].x, this_glm[2].x, this_glm[3].x,
-                                       this_glm[0].y, this_glm[1].y, this_glm[2].y, this_glm[3].y,
-                                       this_glm[0].z, this_glm[1].z, this_glm[2].z, this_glm[3].z,
-                                       this_glm[0].w, this_glm[1].w, this_glm[2].w, this_glm[3].w );
-        globalTRSperIDMatrixes.push_back(this_mathgeolib);
-    }
 }
 
 SceneNodes::~SceneNodes()
@@ -90,82 +109,124 @@ SceneNodes::~SceneNodes()
     globalTRSmatrixesBuffer_uptr.reset();
 }
 
-void SceneNodes::BindNodesMeshes(NodesMeshes* in_nodesMeshes)
+math::AABB SceneNodes::AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_gltf_node,
+                               const glm::mat4 parentTRSmatrix, std::vector<glm::mat4>& meshesByIdTRS)
 {
-    nodesMeshes_ptr = in_nodesMeshes;
+    glm::mat4 node_local_trs_matrix = CreateTRSmatrix(in_gltf_node);
+    glm::mat4 this_global_trs_matrix = parentTRSmatrix * node_local_trs_matrix;
+
+    NodeRef this_nodeRef;
+
+    math::AABB this_AABB;
+    this_AABB.SetNegativeInfinity();
+
+    if (in_gltf_node.mesh > -1)
+    {
+
+        math::float4x4 parent_math_trs_matrix(this_global_trs_matrix[0].x, this_global_trs_matrix[1].x, this_global_trs_matrix[2].x, this_global_trs_matrix[3].x,
+                                              this_global_trs_matrix[0].y, this_global_trs_matrix[1].y, this_global_trs_matrix[2].y, this_global_trs_matrix[3].y,
+                                              this_global_trs_matrix[0].z, this_global_trs_matrix[1].z, this_global_trs_matrix[2].z, this_global_trs_matrix[3].z,
+                                              this_global_trs_matrix[0].w, this_global_trs_matrix[1].w, this_global_trs_matrix[2].w, this_global_trs_matrix[3].w);
+
+        this_nodeRef.isMesh = true;
+        this_nodeRef.meshID = static_cast<uint32_t>(meshesByIdTRS.size());
+        this_nodeRef.meshIndex = in_gltf_node.mesh;
+        this_nodeRef.globalTRSmatrix = parent_math_trs_matrix;
+
+        this_AABB.Enclose(parent_math_trs_matrix * nodesMeshes_ptr->meshes[in_gltf_node.mesh].boundSphere);
+
+        nodes.emplace_back(this_nodeRef);
+        meshesByIdTRS.emplace_back(this_global_trs_matrix);
+    }
+    else if (!in_gltf_node.children.empty())
+    {
+        this_nodeRef.isMesh = false;
+        this_nodeRef.childrenCount = static_cast<uint32_t>(in_gltf_node.children.size());
+
+        size_t node_index = nodes.size();
+        nodes.emplace_back(this_nodeRef);
+
+        size_t size_of_nodes_vector_before = nodes.size();
+        for (size_t i = 0; i < in_gltf_node.children.size(); i++)
+        {
+            math::AABB returned_AABB = AddNode(in_model, in_model.nodes[in_gltf_node.children[i]], this_global_trs_matrix,
+                                               std::ref(meshesByIdTRS));
+
+            this_AABB.Enclose(returned_AABB);
+        }
+
+        size_t size_of_nodes_vector_after = nodes.size();
+        nodes[node_index].nodeAndChildrenSize = size_of_nodes_vector_after - size_of_nodes_vector_before;
+        nodes[node_index].globalAABB = this_AABB;
+    }
+
+    return this_AABB;
 }
 
 std::vector<DrawRequest> SceneNodes::Draw(const std::array<math::Plane, 6> in_viewport_planes)
 {
-    assert(nodesMeshes_ptr != nullptr);
-
     std::vector<DrawRequest> draw_requests;
 
-    PBVolume<in_viewport_planes.size()> frustum_culling;
+    PBVolume<in_viewport_planes.size()> frustum_culling;        // Set up frustum culling
     for (size_t this_plane_index = 0; this_plane_index < in_viewport_planes.size(); this_plane_index++)
         frustum_culling.p[this_plane_index] = in_viewport_planes[this_plane_index];
 
-    for (const Node& this_node : nodes)
-        if (this_node.isMesh)
+    size_t index = 0;
+
+    std::stack<NodeRecursive> depth_nodes_stack;
+   
+    // root
+    NodeRecursive root_node_state;
+    root_node_state.childrenCount = nodes[index].childrenCount;
+    root_node_state.childrenSoFar = 0;
+
+    depth_nodes_stack.push(root_node_state);
+    index++;
+
+    while (depth_nodes_stack.size())
+    {
+        if (depth_nodes_stack.top().childrenSoFar != depth_nodes_stack.top().childrenCount)
         {
-            MeshRange this_mesh_range = nodesMeshes_ptr->meshes[this_node.meshIndex];
+            depth_nodes_stack.top().childrenSoFar++;
 
-            math::float4x4& this_TRS_matrix = globalTRSperIDMatrixes[this_node.meshID];
-            math::Sphere& this_sphere = this_mesh_range.boundSphere;
+            NodeRef& this_node = nodes[index];
 
-            math::CullTestResult culling_test = frustum_culling.InsideOrIntersects(this_TRS_matrix * this_sphere);
+            if (this_node.isMesh)
+            {
+                const MeshRange& this_mesh_range = nodesMeshes_ptr->meshes[this_node.meshIndex];
 
-            if(culling_test != math::CullTestResult::TestOutside)
-                for (size_t primitive_index = this_mesh_range.primitiveFirstOffset; primitive_index < this_mesh_range.primitiveFirstOffset + this_mesh_range.primitiveRangeSize; primitive_index++)
-                {
-                    DrawRequest this_draw_request;
-                    this_draw_request.primitive_index = primitive_index;
-                    this_draw_request.meshID = this_node.meshID;
-                    draw_requests.emplace_back(this_draw_request);
-                }
+                const math::float4x4& this_TRS_matrix = this_node.globalTRSmatrix;
+                const math::Sphere& this_sphere = this_mesh_range.boundSphere;
+
+                if (frustum_culling.InsideOrIntersects(this_TRS_matrix * this_sphere) != math::CullTestResult::TestOutside) // per mesh-object sphere culling
+                    for (size_t primitive_index = this_mesh_range.primitiveFirstOffset; primitive_index < this_mesh_range.primitiveFirstOffset + this_mesh_range.primitiveRangeSize; primitive_index++)
+                    {
+                        DrawRequest this_draw_request;
+                        this_draw_request.primitive_index = primitive_index;
+                        this_draw_request.meshID = this_node.meshID;
+                        draw_requests.emplace_back(this_draw_request);
+                    }
+
+                index++;
+            }
+            else if (frustum_culling.InsideOrIntersects(this_node.globalAABB) != math::CullTestResult::TestOutside) // per node AABB frustum culling
+            {
+                NodeRecursive entering_node_state;
+                entering_node_state.childrenCount = this_node.childrenCount;
+                entering_node_state.childrenSoFar = 0;
+
+                depth_nodes_stack.push(entering_node_state);
+
+                index++;
+            }
+            else
+                index += this_node.nodeAndChildrenSize;
+
         }
-
+        else
+            depth_nodes_stack.pop();
+    }
     return draw_requests;
-}
-
-uint32_t SceneNodes::AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_node,
-                             const glm::mat4 parentTRSmatrix, std::vector<glm::mat4>& meshesByIdTRS)
-{
-    glm::mat4 node_local_trs_matrix = CreateTRSmatrix(in_node);
-    glm::mat4 parent_trs_matrix = parentTRSmatrix * node_local_trs_matrix;
-
-    Node thisNode;
-    thisNode.globalTRSmatrix = parent_trs_matrix;
-
-    uint32_t nodeAndChildrenSize(1);
-
-    if (in_node.mesh > -1)
-    {
-        thisNode.isMesh = true;
-        thisNode.meshID = static_cast<uint32_t>(meshesByIdTRS.size());
-        thisNode.meshIndex = in_node.mesh;
-
-        nodes.emplace_back(thisNode);
-        meshesByIdTRS.emplace_back(parent_trs_matrix);
-    }
-    else if (!in_node.children.empty())
-    {
-        thisNode.isMesh = false;
-        thisNode.childrenCount = static_cast<uint32_t>(in_node.children.size());
-
-        size_t nodeIndex = nodes.size();
-        nodes.emplace_back(thisNode);
-
-        for (size_t i = 0; i < in_node.children.size(); i++)
-        {
-            nodeAndChildrenSize += AddNode(in_model, in_model.nodes[in_node.children[i]], parent_trs_matrix,
-                                           std::ref(meshesByIdTRS));
-        }
-
-        nodes[nodeIndex].nodeAndChildrenSize = nodeAndChildrenSize;
-    }
-
-    return nodeAndChildrenSize;
 }
 
 Anvil::BufferUniquePtr SceneNodes::CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS) const
