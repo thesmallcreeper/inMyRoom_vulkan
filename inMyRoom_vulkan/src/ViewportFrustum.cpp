@@ -45,7 +45,7 @@ void ViewportFrustum::UpdateViewMatrix(glm::vec3 in_camera_position,
 std::array<math::Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
 {
     // Copyied and modified code from here: https://github.com/SaschaWillems/Vulkan/blob/master/base/frustum.hpp
-    // Creator's copyrights: (idfk what MIT license is... maybe a prison next to MIT in which I will end up going after copying his code)
+    // Creator's copyrights:
     /*
     *View frustum culling class
         *
