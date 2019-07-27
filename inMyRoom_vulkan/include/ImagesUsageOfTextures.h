@@ -14,11 +14,11 @@ enum class ImageUsage
     emissive
 };
 
-class TexturesImagesUsage
+class ImagesUsageOfTextures
 {
 public:
-    TexturesImagesUsage(tinygltf::Model& in_model);
-    ~TexturesImagesUsage();
+    ImagesUsageOfTextures(tinygltf::Model& in_model);
+    ~ImagesUsageOfTextures();
 
 public:
     std::vector<ImageUsage> imagesUsage;

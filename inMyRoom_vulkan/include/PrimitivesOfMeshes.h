@@ -8,9 +8,9 @@
 
 #include "tiny_gltf.h"
 
-#include "PrimitivesPipelines.h"
-#include "PrimitivesMaterials.h"
-#include "PrimitivesShaders.h"
+#include "PipelinesOfPrimitives.h"
+#include "MaterialsOfPrimitives.h"
+#include "ShadersOfPrimitives.h"
 
 struct PrimitiveInitInfo
 {
@@ -43,13 +43,13 @@ struct PrimitiveInfo
     Anvil::PipelineLayout* pipelineLayout_ptr = nullptr;
 };
 
-class MeshesPrimitives
+class PrimitivesOfMeshes
 {
 public:
-    MeshesPrimitives(PrimitivesPipelines* in_primitivesPipelines_ptr, PrimitivesShaders* in_primitivesShaders_ptr,
-                     PrimitivesMaterials* in_primitivesMaterials_ptr,
-                     Anvil::BaseDevice* const in_device_ptr);
-    ~MeshesPrimitives();
+    PrimitivesOfMeshes(PipelinesOfPrimitives* in_pipelinesOfPrimitives_ptr, ShadersOfPrimitives* in_shadersOfPrimitives_ptr,
+                       MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
+                       Anvil::BaseDevice* const in_device_ptr);
+    ~PrimitivesOfMeshes();
 
     void AddPrimitive(tinygltf::Model& in_model, tinygltf::Primitive& in_primitive);
     void FlashBuffersToDevice();
@@ -87,9 +87,9 @@ private:
 private:
     Anvil::BaseDevice* const device_ptr;
 
-    PrimitivesPipelines* primitivesPipelines_ptr;
-    PrimitivesShaders* primitivesShaders_ptr;
-    PrimitivesMaterials* primitivesMaterials_ptr;
+    PipelinesOfPrimitives* pipelinesOfPrimitives_ptr;
+    ShadersOfPrimitives* shadersOfPrimitives_ptr;
+    MaterialsOfPrimitives* materialsOfPrimitives_ptr;
 
     Anvil::MemoryAllocatorUniquePtr allocator_ptr;
 };

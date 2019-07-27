@@ -22,7 +22,7 @@ public:
 
     void RefreshPublicVectors();
 
-    void ToggleCullingDubugging();
+    void ToggleCullingDebugging();
 
     void MoveCamera(float xRotation_rads, float yRotation_rads);
 

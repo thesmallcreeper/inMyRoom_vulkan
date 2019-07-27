@@ -3,8 +3,8 @@
 #include <limits>
 #include <cassert>
 
-Drawer::Drawer(sorting in_sorting_method, size_t in_pipelineSetIndex, MeshesPrimitives* in_meshPrimitives_ptr, Anvil::BaseDevice* const in_device_ptr)
-    :meshesPrimitives_ptr(in_meshPrimitives_ptr),
+Drawer::Drawer(sorting in_sorting_method, size_t in_pipelineSetIndex, PrimitivesOfMeshes* in_primitivesOfMeshes_ptr, Anvil::BaseDevice* const in_device_ptr)
+    :meshesPrimitives_ptr(in_primitivesOfMeshes_ptr),
      sortingMethod(in_sorting_method),
      pipelineSetIndex(in_pipelineSetIndex),
      device_ptr(in_device_ptr)
@@ -227,7 +227,7 @@ void Drawer::DrawCall(CommandBufferState& command_buffer_state, Anvil::PrimaryCo
                                            1, /* in_instance_count */
                                            first_index, /* in_first_index    */
                                            vertex_offset, /* in_vertex_offset  */
-                                           draw_request.meshID); /* in_first_instance_ID */
+                                           draw_request.objectID); /* in_first_instance_ID */
 }
 
 size_t Drawer::GetSizeOfComponent(glTFcomponentType component_type) const

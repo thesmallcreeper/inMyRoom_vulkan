@@ -1,4 +1,4 @@
-#include "SceneNodes.h"
+#include "NodesOfScene.h"
 
 #include <stack>
 #include <cassert>
@@ -7,9 +7,9 @@
 #include "glm/gtx/quaternion.hpp"
 
 
-SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& in_scene,
-                       NodesMeshes* in_nodesMeshes_ptr, Anvil::BaseDevice* const in_device_ptr)
-    :nodesMeshes_ptr(in_nodesMeshes_ptr),
+NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scene& in_scene,
+                           MeshesOfNodes* in_meshesOfNodes_ptr, Anvil::BaseDevice* const in_device_ptr)
+    :meshesOfNodes_ptr(in_meshesOfNodes_ptr),
      device_ptr(in_device_ptr)
 {
     std::vector<glm::mat4> meshes_by_id_TRS;
@@ -38,11 +38,11 @@ SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& i
                                                   parent_global_trs_matrix[0].w, parent_global_trs_matrix[1].w, parent_global_trs_matrix[2].w, parent_global_trs_matrix[3].w);
 
             root_nodeRef.isMesh = true;
-            root_nodeRef.meshID = static_cast<uint32_t>(meshes_by_id_TRS.size());
+            root_nodeRef.objectID = static_cast<uint32_t>(meshes_by_id_TRS.size());
             root_nodeRef.meshIndex = this_node.mesh;
             root_nodeRef.globalTRSmatrix = parent_math_trs_matrix;
 
-            this_AABB.Enclose(parent_math_trs_matrix * nodesMeshes_ptr->meshes[this_node.mesh].boundSphere);  //useless
+            this_AABB.Enclose(parent_math_trs_matrix * meshesOfNodes_ptr->meshes[this_node.mesh].boundSphere);  //useless
 
             emtry_node_childrenCount++;
 
@@ -104,12 +104,12 @@ SceneNodes::SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& i
     }
 }
 
-SceneNodes::~SceneNodes()
+NodesOfScene::~NodesOfScene()
 {
     globalTRSmatrixesBuffer_uptr.reset();
 }
 
-math::AABB SceneNodes::AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_gltf_node,
+math::AABB NodesOfScene::AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_gltf_node,
                                const glm::mat4 parentTRSmatrix, std::vector<glm::mat4>& meshesByIdTRS)
 {
     glm::mat4 node_local_trs_matrix = CreateTRSmatrix(in_gltf_node);
@@ -129,11 +129,11 @@ math::AABB SceneNodes::AddNode(const tinygltf::Model& in_model, const tinygltf::
                                               this_global_trs_matrix[0].w, this_global_trs_matrix[1].w, this_global_trs_matrix[2].w, this_global_trs_matrix[3].w);
 
         this_nodeRef.isMesh = true;
-        this_nodeRef.meshID = static_cast<uint32_t>(meshesByIdTRS.size());
+        this_nodeRef.objectID = static_cast<uint32_t>(meshesByIdTRS.size());
         this_nodeRef.meshIndex = in_gltf_node.mesh;
         this_nodeRef.globalTRSmatrix = parent_math_trs_matrix;
 
-        this_AABB.Enclose(parent_math_trs_matrix * nodesMeshes_ptr->meshes[in_gltf_node.mesh].boundSphere);
+        this_AABB.Enclose(parent_math_trs_matrix * meshesOfNodes_ptr->meshes[in_gltf_node.mesh].boundSphere);
 
         nodes.emplace_back(this_nodeRef);
         meshesByIdTRS.emplace_back(this_global_trs_matrix);
@@ -163,7 +163,7 @@ math::AABB SceneNodes::AddNode(const tinygltf::Model& in_model, const tinygltf::
     return this_AABB;
 }
 
-std::vector<DrawRequest> SceneNodes::Draw(const std::array<math::Plane, 6> in_viewport_planes)
+std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<math::Plane, 6> in_viewport_planes)
 {
     std::vector<DrawRequest> draw_requests;
 
@@ -193,7 +193,7 @@ std::vector<DrawRequest> SceneNodes::Draw(const std::array<math::Plane, 6> in_vi
 
             if (this_node.isMesh)
             {
-                const MeshRange& this_mesh_range = nodesMeshes_ptr->meshes[this_node.meshIndex];
+                const MeshRange& this_mesh_range = meshesOfNodes_ptr->meshes[this_node.meshIndex];
 
                 const math::float4x4& this_TRS_matrix = this_node.globalTRSmatrix;
                 const math::Sphere& this_sphere = this_mesh_range.boundSphere;
@@ -203,7 +203,7 @@ std::vector<DrawRequest> SceneNodes::Draw(const std::array<math::Plane, 6> in_vi
                     {
                         DrawRequest this_draw_request;
                         this_draw_request.primitive_index = primitive_index;
-                        this_draw_request.meshID = this_node.meshID;
+                        this_draw_request.objectID = this_node.objectID;
                         draw_requests.emplace_back(this_draw_request);
                     }
 
@@ -229,7 +229,7 @@ std::vector<DrawRequest> SceneNodes::Draw(const std::array<math::Plane, 6> in_vi
     return draw_requests;
 }
 
-Anvil::BufferUniquePtr SceneNodes::CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS) const
+Anvil::BufferUniquePtr NodesOfScene::CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS) const
 {
     auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
                                                                     meshesByIdTRS.size() * sizeof(glm::mat4),
@@ -252,7 +252,7 @@ Anvil::BufferUniquePtr SceneNodes::CreateBufferForTRSmatrixesAndCopy(const std::
     return std::move(buffer_ptr);
 }
 
-glm::mat4 SceneNodes::CreateTRSmatrix(const tinygltf::Node& in_node) const
+glm::mat4 NodesOfScene::CreateTRSmatrix(const tinygltf::Node& in_node) const
 {
     if (in_node.matrix.size() == 16)
     {

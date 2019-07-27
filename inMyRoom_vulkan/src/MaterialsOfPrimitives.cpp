@@ -1,11 +1,11 @@
-#include "PrimitivesMaterials.h"
+#include "MaterialsOfPrimitives.h"
 
 #include "glm/vec4.hpp"
 
-PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTextures* in_materialsTextures_ptr,
-                                         Anvil::BaseDevice* const in_device_ptr)
+MaterialsOfPrimitives::MaterialsOfPrimitives(tinygltf::Model& in_model, TexturesOfMaterials* in_materialsTextures_ptr,
+                                             Anvil::BaseDevice* const in_device_ptr)
     :
-    materialsTextures_ptr(in_materialsTextures_ptr),
+    texturesOfMaterials_ptr(in_materialsTextures_ptr),
     device_ptr(in_device_ptr)
 {
     if (!in_model.materials.empty())
@@ -70,7 +70,7 @@ PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTex
 
                     auto this_baseColorTextureIndex = search->second.TextureIndex();
 
-                    TextureInfo this_texture_info = materialsTextures_ptr->texturesInfos[this_baseColorTextureIndex];
+                    TextureInfo this_texture_info = texturesOfMaterials_ptr->texturesInfos[this_baseColorTextureIndex];
 
                     this_descriptorSetCreateInfo_ptr->add_binding(bindingCount++,
                                                                   Anvil::DescriptorType::COMBINED_IMAGE_SAMPLER,
@@ -79,8 +79,8 @@ PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTex
 
                     Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(
                         Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                        materialsTextures_ptr->imagesViews_upts[this_texture_info.imageIndex].get(),
-                        materialsTextures_ptr->samplers_uptrs[this_texture_info.samplerIndex].get()
+                        texturesOfMaterials_ptr->imagesViews_upts[this_texture_info.imageIndex].get(),
+                        texturesOfMaterials_ptr->samplers_uptrs[this_texture_info.samplerIndex].get()
                     );
 
                     this_loop_textures_bindings.emplace_back(this_texture_bind);
@@ -141,13 +141,13 @@ PrimitivesMaterials::PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTex
     }
 }
 
-PrimitivesMaterials::~PrimitivesMaterials()
+MaterialsOfPrimitives::~MaterialsOfPrimitives()
 {
     materialsDescriptorSetGroup_uptr.reset();
     materialsShadersSpecs.clear();
 }
 
-Anvil::BufferUniquePtr PrimitivesMaterials::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer, Anvil::BufferUsageFlagBits in_bufferusageflag) const
+Anvil::BufferUniquePtr MaterialsOfPrimitives::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer, Anvil::BufferUsageFlagBits in_bufferusageflag) const
 {
     auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
                                                                     in_localBuffer.size(),

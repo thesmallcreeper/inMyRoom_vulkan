@@ -14,14 +14,14 @@
 #include "CameraBaseClass.h"
 #include "ViewportFrustum.h"
 
-#include "TexturesImagesUsage.h"
-#include "MaterialsTextures.h"
-#include "PrimitivesMaterials.h"
-#include "PrimitivesShaders.h"
-#include "PrimitivesPipelines.h"
-#include "SceneNodes.h"
-#include "MeshesPrimitives.h"
-#include "NodesMeshes.h"
+#include "ImagesUsageOfTextures.h"
+#include "TexturesOfMaterials.h"
+#include "MaterialsOfPrimitives.h"
+#include "ShadersOfPrimitives.h"
+#include "PipelinesOfPrimitives.h"
+#include "NodesOfScene.h"
+#include "PrimitivesOfMeshes.h"
+#include "MeshesOfNodes.h"
 #include "Drawer.h"
 
 class Graphics
@@ -58,14 +58,14 @@ private:
 
     tinygltf::Model model;
 
-    std::unique_ptr<TexturesImagesUsage> texturesImagesUsage_uptr;
-    std::unique_ptr<MaterialsTextures> materialsTextures_uptr;
-    std::unique_ptr<PrimitivesMaterials> primitivesMaterials_uptr;
-    std::unique_ptr<PrimitivesShaders> primitivesShaders_uptr;
-    std::unique_ptr<PrimitivesPipelines> primitivesPipelines_uptr;
-    std::unique_ptr<SceneNodes> sceneNodes_uptr;
-    std::unique_ptr<MeshesPrimitives> meshesPrimitives_uptr;
-    std::unique_ptr<NodesMeshes> nodesMeshes_uptr;
+    std::unique_ptr<ImagesUsageOfTextures> imagesUsageOfTextures_uptr;
+    std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;
+    std::unique_ptr<MaterialsOfPrimitives> materialsOfPrimitives_uptr;
+    std::unique_ptr<ShadersOfPrimitives> shadersOfPrimitives_uptr;
+    std::unique_ptr<PipelinesOfPrimitives> pipelinesOfPrimitives_uptr;
+    std::unique_ptr<NodesOfScene> nodesOfScene_uptr;
+    std::unique_ptr<PrimitivesOfMeshes> primitivesOfMeshes_uptr;
+    std::unique_ptr<MeshesOfNodes> meshesOfNodes_uptr;
 
     CameraBaseClass* camera_ptr;
     ViewportFrustum cameraFrustum;

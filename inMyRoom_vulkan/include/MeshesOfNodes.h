@@ -9,7 +9,7 @@
 
 #include "Geometry/Sphere.h"
 
-#include "MeshesPrimitives.h"
+#include "PrimitivesOfMeshes.h"
 
 struct MeshRange
 {
@@ -19,17 +19,17 @@ struct MeshRange
 };
 
 
-class NodesMeshes
+class MeshesOfNodes
 {
 public:
-    NodesMeshes(tinygltf::Model& in_model, MeshesPrimitives* in_meshesPrimitives_ptr,
+    MeshesOfNodes(tinygltf::Model& in_model, PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
                 Anvil::BaseDevice* const in_device_ptr);
-    ~NodesMeshes();
+    ~MeshesOfNodes();
 
     std::vector<MeshRange> meshes;
 
 private:
     Anvil::BaseDevice* const device_ptr;
 
-    MeshesPrimitives* meshesPrimitives_ptr;
+    PrimitivesOfMeshes* primitivesOfMeshes_ptr;
 };

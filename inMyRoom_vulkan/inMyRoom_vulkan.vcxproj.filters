@@ -42,30 +42,6 @@
     <ClCompile Include="src\InputManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\PrimitivesPipelines.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\SceneNodes.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\MeshesPrimitives.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PrimitivesShaders.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\MaterialsTextures.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PrimitivesMaterials.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\NodesMeshes.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\TexturesImagesUsage.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="src\CameraBaseClass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -77,6 +53,30 @@
     </ClCompile>
     <ClCompile Include="src\ViewportFrustum.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\TexturesOfMaterials.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PrimitivesOfMeshes.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MeshesOfNodes.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MaterialsOfPrimitives.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PipelinesOfPrimitives.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ShadersOfPrimitives.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\NodesOfScene.cpp">
+      <Filter>Source Files\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ImagesUsageOfTextures.cpp">
+      <Filter>Source Files\Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -98,9 +98,6 @@
     <ClInclude Include="..\Configuru\configuru.hpp">
       <Filter>Header Files\Header-only</Filter>
     </ClInclude>
-    <ClInclude Include="include\PrimitivesPipelines.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="include\glTFenum.h">
       <Filter>Header Files\Header-only</Filter>
     </ClInclude>
@@ -110,29 +107,8 @@
     <ClInclude Include="..\tinygltf\stb_image.h">
       <Filter>Header Files\Header-only</Filter>
     </ClInclude>
-    <ClInclude Include="include\SceneNodes.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="include\MeshesPrimitives.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="include\NodesMeshes.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="include\PrimitivesShaders.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="include\MaterialsTextures.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="include\PrimitivesMaterials.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="include\hash_combine.h">
       <Filter>Header Files\Header-only</Filter>
-    </ClInclude>
-    <ClInclude Include="include\TexturesImagesUsage.h">
-      <Filter>Header Files\Scene</Filter>
     </ClInclude>
     <ClInclude Include="include\CameraBaseClass.h">
       <Filter>Header Files</Filter>
@@ -145,6 +121,30 @@
     </ClInclude>
     <ClInclude Include="include\ViewportFrustum.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\TexturesOfMaterials.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PrimitivesOfMeshes.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\MeshesOfNodes.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\MaterialsOfPrimitives.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PipelinesOfPrimitives.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ShadersOfPrimitives.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\NodesOfScene.h">
+      <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ImagesUsageOfTextures.h">
+      <Filter>Header Files\Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

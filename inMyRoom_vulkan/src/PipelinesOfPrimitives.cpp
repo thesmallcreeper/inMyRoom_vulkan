@@ -1,18 +1,18 @@
-#include "PrimitivesPipelines.h"
+#include "PipelinesOfPrimitives.h"
 
-PrimitivesPipelines::PrimitivesPipelines(Anvil::BaseDevice* const in_device_ptr)
+PipelinesOfPrimitives::PipelinesOfPrimitives(Anvil::BaseDevice* const in_device_ptr)
     : device_ptr(in_device_ptr)
 {
 }
 
-PrimitivesPipelines::~PrimitivesPipelines()
+PipelinesOfPrimitives::~PipelinesOfPrimitives()
 {
     auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
     for (Anvil::PipelineID thisPipelineID : pipelineIDs)
         gfx_manager_ptr->delete_pipeline(thisPipelineID);
 }
 
-Anvil::PipelineID PrimitivesPipelines::GetPipelineID(const PipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PipelinesOfPrimitives::GetPipelineID(const PipelineSpecs in_pipelineSpecs)
 {
     auto search = pipelineSpecsToPipelineID_umap.find(in_pipelineSpecs);
 	if (search != pipelineSpecsToPipelineID_umap.end())
@@ -27,7 +27,7 @@ Anvil::PipelineID PrimitivesPipelines::GetPipelineID(const PipelineSpecs in_pipe
 	}
 }
 
-Anvil::PipelineID PrimitivesPipelines::CreatePipeline(PipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PipelinesOfPrimitives::CreatePipeline(PipelineSpecs in_pipelineSpecs)
 {
     auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 

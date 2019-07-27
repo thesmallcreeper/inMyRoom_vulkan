@@ -1,6 +1,6 @@
-#include "TexturesImagesUsage.h"
+#include "ImagesUsageOfTextures.h"
 
-TexturesImagesUsage::TexturesImagesUsage(tinygltf::Model& in_model)
+ImagesUsageOfTextures::ImagesUsageOfTextures(tinygltf::Model& in_model)
 {
     std::vector<ImageUsage> images_usage(in_model.images.size(), ImageUsage::undefined);
 
@@ -88,7 +88,7 @@ TexturesImagesUsage::TexturesImagesUsage(tinygltf::Model& in_model)
     imagesUsage.swap(images_usage);
 }
 
-TexturesImagesUsage::~TexturesImagesUsage()
+ImagesUsageOfTextures::~ImagesUsageOfTextures()
 {
     imagesUsage.clear();
 }

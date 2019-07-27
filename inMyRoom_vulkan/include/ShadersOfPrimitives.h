@@ -110,12 +110,12 @@ namespace std
     };
 }
 
-class PrimitivesShaders
+class ShadersOfPrimitives
 {
 public:
-    PrimitivesShaders(std::vector<ShaderSetFamilyInitInfo> in_shadersSetFamilyInitInfos,
-                      Anvil::BaseDevice* const in_device_ptr);
-    ~PrimitivesShaders();
+    ShadersOfPrimitives(std::vector<ShaderSetFamilyInitInfo> in_shadersSetFamilyInitInfos,
+                        Anvil::BaseDevice* const in_device_ptr);
+    ~ShadersOfPrimitives();
 
     size_t GetShaderSetIndex(ShadersSpecs in_shaderSpecs);
 

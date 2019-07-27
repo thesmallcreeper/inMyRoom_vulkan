@@ -113,7 +113,7 @@ void Engine::Run()
                 }
             case TOGGLE_CULLING_DEBUG:
                 {
-                    camera_uptr->ToggleCullingDubugging();
+                    camera_uptr->ToggleCullingDebugging();
                     break;
                 }
             }

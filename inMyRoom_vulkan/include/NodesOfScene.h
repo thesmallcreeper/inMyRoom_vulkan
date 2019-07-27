@@ -15,7 +15,7 @@
 #include "Geometry/AABB.h"
 #include "Geometry/PBVolume.h"
 
-#include "NodesMeshes.h"
+#include "MeshesOfNodes.h"
 #include "Drawer.h"
 
 struct NodeRef
@@ -38,7 +38,7 @@ struct NodeRef
         struct
         {
             uint32_t meshIndex;
-            uint32_t meshID;
+            uint32_t objectID;
             math::float4x4 globalTRSmatrix;
         };
     };
@@ -52,13 +52,14 @@ struct NodeRecursive
     uint32_t childrenCount;
 };
 
-class SceneNodes
+class NodesOfScene
 {
 public:
-    SceneNodes(const tinygltf::Model& in_model, const tinygltf::Scene& in_scene, NodesMeshes* in_nodesMeshes_ptr, Anvil::BaseDevice* const in_device_ptr);
-    ~SceneNodes();
+    NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scene& in_scene,
+                 MeshesOfNodes* in_meshesOfNodes_ptr, Anvil::BaseDevice* const in_device_ptr);
+    ~NodesOfScene();
 
-    std::vector<DrawRequest> Draw(const std::array<math::Plane, 6> in_viewport_planes);
+    std::vector<DrawRequest> DrawUsingFrustumCull(const std::array<math::Plane, 6> in_viewport_planes);
 
 public:
 	std::vector<NodeRef> nodes;
@@ -78,5 +79,5 @@ private:
 private:
     Anvil::BaseDevice* const device_ptr;
 
-    NodesMeshes* nodesMeshes_ptr;
+    MeshesOfNodes* meshesOfNodes_ptr;
 };

@@ -81,17 +81,17 @@ Graphics::~Graphics()
     depthImage_uptr.reset();
     depthImageView_uptr.reset();
 
-    nodesMeshes_uptr.reset();
-    materialsTextures_uptr.reset();
-    texturesImagesUsage_uptr.reset();
-    primitivesMaterials_uptr.reset();
-    primitivesShaders_uptr.reset();
-    primitivesPipelines_uptr.reset();
-    meshesPrimitives_uptr.reset();
+    meshesOfNodes_uptr.reset();
+    texturesOfMaterials_uptr.reset();
+    imagesUsageOfTextures_uptr.reset();
+    materialsOfPrimitives_uptr.reset();
+    shadersOfPrimitives_uptr.reset();
+    pipelinesOfPrimitives_uptr.reset();
+    primitivesOfMeshes_uptr.reset();
 
     cameraDescriptorSetGroup_uptr.reset();
 
-    sceneNodes_uptr.reset();
+    nodesOfScene_uptr.reset();
 
     cameraBuffer_uptrs.clear();
     perspectiveBuffer_uptrs.clear();
@@ -260,13 +260,13 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
                                                  Anvil::SubpassContents::INLINE);
 
         std::vector<Anvil::DescriptorSet*> lower_descriptor_sets;
-        lower_descriptor_sets.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set(0));
+        lower_descriptor_sets.emplace_back(nodesOfScene_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set(0));
         lower_descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
 
-        std::vector<DrawRequest> draw_requests = sceneNodes_uptr->Draw(cullingFrustum.GetWorldSpacePlanesOfFrustum());
+        std::vector<DrawRequest> draw_requests = nodesOfScene_uptr->DrawUsingFrustumCull(cullingFrustum.GetWorldSpacePlanesOfFrustum());
 
-        Drawer none_drawer(sorting::none, 0, meshesPrimitives_uptr.get(), device_ptr);
-        Drawer by_pipeline_drawer(sorting::by_pipeline, texturePassSetIndex, meshesPrimitives_uptr.get(), device_ptr);
+        Drawer none_drawer(sorting::none, 0, primitivesOfMeshes_uptr.get(), device_ptr);
+        Drawer by_pipeline_drawer(sorting::by_pipeline, texturePassSetIndex, primitivesOfMeshes_uptr.get(), device_ptr);
 
         none_drawer.AddDrawRequests(draw_requests);
         by_pipeline_drawer.AddDrawRequests(draw_requests);
@@ -388,16 +388,16 @@ void Graphics::InitScene()
     const tinygltf::Scene &scene = model.scenes[0];
 
     // Find out how each texture is being used (color, normal, etc..)
-    printf("-Initializing texturesImagesUsage\n");
-    texturesImagesUsage_uptr = std::make_unique<TexturesImagesUsage>(model);
+    printf("-Initializing ImagesUsageOfTextures\n");
+    imagesUsageOfTextures_uptr = std::make_unique<ImagesUsageOfTextures>(model);
     // Compress textures and copy to GPU
-    printf("-Initializing materialsTextures\n");
-    materialsTextures_uptr = std::make_unique <MaterialsTextures>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), texturesImagesUsage_uptr.get(), device_ptr);
+    printf("-Initializing TexturesOfMaterials\n");
+    texturesOfMaterials_uptr = std::make_unique <TexturesOfMaterials>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesUsageOfTextures_uptr.get(), device_ptr);
     // Create materials description sets
-    printf("-Initializing primitivesMaterials\n");
-    primitivesMaterials_uptr = std::make_unique<PrimitivesMaterials>(model, materialsTextures_uptr.get(), device_ptr);
+    printf("-Initializing MaterialsOfPrimitives\n");
+    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(model, texturesOfMaterials_uptr.get(), device_ptr);
     // Load shaders sources ready to get compiled
-    printf("-Initializing primitivesShaders\n");
+    printf("-Initializing ShadersOfPrimitives\n");
     {
         std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
         {
@@ -413,41 +413,41 @@ void Graphics::InitScene()
             this_shaderSetInitInfo.vertexShaderSourceFilename = "zprepassShader_glsl.vert";
             shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
         }
-        primitivesShaders_uptr = std::make_unique<PrimitivesShaders>(shaderSetsInitInfos, device_ptr);
+        shadersOfPrimitives_uptr = std::make_unique<ShadersOfPrimitives>(shaderSetsInitInfos, device_ptr);
     }
     // Initialize pipeline reuse map
-    printf("-Initializing primitivesPipelines\n");
-    primitivesPipelines_uptr = std::make_unique<PrimitivesPipelines>(device_ptr);
+    printf("-Initializing PipelinesOfPrimitives\n");
+    pipelinesOfPrimitives_uptr = std::make_unique<PipelinesOfPrimitives>(device_ptr);
     // Initialize models-primtives handler to GPU
-    printf("-Initializing meshesPrimitives\n");
-    meshesPrimitives_uptr = std::make_unique<MeshesPrimitives>(primitivesPipelines_uptr.get(), primitivesShaders_uptr.get(), primitivesMaterials_uptr.get(), device_ptr);
+    printf("-Initializing PrimitivesOfMeshes\n");
+    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesOfPrimitives_uptr.get(), shadersOfPrimitives_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr);
     // For every mesh copy primitives of it to GPU
-    printf("-Initializing nodesMeshes\n");
-    nodesMeshes_uptr = std::make_unique<NodesMeshes>(model, meshesPrimitives_uptr.get(), device_ptr);
+    printf("-Initializing MeshesOfNodes\n");
+    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(model, primitivesOfMeshes_uptr.get(), device_ptr);
     // Create scene nodes
-    printf("-Initializing sceneNodes\n");
-    sceneNodes_uptr = std::make_unique<SceneNodes>(model, scene, nodesMeshes_uptr.get(), device_ptr);
+    printf("-Initializing NodesOfScene\n");
+    nodesOfScene_uptr = std::make_unique<NodesOfScene>(model, scene, meshesOfNodes_uptr.get(), device_ptr);
     // Create primitives sets (shaders-pipelines for each kind of primitive)
     {
         std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetCreateInfos;
-        descriptorSetCreateInfos.emplace_back(sceneNodes_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
+        descriptorSetCreateInfos.emplace_back(nodesOfScene_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
         descriptorSetCreateInfos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
         {
             printf("-Initializing \"Z-Prepass Pass\" primitives set\n");
             ShadersSpecs this_shaders_specs;
             this_shaders_specs.shadersSetFamilyName = "Z-Prepass Pass";
-            this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(sceneNodes_uptr->globalTRSmatrixesCount)));
+            this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(nodesOfScene_uptr->globalTRSmatrixesCount)));
           
-            zprepassPassSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, false, Anvil::CompareOp::LESS, true, &descriptorSetCreateInfos, renderpass_uptr.get(), zprepassSubpassID);
+            zprepassPassSetIndex = primitivesOfMeshes_uptr->InitPrimitivesSet(this_shaders_specs, false, Anvil::CompareOp::LESS, true, &descriptorSetCreateInfos, renderpass_uptr.get(), zprepassSubpassID);
         }
         {
             printf("-Initializing \"Texture Pass\" primitives set\n");
             ShadersSpecs this_shaders_specs;
             this_shaders_specs.shadersSetFamilyName = "Texture Pass";
             this_shaders_specs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");
-            this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(sceneNodes_uptr->globalTRSmatrixesCount)));
+            this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(nodesOfScene_uptr->globalTRSmatrixesCount)));
 
-            texturePassSetIndex = meshesPrimitives_uptr->InitPrimitivesSet(this_shaders_specs, true, Anvil::CompareOp::EQUAL, false, &descriptorSetCreateInfos, renderpass_uptr.get(), textureSubpassID);
+            texturePassSetIndex = primitivesOfMeshes_uptr->InitPrimitivesSet(this_shaders_specs, true, Anvil::CompareOp::EQUAL, false, &descriptorSetCreateInfos, renderpass_uptr.get(), textureSubpassID);
         }
     }
 }

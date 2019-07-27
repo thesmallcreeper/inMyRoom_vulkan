@@ -30,7 +30,7 @@ namespace fs = std::filesystem;
 #include "glTFenum.h"
 #include "Compressonator.h"
 
-#include "TexturesImagesUsage.h"
+#include "ImagesUsageOfTextures.h"
 
 
 struct TextureInfo
@@ -39,13 +39,13 @@ struct TextureInfo
     size_t samplerIndex;
 };
 
-class MaterialsTextures
+class TexturesOfMaterials
 {
 public:
-    MaterialsTextures(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps,
-                      TexturesImagesUsage* in_texturesImagesUsage_ptr,
+    TexturesOfMaterials(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps,
+                      ImagesUsageOfTextures* in_imagesUsageOfTextures_ptr,
                       Anvil::BaseDevice* const in_device_ptr);
-    ~MaterialsTextures();
+    ~TexturesOfMaterials();
 
 public:
     std::vector<TextureInfo> texturesInfos;

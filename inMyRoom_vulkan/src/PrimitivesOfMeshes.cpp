@@ -1,23 +1,23 @@
-#include "MeshesPrimitives.h"
+#include "PrimitivesOfMeshes.h"
 
 #include <limits>
 #include <cassert>
 #include <algorithm>
 #include <iterator>
 
-MeshesPrimitives::MeshesPrimitives(PrimitivesPipelines* in_primitivesPipelines_ptr,
-                                   PrimitivesShaders* in_primitivesShaders_ptr,
-                                   PrimitivesMaterials* in_primitivesMaterials_ptr,
-                                   Anvil::BaseDevice* const in_device_ptr)
+PrimitivesOfMeshes::PrimitivesOfMeshes(PipelinesOfPrimitives* in_pipelinesOfPrimitives_ptr,
+                                       ShadersOfPrimitives* in_shadersOfPrimitives_ptr,
+                                       MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
+                                       Anvil::BaseDevice* const in_device_ptr)
     :
-    primitivesPipelines_ptr(in_primitivesPipelines_ptr),
-    primitivesShaders_ptr(in_primitivesShaders_ptr),
-    primitivesMaterials_ptr(in_primitivesMaterials_ptr),
+    pipelinesOfPrimitives_ptr(in_pipelinesOfPrimitives_ptr),
+    shadersOfPrimitives_ptr(in_shadersOfPrimitives_ptr),
+    materialsOfPrimitives_ptr(in_materialsOfPrimitives_ptr),
     device_ptr(in_device_ptr)
 {
 }
 
-MeshesPrimitives::~MeshesPrimitives()
+PrimitivesOfMeshes::~PrimitivesOfMeshes()
 {
     indexBuffer_uptr.reset();
     positionBuffer_uptr.reset();
@@ -26,7 +26,7 @@ MeshesPrimitives::~MeshesPrimitives()
     texcoord0Buffer_uptr.reset();
 }
 
-void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primitive& in_primitive)
+void PrimitivesOfMeshes::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primitive& in_primitive)
 {
     assert(hasBuffersBeenFlashed == false);
 
@@ -171,7 +171,7 @@ void MeshesPrimitives::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primiti
     primitivesInitInfos.emplace_back(this_primitiveInitInfo);
 }
 
-void MeshesPrimitives::FlashBuffersToDevice()
+void PrimitivesOfMeshes::FlashBuffersToDevice()
 {
     assert(hasBuffersBeenFlashed == false);
 
@@ -194,7 +194,7 @@ void MeshesPrimitives::FlashBuffersToDevice()
 }
 
 
-size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material, Anvil::CompareOp in_depth_compare, bool use_depth_write,
+size_t PrimitivesOfMeshes::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material, Anvil::CompareOp in_depth_compare, bool use_depth_write,
                                            const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
                                            Anvil::RenderPass* renderpass_ptr, Anvil::SubPassID subpassID)
 {
@@ -259,17 +259,17 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
                 this_primitiveInfo.color0BufferOffset = this_primitivesInitInfo.color0BufferOffset;
             }
 
-            this_descriptorSetCreateInfos_ptrs.emplace_back(primitivesMaterials_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex)));
-            this_primitiveInfo.materialDescriptorSet_ptr = primitivesMaterials_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex));
+            this_descriptorSetCreateInfos_ptrs.emplace_back(materialsOfPrimitives_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex)));
+            this_primitiveInfo.materialDescriptorSet_ptr = materialsOfPrimitives_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex));
 
             std::copy(
-                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.begin(),
-                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.end(),
+                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.begin(),
+                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.end(),
                 std::back_inserter(this_shaderSpecs.emptyDefinition));
 
             std::copy(
-                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].definitionValuePairs.begin(),
-                primitivesMaterials_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].definitionValuePairs.end(),
+                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].definitionValuePairs.begin(),
+                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].definitionValuePairs.end(),
                 std::back_inserter(this_shaderSpecs.definitionValuePairs));
         }
         else
@@ -281,17 +281,17 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
             this_pipelineSpecs.color0ComponentType = static_cast<glTFcomponentType>(-1);
         }
 
-        size_t shaderSet_index = primitivesShaders_ptr->GetShaderSetIndex(this_shaderSpecs);
+        size_t shaderSet_index = shadersOfPrimitives_ptr->GetShaderSetIndex(this_shaderSpecs);
 
         this_pipelineSpecs.descriptorSetsCreateInfo_ptrs = std::move(this_descriptorSetCreateInfos_ptrs);
 
         this_pipelineSpecs.depthCompare = in_depth_compare;
         this_pipelineSpecs.depthWriteEnable = use_depth_write;
-        this_pipelineSpecs.pipelineShaders = primitivesShaders_ptr->shadersSets[shaderSet_index];
+        this_pipelineSpecs.pipelineShaders = shadersOfPrimitives_ptr->shadersSets[shaderSet_index];
         this_pipelineSpecs.renderpass_ptr = renderpass_ptr;
         this_pipelineSpecs.subpassID = subpassID;
 
-        Anvil::PipelineID this_pipelineID = primitivesPipelines_ptr->GetPipelineID(this_pipelineSpecs);
+        Anvil::PipelineID this_pipelineID = pipelinesOfPrimitives_ptr->GetPipelineID(this_pipelineSpecs);
         auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 
         this_primitiveInfo.thisPipelineID = this_pipelineID;
@@ -304,7 +304,7 @@ size_t MeshesPrimitives::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool us
     return primitivesSets.size() - 1;
 }
 
-void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool shouldFlipYZ_position, bool vec3_to_vec4_color ,size_t allignBufferSize,
+void PrimitivesOfMeshes::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool shouldFlipYZ_position, bool vec3_to_vec4_color ,size_t allignBufferSize,
                                                     tinygltf::Model& in_model, tinygltf::Accessor in_accessor) const
 {
     size_t count_of_elements = in_accessor.count;
@@ -419,7 +419,7 @@ void MeshesPrimitives::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& 
 
 }
 
-Anvil::BufferUniquePtr MeshesPrimitives::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer, Anvil::BufferUsageFlagBits in_bufferusageflag, std::string buffers_name) const
+Anvil::BufferUniquePtr PrimitivesOfMeshes::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer, Anvil::BufferUsageFlagBits in_bufferusageflag, std::string buffers_name) const
 {
     auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
                                                                     in_localBuffer.size(),

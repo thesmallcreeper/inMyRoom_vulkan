@@ -14,7 +14,7 @@
 
 #include "glTFenum.h"
 
-#include "PrimitivesShaders.h"
+#include "ShadersOfPrimitives.h"
 
 struct PipelineSpecs
 {
@@ -105,11 +105,11 @@ namespace std
     };
 }
 
-class PrimitivesPipelines
+class PipelinesOfPrimitives
 {
 public:
-    PrimitivesPipelines(Anvil::BaseDevice* const in_device_ptr);
-    ~PrimitivesPipelines();
+    PipelinesOfPrimitives(Anvil::BaseDevice* const in_device_ptr);
+    ~PipelinesOfPrimitives();
 
     Anvil::PipelineID GetPipelineID(PipelineSpecs in_pipelineSpecs);
 

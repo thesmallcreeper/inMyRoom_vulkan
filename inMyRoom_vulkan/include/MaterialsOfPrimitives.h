@@ -11,15 +11,15 @@
 
 #include "tiny_gltf.h"
 
-#include "MaterialsTextures.h"
-#include "PrimitivesShaders.h"
+#include "TexturesOfMaterials.h"
+#include "ShadersOfPrimitives.h"
 
-class PrimitivesMaterials
+class MaterialsOfPrimitives
 {
 public:
-    PrimitivesMaterials(tinygltf::Model& in_model, MaterialsTextures* in_materialsTextures,
+    MaterialsOfPrimitives(tinygltf::Model& in_model, TexturesOfMaterials* in_texturesOfMaterials_ptr,
                         Anvil::BaseDevice* const in_device_ptr);
-    ~PrimitivesMaterials();
+    ~MaterialsOfPrimitives();
 
 public:public:
     Anvil::DescriptorSetGroupUniquePtr materialsDescriptorSetGroup_uptr;
@@ -31,7 +31,7 @@ private:
     Anvil::BufferUniquePtr materialsFactorsBuffer_uptr;
     std::vector<unsigned char> localMaterialsFactorsBuffer;
 
-    MaterialsTextures* materialsTextures_ptr;
+    TexturesOfMaterials* texturesOfMaterials_ptr;
 
     Anvil::BaseDevice* const device_ptr;
 };

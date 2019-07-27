@@ -7,12 +7,12 @@
 #include "wrappers/command_buffer.h"
 #include "glTFenum.h"
 
-#include "MeshesPrimitives.h"
+#include "PrimitivesOfMeshes.h"
 
 struct DrawRequest
 {
     float z = 0.0f;
-    uint32_t meshID;
+    uint32_t objectID;
     size_t primitive_index;
 };
 
@@ -40,7 +40,7 @@ enum class sorting
 class Drawer
 {
 public:
-    Drawer(sorting in_sorting_method, size_t in_pipelineSetIndex, MeshesPrimitives* in_meshPrimitives_ptr, Anvil::BaseDevice* const device_ptr);
+    Drawer(sorting in_sorting_method, size_t in_pipelineSetIndex, PrimitivesOfMeshes* in_primitivesOfMeshes_ptr, Anvil::BaseDevice* const device_ptr);   // gotta do it primitivesOfmeshes independent
     ~Drawer();
 
     void AddDrawRequests(std::vector<DrawRequest> in_draw_requests);
@@ -61,5 +61,5 @@ private:
     std::unordered_map<Anvil::PipelineID, std::vector<DrawRequest >> by_pipeline_PipelineIDToDrawRequests_umap;
 
     Anvil::BaseDevice* const device_ptr;
-    MeshesPrimitives* meshesPrimitives_ptr;
+    PrimitivesOfMeshes* meshesPrimitives_ptr;
 };

@@ -91,7 +91,7 @@ void CameraBaseClass::RefreshPublicVectors()
     }
 }
 
-void CameraBaseClass::ToggleCullingDubugging()
+void CameraBaseClass::ToggleCullingDebugging()
 {
     std::lock_guard<std::mutex> lock(controlMutex);
 
