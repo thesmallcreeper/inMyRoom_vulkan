@@ -21,27 +21,16 @@
 struct NodeRef
 {
     NodeRef()
-        :nodeAndChildrenSize(0),
-         childrenCount(0),
-         globalAABB()
+        :isMesh(false)
     {}
 
-    union
-    {
-        struct
-        {
-            uint32_t nodeAndChildrenSize;
-            uint32_t childrenCount;
-            math::AABB globalAABB;
-        };
+    uint32_t nodeAndChildrenSize;
+    uint32_t childrenCount;
+    math::AABB globalAABB;
 
-        struct
-        {
-            uint32_t meshIndex;
-            uint32_t objectID;
-            math::float4x4 globalTRSmatrix;
-        };
-    };
+    uint32_t meshIndex;
+    uint32_t objectID;
+    math::float4x4 globalTRSmatrix;
 
     bool isMesh;
 };

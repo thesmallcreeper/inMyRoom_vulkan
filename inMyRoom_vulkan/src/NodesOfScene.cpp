@@ -290,3 +290,4 @@ glm::mat4 NodesOfScene::CreateTRSmatrix(const tinygltf::Node& in_node) const
         return return_matrix;
     }
 }
+
