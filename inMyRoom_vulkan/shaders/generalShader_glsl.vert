@@ -1,6 +1,6 @@
 #version 450
 
-layout( location = VERT_POSITION_LOCATION ) in vec4 app_position;
+layout( location = 0 ) in vec4 app_position;
 
 #ifdef VERT_NORMAL
 layout( location = VERT_NORMAL_LOCATION ) in vec4 app_normal;
@@ -38,17 +38,17 @@ layout( location = 2 ) out vec2 vert_texcoord1;
 layout( location = 3 ) out vec4 vert_color0;
 #endif
 
-layout(std140, set = 0 , binding = 0) restrict readonly buffer SB0
+layout (push_constant) uniform PC
 {
-    mat4 GlobalTRSMatrixes[N_MESHIDS];
+    mat4 TRSMatrix;
 };
 
-layout( set = 1 , binding = 0 ) uniform UB1_0
+layout( set = 0 , binding = 0 ) uniform UB0_0
 {
     mat4 ProjectionMatrix;
 };
 
-layout( set = 1 , binding = 1 ) uniform UB1_1
+layout( set = 0 , binding = 1 ) uniform UB0_1
 {
     mat4 CameraMatrix;
 };
@@ -56,10 +56,7 @@ layout( set = 1 , binding = 1 ) uniform UB1_1
 
 void main()
 {
-    const int thisIndex = gl_InstanceIndex;
-    const mat4 thisGlobalTRSMatrix = GlobalTRSMatrixes[thisIndex];
-
-    vec4 position = CameraMatrix * thisGlobalTRSMatrix * app_position;
+    vec4 position = CameraMatrix * TRSMatrix * app_position;
     
     
     gl_Position = ProjectionMatrix * position;

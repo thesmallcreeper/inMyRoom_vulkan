@@ -4,7 +4,7 @@
 #include <cassert>
 
 Drawer::Drawer(sorting in_sorting_method, size_t in_pipelineSetIndex, PrimitivesOfMeshes* in_primitivesOfMeshes_ptr, Anvil::BaseDevice* const in_device_ptr)
-    :meshesPrimitives_ptr(in_primitivesOfMeshes_ptr),
+    :primitivesOfMeshes_ptr(in_primitivesOfMeshes_ptr),
      sortingMethod(in_sorting_method),
      pipelineSetIndex(in_pipelineSetIndex),
      device_ptr(in_device_ptr)
@@ -26,7 +26,7 @@ void Drawer::AddDrawRequests(std::vector<DrawRequest> in_draw_requests)
         case sorting::by_pipeline:
             for(const auto& this_draw_request: in_draw_requests)
             {
-                Anvil::PipelineID& this_pipelineID = meshesPrimitives_ptr->primitivesSets[pipelineSetIndex][this_draw_request.primitive_index].thisPipelineID;
+                Anvil::PipelineID& this_pipelineID = primitivesOfMeshes_ptr->primitivesSets[pipelineSetIndex][this_draw_request.primitiveIndex].thisPipelineID;
                 auto search = by_pipeline_PipelineIDToDrawRequests_umap.find(this_pipelineID);
                 if (search != by_pipeline_PipelineIDToDrawRequests_umap.end())
                     search->second.emplace_back(this_draw_request);
@@ -81,34 +81,32 @@ void Drawer::DeleteDrawRequests()
 void Drawer::DrawCall(CommandBufferState& command_buffer_state, Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr, size_t in_primitivesSet_index, const DrawRequest draw_request,
                       const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs) const
 {
-    const std::vector<PrimitiveInfo>& this_primitivesSet = meshesPrimitives_ptr->primitivesSets[in_primitivesSet_index];
-    const PrimitiveInfo& this_primitive = this_primitivesSet[draw_request.primitive_index];
-    const PrimitiveInitInfo& this_primitiveInitInfo = meshesPrimitives_ptr->primitivesInitInfos[draw_request.primitive_index];
+    const std::vector<PrimitiveSpecificSetInfo>& this_primitivesSet = primitivesOfMeshes_ptr->primitivesSets[in_primitivesSet_index];
+    const PrimitiveSpecificSetInfo& this_primitiveSpecificSetInfo = this_primitivesSet[draw_request.primitiveIndex];
 
-    uint32_t first_index;
-    int32_t vertex_offset;
+    const PrimitiveGeneralInfo& this_primitiveGeneralInfo = primitivesOfMeshes_ptr->primitivesInitInfos[draw_request.primitiveIndex];
 
     {
         auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 
-        if (this_primitive.thisPipelineID != command_buffer_state.pipeline_id)
+        if (this_primitiveSpecificSetInfo.thisPipelineID != command_buffer_state.pipeline_id)
         {
             in_cmd_buffer_ptr->record_bind_pipeline(Anvil::PipelineBindPoint::GRAPHICS,
-                                                    this_primitive.thisPipelineID);
-            command_buffer_state.pipeline_id = this_primitive.thisPipelineID;
+                                                    this_primitiveSpecificSetInfo.thisPipelineID);
+            command_buffer_state.pipeline_id = this_primitiveSpecificSetInfo.thisPipelineID;
         }
     }
 
     {
         std::vector<Anvil::DescriptorSet*> descriptor_sets_ptrs = in_low_descriptor_sets_ptrs;
-        if (this_primitive.materialDescriptorSet_ptr != nullptr)
-            descriptor_sets_ptrs.emplace_back(this_primitive.materialDescriptorSet_ptr);
+        if (this_primitiveSpecificSetInfo.materialDescriptorSet_ptr != nullptr)
+            descriptor_sets_ptrs.emplace_back(this_primitiveSpecificSetInfo.materialDescriptorSet_ptr);
 
         if (descriptor_sets_ptrs != command_buffer_state.descriptor_sets_ptrs)
         {
             const uint32_t descriptor_sets_count = static_cast<const uint32_t>(descriptor_sets_ptrs.size());
             in_cmd_buffer_ptr->record_bind_descriptor_sets(Anvil::PipelineBindPoint::GRAPHICS,
-                                                           this_primitive.pipelineLayout_ptr,
+                                                           this_primitiveSpecificSetInfo.pipelineLayout_ptr,
                                                            0, /* in_first_set */
                                                            descriptor_sets_ptrs.size(), /* in_set_count */
                                                            descriptor_sets_ptrs.data(),
@@ -120,117 +118,139 @@ void Drawer::DrawCall(CommandBufferState& command_buffer_state, Anvil::PrimaryCo
     }
 
     {
+        if (draw_request.objectID != command_buffer_state.objectID)
+        {
+            in_cmd_buffer_ptr->record_push_constants(this_primitiveSpecificSetInfo.pipelineLayout_ptr,
+                                                     Anvil::ShaderStageFlagBits::VERTEX_BIT,
+                                                     0,                     /*in_offset*/
+                                                     sizeof(float) * 4 * 4, /*in_size*/
+                                                     &draw_request.TRSmatrix);
+
+            command_buffer_state.objectID = draw_request.objectID;
+        }
+    }
+
+    uint32_t first_index;
+
+    {
         uint32_t size_of_indexType;
-        if (this_primitive.indexBufferType == Anvil::IndexType::UINT16)
+        if (this_primitiveGeneralInfo.indexBufferType == Anvil::IndexType::UINT16)
             size_of_indexType = sizeof(uint16_t);
         else
             size_of_indexType = sizeof(uint32_t);
 
-        first_index = static_cast<uint32_t>((this_primitive.indexBufferOffset - command_buffer_state.indexBufferOffset) / size_of_indexType);
-        if (this_primitive.indexBufferOffset < command_buffer_state.indexBufferOffset || this_primitive.indexBufferType != command_buffer_state.indexBufferType ||
-            (this_primitive.indexBufferOffset - command_buffer_state.indexBufferOffset) % size_of_indexType != 0 || this_primitive.indexBufferOffset - command_buffer_state.indexBufferOffset >(std::numeric_limits<uint32_t>::max)())
+        first_index = static_cast<uint32_t>((this_primitiveGeneralInfo.indexBufferOffset - command_buffer_state.indexBufferOffset) / size_of_indexType);
+        if (this_primitiveGeneralInfo.indexBufferOffset < command_buffer_state.indexBufferOffset || this_primitiveGeneralInfo.indexBufferType != command_buffer_state.indexBufferType ||
+            (this_primitiveGeneralInfo.indexBufferOffset - command_buffer_state.indexBufferOffset) % size_of_indexType != 0 || this_primitiveGeneralInfo.indexBufferOffset - command_buffer_state.indexBufferOffset >(std::numeric_limits<uint32_t>::max)())
         {
-            in_cmd_buffer_ptr->record_bind_index_buffer(meshesPrimitives_ptr->indexBuffer_uptr.get(),
-                                                        this_primitive.indexBufferOffset,
-                                                        this_primitive.indexBufferType);
+            in_cmd_buffer_ptr->record_bind_index_buffer(primitivesOfMeshes_ptr->indexBuffer_uptr.get(),
+                                                        this_primitiveGeneralInfo.indexBufferOffset,
+                                                        this_primitiveGeneralInfo.indexBufferType);
 
-            command_buffer_state.indexBufferOffset = this_primitive.indexBufferOffset;
-            command_buffer_state.indexBufferType = this_primitive.indexBufferType;
+            command_buffer_state.indexBufferOffset = this_primitiveGeneralInfo.indexBufferOffset;
+            command_buffer_state.indexBufferType = this_primitiveGeneralInfo.indexBufferType;
 
             first_index = 0;
         }
     }
 
-    {
-        vertex_offset = static_cast<int32_t>((this_primitive.positionBufferOffset - command_buffer_state.positionBufferOffset) / (3*sizeof(float)));
+    int32_t vertex_offset;
 
-        if (this_primitive.positionBufferOffset - command_buffer_state.positionBufferOffset > (std::numeric_limits<int32_t>::max)() || this_primitive.positionBufferOffset < command_buffer_state.positionBufferOffset
-            || command_buffer_state.normalBufferOffset != -1 && this_primitive.normalBufferOffset ==- 1 || this_primitive.normalBufferOffset != -1
-             && (this_primitive.normalBufferOffset - command_buffer_state.normalBufferOffset != 3 * static_cast<uint64_t>(vertex_offset) * sizeof(float) || command_buffer_state.positionBufferOffset == -1)
-            || command_buffer_state.tangentBufferOffset != -1 && this_primitive.tangentBufferOffset == -1 || this_primitive.tangentBufferOffset != -1
-             && (this_primitive.tangentBufferOffset - command_buffer_state.tangentBufferOffset != 4 * static_cast<uint64_t>(vertex_offset) * sizeof(float) || command_buffer_state.tangentBufferOffset == -1)
-            || command_buffer_state.texcoord0BufferOffset != -1 && this_primitive.texcoord0BufferOffset == -1 || this_primitive.texcoord0BufferOffset != -1
-             && (this_primitive.texcoord0BufferOffset - command_buffer_state.texcoord0BufferOffset != 2 * static_cast<uint64_t>(vertex_offset) * GetSizeOfComponent(this_primitiveInitInfo.pipelineSpecs.texcoord0ComponentType) || command_buffer_state.texcoord0BufferOffset == -1)
-            || command_buffer_state.texcoord1BufferOffset != -1 && this_primitive.texcoord1BufferOffset == -1 || this_primitive.texcoord1BufferOffset != -1
-             && (this_primitive.texcoord1BufferOffset - command_buffer_state.texcoord1BufferOffset != 2 * static_cast<uint64_t>(vertex_offset) * GetSizeOfComponent(this_primitiveInitInfo.pipelineSpecs.texcoord1ComponentType) || command_buffer_state.texcoord1BufferOffset == -1)
-            || command_buffer_state.color0BufferOffset != -1 && this_primitive.color0BufferOffset == -1 || this_primitive.color0BufferOffset != -1
-             && (this_primitive.color0BufferOffset - command_buffer_state.color0BufferOffset != 2 * static_cast<uint64_t>(vertex_offset) * GetSizeOfComponent(this_primitiveInitInfo.pipelineSpecs.color0ComponentType) || command_buffer_state.color0BufferOffset == -1))
+    {
+        // checks if a suggested vertex offset can offset correctly all the buffers
+        int32_t suggested_vertex_offset = static_cast<int32_t>((this_primitiveGeneralInfo.positionBufferOffset - command_buffer_state.positionBufferOffset) / (3 * sizeof(float)));
+
+        if (this_primitiveGeneralInfo.positionBufferOffset - command_buffer_state.positionBufferOffset > (std::numeric_limits<int32_t>::max)()
+         || this_primitiveGeneralInfo.positionBufferOffset < command_buffer_state.positionBufferOffset
+         || this_primitiveSpecificSetInfo.usesNormalBuffer == false && command_buffer_state.normalBufferOffset != -1
+         || this_primitiveSpecificSetInfo.usesNormalBuffer == true && (command_buffer_state.positionBufferOffset == -1 || this_primitiveGeneralInfo.normalBufferOffset - command_buffer_state.normalBufferOffset != 3 * static_cast<uint64_t>(suggested_vertex_offset) * sizeof(float))
+         || this_primitiveSpecificSetInfo.usesTangentBuffer == false && command_buffer_state.tangentBufferOffset != -1
+         || this_primitiveSpecificSetInfo.usesTangentBuffer == true && (command_buffer_state.tangentBufferOffset == -1 || this_primitiveGeneralInfo.tangentBufferOffset - command_buffer_state.tangentBufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset) * sizeof(float))
+         || this_primitiveSpecificSetInfo.usesTexcoord0Buffer == false && command_buffer_state.texcoord0BufferOffset != -1
+         || this_primitiveSpecificSetInfo.usesTexcoord0Buffer == true && (command_buffer_state.texcoord0BufferOffset == -1 || this_primitiveGeneralInfo.texcoord0BufferOffset - command_buffer_state.texcoord0BufferOffset != 2 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveGeneralInfo.pipelineSpecs.texcoord0ComponentType))
+         || this_primitiveSpecificSetInfo.usesTexcoord1Buffer == false && command_buffer_state.texcoord1BufferOffset != -1
+         || this_primitiveSpecificSetInfo.usesTexcoord1Buffer == true && (command_buffer_state.texcoord1BufferOffset == -1 || this_primitiveGeneralInfo.texcoord1BufferOffset - command_buffer_state.texcoord1BufferOffset != 2 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveGeneralInfo.pipelineSpecs.texcoord1ComponentType))
+         || this_primitiveSpecificSetInfo.usesColor0Buffer == false && command_buffer_state.color0BufferOffset != -1
+         || this_primitiveSpecificSetInfo.usesColor0Buffer == true && (command_buffer_state.color0BufferOffset == -1 || this_primitiveGeneralInfo.color0BufferOffset - command_buffer_state.color0BufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveGeneralInfo.pipelineSpecs.color0ComponentType)))
         {
             std::vector<Anvil::Buffer*> vertex_buffers;
             std::vector<VkDeviceSize> vertex_buffer_offsets;
 
-            vertex_buffers.emplace_back(meshesPrimitives_ptr->positionBuffer_uptr.get());
-            vertex_buffer_offsets.emplace_back(this_primitive.positionBufferOffset);
+            vertex_buffers.emplace_back(primitivesOfMeshes_ptr->positionBuffer_uptr.get());
+            vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.positionBufferOffset);
 
-            command_buffer_state.positionBufferOffset = this_primitive.positionBufferOffset;
+            command_buffer_state.positionBufferOffset = this_primitiveGeneralInfo.positionBufferOffset;
 
-            if (this_primitive.normalBufferOffset != -1)
+            if (this_primitiveSpecificSetInfo.usesNormalBuffer == true)
             {
-                vertex_buffers.emplace_back(meshesPrimitives_ptr->normalBuffer_uptr.get());
-                vertex_buffer_offsets.emplace_back(this_primitive.normalBufferOffset);
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->normalBuffer_uptr.get());
+                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.normalBufferOffset);
 
-                command_buffer_state.normalBufferOffset = this_primitive.normalBufferOffset;
+                command_buffer_state.normalBufferOffset = this_primitiveGeneralInfo.normalBufferOffset;
             }
             else
                 command_buffer_state.normalBufferOffset = -1;
 
-            if (this_primitive.tangentBufferOffset != -1)
+            if (this_primitiveSpecificSetInfo.usesTangentBuffer == true)
             {
-                vertex_buffers.emplace_back(meshesPrimitives_ptr->tangentBuffer_uptr.get());
-                vertex_buffer_offsets.emplace_back(this_primitive.tangentBufferOffset);
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->tangentBuffer_uptr.get());
+                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.tangentBufferOffset);
 
-                command_buffer_state.tangentBufferOffset = this_primitive.tangentBufferOffset;
+                command_buffer_state.tangentBufferOffset = this_primitiveGeneralInfo.tangentBufferOffset;
             }
             else
                 command_buffer_state.tangentBufferOffset = -1;
 
-            if (this_primitive.texcoord0BufferOffset != -1)
+            if (this_primitiveSpecificSetInfo.usesTexcoord0Buffer == true)
             {
-                vertex_buffers.emplace_back(meshesPrimitives_ptr->texcoord0Buffer_uptr.get());
-                vertex_buffer_offsets.emplace_back(this_primitive.texcoord0BufferOffset);
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->texcoord0Buffer_uptr.get());
+                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.texcoord0BufferOffset);
 
-                command_buffer_state.texcoord0BufferOffset = this_primitive.texcoord0BufferOffset;
+                command_buffer_state.texcoord0BufferOffset = this_primitiveGeneralInfo.texcoord0BufferOffset;
             }
             else
                 command_buffer_state.texcoord0BufferOffset = -1;
 
-            if (this_primitive.texcoord1BufferOffset != -1)
+            if (this_primitiveSpecificSetInfo.usesTexcoord1Buffer == true)
             {
-                vertex_buffers.emplace_back(meshesPrimitives_ptr->texcoord1Buffer_uptr.get());
-                vertex_buffer_offsets.emplace_back(this_primitive.texcoord1BufferOffset);
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->texcoord1Buffer_uptr.get());
+                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.texcoord1BufferOffset);
 
-                command_buffer_state.texcoord1BufferOffset = this_primitive.texcoord1BufferOffset;
+                command_buffer_state.texcoord1BufferOffset = this_primitiveGeneralInfo.texcoord1BufferOffset;
             }
             else
                 command_buffer_state.texcoord1BufferOffset = -1;
 
-            if (this_primitive.color0BufferOffset != -1)
+            if (this_primitiveSpecificSetInfo.usesColor0Buffer == true)
             {
-                vertex_buffers.emplace_back(meshesPrimitives_ptr->color0Buffer_uptr.get());
-                vertex_buffer_offsets.emplace_back(this_primitive.color0BufferOffset);
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->color0Buffer_uptr.get());
+                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.color0BufferOffset);
 
-                command_buffer_state.color0BufferOffset = this_primitive.color0BufferOffset;
+                command_buffer_state.color0BufferOffset = this_primitiveGeneralInfo.color0BufferOffset;
             }
             else
                 command_buffer_state.color0BufferOffset = -1;
 
-            vertex_offset = 0;
 
             in_cmd_buffer_ptr->record_bind_vertex_buffers(0, /* in_start_binding */
                                                           static_cast<uint32_t>(vertex_buffers.size()),
                                                           vertex_buffers.data(),
                                                           vertex_buffer_offsets.data());
+
+            vertex_offset = 0;
         }
+        else
+            vertex_offset = static_cast<int32_t>((this_primitiveGeneralInfo.positionBufferOffset - command_buffer_state.positionBufferOffset) / (3 * sizeof(float)));
     }
 
-    in_cmd_buffer_ptr->record_draw_indexed(this_primitive.indicesCount,
+    in_cmd_buffer_ptr->record_draw_indexed(this_primitiveGeneralInfo.indicesCount,
                                            1, /* in_instance_count */
                                            first_index, /* in_first_index    */
                                            vertex_offset, /* in_vertex_offset  */
                                            draw_request.objectID); /* in_first_instance_ID */
 }
 
-size_t Drawer::GetSizeOfComponent(glTFcomponentType component_type) const
+size_t Drawer::GetSizeOfComponent(glTFcomponentType component_type)
 {
     size_t size_of_each_component_in_byte;
     switch (static_cast<glTFcomponentType>(component_type))

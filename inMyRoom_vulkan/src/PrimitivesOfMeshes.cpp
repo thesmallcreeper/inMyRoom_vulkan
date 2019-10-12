@@ -30,7 +30,7 @@ void PrimitivesOfMeshes::AddPrimitive(tinygltf::Model& in_model, tinygltf::Primi
 {
     assert(hasBuffersBeenFlashed == false);
 
-    PrimitiveInitInfo this_primitiveInitInfo;
+    PrimitiveGeneralInfo this_primitiveInitInfo;
     this_primitiveInitInfo.pipelineSpecs.drawMode = static_cast<glTFmode>(in_primitive.mode);
 
     {
@@ -198,78 +198,63 @@ size_t PrimitivesOfMeshes::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool 
                                            const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
                                            Anvil::RenderPass* renderpass_ptr, Anvil::SubPassID subpassID)
 {
-    std::vector<PrimitiveInfo> this_set_primitiveInfo;
+    std::vector<PrimitiveSpecificSetInfo> this_set_primitiveSpecificSetInfo;
 
-    for (auto& this_primitivesInitInfo : primitivesInitInfos)
+    for (auto& this_primitivesGeneralInfo : primitivesInitInfos)
     {
-        PrimitiveInfo this_primitiveInfo;
+        PrimitiveSpecificSetInfo this_primitiveSpecificSetInfo;
         ShadersSpecs this_shaderSpecs = in_shader_specs;
 
+        PipelineSpecs this_pipelineSpecs = this_primitivesGeneralInfo.pipelineSpecs;
+
         int32_t layout_location = 0;
-
-        this_primitiveInfo.indexBufferType = this_primitivesInitInfo.indexBufferType;
-        this_primitiveInfo.indicesCount = this_primitivesInitInfo.indicesCount;
-        this_primitiveInfo.indexBufferOffset = this_primitivesInitInfo.indexBufferOffset;
-
-        PipelineSpecs this_pipelineSpecs = this_primitivesInitInfo.pipelineSpecs;
-
-        if (this_primitivesInitInfo.positionBufferOffset != -1)
-        {
-            this_shaderSpecs.emptyDefinition.emplace_back("VERT_POSITION");
-            this_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_POSITION_LOCATION", layout_location++));
-            this_primitiveInfo.positionBufferOffset = this_primitivesInitInfo.positionBufferOffset;
-        }
-        else
-        {
-            this_pipelineSpecs.positionComponentType = static_cast<glTFcomponentType>(-1);
-        }
-
-
+        layout_location++; // position layout_location is 0
+      
         std::vector<const Anvil::DescriptorSetCreateInfo*> this_descriptorSetCreateInfos_ptrs = *in_lower_descriptorSetCreateInfos;
         if (use_material)
         {
-            if (this_primitivesInitInfo.normalBufferOffset != -1)
+            if (this_primitivesGeneralInfo.normalBufferOffset != -1)
             {
                 this_shaderSpecs.emptyDefinition.emplace_back("VERT_NORMAL");
                 this_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_NORMAL_LOCATION", layout_location++));
-                this_primitiveInfo.normalBufferOffset = this_primitivesInitInfo.normalBufferOffset;
+                this_primitiveSpecificSetInfo.usesNormalBuffer = true;
             }
-            if (this_primitivesInitInfo.tangentBufferOffset != -1)
+            if (this_primitivesGeneralInfo.tangentBufferOffset != -1)
             {
                 this_shaderSpecs.emptyDefinition.emplace_back("VERT_TANGENT");
                 this_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_TANGENT_LOCATION", layout_location++));
-                this_primitiveInfo.tangentBufferOffset = this_primitivesInitInfo.tangentBufferOffset;
+                this_primitiveSpecificSetInfo.usesTangentBuffer = true;
             }
-            if (this_primitivesInitInfo.texcoord0BufferOffset != -1)
+            if (this_primitivesGeneralInfo.texcoord0BufferOffset != -1)
             {
                 this_shaderSpecs.emptyDefinition.emplace_back("VERT_TEXCOORD0");
                 this_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_TEXCOORD0_LOCATION", layout_location++));
-                this_primitiveInfo.texcoord0BufferOffset = this_primitivesInitInfo.texcoord0BufferOffset;
+                this_primitiveSpecificSetInfo.usesTexcoord0Buffer = true;
             }
-            if (this_primitivesInitInfo.texcoord1BufferOffset != -1)
+            if (this_primitivesGeneralInfo.texcoord1BufferOffset != -1)
             {
                 this_shaderSpecs.emptyDefinition.emplace_back("VERT_TEXCOORD1");
                 this_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_TEXCOORD1_LOCATION", layout_location++));
-                this_primitiveInfo.texcoord1BufferOffset = this_primitivesInitInfo.texcoord1BufferOffset;
+                this_primitiveSpecificSetInfo.usesTexcoord1Buffer = true;
             }
-            if (this_primitivesInitInfo.color0BufferOffset != -1)
+            if (this_primitivesGeneralInfo.color0BufferOffset != -1)
             {
                 this_shaderSpecs.emptyDefinition.emplace_back("VERT_COLOR0");
                 this_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_COLOR0_LOCATION", layout_location++));
-                this_primitiveInfo.color0BufferOffset = this_primitivesInitInfo.color0BufferOffset;
+                this_primitiveSpecificSetInfo.usesColor0Buffer = true;
             }
 
-            this_descriptorSetCreateInfos_ptrs.emplace_back(materialsOfPrimitives_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex)));
-            this_primitiveInfo.materialDescriptorSet_ptr = materialsOfPrimitives_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(this_primitivesInitInfo.materialIndex));
+            this_descriptorSetCreateInfos_ptrs.emplace_back(materialsOfPrimitives_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(static_cast<uint32_t>(this_primitivesGeneralInfo.materialIndex)));
+            this_primitiveSpecificSetInfo.materialDescriptorSet_ptr = materialsOfPrimitives_ptr->materialsDescriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(this_primitivesGeneralInfo.materialIndex));
 
             std::copy(
-                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.begin(),
-                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].emptyDefinition.end(),
+                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesGeneralInfo.materialIndex].emptyDefinition.begin(),
+                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesGeneralInfo.materialIndex].emptyDefinition.end(),
                 std::back_inserter(this_shaderSpecs.emptyDefinition));
 
             std::copy(
-                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].definitionValuePairs.begin(),
-                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesInitInfo.materialIndex].definitionValuePairs.end(),
+                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesGeneralInfo.materialIndex].definitionValuePairs.begin(),
+                materialsOfPrimitives_ptr->materialsShadersSpecs[this_primitivesGeneralInfo.materialIndex].definitionValuePairs.end(),
                 std::back_inserter(this_shaderSpecs.definitionValuePairs));
         }
         else
@@ -281,7 +266,7 @@ size_t PrimitivesOfMeshes::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool 
             this_pipelineSpecs.color0ComponentType = static_cast<glTFcomponentType>(-1);
         }
 
-        size_t shaderSet_index = shadersOfPrimitives_ptr->GetShaderSetIndex(this_shaderSpecs);
+        size_t shaderSet_index = shadersOfPrimitives_ptr->GetShaderSetIndex(this_shaderSpecs); // gotta make reference
 
         this_pipelineSpecs.descriptorSetsCreateInfo_ptrs = std::move(this_descriptorSetCreateInfos_ptrs);
 
@@ -294,13 +279,13 @@ size_t PrimitivesOfMeshes::InitPrimitivesSet(ShadersSpecs in_shader_specs, bool 
         Anvil::PipelineID this_pipelineID = pipelinesOfPrimitives_ptr->GetPipelineID(this_pipelineSpecs);
         auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 
-        this_primitiveInfo.thisPipelineID = this_pipelineID;
-        this_primitiveInfo.pipelineLayout_ptr = gfx_manager_ptr->get_pipeline_layout(this_pipelineID);
+        this_primitiveSpecificSetInfo.thisPipelineID = this_pipelineID;
+        this_primitiveSpecificSetInfo.pipelineLayout_ptr = gfx_manager_ptr->get_pipeline_layout(this_pipelineID);
 
-        this_set_primitiveInfo.emplace_back(this_primitiveInfo);
+        this_set_primitiveSpecificSetInfo.emplace_back(this_primitiveSpecificSetInfo);
     }
 
-    primitivesSets.emplace_back(std::move(this_set_primitiveInfo));
+    primitivesSets.emplace_back(std::move(this_set_primitiveSpecificSetInfo));
     return primitivesSets.size() - 1;
 }
 

@@ -58,38 +58,6 @@ NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scen
     }
 
     nodes[0].childrenCount = emtry_node_childrenCount;
-
-    globalTRSmatrixesCount = meshesById_TRS.size();
-    globalTRSmatrixesBuffer_uptr = CreateBufferForTRSmatrixesAndCopy(meshesById_TRS);
-
-    {   // Create descriptor set group
-        std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> new_dsg_create_info_ptr;
-        new_dsg_create_info_ptr.resize(1);
-
-        Anvil::DescriptorSetGroupUniquePtr new_dsg_ptr;
-
-        new_dsg_create_info_ptr[0] = Anvil::DescriptorSetCreateInfo::create();
-
-        new_dsg_create_info_ptr[0]->add_binding(0, /* in_binding */
-                                                Anvil::DescriptorType::STORAGE_BUFFER,
-                                                1, /* in_n_elements */
-                                                Anvil::ShaderStageFlagBits::VERTEX_BIT);
-
-        new_dsg_ptr = Anvil::DescriptorSetGroup::create(device_ptr,
-                                                        { new_dsg_create_info_ptr },
-                                                        false); /* in_releaseable_sets */
-
-        new_dsg_ptr->set_binding_item(0, /* n_set         */
-                                      0, /* binding_index */
-                                      Anvil::DescriptorSet::UniformBufferBindingElement(globalTRSmatrixesBuffer_uptr.get()));
-
-        TRSmatrixDescriptorSetGroup_uptr = std::move(new_dsg_ptr);
-    }
-}
-
-NodesOfScene::~NodesOfScene()
-{
-    globalTRSmatrixesBuffer_uptr.reset();
 }
 
 void NodesOfScene::AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_gltf_node,
@@ -168,14 +136,15 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<Pla
                     for (size_t primitive_index = this_mesh_range.primitiveFirstOffset; primitive_index < this_mesh_range.primitiveFirstOffset + this_mesh_range.primitiveRangeSize; primitive_index++)
                     {
                         DrawRequest this_draw_request;
-                        this_draw_request.primitive_index = primitive_index;
+                        this_draw_request.primitiveIndex = primitive_index;
                         this_draw_request.objectID = this_node.objectID;
+                        this_draw_request.TRSmatrix = this_TRS_matrix;
                         draw_requests.emplace_back(this_draw_request);
                     }
 
                 index++;
             }
-            else //if (frustum_culling.InsideOrIntersects(this_node.globalAABB) != math::CullTestResult::TestOutside) // per node AABB frustum culling
+            else
             {
                 NodeRecursive entering_node_state;
                 entering_node_state.childrenCount = this_node.childrenCount;
@@ -185,37 +154,11 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<Pla
 
                 index++;
             }
-        //    else
-        //       index += this_node.nodeAndChildrenSize;
-
         }
         else
             depth_nodes_stack.pop();
     }
     return draw_requests;
-}
-
-Anvil::BufferUniquePtr NodesOfScene::CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS) const
-{
-    auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                    meshesByIdTRS.size() * sizeof(glm::mat4),
-                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                    Anvil::SharingMode::EXCLUSIVE,
-                                                                    Anvil::BufferCreateFlagBits::NONE,
-                                                                    Anvil::BufferUsageFlagBits::STORAGE_BUFFER_BIT);
-
-    Anvil::BufferUniquePtr buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-    auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
-
-    allocator_ptr->add_buffer(buffer_ptr.get(),
-                              Anvil::MemoryFeatureFlagBits::NONE);
-
-    buffer_ptr->write(0,
-                      meshesByIdTRS.size() * sizeof(glm::mat4),
-                      meshesByIdTRS.data());
-
-    return std::move(buffer_ptr);
 }
 
 glm::mat4 NodesOfScene::CreateTRSmatrix(const tinygltf::Node& in_node) const

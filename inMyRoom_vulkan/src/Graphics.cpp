@@ -260,7 +260,6 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
                                                  Anvil::SubpassContents::INLINE);
 
         std::vector<Anvil::DescriptorSet*> lower_descriptor_sets;
-        lower_descriptor_sets.emplace_back(nodesOfScene_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set(0));
         lower_descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
 
         std::vector<DrawRequest> draw_requests = nodesOfScene_uptr->DrawUsingFrustumCull(cullingFrustum.GetWorldSpacePlanesOfFrustum());
@@ -430,13 +429,11 @@ void Graphics::InitScene()
     // Create primitives sets (shaders-pipelines for each kind of primitive)
     {
         std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetCreateInfos;
-        descriptorSetCreateInfos.emplace_back(nodesOfScene_uptr->TRSmatrixDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
         descriptorSetCreateInfos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
         {
             printf("-Initializing \"Z-Prepass Pass\" primitives set\n");
             ShadersSpecs this_shaders_specs;
             this_shaders_specs.shadersSetFamilyName = "Z-Prepass Pass";
-            this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(nodesOfScene_uptr->globalTRSmatrixesCount)));
           
             zprepassPassSetIndex = primitivesOfMeshes_uptr->InitPrimitivesSet(this_shaders_specs, false, Anvil::CompareOp::LESS, true, &descriptorSetCreateInfos, renderpass_uptr.get(), zprepassSubpassID);
         }
@@ -445,7 +442,6 @@ void Graphics::InitScene()
             ShadersSpecs this_shaders_specs;
             this_shaders_specs.shadersSetFamilyName = "Texture Pass";
             this_shaders_specs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");
-            this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("N_MESHIDS", static_cast<int32_t>(nodesOfScene_uptr->globalTRSmatrixesCount)));
 
             texturePassSetIndex = primitivesOfMeshes_uptr->InitPrimitivesSet(this_shaders_specs, true, Anvil::CompareOp::EQUAL, false, &descriptorSetCreateInfos, renderpass_uptr.get(), textureSubpassID);
         }
@@ -455,10 +451,10 @@ void Graphics::InitScene()
 
 void Graphics::InitCameraDsg()
 {
+    Anvil::DescriptorSetGroupUniquePtr new_dsg_ptr;
+
     std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> new_dsg_create_info_ptr;
     new_dsg_create_info_ptr.resize(swapchainImagesCount);
-
-    Anvil::DescriptorSetGroupUniquePtr new_dsg_ptr;
 
     for(uint32_t i = 0; i < swapchainImagesCount; i++)
     {

@@ -12,7 +12,7 @@
 #include "MaterialsOfPrimitives.h"
 #include "ShadersOfPrimitives.h"
 
-struct PrimitiveInitInfo
+struct PrimitiveGeneralInfo
 {
     Anvil::IndexType indexBufferType;
     uint32_t indicesCount = 0;
@@ -27,17 +27,13 @@ struct PrimitiveInitInfo
     size_t materialIndex = -1;
 };
 
-struct PrimitiveInfo
+struct PrimitiveSpecificSetInfo
 {
-    Anvil::IndexType indexBufferType;
-    uint32_t indicesCount = 0;
-    VkDeviceSize indexBufferOffset = -1;
-    VkDeviceSize positionBufferOffset = -1;
-    VkDeviceSize normalBufferOffset = -1;
-    VkDeviceSize tangentBufferOffset = -1;
-    VkDeviceSize texcoord0BufferOffset = -1;
-    VkDeviceSize texcoord1BufferOffset = -1;
-    VkDeviceSize color0BufferOffset = -1;
+    bool usesNormalBuffer = false;
+    bool usesTangentBuffer = false;
+    bool usesTexcoord0Buffer = false;
+    bool usesTexcoord1Buffer = false;
+    bool usesColor0Buffer = false;
     Anvil::PipelineID thisPipelineID;
     Anvil::DescriptorSet* materialDescriptorSet_ptr = nullptr;
     Anvil::PipelineLayout* pipelineLayout_ptr = nullptr;
@@ -58,8 +54,8 @@ public:
                              Anvil::RenderPass* renderpass_ptr, Anvil::SubPassID subpassID);
 
 public:
-    std::vector<std::vector<PrimitiveInfo>> primitivesSets;
-    std::vector<PrimitiveInitInfo> primitivesInitInfos;
+    std::vector<std::vector<PrimitiveSpecificSetInfo>> primitivesSets;
+    std::vector<PrimitiveGeneralInfo> primitivesInitInfos;
 
     Anvil::BufferUniquePtr indexBuffer_uptr;
     Anvil::BufferUniquePtr positionBuffer_uptr;

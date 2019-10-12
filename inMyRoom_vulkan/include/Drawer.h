@@ -7,17 +7,21 @@
 #include "wrappers/command_buffer.h"
 #include "glTFenum.h"
 
+#include "glm/mat4x4.hpp"
+
 #include "PrimitivesOfMeshes.h"
 
 struct DrawRequest
 {
     float z = 0.0f;
     uint32_t objectID;
-    size_t primitive_index;
+    size_t primitiveIndex;
+    glm::mat4x4 TRSmatrix;
 };
 
 struct CommandBufferState
 {
+    uint32_t objectID = -1;
     Anvil::PipelineID pipeline_id = -1;
     std::vector<Anvil::DescriptorSet*> descriptor_sets_ptrs;
     VkDeviceSize indexBufferOffset = -1;
@@ -52,7 +56,7 @@ public:
 private:
     void DrawCall(CommandBufferState& command_buffer_state, Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr, size_t in_primitivesSet_index,
                   const DrawRequest draw_request, const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs) const;
-    size_t GetSizeOfComponent(glTFcomponentType component_type) const;
+    static size_t GetSizeOfComponent(glTFcomponentType component_type);
 
     const sorting sortingMethod;
     const size_t pipelineSetIndex;
@@ -61,5 +65,5 @@ private:
     std::unordered_map<Anvil::PipelineID, std::vector<DrawRequest >> by_pipeline_PipelineIDToDrawRequests_umap;
 
     Anvil::BaseDevice* const device_ptr;
-    PrimitivesOfMeshes* meshesPrimitives_ptr;
+    PrimitivesOfMeshes* primitivesOfMeshes_ptr;
 };

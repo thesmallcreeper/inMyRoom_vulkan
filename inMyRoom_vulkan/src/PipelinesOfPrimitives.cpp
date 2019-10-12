@@ -50,9 +50,11 @@ Anvil::PipelineID PipelinesOfPrimitives::CreatePipeline(PipelineSpecs in_pipelin
                                                                                   ? *in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr
                                                                                   : Anvil::ShaderModuleStageEntryPoint());
 
+    pipeline_create_info_ptr->attach_push_constant_range(0                                          /*in_offset*/,
+                                                         sizeof(float) * 4 * 4                      /*in_size*/,
+                                                         Anvil::ShaderStageFlagBits::VERTEX_BIT     /*in_stages*/);
 
     pipeline_create_info_ptr->set_descriptor_set_create_info(&in_pipelineSpecs.descriptorSetsCreateInfo_ptrs);
-
 
     uint32_t location = 0;
 

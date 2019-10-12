@@ -51,22 +51,15 @@ class NodesOfScene
 public:
     NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scene& in_scene,
                  MeshesOfNodes* in_meshesOfNodes_ptr, Anvil::BaseDevice* const in_device_ptr);
-    ~NodesOfScene();
 
     std::vector<DrawRequest> DrawUsingFrustumCull(const std::array<Plane, 6> in_viewport_planes);
 
 public:
 	std::vector<NodeRef> nodes;
 
-    Anvil::DescriptorSetGroupUniquePtr TRSmatrixDescriptorSetGroup_uptr;
-    Anvil::BufferUniquePtr globalTRSmatrixesBuffer_uptr;
-    size_t globalTRSmatrixesCount;
-
 private:
     void AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_node, glm::mat4 parentTRSmatrix,
                        std::vector<glm::mat4>& meshesByIdTRS);
-
-    Anvil::BufferUniquePtr CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS) const;
 
     glm::mat4 CreateTRSmatrix(const tinygltf::Node& in_node) const;
 

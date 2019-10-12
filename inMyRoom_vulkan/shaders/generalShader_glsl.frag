@@ -28,14 +28,14 @@ layout( location = 0 ) out vec4 frag_color;
 // Descriptor Sets
 
 #ifdef USE_MATERIAL
-layout (set = 2, binding = 0) uniform UniformBuffer0
+layout (set = 1, binding = 0) uniform UniformBuffer0
 {
     vec4 baseColorFactor;
 };
 #endif
 
 #ifdef USE_BASE_COLOR_TEXTURE_TEXCOORD0
-layout (set = 2, binding = 1) uniform sampler2D base_color_texture;
+layout (set = 1, binding = 1) uniform sampler2D base_color_texture;
 #endif
 
 
