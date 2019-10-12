@@ -12,8 +12,6 @@ NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scen
     :meshesOfNodes_ptr(in_meshesOfNodes_ptr),
      device_ptr(in_device_ptr)
 {
-    std::vector<glm::mat4> meshes_by_id_TRS;
-
     NodeRef root_emtry_node;
     uint32_t emtry_node_childrenCount = 0;      // Useful hack
 
@@ -26,28 +24,16 @@ NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scen
 
         NodeRef root_nodeRef;
 
-        math::AABB this_AABB;
-        this_AABB.SetNegativeInfinity();
-
         if (this_node.mesh > -1)
         {
-
-            math::float4x4 parent_math_trs_matrix(parent_global_trs_matrix[0].x, parent_global_trs_matrix[1].x, parent_global_trs_matrix[2].x, parent_global_trs_matrix[3].x,
-                                                  parent_global_trs_matrix[0].y, parent_global_trs_matrix[1].y, parent_global_trs_matrix[2].y, parent_global_trs_matrix[3].y,
-                                                  parent_global_trs_matrix[0].z, parent_global_trs_matrix[1].z, parent_global_trs_matrix[2].z, parent_global_trs_matrix[3].z,
-                                                  parent_global_trs_matrix[0].w, parent_global_trs_matrix[1].w, parent_global_trs_matrix[2].w, parent_global_trs_matrix[3].w);
-
             root_nodeRef.isMesh = true;
-            root_nodeRef.objectID = static_cast<uint32_t>(meshes_by_id_TRS.size());
+            root_nodeRef.objectID = static_cast<uint32_t>(meshesById_TRS.size());
             root_nodeRef.meshIndex = this_node.mesh;
-            root_nodeRef.globalTRSmatrix = parent_math_trs_matrix;
-
-            this_AABB.Enclose(parent_math_trs_matrix * meshesOfNodes_ptr->meshes[this_node.mesh].boundSphere);  //useless
 
             emtry_node_childrenCount++;
 
             nodes.emplace_back(root_nodeRef);
-            meshes_by_id_TRS.emplace_back(parent_global_trs_matrix);
+            meshesById_TRS.emplace_back(parent_global_trs_matrix);
         }
         else if (!this_node.children.empty())
         {
@@ -62,22 +48,19 @@ NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scen
             size_t size_of_nodes_vector_before = nodes.size();
             for (int this_child : this_node.children)
             {
-                math::AABB returned_AABB = AddNode(in_model, in_model.nodes[this_child], parent_global_trs_matrix,
-                                                   std::ref(meshes_by_id_TRS));
-
-                this_AABB.Enclose(returned_AABB);
+                AddNode(in_model, in_model.nodes[this_child], parent_global_trs_matrix,
+                        std::ref(meshesById_TRS));
             }
 
             size_t size_of_nodes_vector_after = nodes.size();
             nodes[node_index].nodeAndChildrenSize = size_of_nodes_vector_after - size_of_nodes_vector_before;
-            nodes[node_index].globalAABB = this_AABB;
         }
     }
 
     nodes[0].childrenCount = emtry_node_childrenCount;
 
-    globalTRSmatrixesCount = meshes_by_id_TRS.size();
-    globalTRSmatrixesBuffer_uptr = CreateBufferForTRSmatrixesAndCopy(meshes_by_id_TRS);
+    globalTRSmatrixesCount = meshesById_TRS.size();
+    globalTRSmatrixesBuffer_uptr = CreateBufferForTRSmatrixesAndCopy(meshesById_TRS);
 
     {   // Create descriptor set group
         std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> new_dsg_create_info_ptr;
@@ -109,7 +92,7 @@ NodesOfScene::~NodesOfScene()
     globalTRSmatrixesBuffer_uptr.reset();
 }
 
-math::AABB NodesOfScene::AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_gltf_node,
+void NodesOfScene::AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_gltf_node,
                                const glm::mat4 parentTRSmatrix, std::vector<glm::mat4>& meshesByIdTRS)
 {
     glm::mat4 node_local_trs_matrix = CreateTRSmatrix(in_gltf_node);
@@ -117,23 +100,11 @@ math::AABB NodesOfScene::AddNode(const tinygltf::Model& in_model, const tinygltf
 
     NodeRef this_nodeRef;
 
-    math::AABB this_AABB;
-    this_AABB.SetNegativeInfinity();
-
     if (in_gltf_node.mesh > -1)
     {
-
-        math::float4x4 parent_math_trs_matrix(this_global_trs_matrix[0].x, this_global_trs_matrix[1].x, this_global_trs_matrix[2].x, this_global_trs_matrix[3].x,
-                                              this_global_trs_matrix[0].y, this_global_trs_matrix[1].y, this_global_trs_matrix[2].y, this_global_trs_matrix[3].y,
-                                              this_global_trs_matrix[0].z, this_global_trs_matrix[1].z, this_global_trs_matrix[2].z, this_global_trs_matrix[3].z,
-                                              this_global_trs_matrix[0].w, this_global_trs_matrix[1].w, this_global_trs_matrix[2].w, this_global_trs_matrix[3].w);
-
         this_nodeRef.isMesh = true;
         this_nodeRef.objectID = static_cast<uint32_t>(meshesByIdTRS.size());
         this_nodeRef.meshIndex = in_gltf_node.mesh;
-        this_nodeRef.globalTRSmatrix = parent_math_trs_matrix;
-
-        this_AABB.Enclose(parent_math_trs_matrix * meshesOfNodes_ptr->meshes[in_gltf_node.mesh].boundSphere);
 
         nodes.emplace_back(this_nodeRef);
         meshesByIdTRS.emplace_back(this_global_trs_matrix);
@@ -149,27 +120,21 @@ math::AABB NodesOfScene::AddNode(const tinygltf::Model& in_model, const tinygltf
         size_t size_of_nodes_vector_before = nodes.size();
         for (size_t i = 0; i < in_gltf_node.children.size(); i++)
         {
-            math::AABB returned_AABB = AddNode(in_model, in_model.nodes[in_gltf_node.children[i]], this_global_trs_matrix,
-                                               std::ref(meshesByIdTRS));
-
-            this_AABB.Enclose(returned_AABB);
+            AddNode(in_model, in_model.nodes[in_gltf_node.children[i]], this_global_trs_matrix,
+                    std::ref(meshesByIdTRS));
         }
 
         size_t size_of_nodes_vector_after = nodes.size();
         nodes[node_index].nodeAndChildrenSize = size_of_nodes_vector_after - size_of_nodes_vector_before;
-        nodes[node_index].globalAABB = this_AABB;
     }
-
-    return this_AABB;
 }
 
-std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<math::Plane, 6> in_viewport_planes)
+std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<Plane, 6> in_viewport_planes)
 {
     std::vector<DrawRequest> draw_requests;
 
-    PBVolume<in_viewport_planes.size()> frustum_culling;        // Set up frustum culling
-    for (size_t this_plane_index = 0; this_plane_index < in_viewport_planes.size(); this_plane_index++)
-        frustum_culling.p[this_plane_index] = in_viewport_planes[this_plane_index];
+    FrustumCulling frustum_culling;        // Set up frustum culling
+    frustum_culling.setFrustumPlanes(in_viewport_planes);
 
     size_t index = 0;
 
@@ -194,11 +159,12 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<mat
             if (this_node.isMesh)
             {
                 const MeshRange& this_mesh_range = meshesOfNodes_ptr->meshes[this_node.meshIndex];
+                const glm::mat4x4& this_TRS_matrix = meshesById_TRS[this_node.objectID];
 
-                const math::float4x4& this_TRS_matrix = this_node.globalTRSmatrix;
-                const math::Sphere& this_sphere = this_mesh_range.boundSphere;
+                const OBB& this_OBB = this_mesh_range.boundBox;
+                Cuboid this_cuboid = this_TRS_matrix * this_OBB;
 
-                if (frustum_culling.InsideOrIntersects(this_TRS_matrix * this_sphere) != math::CullTestResult::TestOutside) // per mesh-object sphere culling
+                if (frustum_culling.isCuboidInsideFrustum(this_cuboid)) // per mesh-object sphere culling
                     for (size_t primitive_index = this_mesh_range.primitiveFirstOffset; primitive_index < this_mesh_range.primitiveFirstOffset + this_mesh_range.primitiveRangeSize; primitive_index++)
                     {
                         DrawRequest this_draw_request;
@@ -209,7 +175,7 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<mat
 
                 index++;
             }
-            else if (frustum_culling.InsideOrIntersects(this_node.globalAABB) != math::CullTestResult::TestOutside) // per node AABB frustum culling
+            else //if (frustum_culling.InsideOrIntersects(this_node.globalAABB) != math::CullTestResult::TestOutside) // per node AABB frustum culling
             {
                 NodeRecursive entering_node_state;
                 entering_node_state.childrenCount = this_node.childrenCount;
@@ -219,8 +185,8 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<mat
 
                 index++;
             }
-            else
-                index += this_node.nodeAndChildrenSize;
+        //    else
+        //       index += this_node.nodeAndChildrenSize;
 
         }
         else

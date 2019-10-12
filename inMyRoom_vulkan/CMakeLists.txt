@@ -25,7 +25,6 @@ endif()
 
 add_subdirectory(../Anvil "${CMAKE_CURRENT_BINARY_DIR}/anvil")
 add_subdirectory(../Compressonator/Compressonator/Make "${CMAKE_CURRENT_BINARY_DIR}/compressonator")
-add_subdirectory(../MathGeoLib "${CMAKE_CURRENT_BINARY_DIR}/mathgeolib")
 
 find_package(Threads REQUIRED)
 
@@ -43,13 +42,13 @@ endif()
 include_directories(
         ../Anvil/include                                                   #Include Anvil
         ../Compressonator/Compressonator/Header                            #Include Compressonator
-        ../MathGeoLib/src                                                  #Include MathGeoLib
         ../tinygltf                                                        #Include tinyglTF
         ../Configuru                                                       #Include configuru
         ../glm                                                             #Include glm
+        ../DiTO                                                            #include DiTO
         ${inMyRoom_vulkan_SOURCE_DIR}/include)
 
-SET(SRC #header-only
+SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/hash_combine.h"
         #includes-.h
@@ -57,11 +56,16 @@ SET(SRC #header-only
         "${inMyRoom_vulkan_SOURCE_DIR}/include/VulkanInit.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/InputManager.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/ViewportFrustum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/CameraBaseClass.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/NaiveCamera.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Drawer.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/WindowWithAsyncInput.h"
+        #includes-.h geometry
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/ViewportFrustum.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/FrustumCulling.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Plane.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Cuboid.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/OBB.h"
         #includes-.h of scene
         "${inMyRoom_vulkan_SOURCE_DIR}/include/NodesOfScene.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MeshesOfNodes.h"
@@ -74,16 +78,23 @@ SET(SRC #header-only
         
         #main.cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/main.cpp"
+        #etc-.cpp
+        "${inMyRoom_vulkan_SOURCE_DIR}/../DiTO/dito.cpp"
         #source-.cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/VulkanInit.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/InputManager.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/ViewportFrustum.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/CameraBaseClass.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/NaiveCamera.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Drawer.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/WindowWithAsyncInput.cpp"
+         #includes-.h geometry
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/ViewportFrustum.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/FrustumCulling.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Plane.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Cuboid.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/OBB.cpp"
         #source-.cpp of scene
         "${inMyRoom_vulkan_SOURCE_DIR}/src/NodesOfScene.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MeshesOfNodes.cpp"
@@ -103,16 +114,13 @@ endif()
 
 add_dependencies(inMyRoom_vulkan Anvil)
 add_dependencies(inMyRoom_vulkan Compressonator)
-add_dependencies(inMyRoom_vulkan MathGeoLib)
 
 if (WIN32)
     target_link_libraries(inMyRoom_vulkan Anvil)
     target_link_libraries(inMyRoom_vulkan Compressonator)
-    target_link_libraries(inMyRoom_vulkan MathGeoLib)
 else ()
     target_link_libraries(inMyRoom_vulkan Anvil dl)
     target_link_libraries(inMyRoom_vulkan Compressonator dl)
-    target_link_libraries(inMyRoom_vulkan MathGeoLib dl)
 endif ()
 
 if (UNIX)

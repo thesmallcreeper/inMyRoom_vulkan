@@ -1,7 +1,6 @@
 #include "MeshesOfNodes.h"
 
 #include "PrimitivesOfMeshes.h"
-#include "Geometry/Sphere.h"
 
 MeshesOfNodes::MeshesOfNodes(tinygltf::Model& in_model, PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
                              Anvil::BaseDevice* const in_device_ptr)
@@ -14,7 +13,7 @@ MeshesOfNodes::MeshesOfNodes(tinygltf::Model& in_model, PrimitivesOfMeshes* in_p
     {
         MeshRange this_mesh_range;
 
-        std::vector<vec> points_of_sphere;
+        std::vector<glm::vec3> points_of_OBB;
 
         for (tinygltf::Primitive this_primitive : this_mesh.primitives)
         {
@@ -26,12 +25,12 @@ MeshesOfNodes::MeshesOfNodes(tinygltf::Model& in_model, PrimitivesOfMeshes* in_p
             float* end_index = reinterpret_cast<float*>(primitivesOfMeshes_ptr->localPositionBuffer.data() + end_index_byte);
 
             for (float* this_ptr = begin_index; this_ptr != end_index; this_ptr += 3)
-                points_of_sphere.emplace_back(this_ptr[0], this_ptr[1], this_ptr[2]);
+                points_of_OBB.emplace_back(glm::vec3(this_ptr[0], this_ptr[1], this_ptr[2]));
         }
 
         this_mesh_range.primitiveFirstOffset = primitives_so_far;
         this_mesh_range.primitiveRangeSize = this_mesh.primitives.size();
-        this_mesh_range.boundSphere = Sphere::OptimalEnclosingSphere(points_of_sphere.data(), points_of_sphere.size());
+        this_mesh_range.boundBox = OBB::CreateOBB(points_of_OBB);
 
         meshes.emplace_back(this_mesh_range);
 

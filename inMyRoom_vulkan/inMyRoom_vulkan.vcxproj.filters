@@ -9,9 +9,6 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
-    <Filter Include="Header Files\Header-only">
-      <UniqueIdentifier>{3f363aaa-a27a-4d80-96ad-22df54595c09}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\Scene">
       <UniqueIdentifier>{3d47ba8c-67af-4bf5-82df-16b23b68aa52}</UniqueIdentifier>
     </Filter>
@@ -21,6 +18,18 @@
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Geometry">
+      <UniqueIdentifier>{8c7b6e41-ef43-4c22-838a-ec10bc2c4c75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Geometry">
+      <UniqueIdentifier>{f74c833c-0521-40f2-91e7-5427e5aaac22}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_ect">
+      <UniqueIdentifier>{6d1be37a-7301-4c7e-8906-76ce099d53d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\_etc">
+      <UniqueIdentifier>{3f363aaa-a27a-4d80-96ad-22df54595c09}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -51,9 +60,6 @@
     <ClCompile Include="src\Drawer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ViewportFrustum.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\TexturesOfMaterials.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
@@ -78,6 +84,24 @@
     <ClCompile Include="src\ImagesUsageOfTextures.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="src\ViewportFrustum.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\OBB.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Cuboid.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Plane.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\FrustumCulling.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\DiTO\dito.cpp">
+      <Filter>Source Files\_ect</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -96,19 +120,19 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Configuru\configuru.hpp">
-      <Filter>Header Files\Header-only</Filter>
+      <Filter>Header Files\_etc</Filter>
     </ClInclude>
     <ClInclude Include="include\glTFenum.h">
-      <Filter>Header Files\Header-only</Filter>
+      <Filter>Header Files\_etc</Filter>
     </ClInclude>
     <ClInclude Include="..\tinygltf\tiny_gltf.h">
-      <Filter>Header Files\Header-only</Filter>
+      <Filter>Header Files\_etc</Filter>
     </ClInclude>
     <ClInclude Include="..\tinygltf\stb_image.h">
-      <Filter>Header Files\Header-only</Filter>
+      <Filter>Header Files\_etc</Filter>
     </ClInclude>
     <ClInclude Include="include\hash_combine.h">
-      <Filter>Header Files\Header-only</Filter>
+      <Filter>Header Files\_etc</Filter>
     </ClInclude>
     <ClInclude Include="include\CameraBaseClass.h">
       <Filter>Header Files</Filter>
@@ -117,9 +141,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\Drawer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ViewportFrustum.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\TexturesOfMaterials.h">
@@ -145,6 +166,24 @@
     </ClInclude>
     <ClInclude Include="include\ImagesUsageOfTextures.h">
       <Filter>Header Files\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\DiTO\dito.h">
+      <Filter>Header Files\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="include\OBB.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Cuboid.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ViewportFrustum.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Plane.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="include\FrustumCulling.h">
+      <Filter>Header Files\Geometry</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

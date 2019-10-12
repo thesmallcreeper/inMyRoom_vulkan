@@ -18,12 +18,4 @@ cd ..
 cd ..
 cd ..
 
-cd MathGeoLib
-if exist "build" rmdir /s/q build
-mkdir build
-cd build
-cmake .. -G "Visual Studio 16 2019"
-cd ..
-cd ..
-
 pause

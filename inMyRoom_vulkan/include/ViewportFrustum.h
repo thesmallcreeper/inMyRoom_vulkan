@@ -6,7 +6,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
-#include "Geometry/Plane.h"
+#include "Plane.h"
 
 #include <array>
 
@@ -31,7 +31,7 @@ public:
                           glm::vec3 in_camera_looking_direction, 
                           glm::vec3 in_camera_up);
 
-    std::array<math::Plane, 6> GetWorldSpacePlanesOfFrustum() const;
+    std::array<Plane, 6> GetWorldSpacePlanesOfFrustum() const;
 
 private:
     glm::mat4x4 perspectiveMatrix;

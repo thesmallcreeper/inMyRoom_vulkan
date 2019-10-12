@@ -11,10 +11,9 @@
 #include "wrappers/device.h"
 #include "wrappers/buffer.h"
 
-#include "Math/float4x4.h"
-#include "Geometry/AABB.h"
-#include "Geometry/PBVolume.h"
-
+#include "FrustumCulling.h"
+#include "Plane.h"
+#include "OBB.h"
 #include "MeshesOfNodes.h"
 #include "Drawer.h"
 
@@ -23,14 +22,20 @@ struct NodeRef
     NodeRef()
         :isMesh(false)
     {}
+    union
+    {
+        struct
+        {
+            uint32_t nodeAndChildrenSize;
+            uint32_t childrenCount;
+        };
+        struct
+        {
+            uint32_t meshIndex;
+            uint32_t objectID;
+        };
+    };
 
-    uint32_t nodeAndChildrenSize;
-    uint32_t childrenCount;
-    math::AABB globalAABB;
-
-    uint32_t meshIndex;
-    uint32_t objectID;
-    math::float4x4 globalTRSmatrix;
 
     bool isMesh;
 };
@@ -48,7 +53,7 @@ public:
                  MeshesOfNodes* in_meshesOfNodes_ptr, Anvil::BaseDevice* const in_device_ptr);
     ~NodesOfScene();
 
-    std::vector<DrawRequest> DrawUsingFrustumCull(const std::array<math::Plane, 6> in_viewport_planes);
+    std::vector<DrawRequest> DrawUsingFrustumCull(const std::array<Plane, 6> in_viewport_planes);
 
 public:
 	std::vector<NodeRef> nodes;
@@ -58,7 +63,7 @@ public:
     size_t globalTRSmatrixesCount;
 
 private:
-    math::AABB AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_node, glm::mat4 parentTRSmatrix,
+    void AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_node, glm::mat4 parentTRSmatrix,
                        std::vector<glm::mat4>& meshesByIdTRS);
 
     Anvil::BufferUniquePtr CreateBufferForTRSmatrixesAndCopy(const std::vector<glm::mat4>& meshesByIdTRS) const;
@@ -66,6 +71,8 @@ private:
     glm::mat4 CreateTRSmatrix(const tinygltf::Node& in_node) const;
 
 private:
+    std::vector<glm::mat4> meshesById_TRS;
+
     Anvil::BaseDevice* const device_ptr;
 
     MeshesOfNodes* meshesOfNodes_ptr;

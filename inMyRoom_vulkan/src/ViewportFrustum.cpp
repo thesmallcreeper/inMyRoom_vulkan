@@ -24,9 +24,9 @@ glm::mat4x4 ViewportFrustum::GetCombinedMatrix() const
 }
 
 void ViewportFrustum::UpdatePerspectiveMatrix(float fovy,
-                                      float aspect,
-                                      float near,
-                                      float far)
+                                              float aspect,
+                                              float near,
+                                              float far)
 {
     perspectiveMatrix = glm::perspective(fovy, aspect, near, far)
                       * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,    // Multiply with diag(1,-1,1,1) in order to make glm::perspective "vulkan-ready"                                                                                                                                                                                                                       
@@ -42,7 +42,7 @@ void ViewportFrustum::UpdateViewMatrix(glm::vec3 in_camera_position,
     viewMatrix = glm::lookAt(in_camera_position, in_camera_position + in_camera_looking_direction, in_camera_up);
 }
 
-std::array<math::Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
+std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
 {
     // Copyied and modified code from here: https://github.com/SaschaWillems/Vulkan/blob/master/base/frustum.hpp
     // Creator's copyrights:
@@ -87,17 +87,14 @@ std::array<math::Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
     planes_glm[FRONT].z = matrix[2].w - matrix[2].z;
     planes_glm[FRONT].w = matrix[3].w - matrix[3].z;
 
-    std::array<math::Plane, 6> planes;
+    std::array<Plane, 6> planes;
 
     for (size_t i = 0; i < planes_glm.size(); i++)
     {
-        math::vec this_normal(planes_glm[i].x, planes_glm[i].y, planes_glm[i].z);
-        float d = planes_glm[i].w;
-        float length_normal = this_normal.Length();
-        this_normal /= -length_normal;
-        d /= length_normal;
+        glm::vec3 this_planes_normal = - glm::vec3(planes_glm[i].x, planes_glm[i].y, planes_glm[i].z);
+        float this_planes_d = - planes_glm[i].w;
 
-        const math::Plane this_plane(this_normal, d);
+        Plane this_plane = Plane::CreatePlane(this_planes_normal, this_planes_d);
         planes[i] = this_plane;
     }
 

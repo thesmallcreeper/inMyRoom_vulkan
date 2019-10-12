@@ -7,7 +7,7 @@
 #include "wrappers/descriptor_set.h"
 #include "wrappers/command_buffer.h"
 
-#include "Geometry/Sphere.h"
+#include "OBB.h"
 
 #include "PrimitivesOfMeshes.h"
 
@@ -15,7 +15,7 @@ struct MeshRange
 {
     size_t primitiveFirstOffset;
     size_t primitiveRangeSize;
-    math::Sphere boundSphere;
+    OBB boundBox;
 };
 
 
