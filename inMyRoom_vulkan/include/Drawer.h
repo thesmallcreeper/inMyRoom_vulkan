@@ -22,7 +22,6 @@ struct DrawRequest
 struct CommandBufferState
 {
     uint32_t objectID = -1;
-    Anvil::PipelineID pipeline_id = -1;
     std::vector<Anvil::DescriptorSet*> descriptor_sets_ptrs;
     VkDeviceSize indexBufferOffset = -1;
     VkDeviceSize positionBufferOffset = -1;
@@ -32,6 +31,7 @@ struct CommandBufferState
     VkDeviceSize texcoord1BufferOffset = -1;
     VkDeviceSize color0BufferOffset = -1;
     Anvil::IndexType indexBufferType = static_cast<Anvil::IndexType>(-1);
+    VkPipeline vkGraphicsPipeline;
 };
 
 enum class sorting
@@ -43,26 +43,34 @@ enum class sorting
 
 class Drawer
 {
-public:
-    Drawer(sorting in_sorting_method, size_t in_pipelineSetIndex, PrimitivesOfMeshes* in_primitivesOfMeshes_ptr, Anvil::BaseDevice* const device_ptr);   // gotta do it primitivesOfmeshes independent
-    ~Drawer();
+public: //functions
+    Drawer(sorting in_sorting_method,
+           std::string only_by_pipeline_primitives_set_name,
+           PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
+           Anvil::BaseDevice* const device_ptr);
 
-    void AddDrawRequests(std::vector<DrawRequest> in_draw_requests);
+    void addDrawRequests(std::vector<DrawRequest> in_draw_requests);
 
-    void DrawCallRequests(std::vector<std::pair<Anvil::PrimaryCommandBuffer*, size_t>> pairs_primaryCommandBuffers_primitiveSets,
-                          const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs) const;
-    void DeleteDrawRequests();
+    void drawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
+                          std::string in_primitives_set_mame,
+                          const std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs);
 
-private:
-    void DrawCall(CommandBufferState& command_buffer_state, Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr, size_t in_primitivesSet_index,
-                  const DrawRequest draw_request, const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs) const;
+private: //functions
+    void drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
+                  const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs,
+                  const std::vector<PrimitiveSpecificSetInfo>& in_primitives_set_infos,
+                  const std::vector<PrimitiveGeneralInfo>& in_primitives_general_infos,
+                  const DrawRequest in_draw_request,
+                  CommandBufferState& ref_command_buffer_state);
+
     static size_t GetSizeOfComponent(glTFcomponentType component_type);
 
+private: // variebles
     const sorting sortingMethod;
-    const size_t pipelineSetIndex;
+    const std::string primitivesSetNameForByPipeline;
 
     std::vector<DrawRequest> none_drawRequests;
-    std::unordered_map<Anvil::PipelineID, std::vector<DrawRequest >> by_pipeline_PipelineIDToDrawRequests_umap;
+    std::unordered_map<VkPipeline, std::vector<DrawRequest >> by_pipeline_VkPipelineToDrawRequests_umap;
 
     Anvil::BaseDevice* const device_ptr;
     PrimitivesOfMeshes* primitivesOfMeshes_ptr;

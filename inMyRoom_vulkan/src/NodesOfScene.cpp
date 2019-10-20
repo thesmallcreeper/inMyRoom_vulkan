@@ -158,7 +158,7 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<Pla
         else
             depth_nodes_stack.pop();
     }
-    return draw_requests;
+    return std::move(draw_requests);
 }
 
 glm::mat4 NodesOfScene::CreateTRSmatrix(const tinygltf::Node& in_node) const

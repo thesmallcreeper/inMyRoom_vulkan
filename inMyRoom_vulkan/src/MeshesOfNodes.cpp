@@ -13,31 +13,22 @@ MeshesOfNodes::MeshesOfNodes(tinygltf::Model& in_model, PrimitivesOfMeshes* in_p
     {
         MeshRange this_mesh_range;
 
-        std::vector<glm::vec3> points_of_OBB;
+        primitivesOfMeshes_ptr->startRecordOBB();
+
+        this_mesh_range.primitiveFirstOffset = primitivesOfMeshes_ptr->primitivesCount();
+        this_mesh_range.primitiveRangeSize = this_mesh.primitives.size();
 
         for (tinygltf::Primitive this_primitive : this_mesh.primitives)
-        {
-            primitivesOfMeshes_ptr->AddPrimitive(in_model, this_primitive);
-            size_t begin_index_byte = primitivesOfMeshes_ptr->primitivesInitInfos.rbegin()[0].positionBufferOffset;
-            size_t end_index_byte = primitivesOfMeshes_ptr->localPositionBuffer.size();
+            primitivesOfMeshes_ptr->addPrimitive(in_model, this_primitive);
 
-            float* begin_index = reinterpret_cast<float*>(primitivesOfMeshes_ptr->localPositionBuffer.data() + begin_index_byte);
-            float* end_index = reinterpret_cast<float*>(primitivesOfMeshes_ptr->localPositionBuffer.data() + end_index_byte);
-
-            for (float* this_ptr = begin_index; this_ptr != end_index; this_ptr += 3)
-                points_of_OBB.emplace_back(glm::vec3(this_ptr[0], this_ptr[1], this_ptr[2]));
-        }
-
-        this_mesh_range.primitiveFirstOffset = primitives_so_far;
-        this_mesh_range.primitiveRangeSize = this_mesh.primitives.size();
-        this_mesh_range.boundBox = OBB::CreateOBB(points_of_OBB);
+        this_mesh_range.boundBox = primitivesOfMeshes_ptr->getOBBandReset();
 
         meshes.emplace_back(this_mesh_range);
 
         primitives_so_far += this_mesh.primitives.size();
     }
 
-    primitivesOfMeshes_ptr->FlashBuffersToDevice();
+    primitivesOfMeshes_ptr->flashBuffersToDevice();
 }
 
 MeshesOfNodes::~MeshesOfNodes()

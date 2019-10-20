@@ -262,19 +262,21 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
         std::vector<Anvil::DescriptorSet*> lower_descriptor_sets;
         lower_descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
 
+
+        Drawer by_pipeline_drawer(sorting::by_pipeline,
+                                  "Texture-Pass",
+                                  primitivesOfMeshes_uptr.get(),
+                                  device_ptr);
+
         std::vector<DrawRequest> draw_requests = nodesOfScene_uptr->DrawUsingFrustumCull(cullingFrustum.GetWorldSpacePlanesOfFrustum());
 
-        Drawer none_drawer(sorting::none, 0, primitivesOfMeshes_uptr.get(), device_ptr);
-        Drawer by_pipeline_drawer(sorting::by_pipeline, texturePassSetIndex, primitivesOfMeshes_uptr.get(), device_ptr);
+        by_pipeline_drawer.addDrawRequests(draw_requests);
 
-        none_drawer.AddDrawRequests(draw_requests);
-        by_pipeline_drawer.AddDrawRequests(draw_requests);
-
-        none_drawer.DrawCallRequests(std::initializer_list{ std::make_pair(cmd_buffer_ptr, zprepassPassSetIndex) }, lower_descriptor_sets);
+        by_pipeline_drawer.drawCallRequests(cmd_buffer_ptr, "Z-Prepass" ,lower_descriptor_sets);
 
         cmd_buffer_ptr->record_next_subpass(Anvil::SubpassContents::INLINE);
 
-        by_pipeline_drawer.DrawCallRequests(std::initializer_list{ std::make_pair(cmd_buffer_ptr, texturePassSetIndex) }, lower_descriptor_sets);
+        by_pipeline_drawer.drawCallRequests(cmd_buffer_ptr, "Texture-Pass", lower_descriptor_sets);
 
         cmd_buffer_ptr->record_end_render_pass();
     }
@@ -388,7 +390,8 @@ void Graphics::InitScene()
 
     // Find out how each texture is being used (color, normal, etc..)
     printf("-Initializing ImagesUsageOfTextures\n");
-    imagesUsageOfTextures_uptr = std::make_unique<ImagesUsageOfTextures>(model);
+    imagesUsageOfTextures_uptr = std::make_unique<ImagesUsageOfTextures>();
+    imagesUsageOfTextures_uptr->registImagesOfModel(model);
     // Compress textures and copy to GPU
     printf("-Initializing TexturesOfMaterials\n");
     texturesOfMaterials_uptr = std::make_unique <TexturesOfMaterials>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesUsageOfTextures_uptr.get(), device_ptr);
@@ -401,14 +404,14 @@ void Graphics::InitScene()
         std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
         {
             ShaderSetFamilyInitInfo this_shaderSetInitInfo;
-            this_shaderSetInitInfo.shadersSetFamilyName = "Texture Pass";
+            this_shaderSetInitInfo.shadersSetFamilyName = "Texture-Pass Shaders";
             this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalShader_glsl.frag";
             this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
             shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
         }
         {
             ShaderSetFamilyInitInfo this_shaderSetInitInfo;
-            this_shaderSetInitInfo.shadersSetFamilyName = "Z-Prepass Pass";
+            this_shaderSetInitInfo.shadersSetFamilyName = "Z-Prepass Shaders";
             this_shaderSetInitInfo.vertexShaderSourceFilename = "zprepassShader_glsl.vert";
             shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
         }
@@ -428,22 +431,32 @@ void Graphics::InitScene()
     nodesOfScene_uptr = std::make_unique<NodesOfScene>(model, scene, meshesOfNodes_uptr.get(), device_ptr);
     // Create primitives sets (shaders-pipelines for each kind of primitive)
     {
-        std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetCreateInfos;
-        descriptorSetCreateInfos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
+        std::vector<const Anvil::DescriptorSetCreateInfo*> low_descriptor_sets_create_infos;
+        low_descriptor_sets_create_infos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
         {
             printf("-Initializing \"Z-Prepass Pass\" primitives set\n");
-            ShadersSpecs this_shaders_specs;
-            this_shaders_specs.shadersSetFamilyName = "Z-Prepass Pass";
+
+            PrimitivesSetSpecs this_primitives_set_specs;
+            this_primitives_set_specs.primitivesSetName = "Z-Prepass";
+            this_primitives_set_specs.useDepthWrite = true;
+            this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
+            this_primitives_set_specs.useMaterial = false;
+            this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Z-Prepass Shaders";
           
-            zprepassPassSetIndex = primitivesOfMeshes_uptr->InitPrimitivesSet(this_shaders_specs, false, Anvil::CompareOp::LESS, true, &descriptorSetCreateInfos, renderpass_uptr.get(), zprepassSubpassID);
+            primitivesOfMeshes_uptr->initPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos,  renderpass_uptr.get(), zprepassSubpassID);
         }
         {
             printf("-Initializing \"Texture Pass\" primitives set\n");
-            ShadersSpecs this_shaders_specs;
-            this_shaders_specs.shadersSetFamilyName = "Texture Pass";
-            this_shaders_specs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");
 
-            texturePassSetIndex = primitivesOfMeshes_uptr->InitPrimitivesSet(this_shaders_specs, true, Anvil::CompareOp::EQUAL, false, &descriptorSetCreateInfos, renderpass_uptr.get(), textureSubpassID);
+            PrimitivesSetSpecs this_primitives_set_specs;
+            this_primitives_set_specs.primitivesSetName = "Texture-Pass";
+            this_primitives_set_specs.useDepthWrite = false;
+            this_primitives_set_specs.depthCompare = Anvil::CompareOp::EQUAL;
+            this_primitives_set_specs.useMaterial = true;
+            this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
+
+            primitivesOfMeshes_uptr->initPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), textureSubpassID);
+
         }
     }
 }

@@ -1,9 +1,7 @@
 #include "ImagesUsageOfTextures.h"
 
-ImagesUsageOfTextures::ImagesUsageOfTextures(tinygltf::Model& in_model)
+void ImagesUsageOfTextures::registImagesOfModel(tinygltf::Model& in_model)
 {
-    std::vector<ImageUsage> images_usage(in_model.images.size(), ImageUsage::undefined);
-
     for (tinygltf::Material& this_material : in_model.materials)
     {
         {
@@ -11,11 +9,11 @@ ImagesUsageOfTextures::ImagesUsageOfTextures(tinygltf::Model& in_model)
 
             if (search != this_material.values.end())
             {
-                auto this_texture_index = search->second.TextureIndex();
+                auto texture_index = search->second.TextureIndex();
+                auto image_index = in_model.textures[texture_index].source;
+                tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                auto this_image_index = in_model.textures[this_texture_index].source;
-
-                images_usage[this_image_index] = ImageUsage::baseColor;
+                registImage(image_being_used, ImageUsage::baseColor);
             }
         }
 
@@ -24,11 +22,11 @@ ImagesUsageOfTextures::ImagesUsageOfTextures(tinygltf::Model& in_model)
 
             if (search != this_material.values.end())
             {
-                auto this_texture_index = search->second.TextureIndex();
+                auto texture_index = search->second.TextureIndex();
+                auto image_index = in_model.textures[texture_index].source;
+                tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                auto this_image_index = in_model.textures[this_texture_index].source;
-
-                images_usage[this_image_index] = ImageUsage::metallic;
+                registImage(image_being_used, ImageUsage::metallic);
             }
         }
 
@@ -37,11 +35,11 @@ ImagesUsageOfTextures::ImagesUsageOfTextures(tinygltf::Model& in_model)
 
             if (search != this_material.values.end())
             {
-                auto this_texture_index = search->second.TextureIndex();
+                auto texture_index = search->second.TextureIndex();
+                auto image_index = in_model.textures[texture_index].source;
+                tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                auto this_image_index = in_model.textures[this_texture_index].source;
-
-                images_usage[this_image_index] = ImageUsage::roughness;
+                registImage(image_being_used, ImageUsage::roughness);
             }
         }
 
@@ -50,11 +48,11 @@ ImagesUsageOfTextures::ImagesUsageOfTextures(tinygltf::Model& in_model)
 
             if (search != this_material.additionalValues.end())
             {
-                auto this_texture_index = search->second.TextureIndex();
+                auto texture_index = search->second.TextureIndex();
+                auto image_index = in_model.textures[texture_index].source;
+                tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                auto this_image_index = in_model.textures[this_texture_index].source;
-
-                images_usage[this_image_index] = ImageUsage::normal;
+                registImage(image_being_used, ImageUsage::normal);
             }
         }
 
@@ -63,11 +61,11 @@ ImagesUsageOfTextures::ImagesUsageOfTextures(tinygltf::Model& in_model)
 
             if (search != this_material.additionalValues.end())
             {
-                auto this_texture_index = search->second.TextureIndex();
+                auto texture_index = search->second.TextureIndex();
+                auto image_index = in_model.textures[texture_index].source;
+                tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                auto this_image_index = in_model.textures[this_texture_index].source;
-
-                images_usage[this_image_index] = ImageUsage::occlusion;
+                registImage(image_being_used, ImageUsage::occlusion);
             }
         }
 
@@ -76,19 +74,46 @@ ImagesUsageOfTextures::ImagesUsageOfTextures(tinygltf::Model& in_model)
 
             if (search != this_material.additionalValues.end())
             {
-                auto this_texture_index = search->second.TextureIndex();
+                auto texture_index = search->second.TextureIndex();
+                auto image_index = in_model.textures[texture_index].source;
+                tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                auto this_image_index = in_model.textures[this_texture_index].source;
-
-                images_usage[this_image_index] = ImageUsage::emissive;
+                registImage(image_being_used, ImageUsage::emissive);
             }
         }
     }
 
-    imagesUsage.swap(images_usage);
 }
 
-ImagesUsageOfTextures::~ImagesUsageOfTextures()
+void ImagesUsageOfTextures::registImage(tinygltf::Image& in_image, ImageUsage in_imageUsage)
 {
-    imagesUsage.clear();
+    std::string image_uri = ImageInfoToString(in_image);
+    imagesUsage_umap.emplace(image_uri, in_imageUsage);
+}
+
+ImageUsage ImagesUsageOfTextures::getImageUsage(tinygltf::Image& in_image) const
+{
+    std::string image_uri = ImageInfoToString(in_image);
+    auto search = imagesUsage_umap.find(image_uri);
+
+    if (search != imagesUsage_umap.end())
+    {
+        return search->second;
+    }
+    else
+    {
+        return ImageUsage::undefined;
+    }
+}
+
+std::string ImagesUsageOfTextures::ImageInfoToString(tinygltf::Image& in_image) //static
+{
+    std::string return_string;
+
+    return_string += in_image.name;
+    return_string += std::string(in_image.image.begin(), in_image.image.end());
+    return_string += in_image.mimeType;
+    return_string += in_image.uri;
+
+    return return_string;
 }

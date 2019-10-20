@@ -8,6 +8,8 @@
 
 #include "tiny_gltf.h"
 
+#include "OBB.h"
+
 #include "PipelinesOfPrimitives.h"
 #include "MaterialsOfPrimitives.h"
 #include "ShadersOfPrimitives.h"
@@ -23,7 +25,7 @@ struct PrimitiveGeneralInfo
     VkDeviceSize texcoord0BufferOffset = -1;
     VkDeviceSize texcoord1BufferOffset = -1;
     VkDeviceSize color0BufferOffset = -1;
-    PipelineSpecs pipelineSpecs;
+    GraphicsPipelineSpecs pipelineSpecs;
     size_t materialIndex = -1;
 };
 
@@ -34,29 +36,50 @@ struct PrimitiveSpecificSetInfo
     bool usesTexcoord0Buffer = false;
     bool usesTexcoord1Buffer = false;
     bool usesColor0Buffer = false;
-    Anvil::PipelineID thisPipelineID;
     Anvil::DescriptorSet* materialDescriptorSet_ptr = nullptr;
-    Anvil::PipelineLayout* pipelineLayout_ptr = nullptr;
+    VkPipeline vkGraphicsPipeline;
+    Anvil::PipelineLayout* pipelineLayout_ptr;
+};
+
+struct PrimitivesSetSpecs
+{
+    std::string primitivesSetName;
+    ShadersSpecs shaderSpecs;
+    bool useMaterial;
+    bool useDepthWrite;
+    Anvil::CompareOp depthCompare;
 };
 
 class PrimitivesOfMeshes
 {
-public:
-    PrimitivesOfMeshes(PipelinesOfPrimitives* in_pipelinesOfPrimitives_ptr, ShadersOfPrimitives* in_shadersOfPrimitives_ptr,
+public: // functions
+    PrimitivesOfMeshes(PipelinesOfPrimitives* in_pipelinesOfPrimitives_ptr,
+                       ShadersOfPrimitives* in_shadersOfPrimitives_ptr,
                        MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
                        Anvil::BaseDevice* const in_device_ptr);
+
     ~PrimitivesOfMeshes();
 
-    void AddPrimitive(tinygltf::Model& in_model, tinygltf::Primitive& in_primitive);
-    void FlashBuffersToDevice();
-    size_t InitPrimitivesSet(ShadersSpecs in_shader_specs, bool use_material, Anvil::CompareOp in_depth_compare, bool use_depth_write,
-                             const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
-                             Anvil::RenderPass* renderpass_ptr, Anvil::SubPassID subpassID);
+    void addPrimitive(tinygltf::Model& in_model,
+                      tinygltf::Primitive& in_primitive);
 
-public:
-    std::vector<std::vector<PrimitiveSpecificSetInfo>> primitivesSets;
-    std::vector<PrimitiveGeneralInfo> primitivesInitInfos;
+    void initPrimitivesSet(PrimitivesSetSpecs in_primitives_set_specs,
+                           const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
+                           Anvil::RenderPass* renderpass_ptr,
+                           Anvil::SubPassID subpassID);
 
+    void flashBuffersToDevice();
+
+    size_t primitivesCount();
+
+    void startRecordOBB();
+
+    OBB  getOBBandReset();
+
+    const std::vector<PrimitiveSpecificSetInfo>& getPrimitivesSetInfos(std::string in_primitives_set_name) const;
+    const std::vector<PrimitiveGeneralInfo>& getPrimitivesGeneralInfos() const;
+
+public: // data
     Anvil::BufferUniquePtr indexBuffer_uptr;
     Anvil::BufferUniquePtr positionBuffer_uptr;
     Anvil::BufferUniquePtr normalBuffer_uptr;
@@ -65,6 +88,18 @@ public:
     Anvil::BufferUniquePtr texcoord1Buffer_uptr;
     Anvil::BufferUniquePtr color0Buffer_uptr;
 
+private: // functions
+    void addAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref,
+                                      bool shouldFlipYZ_position,
+                                      bool vec3_to_vec4,
+                                      size_t alignment,
+                                      tinygltf::Model& in_model,
+                                      tinygltf::Accessor in_accessor) const;
+
+    Anvil::BufferUniquePtr createDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
+                                                            Anvil::BufferUsageFlagBits in_bufferusageflag,
+                                                            std::string buffers_name) const;
+private: // data
     std::vector<unsigned char> localIndexBuffer;
     std::vector<unsigned char> localPositionBuffer;
     std::vector<unsigned char> localNormalBuffer;
@@ -73,19 +108,18 @@ public:
     std::vector<unsigned char> localTexcoord1Buffer;
     std::vector<unsigned char> localColor0Buffer;
 
-    bool hasBuffersBeenFlashed = false;
+    std::vector<glm::vec3> pointsOfRecordingOBB;
+    bool recordingOBB = false;
 
-private:
-    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref, bool shouldFlipYZ_position, bool vec3_to_vec4, size_t allignBufferSize,
-                                      tinygltf::Model& in_model,tinygltf::Accessor in_accessor) const;
-    Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
-                                                            Anvil::BufferUsageFlagBits in_bufferusageflag, std::string buffers_name) const;
-private:
-    Anvil::BaseDevice* const device_ptr;
+    std::unordered_map<std::string, std::vector<PrimitiveSpecificSetInfo>> primitivesSetsNameToVector_umap;
+    std::vector<PrimitiveGeneralInfo> primitivesGeneralInfos;
 
     PipelinesOfPrimitives* pipelinesOfPrimitives_ptr;
     ShadersOfPrimitives* shadersOfPrimitives_ptr;
     MaterialsOfPrimitives* materialsOfPrimitives_ptr;
+
+    Anvil::BaseDevice* const device_ptr;
+    bool hasBuffersBeenFlashed = false;
 
     Anvil::MemoryAllocatorUniquePtr allocator_ptr;
 };

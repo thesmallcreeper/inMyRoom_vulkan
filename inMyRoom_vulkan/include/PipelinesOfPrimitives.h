@@ -11,12 +11,13 @@
 #include "wrappers/descriptor_set.h"
 #include "wrappers/shader_module.h"
 #include "wrappers/graphics_pipeline_manager.h"
+#include "wrappers/compute_pipeline_manager.h"
 
 #include "glTFenum.h"
 
 #include "ShadersOfPrimitives.h"
 
-struct PipelineSpecs
+struct GraphicsPipelineSpecs
 {
     glTFmode drawMode = static_cast<glTFmode>(-1);
     Anvil::CompareOp depthCompare = static_cast<Anvil::CompareOp>(-1);
@@ -37,9 +38,9 @@ struct PipelineSpecs
 namespace std
 {
     template <>
-    struct hash<PipelineSpecs>
+    struct hash<GraphicsPipelineSpecs>
     {
-        std::size_t operator()(const PipelineSpecs& in_pipelineSpecs) const
+        std::size_t operator()(const GraphicsPipelineSpecs& in_pipelineSpecs) const
         {
             std::size_t result = 0;
             hash_combine(result, in_pipelineSpecs.drawMode);
@@ -70,9 +71,9 @@ namespace std
     };
 
     template <>
-    struct equal_to<PipelineSpecs>
+    struct equal_to<GraphicsPipelineSpecs>
     {
-        bool operator()(const PipelineSpecs& lhs, const PipelineSpecs& rhs) const
+        bool operator()(const GraphicsPipelineSpecs& lhs, const GraphicsPipelineSpecs& rhs) const
         {
             bool isEqual =  (lhs.drawMode == rhs.drawMode) &&
                             (lhs.depthCompare == rhs.depthCompare) && 
@@ -107,19 +108,24 @@ namespace std
 
 class PipelinesOfPrimitives
 {
-public:
+public:  //functions
     PipelinesOfPrimitives(Anvil::BaseDevice* const in_device_ptr);
     ~PipelinesOfPrimitives();
 
-    Anvil::PipelineID GetPipelineID(PipelineSpecs in_pipelineSpecs);
+    Anvil::PipelineID getGraphicsPipelineID(GraphicsPipelineSpecs in_pipelineSpecs);
+    VkPipeline getPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
+                                   Anvil::PipelineID in_pipeline_id) const;
 
-private:
-    Anvil::PipelineID CreatePipeline(PipelineSpecs pipelineSpecs);
+    Anvil::PipelineLayout* getPipelineLayout(Anvil::PipelineBindPoint in_pipeline_bind_point,
+                                             Anvil::PipelineID in_pipeline_id) const;
 
-private:
+private: //functions
+    Anvil::PipelineID createGraphicsPipeline(GraphicsPipelineSpecs pipelineSpecs);
+
+private: //data
     Anvil::BaseDevice* const device_ptr;
 
-    std::unordered_map<PipelineSpecs, Anvil::PipelineID> pipelineSpecsToPipelineID_umap;
+    std::unordered_map<GraphicsPipelineSpecs, Anvil::PipelineID> pipelineSpecsToPipelineID_umap;
 	std::vector<Anvil::PipelineID> pipelineIDs;
 
     std::map<glTFmode, Anvil::PrimitiveTopology> glTFmodeToPrimitiveTopology_map

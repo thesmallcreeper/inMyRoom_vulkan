@@ -1,5 +1,8 @@
 #pragma once
 
+#include <unordered_map>
+#include <string>
+
 #include "tiny_gltf.h"
 
 enum class ImageUsage
@@ -16,10 +19,13 @@ enum class ImageUsage
 
 class ImagesUsageOfTextures
 {
-public:
-    ImagesUsageOfTextures(tinygltf::Model& in_model);
-    ~ImagesUsageOfTextures();
+public:  //functions
+    void registImagesOfModel(tinygltf::Model& in_model);
+    ImageUsage getImageUsage(tinygltf::Image& in_image) const;
 
-public:
-    std::vector<ImageUsage> imagesUsage;
+private: //functions
+    void registImage(tinygltf::Image& in_image, ImageUsage in_imageUsage);
+    static std::string ImageInfoToString(tinygltf::Image& in_image);
+private: //data
+    std::unordered_map<std::string, ImageUsage> imagesUsage_umap;
 };

@@ -12,7 +12,7 @@ PipelinesOfPrimitives::~PipelinesOfPrimitives()
         gfx_manager_ptr->delete_pipeline(thisPipelineID);
 }
 
-Anvil::PipelineID PipelinesOfPrimitives::GetPipelineID(const PipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PipelinesOfPrimitives::getGraphicsPipelineID(const GraphicsPipelineSpecs in_pipelineSpecs)
 {
     auto search = pipelineSpecsToPipelineID_umap.find(in_pipelineSpecs);
 	if (search != pipelineSpecsToPipelineID_umap.end())
@@ -21,13 +21,31 @@ Anvil::PipelineID PipelinesOfPrimitives::GetPipelineID(const PipelineSpecs in_pi
 	}
 	else
 	{
-		Anvil::PipelineID new_pipelineID = CreatePipeline(in_pipelineSpecs);
+		Anvil::PipelineID new_pipelineID = createGraphicsPipeline(in_pipelineSpecs);
 		pipelineSpecsToPipelineID_umap.emplace(in_pipelineSpecs, new_pipelineID);
 		return new_pipelineID;
 	}
 }
 
-Anvil::PipelineID PipelinesOfPrimitives::CreatePipeline(PipelineSpecs in_pipelineSpecs)
+VkPipeline PipelinesOfPrimitives::getPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
+                                                      Anvil::PipelineID in_pipeline_id) const
+{
+    VkPipeline pipeline_vk = (in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE) ? device_ptr->get_compute_pipeline_manager()->get_pipeline(in_pipeline_id)
+                                                                                           : device_ptr->get_graphics_pipeline_manager()->get_pipeline(in_pipeline_id);
+
+    return pipeline_vk;
+}
+
+Anvil::PipelineLayout* PipelinesOfPrimitives::getPipelineLayout(Anvil::PipelineBindPoint in_pipeline_bind_point,
+                                                                Anvil::PipelineID in_pipeline_id) const
+{
+    Anvil::PipelineLayout* pipeline_layout = (in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE) ? device_ptr->get_compute_pipeline_manager()->get_pipeline_layout(in_pipeline_id)
+                                                                                                           : device_ptr->get_graphics_pipeline_manager()->get_pipeline_layout(in_pipeline_id);
+
+    return pipeline_layout;
+}
+
+Anvil::PipelineID PipelinesOfPrimitives::createGraphicsPipeline(GraphicsPipelineSpecs in_pipelineSpecs)
 {
     auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 
