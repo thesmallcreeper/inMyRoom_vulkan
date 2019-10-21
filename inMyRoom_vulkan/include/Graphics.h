@@ -17,8 +17,8 @@
 #include "ImagesUsageOfTextures.h"
 #include "TexturesOfMaterials.h"
 #include "MaterialsOfPrimitives.h"
-#include "ShadersOfPrimitives.h"
-#include "PipelinesOfPrimitives.h"
+#include "ShadersSetsFamiliesCache.h"
+#include "PipelinesFactory.h"
 #include "NodesOfScene.h"
 #include "PrimitivesOfMeshes.h"
 #include "MeshesOfNodes.h"
@@ -61,8 +61,8 @@ private:
     std::unique_ptr<ImagesUsageOfTextures> imagesUsageOfTextures_uptr;
     std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;
     std::unique_ptr<MaterialsOfPrimitives> materialsOfPrimitives_uptr;
-    std::unique_ptr<ShadersOfPrimitives> shadersOfPrimitives_uptr;
-    std::unique_ptr<PipelinesOfPrimitives> pipelinesOfPrimitives_uptr;
+    std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;
+    std::unique_ptr<PipelinesFactory> pipelinesFactory_uptr;
     std::unique_ptr<NodesOfScene> nodesOfScene_uptr;
     std::unique_ptr<PrimitivesOfMeshes> primitivesOfMeshes_uptr;
     std::unique_ptr<MeshesOfNodes> meshesOfNodes_uptr;

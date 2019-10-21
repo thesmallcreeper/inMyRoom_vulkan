@@ -12,7 +12,7 @@
 #include "tiny_gltf.h"
 
 #include "TexturesOfMaterials.h"
-#include "ShadersOfPrimitives.h"
+#include "ShadersSetsFamiliesCache.h"
 
 class MaterialsOfPrimitives
 {

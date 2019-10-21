@@ -1,10 +1,11 @@
- #pragma once
+#pragma once
 #include <cassert>
 
 #include <unordered_map>
 #include "hash_combine.h"
 
-#include "misc/base_pipeline_create_info.h"
+#include "misc/graphics_pipeline_create_info.h"
+#include "misc/compute_pipeline_create_info.h"
 #include "misc/base_pipeline_manager.h"
 #include "misc/descriptor_set_create_info.h"
 #include "wrappers/device.h"
@@ -15,12 +16,12 @@
 
 #include "glTFenum.h"
 
-#include "ShadersOfPrimitives.h"
+#include "ShadersSetsFamiliesCache.h"
 
 struct GraphicsPipelineSpecs
 {
     glTFmode drawMode = static_cast<glTFmode>(-1);
-    Anvil::CompareOp depthCompare = static_cast<Anvil::CompareOp>(-1);
+    Anvil::CompareOp depthCompare = Anvil::CompareOp::NEVER;
     bool depthWriteEnable = false;
     glTFcomponentType indexComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType positionComponentType = static_cast<glTFcomponentType>(-1);
@@ -33,6 +34,12 @@ struct GraphicsPipelineSpecs
     ShadersSet pipelineShaders;
     Anvil::RenderPass* renderpass_ptr = nullptr;
     Anvil::SubPassID subpassID = 0;
+};
+
+struct ComputePipelineSpecs
+{
+    std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetsCreateInfo_ptrs;
+    ShadersSet pipelineShaders;
 };
 
 namespace std
@@ -60,6 +67,23 @@ namespace std
             hash_combine(result, in_pipelineSpecs.pipelineShaders.tessControlShaderModule_ptr);
             hash_combine(result, in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr);
             hash_combine(result, in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr);
+
+         //   for(const auto& this_descriptorSetCreateInfo_ptr : in_pipelineSpecs.descriptorSetsCreateInfo_ptrs)
+         //   {
+         //       hash_combine(result, *this_descriptorSetCreateInfo_ptr);
+         //   }
+
+            return result;
+        }
+    };
+
+    template <>
+    struct hash<ComputePipelineSpecs>
+    {
+        std::size_t operator()(const ComputePipelineSpecs& in_pipelineSpecs) const
+        {
+            std::size_t result = 0;
+            hash_combine(result, in_pipelineSpecs.pipelineShaders.computeShaderModule_ptr);
 
          //   for(const auto& this_descriptorSetCreateInfo_ptr : in_pipelineSpecs.descriptorSetsCreateInfo_ptrs)
          //   {
@@ -104,15 +128,36 @@ namespace std
             return isEqual;
         }
     };
+
+    template <>
+    struct equal_to<ComputePipelineSpecs>
+    {
+        bool operator()(const ComputePipelineSpecs& lhs, const ComputePipelineSpecs& rhs) const
+        {
+            bool isEqual = (lhs.pipelineShaders.computeShaderModule_ptr == rhs.pipelineShaders.computeShaderModule_ptr);
+
+            if ((lhs.descriptorSetsCreateInfo_ptrs.size() == rhs.descriptorSetsCreateInfo_ptrs.size()) && isEqual)
+                for (size_t i = 0; (i < lhs.descriptorSetsCreateInfo_ptrs.size()) && isEqual; i++)
+                {
+                    isEqual &= *(lhs.descriptorSetsCreateInfo_ptrs[i]) == *(rhs.descriptorSetsCreateInfo_ptrs[i]);
+                }
+            else
+                return false;
+
+            return isEqual;
+        }
+    };
 }
 
-class PipelinesOfPrimitives
+class PipelinesFactory
 {
 public:  //functions
-    PipelinesOfPrimitives(Anvil::BaseDevice* const in_device_ptr);
-    ~PipelinesOfPrimitives();
+    PipelinesFactory(Anvil::BaseDevice* const in_device_ptr);
+    ~PipelinesFactory();
 
     Anvil::PipelineID getGraphicsPipelineID(GraphicsPipelineSpecs in_pipelineSpecs);
+    Anvil::PipelineID getComputePipelineID(ComputePipelineSpecs in_pipelineSpecs);
+
     VkPipeline getPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
                                    Anvil::PipelineID in_pipeline_id) const;
 
@@ -121,12 +166,16 @@ public:  //functions
 
 private: //functions
     Anvil::PipelineID createGraphicsPipeline(GraphicsPipelineSpecs pipelineSpecs);
+    Anvil::PipelineID createComputePipeline(ComputePipelineSpecs pipelineSpecs);
 
 private: //data
     Anvil::BaseDevice* const device_ptr;
 
-    std::unordered_map<GraphicsPipelineSpecs, Anvil::PipelineID> pipelineSpecsToPipelineID_umap;
-	std::vector<Anvil::PipelineID> pipelineIDs;
+    std::unordered_map<GraphicsPipelineSpecs, Anvil::PipelineID> graphicsPipelineSpecsToPipelineID_umap;
+    std::unordered_map<ComputePipelineSpecs, Anvil::PipelineID> computePipelineSpecsToPipelineID_umap;
+
+	std::vector<Anvil::PipelineID> graphicsPipelineIDs;
+    std::vector<Anvil::PipelineID> computePipelineIDs;
 
     std::map<glTFmode, Anvil::PrimitiveTopology> glTFmodeToPrimitiveTopology_map
     {

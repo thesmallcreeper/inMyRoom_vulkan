@@ -10,9 +10,9 @@
 
 #include "OBB.h"
 
-#include "PipelinesOfPrimitives.h"
+#include "PipelinesFactory.h"
 #include "MaterialsOfPrimitives.h"
-#include "ShadersOfPrimitives.h"
+#include "ShadersSetsFamiliesCache.h"
 
 struct PrimitiveGeneralInfo
 {
@@ -53,8 +53,8 @@ struct PrimitivesSetSpecs
 class PrimitivesOfMeshes
 {
 public: // functions
-    PrimitivesOfMeshes(PipelinesOfPrimitives* in_pipelinesOfPrimitives_ptr,
-                       ShadersOfPrimitives* in_shadersOfPrimitives_ptr,
+    PrimitivesOfMeshes(PipelinesFactory* in_pipelinesFactory_ptr,
+                       ShadersSetsFamiliesCache* in_shadersSetsFamiliesCache_ptr,
                        MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
                        Anvil::BaseDevice* const in_device_ptr);
 
@@ -114,8 +114,8 @@ private: // data
     std::unordered_map<std::string, std::vector<PrimitiveSpecificSetInfo>> primitivesSetsNameToVector_umap;
     std::vector<PrimitiveGeneralInfo> primitivesGeneralInfos;
 
-    PipelinesOfPrimitives* pipelinesOfPrimitives_ptr;
-    ShadersOfPrimitives* shadersOfPrimitives_ptr;
+    PipelinesFactory* pipelinesFactory_ptr;
+    ShadersSetsFamiliesCache* shadersSetsFamiliesCache_ptr;
     MaterialsOfPrimitives* materialsOfPrimitives_ptr;
 
     Anvil::BaseDevice* const device_ptr;

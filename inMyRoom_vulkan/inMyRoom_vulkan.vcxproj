@@ -30,9 +30,9 @@
     <ClCompile Include="src\CameraBaseClass.cpp" />
     <ClCompile Include="src\MeshesOfNodes.cpp" />
     <ClCompile Include="src\MaterialsOfPrimitives.cpp" />
-    <ClCompile Include="src\ShadersOfPrimitives.cpp" />
+    <ClCompile Include="src\ShadersSetsFamiliesCache.cpp" />
     <ClCompile Include="src\NodesOfScene.cpp" />
-    <ClCompile Include="src\PipelinesOfPrimitives.cpp" />
+    <ClCompile Include="src\PipelinesFactory.cpp" />
     <ClCompile Include="src\PrimitivesOfMeshes.cpp" />
     <ClCompile Include="src\NaiveCamera.cpp" />
     <ClCompile Include="src\TexturesOfMaterials.cpp" />
@@ -57,10 +57,10 @@
     <ClInclude Include="include\glTFenum.h" />
     <ClInclude Include="include\hash_combine.h" />
     <ClInclude Include="include\MaterialsOfPrimitives.h" />
-    <ClInclude Include="include\ShadersOfPrimitives.h" />
+    <ClInclude Include="include\ShadersSetsFamiliesCache.h" />
     <ClInclude Include="include\MeshesOfNodes.h" />
     <ClInclude Include="include\NodesOfScene.h" />
-    <ClInclude Include="include\PipelinesOfPrimitives.h" />
+    <ClInclude Include="include\PipelinesFactory.h" />
     <ClInclude Include="include\PrimitivesOfMeshes.h" />
     <ClInclude Include="include\CameraBaseClass.h" />
     <ClInclude Include="include\NaiveCamera.h" />

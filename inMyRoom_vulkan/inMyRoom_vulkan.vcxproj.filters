@@ -72,12 +72,6 @@
     <ClCompile Include="src\MaterialsOfPrimitives.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="src\PipelinesOfPrimitives.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ShadersOfPrimitives.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
     <ClCompile Include="src\NodesOfScene.cpp">
       <Filter>Source Files\Scene</Filter>
     </ClCompile>
@@ -101,6 +95,12 @@
     </ClCompile>
     <ClCompile Include="..\DiTO\dito.cpp">
       <Filter>Source Files\_ect</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PipelinesFactory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ShadersSetsFamiliesCache.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -155,12 +155,6 @@
     <ClInclude Include="include\MaterialsOfPrimitives.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="include\PipelinesOfPrimitives.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ShadersOfPrimitives.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
     <ClInclude Include="include\NodesOfScene.h">
       <Filter>Header Files\Scene</Filter>
     </ClInclude>
@@ -184,6 +178,12 @@
     </ClInclude>
     <ClInclude Include="include\FrustumCulling.h">
       <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PipelinesFactory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ShadersSetsFamiliesCache.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

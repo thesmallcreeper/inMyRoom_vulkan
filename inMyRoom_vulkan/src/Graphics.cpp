@@ -85,8 +85,8 @@ Graphics::~Graphics()
     texturesOfMaterials_uptr.reset();
     imagesUsageOfTextures_uptr.reset();
     materialsOfPrimitives_uptr.reset();
-    shadersOfPrimitives_uptr.reset();
-    pipelinesOfPrimitives_uptr.reset();
+    shadersSetsFamiliesCache_uptr.reset();
+    pipelinesFactory_uptr.reset();
     primitivesOfMeshes_uptr.reset();
 
     cameraDescriptorSetGroup_uptr.reset();
@@ -399,30 +399,29 @@ void Graphics::InitScene()
     printf("-Initializing MaterialsOfPrimitives\n");
     materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(model, texturesOfMaterials_uptr.get(), device_ptr);
     // Load shaders sources ready to get compiled
-    printf("-Initializing ShadersOfPrimitives\n");
+    printf("-Initializing ShadersSetsFamiliesCache\n");
     {
-        std::vector<ShaderSetFamilyInitInfo> shaderSetsInitInfos;
+        shadersSetsFamiliesCache_uptr = std::make_unique<ShadersSetsFamiliesCache>(device_ptr);
         {
-            ShaderSetFamilyInitInfo this_shaderSetInitInfo;
+            ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
             this_shaderSetInitInfo.shadersSetFamilyName = "Texture-Pass Shaders";
             this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalShader_glsl.frag";
             this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
-            shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
+            shadersSetsFamiliesCache_uptr->addShadersSetsFamily(this_shaderSetInitInfo);
         }
         {
-            ShaderSetFamilyInitInfo this_shaderSetInitInfo;
+            ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
             this_shaderSetInitInfo.shadersSetFamilyName = "Z-Prepass Shaders";
             this_shaderSetInitInfo.vertexShaderSourceFilename = "zprepassShader_glsl.vert";
-            shaderSetsInitInfos.emplace_back(this_shaderSetInitInfo);
+            shadersSetsFamiliesCache_uptr->addShadersSetsFamily(this_shaderSetInitInfo);
         }
-        shadersOfPrimitives_uptr = std::make_unique<ShadersOfPrimitives>(shaderSetsInitInfos, device_ptr);
     }
     // Initialize pipeline reuse map
-    printf("-Initializing PipelinesOfPrimitives\n");
-    pipelinesOfPrimitives_uptr = std::make_unique<PipelinesOfPrimitives>(device_ptr);
+    printf("-Initializing PipelinesFactory\n");
+    pipelinesFactory_uptr = std::make_unique<PipelinesFactory>(device_ptr);
     // Initialize models-primtives handler to GPU
     printf("-Initializing PrimitivesOfMeshes\n");
-    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesOfPrimitives_uptr.get(), shadersOfPrimitives_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr);
+    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesFactory_uptr.get(), shadersSetsFamiliesCache_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr);
     // For every mesh copy primitives of it to GPU
     printf("-Initializing MeshesOfNodes\n");
     meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(model, primitivesOfMeshes_uptr.get(), device_ptr);

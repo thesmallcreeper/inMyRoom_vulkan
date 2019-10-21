@@ -5,13 +5,13 @@
 #include <algorithm>
 #include <iterator>
 
-PrimitivesOfMeshes::PrimitivesOfMeshes(PipelinesOfPrimitives* in_pipelinesOfPrimitives_ptr,
-                                       ShadersOfPrimitives* in_shadersOfPrimitives_ptr,
+PrimitivesOfMeshes::PrimitivesOfMeshes(PipelinesFactory* in_pipelinesFactory_ptr,
+                                       ShadersSetsFamiliesCache* in_shadersSetsFamiliesCache_ptr,
                                        MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
                                        Anvil::BaseDevice* const in_device_ptr)
     :
-    pipelinesOfPrimitives_ptr(in_pipelinesOfPrimitives_ptr),
-    shadersOfPrimitives_ptr(in_shadersOfPrimitives_ptr),
+    pipelinesFactory_ptr(in_pipelinesFactory_ptr),
+    shadersSetsFamiliesCache_ptr(in_shadersSetsFamiliesCache_ptr),
     materialsOfPrimitives_ptr(in_materialsOfPrimitives_ptr),
     device_ptr(in_device_ptr)
 {
@@ -252,21 +252,20 @@ void PrimitivesOfMeshes::initPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
             this_pipelineSpecs.color0ComponentType = static_cast<glTFcomponentType>(-1);
         }
 
-        size_t shaderSet_index = shadersOfPrimitives_ptr->GetShaderSetIndex(this_shaderSpecs); // gotta make reference
 
         this_pipelineSpecs.descriptorSetsCreateInfo_ptrs = std::move(this_descriptorSetCreateInfos_ptrs);
+        this_pipelineSpecs.pipelineShaders = shadersSetsFamiliesCache_ptr->getShadersSet(this_shaderSpecs);
 
         this_pipelineSpecs.depthCompare = in_primitives_set_specs.depthCompare;
         this_pipelineSpecs.depthWriteEnable = in_primitives_set_specs.useDepthWrite;
-        this_pipelineSpecs.pipelineShaders = shadersOfPrimitives_ptr->shadersSets[shaderSet_index];
         this_pipelineSpecs.renderpass_ptr = renderpass_ptr;
         this_pipelineSpecs.subpassID = subpassID;
 
-        Anvil::PipelineID this_pipelineID = pipelinesOfPrimitives_ptr->getGraphicsPipelineID(this_pipelineSpecs);
+        Anvil::PipelineID this_pipelineID = pipelinesFactory_ptr->getGraphicsPipelineID(this_pipelineSpecs);
 
-        this_primitiveSpecificSetInfo.vkGraphicsPipeline = pipelinesOfPrimitives_ptr->getPipelineVkHandle(Anvil::PipelineBindPoint::GRAPHICS,
+        this_primitiveSpecificSetInfo.vkGraphicsPipeline = pipelinesFactory_ptr->getPipelineVkHandle(Anvil::PipelineBindPoint::GRAPHICS,
                                                                                                           this_pipelineID);
-        this_primitiveSpecificSetInfo.pipelineLayout_ptr = pipelinesOfPrimitives_ptr->getPipelineLayout(Anvil::PipelineBindPoint::GRAPHICS, 
+        this_primitiveSpecificSetInfo.pipelineLayout_ptr = pipelinesFactory_ptr->getPipelineLayout(Anvil::PipelineBindPoint::GRAPHICS, 
                                                                                                         this_pipelineID);
 
         this_set_primitiveSpecificSetInfo.emplace_back(this_primitiveSpecificSetInfo);

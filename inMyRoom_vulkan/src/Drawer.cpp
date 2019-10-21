@@ -112,10 +112,10 @@ void Drawer::drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
             const uint32_t descriptor_sets_count = static_cast<const uint32_t>(descriptor_sets_ptrs.size());
             in_cmd_buffer_ptr->record_bind_descriptor_sets(Anvil::PipelineBindPoint::GRAPHICS,
                                                            this_primitiveSpecificSetInfo.pipelineLayout_ptr,
-                                                           0, /* in_first_set */
+                                                           0,       /* in_first_set */
                                                            descriptor_sets_ptrs.size(), /* in_set_count */
                                                            descriptor_sets_ptrs.data(),
-                                                           0, /* in_dynamic_offset_count */
+                                                           0,       /* in_dynamic_offset_count */
                                                            nullptr); /* in_dynamic_offset_ptrs  */
 
             ref_command_buffer_state.descriptor_sets_ptrs = descriptor_sets_ptrs;

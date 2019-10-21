@@ -18,6 +18,7 @@ struct ShadersSet
     Anvil::ShaderModuleStageEntryPoint* tessControlShaderModule_ptr = nullptr;
     Anvil::ShaderModuleStageEntryPoint* tessEvaluationShaderModule_ptr = nullptr;
     Anvil::ShaderModuleStageEntryPoint* vertexShaderModule_ptr = nullptr;
+    Anvil::ShaderModuleStageEntryPoint* computeShaderModule_ptr = nullptr;
 };
 
 inline bool operator==(const ShadersSet& lhs, const ShadersSet& rhs)
@@ -26,12 +27,13 @@ inline bool operator==(const ShadersSet& lhs, const ShadersSet& rhs)
                     (lhs.geometryShaderModule_ptr == rhs.geometryShaderModule_ptr) &&
                     (lhs.tessControlShaderModule_ptr == rhs.tessControlShaderModule_ptr) &&
                     (lhs.tessEvaluationShaderModule_ptr == rhs.tessEvaluationShaderModule_ptr) &&
-                    (lhs.vertexShaderModule_ptr == rhs.vertexShaderModule_ptr);
+                    (lhs.vertexShaderModule_ptr == rhs.vertexShaderModule_ptr) &&
+                    (lhs.computeShaderModule_ptr == rhs.computeShaderModule_ptr);
 
     return isEqual;
 }
 
-struct ShaderSetFamilyInitInfo
+struct ShadersSetsFamilyInitInfo
 {
     std::string shadersSetFamilyName;
     std::string fragmentShaderSourceFilename;
@@ -39,15 +41,17 @@ struct ShaderSetFamilyInitInfo
     std::string tessControlShaderSourceFilename;
     std::string tessEvaluationShaderSourceFilename;
     std::string vertexShaderSourceFilename;
+    std::string computeShaderSourceFilename;
 };
 
-struct ShaderSetFamilySourceStrings
+struct ShadersSetsFamilySourceStrings
 {
     std::string fragmentShaderSourceString;
     std::string geometryShaderSourceString;
     std::string tessControlShaderSourceString;
     std::string tessEvaluationShaderSourceString;
     std::string vertexShaderSourceString;
+    std::string computeShaderSourceString;
 };
 
 struct ShadersSpecs
@@ -110,26 +114,25 @@ namespace std
     };
 }
 
-class ShadersOfPrimitives
+class ShadersSetsFamiliesCache
 {
-public:
-    ShadersOfPrimitives(std::vector<ShaderSetFamilyInitInfo> in_shadersSetFamilyInitInfos,
-                        Anvil::BaseDevice* const in_device_ptr);
-    ~ShadersOfPrimitives();
+public: //functions
+    ShadersSetsFamiliesCache(Anvil::BaseDevice* const in_device_ptr);
 
-    size_t GetShaderSetIndex(ShadersSpecs in_shaderSpecs);
+    void addShadersSetsFamily(ShadersSetsFamilyInitInfo in_shadersSetsFamilyInitInfos);
 
-public:
-    std::vector<ShadersSet> shadersSets;
+    ShadersSet getShadersSet(ShadersSpecs in_shaderSpecs);
 
-private:
-    ShadersSet CreateShadersSet(ShadersSpecs in_shaderSpecs);
+private: //functions
+    ShadersSet createShadersSet(ShadersSpecs in_shaderSpecs);
 
-private:
+private: // data
     Anvil::BaseDevice* const device_ptr;
+
+    std::vector<ShadersSet> shadersSets;
 
     std::vector<std::unique_ptr<Anvil::ShaderModuleStageEntryPoint>> shaderModulesStageEntryPoints_uptrs;
 
-    std::unordered_map<std::string, ShaderSetFamilySourceStrings> shadersSetFamilyNameToShadersSetFamilySourceStrings_umap;
-    std::unordered_map<ShadersSpecs, size_t> shaderSpecsToShaderSetIndex_umap;
+    std::unordered_map<std::string, ShadersSetsFamilySourceStrings> shadersSetFamilyNameToShadersSetFamilySourceStrings_umap;
+    std::unordered_map<ShadersSpecs, size_t> shaderSpecsToShadersSetIndex_umap;
 };

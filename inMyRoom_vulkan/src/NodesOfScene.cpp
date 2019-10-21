@@ -53,7 +53,7 @@ NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scen
             }
 
             size_t size_of_nodes_vector_after = nodes.size();
-            nodes[node_index].nodeAndChildrenSize = size_of_nodes_vector_after - size_of_nodes_vector_before;
+            nodes[node_index].nodeAndChildrenSize = static_cast<uint32_t>(size_of_nodes_vector_after - size_of_nodes_vector_before);
         }
     }
 
@@ -93,7 +93,7 @@ void NodesOfScene::AddNode(const tinygltf::Model& in_model, const tinygltf::Node
         }
 
         size_t size_of_nodes_vector_after = nodes.size();
-        nodes[node_index].nodeAndChildrenSize = size_of_nodes_vector_after - size_of_nodes_vector_before;
+        nodes[node_index].nodeAndChildrenSize = static_cast<uint32_t>(size_of_nodes_vector_after - size_of_nodes_vector_before);
     }
 }
 
