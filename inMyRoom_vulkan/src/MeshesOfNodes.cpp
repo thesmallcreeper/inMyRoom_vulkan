@@ -2,36 +2,49 @@
 
 #include "PrimitivesOfMeshes.h"
 
-MeshesOfNodes::MeshesOfNodes(tinygltf::Model& in_model, PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
+MeshesOfNodes::MeshesOfNodes(PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
                              Anvil::BaseDevice* const in_device_ptr)
     :
     primitivesOfMeshes_ptr(in_primitivesOfMeshes_ptr),
-    device_ptr(in_device_ptr)
+    device_ptr(in_device_ptr),
+    meshesSoFar(0)
 {
-    size_t primitives_so_far = 0;
-    for (tinygltf::Mesh& this_mesh : in_model.meshes)
+}
+
+void MeshesOfNodes::AddMeshesOfModel(const tinygltf::Model& in_model)
+{
+    for (const tinygltf::Mesh& this_mesh : in_model.meshes)
     {
-        MeshRange this_mesh_range;
+        MeshInfo this_mesh_range;
 
-        primitivesOfMeshes_ptr->startRecordOBB();
+        primitivesOfMeshes_ptr->StartRecordOBB();
 
-        this_mesh_range.primitiveFirstOffset = primitivesOfMeshes_ptr->primitivesCount();
+        this_mesh_range.primitiveFirstOffset = primitivesOfMeshes_ptr->GetPrimitivesCount();
         this_mesh_range.primitiveRangeSize = this_mesh.primitives.size();
 
         for (tinygltf::Primitive this_primitive : this_mesh.primitives)
-            primitivesOfMeshes_ptr->addPrimitive(in_model, this_primitive);
+            primitivesOfMeshes_ptr->AddPrimitive(in_model, this_primitive);
 
-        this_mesh_range.boundBox = primitivesOfMeshes_ptr->getOBBandReset();
+        this_mesh_range.boundBox = primitivesOfMeshes_ptr->GetOBBandReset();
 
         meshes.emplace_back(this_mesh_range);
-
-        primitives_so_far += this_mesh.primitives.size();
     }
 
-    primitivesOfMeshes_ptr->flashBuffersToDevice();
+    modelToMeshIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), meshesSoFar);
+
+    meshesSoFar += in_model.materials.size();
 }
 
-MeshesOfNodes::~MeshesOfNodes()
+size_t MeshesOfNodes::GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model) const
 {
+    auto search = modelToMeshIndexOffset_umap.find(const_cast<tinygltf::Model*>(&in_model));
+
+    assert(search != modelToMeshIndexOffset_umap.end());
+
+    return search->second;
 }
 
+MeshInfo MeshesOfNodes::GetMesh(size_t this_mesh_index) const
+{
+    return meshes[this_mesh_index];
+}

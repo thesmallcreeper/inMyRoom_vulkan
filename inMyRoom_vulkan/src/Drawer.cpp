@@ -17,7 +17,7 @@ Drawer::Drawer(sorting in_sorting_method,
 
 
 
-void Drawer::addDrawRequests(std::vector<DrawRequest> in_draw_requests)
+void Drawer::AddDrawRequests(std::vector<DrawRequest> in_draw_requests)
 {
     switch (sortingMethod)
     {
@@ -26,7 +26,7 @@ void Drawer::addDrawRequests(std::vector<DrawRequest> in_draw_requests)
             break;
         case sorting::by_pipeline:
         {
-            const std::vector<PrimitiveSpecificSetInfo>& primitives_set_infos = primitivesOfMeshes_ptr->getPrimitivesSetInfos(primitivesSetNameForByPipeline);
+            const std::vector<PrimitiveSpecificSetInfo>& primitives_set_infos = primitivesOfMeshes_ptr->GetPrimitivesSetInfos(primitivesSetNameForByPipeline);
             for (const auto& this_draw_request : in_draw_requests)
             {
                 VkPipeline this_vk_pipeline = primitives_set_infos[this_draw_request.primitiveIndex].vkGraphicsPipeline;
@@ -45,20 +45,20 @@ void Drawer::addDrawRequests(std::vector<DrawRequest> in_draw_requests)
     }
 }
 
-void Drawer::drawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
+void Drawer::DrawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                               std::string in_primitives_set_name,
                               const std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs)
 {
     CommandBufferState command_buffer_state;
 
-    const std::vector<PrimitiveSpecificSetInfo>& primitives_set_infos = primitivesOfMeshes_ptr->getPrimitivesSetInfos(in_primitives_set_name);
-    const std::vector<PrimitiveGeneralInfo>& primitives_general_infos = primitivesOfMeshes_ptr->getPrimitivesGeneralInfos();
+    const std::vector<PrimitiveSpecificSetInfo>& primitives_set_infos = primitivesOfMeshes_ptr->GetPrimitivesSetInfos(in_primitives_set_name);
+    const std::vector<PrimitiveGeneralInfo>& primitives_general_infos = primitivesOfMeshes_ptr->GetPrimitivesGeneralInfos();
 
     switch (sortingMethod)
     {
         case sorting::none:
             for (const auto& this_draw_request : none_drawRequests)
-                drawCall(in_cmd_buffer_ptr,
+                DrawCall(in_cmd_buffer_ptr,
                          in_low_descriptor_sets_ptrs,
                          primitives_set_infos,
                          primitives_general_infos,
@@ -68,7 +68,7 @@ void Drawer::drawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
         case sorting::by_pipeline:
             for (const auto& this_draw_request_vector : by_pipeline_VkPipelineToDrawRequests_umap)
                 for (const auto& this_draw_request : this_draw_request_vector.second)
-                    drawCall(in_cmd_buffer_ptr,
+                    DrawCall(in_cmd_buffer_ptr,
                              in_low_descriptor_sets_ptrs,
                              primitives_set_infos,
                              primitives_general_infos,
@@ -80,7 +80,7 @@ void Drawer::drawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
     }
 }
 
-void Drawer::drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
+void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                       const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs,
                       const std::vector<PrimitiveSpecificSetInfo>& in_primitives_set_infos,
                       const std::vector<PrimitiveGeneralInfo>& in_primitives_general_infos,
@@ -148,7 +148,7 @@ void Drawer::drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
         if (this_primitiveGeneralInfo.indexBufferOffset < ref_command_buffer_state.indexBufferOffset || this_primitiveGeneralInfo.indexBufferType != ref_command_buffer_state.indexBufferType ||
             (this_primitiveGeneralInfo.indexBufferOffset - ref_command_buffer_state.indexBufferOffset) % size_of_indexType != 0 || this_primitiveGeneralInfo.indexBufferOffset - ref_command_buffer_state.indexBufferOffset >(std::numeric_limits<uint32_t>::max)())
         {
-            in_cmd_buffer_ptr->record_bind_index_buffer(primitivesOfMeshes_ptr->indexBuffer_uptr.get(),
+            in_cmd_buffer_ptr->record_bind_index_buffer(primitivesOfMeshes_ptr->GetIndexBufferPtr(),
                                                         this_primitiveGeneralInfo.indexBufferOffset,
                                                         this_primitiveGeneralInfo.indexBufferType);
 
@@ -181,14 +181,14 @@ void Drawer::drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
             std::vector<Anvil::Buffer*> vertex_buffers;
             std::vector<VkDeviceSize> vertex_buffer_offsets;
 
-            vertex_buffers.emplace_back(primitivesOfMeshes_ptr->positionBuffer_uptr.get());
+            vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetPositionBufferPtr());
             vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.positionBufferOffset);
 
             ref_command_buffer_state.positionBufferOffset = this_primitiveGeneralInfo.positionBufferOffset;
 
             if (this_primitiveSpecificSetInfo.usesNormalBuffer == true)
             {
-                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->normalBuffer_uptr.get());
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetNormalBufferPtr());
                 vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.normalBufferOffset);
 
                 ref_command_buffer_state.normalBufferOffset = this_primitiveGeneralInfo.normalBufferOffset;
@@ -198,7 +198,7 @@ void Drawer::drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
 
             if (this_primitiveSpecificSetInfo.usesTangentBuffer == true)
             {
-                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->tangentBuffer_uptr.get());
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetTangentBufferPtr());
                 vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.tangentBufferOffset);
 
                 ref_command_buffer_state.tangentBufferOffset = this_primitiveGeneralInfo.tangentBufferOffset;
@@ -208,7 +208,7 @@ void Drawer::drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
 
             if (this_primitiveSpecificSetInfo.usesTexcoord0Buffer == true)
             {
-                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->texcoord0Buffer_uptr.get());
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetTexcoord0BufferPtr());
                 vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.texcoord0BufferOffset);
 
                 ref_command_buffer_state.texcoord0BufferOffset = this_primitiveGeneralInfo.texcoord0BufferOffset;
@@ -218,7 +218,7 @@ void Drawer::drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
 
             if (this_primitiveSpecificSetInfo.usesTexcoord1Buffer == true)
             {
-                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->texcoord1Buffer_uptr.get());
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetTexcoord1BufferPtr());
                 vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.texcoord1BufferOffset);
 
                 ref_command_buffer_state.texcoord1BufferOffset = this_primitiveGeneralInfo.texcoord1BufferOffset;
@@ -228,7 +228,7 @@ void Drawer::drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
 
             if (this_primitiveSpecificSetInfo.usesColor0Buffer == true)
             {
-                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->color0Buffer_uptr.get());
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetColor0BufferPtr());
                 vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.color0BufferOffset);
 
                 ref_command_buffer_state.color0BufferOffset = this_primitiveGeneralInfo.color0BufferOffset;

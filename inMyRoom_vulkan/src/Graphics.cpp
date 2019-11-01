@@ -1,28 +1,5 @@
 #include "Graphics.h"
 
-#include "misc/swapchain_create_info.h"
-#include "misc/memory_allocator.h"
-#include "misc/buffer_create_info.h"
-#include "misc/image_create_info.h"
-#include "misc/image_view_create_info.h"
-#include "misc/semaphore_create_info.h"
-#include "misc/fence_create_info.h"
-#include "misc/framebuffer_create_info.h"
-#include "misc/render_pass_create_info.h"
-#include "wrappers/rendering_surface.h"
-#include "wrappers/buffer.h"
-#include "wrappers/command_buffer.h"
-#include "wrappers/command_pool.h"
-#include "wrappers/descriptor_set_group.h"
-#include "wrappers/framebuffer.h"
-#include "wrappers/image.h"
-#include "wrappers/image_view.h"
-#include "wrappers/swapchain.h"
-#include "wrappers/render_pass.h"
-#include "wrappers/semaphore.h"
-#include "wrappers/fence.h"
-
-
 Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
                    uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount)
     :
@@ -61,6 +38,10 @@ Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_p
     InitSemaphoresAndFences();
     printf("Initializing command buffers\n");
     InitCommandBuffers();
+    printf("Initializing PipelinesFactory\n");
+    InitPipelinesFactory();
+    printf("Initializing ShadersSetsFamiliesCache\n");
+    InitShadersSetsFamiliesCache();
 
     printf("Initializing scene\n");
     InitScene();
@@ -270,13 +251,13 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
 
         std::vector<DrawRequest> draw_requests = nodesOfScene_uptr->DrawUsingFrustumCull(cullingFrustum.GetWorldSpacePlanesOfFrustum());
 
-        by_pipeline_drawer.addDrawRequests(draw_requests);
+        by_pipeline_drawer.AddDrawRequests(draw_requests);
 
-        by_pipeline_drawer.drawCallRequests(cmd_buffer_ptr, "Z-Prepass" ,lower_descriptor_sets);
+        by_pipeline_drawer.DrawCallRequests(cmd_buffer_ptr, "Z-Prepass" ,lower_descriptor_sets);
 
         cmd_buffer_ptr->record_next_subpass(Anvil::SubpassContents::INLINE);
 
-        by_pipeline_drawer.drawCallRequests(cmd_buffer_ptr, "Texture-Pass", lower_descriptor_sets);
+        by_pipeline_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", lower_descriptor_sets);
 
         cmd_buffer_ptr->record_end_render_pass();
     }
@@ -301,7 +282,7 @@ void Graphics::LoadScene()
     std::string ext = GetFilePathExtension(path);
 
     bool ret = false;
-    if (ext.compare("glb") == 0) {
+    if (ext.compare(".glb") == 0) {
         // assume binary glTF.
         ret = loader.LoadBinaryFromFile(&model, &err, &warn, path.c_str());
     }
@@ -323,6 +304,21 @@ void Graphics::LoadScene()
     }
 }
 
+
+std::string Graphics::GetFilePathExtension(const std::string& in_filePath)
+{
+    if (in_filePath.find_last_of(".") != std::string::npos)
+        return in_filePath.substr(in_filePath.find_last_of(".") + 1);
+    return "";
+}
+
+std::string Graphics::GetFilePathFolder(const std::string& in_filePath)
+{
+    if (in_filePath.find_last_of("/") != std::string::npos)
+        return in_filePath.substr(0, in_filePath.find_last_of("/"));
+    else
+        return "";
+}
 
 void Graphics::InitCameraBuffers()
 {
@@ -383,83 +379,6 @@ void Graphics::InitCameraBuffers()
                                           &perspective_matrix);
     }
 }
-
-void Graphics::InitScene()
-{
-    const tinygltf::Scene &scene = model.scenes[0];
-
-    // Find out how each texture is being used (color, normal, etc..)
-    printf("-Initializing ImagesUsageOfTextures\n");
-    imagesUsageOfTextures_uptr = std::make_unique<ImagesUsageOfTextures>();
-    imagesUsageOfTextures_uptr->registImagesOfModel(model);
-    // Compress textures and copy to GPU
-    printf("-Initializing TexturesOfMaterials\n");
-    texturesOfMaterials_uptr = std::make_unique <TexturesOfMaterials>(model, cfgFile["sceneInput"]["imagesFolder"].as_string(), cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesUsageOfTextures_uptr.get(), device_ptr);
-    // Create materials description sets
-    printf("-Initializing MaterialsOfPrimitives\n");
-    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(model, texturesOfMaterials_uptr.get(), device_ptr);
-    // Load shaders sources ready to get compiled
-    printf("-Initializing ShadersSetsFamiliesCache\n");
-    {
-        shadersSetsFamiliesCache_uptr = std::make_unique<ShadersSetsFamiliesCache>(device_ptr);
-        {
-            ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-            this_shaderSetInitInfo.shadersSetFamilyName = "Texture-Pass Shaders";
-            this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalShader_glsl.frag";
-            this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
-            shadersSetsFamiliesCache_uptr->addShadersSetsFamily(this_shaderSetInitInfo);
-        }
-        {
-            ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-            this_shaderSetInitInfo.shadersSetFamilyName = "Z-Prepass Shaders";
-            this_shaderSetInitInfo.vertexShaderSourceFilename = "zprepassShader_glsl.vert";
-            shadersSetsFamiliesCache_uptr->addShadersSetsFamily(this_shaderSetInitInfo);
-        }
-    }
-    // Initialize pipeline reuse map
-    printf("-Initializing PipelinesFactory\n");
-    pipelinesFactory_uptr = std::make_unique<PipelinesFactory>(device_ptr);
-    // Initialize models-primtives handler to GPU
-    printf("-Initializing PrimitivesOfMeshes\n");
-    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesFactory_uptr.get(), shadersSetsFamiliesCache_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr);
-    // For every mesh copy primitives of it to GPU
-    printf("-Initializing MeshesOfNodes\n");
-    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(model, primitivesOfMeshes_uptr.get(), device_ptr);
-    // Create scene nodes
-    printf("-Initializing NodesOfScene\n");
-    nodesOfScene_uptr = std::make_unique<NodesOfScene>(model, scene, meshesOfNodes_uptr.get(), device_ptr);
-    // Create primitives sets (shaders-pipelines for each kind of primitive)
-    {
-        std::vector<const Anvil::DescriptorSetCreateInfo*> low_descriptor_sets_create_infos;
-        low_descriptor_sets_create_infos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
-        {
-            printf("-Initializing \"Z-Prepass Pass\" primitives set\n");
-
-            PrimitivesSetSpecs this_primitives_set_specs;
-            this_primitives_set_specs.primitivesSetName = "Z-Prepass";
-            this_primitives_set_specs.useDepthWrite = true;
-            this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
-            this_primitives_set_specs.useMaterial = false;
-            this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Z-Prepass Shaders";
-          
-            primitivesOfMeshes_uptr->initPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos,  renderpass_uptr.get(), zprepassSubpassID);
-        }
-        {
-            printf("-Initializing \"Texture Pass\" primitives set\n");
-
-            PrimitivesSetSpecs this_primitives_set_specs;
-            this_primitives_set_specs.primitivesSetName = "Texture-Pass";
-            this_primitives_set_specs.useDepthWrite = false;
-            this_primitives_set_specs.depthCompare = Anvil::CompareOp::EQUAL;
-            this_primitives_set_specs.useMaterial = true;
-            this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
-
-            primitivesOfMeshes_uptr->initPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), textureSubpassID);
-
-        }
-    }
-}
-
 
 void Graphics::InitCameraDsg()
 {
@@ -539,46 +458,6 @@ void Graphics::InitImages()
                                                                      Anvil::ComponentSwizzle::IDENTITY);
 
         depthImageView_uptr = Anvil::ImageView::create(std::move(create_info_ptr));
-    }
-}
-
-void Graphics::InitSemaphoresAndFences()
-{
-    for (uint32_t n_semaphore = 0;
-         n_semaphore < swapchainImagesCount;
-         ++n_semaphore)
-    {
-        Anvil::SemaphoreUniquePtr new_signal_semaphore_ptr;
-        Anvil::SemaphoreUniquePtr new_wait_semaphore_ptr;
-
-        {
-            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(device_ptr);
-
-            new_signal_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr));
-
-            new_signal_semaphore_ptr->set_name_formatted("Signal semaphore [%d]",
-                                                         n_semaphore);
-        }
-
-        {
-            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(device_ptr);
-
-            new_wait_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr));
-
-            new_wait_semaphore_ptr->set_name_formatted("Wait semaphore [%d]",
-                                                       n_semaphore);
-        }
-
-        frameSignalSemaphores_uptrs.push_back(std::move(new_signal_semaphore_ptr));
-        frameWaitSemaphores_uptrs.push_back(std::move(new_wait_semaphore_ptr));
-    }
-
-    {
-        auto create_info_ptr = Anvil::FenceCreateInfo::create(device_ptr, true);
-
-        fence_last_submit_uptr = Anvil::Fence::create(std::move(create_info_ptr));
-
-        fence_last_submit_uptr->set_name("Fence of last submit");
     }
 }
 
@@ -679,6 +558,46 @@ void Graphics::InitRenderpasses()
         renderpass_uptr->set_name("Renderpass for swapchain images");
 }
 
+void Graphics::InitSemaphoresAndFences()
+{
+    for (uint32_t n_semaphore = 0;
+         n_semaphore < swapchainImagesCount;
+         ++n_semaphore)
+    {
+        Anvil::SemaphoreUniquePtr new_signal_semaphore_ptr;
+        Anvil::SemaphoreUniquePtr new_wait_semaphore_ptr;
+
+        {
+            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(device_ptr);
+
+            new_signal_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr));
+
+            new_signal_semaphore_ptr->set_name_formatted("Signal semaphore [%d]",
+                                                         n_semaphore);
+        }
+
+        {
+            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(device_ptr);
+
+            new_wait_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr));
+
+            new_wait_semaphore_ptr->set_name_formatted("Wait semaphore [%d]",
+                                                       n_semaphore);
+        }
+
+        frameSignalSemaphores_uptrs.push_back(std::move(new_signal_semaphore_ptr));
+        frameWaitSemaphores_uptrs.push_back(std::move(new_wait_semaphore_ptr));
+    }
+
+    {
+        auto create_info_ptr = Anvil::FenceCreateInfo::create(device_ptr, true);
+
+        fence_last_submit_uptr = Anvil::Fence::create(std::move(create_info_ptr));
+
+        fence_last_submit_uptr->set_name("Fence of last submit");
+    }
+}
+
 void Graphics::InitCommandBuffers()
 {
     const Anvil::DeviceType        device_type = device_ptr->get_type();
@@ -693,9 +612,99 @@ void Graphics::InitCommandBuffers()
         cmdBuffers_uptrs.emplace_back(std::move(cmd_buffer_uptr));
     }
 }
-std::string Graphics::GetFilePathExtension(const std::string &FileName) 
+
+void Graphics::InitPipelinesFactory()
 {
-    if (FileName.find_last_of(".") != std::string::npos)
-        return FileName.substr(FileName.find_last_of(".") + 1);
-    return "";
+    pipelinesFactory_uptr = std::make_unique<PipelinesFactory>(device_ptr);
+}
+
+void Graphics::InitShadersSetsFamiliesCache()
+{
+    shadersSetsFamiliesCache_uptr = std::make_unique<ShadersSetsFamiliesCache>(device_ptr);
+
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Texture-Pass Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalShader_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Z-Prepass Shaders";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "zprepassShader_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+}
+
+void Graphics::InitScene()
+{
+
+    const tinygltf::Scene& scene = model.scenes[0];
+
+    // Find out how each texture is being used (color, normal, etc..)
+    printf("-Initializing ImagesUsageOfTextures\n");
+    imagesUsageOfTextures_uptr = std::make_unique<ImagesUsageOfTextures>();
+    imagesUsageOfTextures_uptr->AddImagesUsageOfModel(model);
+
+    // Mapmaps, compress textures and copy to GPU
+    printf("-Initializing TexturesOfMaterials\n");
+    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesUsageOfTextures_uptr.get(), device_ptr);
+    texturesOfMaterials_uptr->AddTexturesOfModel(model, GetFilePathFolder(cfgFile["sceneInput"]["path"].as_string()));
+
+    // Create materials description sets
+    printf("-Initializing MaterialsOfPrimitives\n");
+    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device_ptr); //needs flash
+    materialsOfPrimitives_uptr->AddMaterialsOfModel(model);
+
+    // Initialize models-primtives handler to GPU
+    printf("-Initializing PrimitivesOfMeshes\n");
+    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesFactory_uptr.get(), shadersSetsFamiliesCache_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr); //needs flash
+    //primitivesOfMeshes_uptr collects primitives from meshesOfNodes_uptr
+
+    // For every mesh copy primitives of it to GPU
+    printf("-Initializing MeshesOfNodes\n");
+    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get(), device_ptr);
+    meshesOfNodes_uptr->AddMeshesOfModel(model);
+
+    // Create scene nodes
+    printf("-Initializing NodesOfScene\n");
+    nodesOfScene_uptr = std::make_unique<NodesOfScene>(model, scene, meshesOfNodes_uptr.get(), device_ptr);
+
+    // Create primitives sets (shaders-pipelines for each kind of primitive)
+    {
+        std::vector<const Anvil::DescriptorSetCreateInfo*> low_descriptor_sets_create_infos;
+        low_descriptor_sets_create_infos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
+        {
+            printf("-Initializing \"Z-Prepass Pass\" primitives set\n");
+
+            PrimitivesSetSpecs this_primitives_set_specs;
+            this_primitives_set_specs.primitivesSetName = "Z-Prepass";
+            this_primitives_set_specs.useDepthWrite = true;
+            this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
+            this_primitives_set_specs.useMaterial = false;
+            this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Z-Prepass Shaders";
+
+            primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), zprepassSubpassID);
+        }
+        {
+            printf("-Initializing \"Texture Pass\" primitives set\n");
+
+            PrimitivesSetSpecs this_primitives_set_specs;
+            this_primitives_set_specs.primitivesSetName = "Texture-Pass";
+            this_primitives_set_specs.useDepthWrite = false;
+            this_primitives_set_specs.depthCompare = Anvil::CompareOp::EQUAL;
+            this_primitives_set_specs.useMaterial = true;
+            this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
+            this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");
+
+            primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), textureSubpassID);
+
+        }
+    }
+
+    //Flashing device
+    primitivesOfMeshes_uptr->FlashDevice();
+    materialsOfPrimitives_uptr->FlashDevice();
+
 }

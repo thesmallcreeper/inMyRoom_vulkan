@@ -1,8 +1,8 @@
 #include "ImagesUsageOfTextures.h"
 
-void ImagesUsageOfTextures::registImagesOfModel(tinygltf::Model& in_model)
+void ImagesUsageOfTextures::AddImagesUsageOfModel(const tinygltf::Model& in_model)
 {
-    for (tinygltf::Material& this_material : in_model.materials)
+    for (const tinygltf::Material& this_material : in_model.materials)
     {
         {
             auto search = this_material.values.find("baseColorTexture");
@@ -11,9 +11,9 @@ void ImagesUsageOfTextures::registImagesOfModel(tinygltf::Model& in_model)
             {
                 auto texture_index = search->second.TextureIndex();
                 auto image_index = in_model.textures[texture_index].source;
-                tinygltf::Image& image_being_used = in_model.images[image_index];
+                const tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                registImage(image_being_used, ImageUsage::baseColor);
+                RegistImage(image_being_used, ImageUsage::baseColor);
             }
         }
 
@@ -24,9 +24,9 @@ void ImagesUsageOfTextures::registImagesOfModel(tinygltf::Model& in_model)
             {
                 auto texture_index = search->second.TextureIndex();
                 auto image_index = in_model.textures[texture_index].source;
-                tinygltf::Image& image_being_used = in_model.images[image_index];
+                const tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                registImage(image_being_used, ImageUsage::metallic);
+                RegistImage(image_being_used, ImageUsage::metallic);
             }
         }
 
@@ -37,9 +37,9 @@ void ImagesUsageOfTextures::registImagesOfModel(tinygltf::Model& in_model)
             {
                 auto texture_index = search->second.TextureIndex();
                 auto image_index = in_model.textures[texture_index].source;
-                tinygltf::Image& image_being_used = in_model.images[image_index];
+                const tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                registImage(image_being_used, ImageUsage::roughness);
+                RegistImage(image_being_used, ImageUsage::roughness);
             }
         }
 
@@ -50,9 +50,9 @@ void ImagesUsageOfTextures::registImagesOfModel(tinygltf::Model& in_model)
             {
                 auto texture_index = search->second.TextureIndex();
                 auto image_index = in_model.textures[texture_index].source;
-                tinygltf::Image& image_being_used = in_model.images[image_index];
+                const tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                registImage(image_being_used, ImageUsage::normal);
+                RegistImage(image_being_used, ImageUsage::normal);
             }
         }
 
@@ -63,9 +63,9 @@ void ImagesUsageOfTextures::registImagesOfModel(tinygltf::Model& in_model)
             {
                 auto texture_index = search->second.TextureIndex();
                 auto image_index = in_model.textures[texture_index].source;
-                tinygltf::Image& image_being_used = in_model.images[image_index];
+                const tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                registImage(image_being_used, ImageUsage::occlusion);
+                RegistImage(image_being_used, ImageUsage::occlusion);
             }
         }
 
@@ -76,25 +76,23 @@ void ImagesUsageOfTextures::registImagesOfModel(tinygltf::Model& in_model)
             {
                 auto texture_index = search->second.TextureIndex();
                 auto image_index = in_model.textures[texture_index].source;
-                tinygltf::Image& image_being_used = in_model.images[image_index];
+                const tinygltf::Image& image_being_used = in_model.images[image_index];
 
-                registImage(image_being_used, ImageUsage::emissive);
+                RegistImage(image_being_used, ImageUsage::emissive);
             }
         }
     }
 
 }
 
-void ImagesUsageOfTextures::registImage(tinygltf::Image& in_image, ImageUsage in_imageUsage)
+void ImagesUsageOfTextures::RegistImage(const tinygltf::Image& in_image, ImageUsage in_imageUsage)
 {
-    std::string image_uri = ImageInfoToString(in_image);
-    imagesUsage_umap.emplace(image_uri, in_imageUsage);
+    imagesUsage_umap.emplace(const_cast<tinygltf::Image*>(&in_image), in_imageUsage);
 }
 
-ImageUsage ImagesUsageOfTextures::getImageUsage(tinygltf::Image& in_image) const
+ImageUsage ImagesUsageOfTextures::GetImageUsage(const tinygltf::Image& in_image) const
 {
-    std::string image_uri = ImageInfoToString(in_image);
-    auto search = imagesUsage_umap.find(image_uri);
+    auto search = imagesUsage_umap.find(const_cast<tinygltf::Image*>(&in_image));
 
     if (search != imagesUsage_umap.end())
     {
@@ -104,16 +102,4 @@ ImageUsage ImagesUsageOfTextures::getImageUsage(tinygltf::Image& in_image) const
     {
         return ImageUsage::undefined;
     }
-}
-
-std::string ImagesUsageOfTextures::ImageInfoToString(tinygltf::Image& in_image) //static
-{
-    std::string return_string;
-
-    return_string += in_image.name;
-    return_string += std::string(in_image.image.begin(), in_image.image.end());
-    return_string += in_image.mimeType;
-    return_string += in_image.uri;
-
-    return return_string;
 }

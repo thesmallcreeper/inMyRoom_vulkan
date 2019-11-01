@@ -2,6 +2,9 @@
 #define GLM_ENABLE_EXPERIMENTAL
 
 #include "glm/mat4x4.hpp"
+#include "glm/gtx/transform.hpp"
+#include "glm/gtx/quaternion.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 #include "tiny_gltf.h"
 
@@ -17,11 +20,15 @@
 #include "MeshesOfNodes.h"
 #include "Drawer.h"
 
-struct NodeRef
+struct NodeInfo
 {
-    NodeRef()
-        :isMesh(false)
+    NodeInfo()
+        :isMesh(false),
+         shouldRender(true)
     {}
+    bool isMesh;
+    bool shouldRender;
+
     union
     {
         struct
@@ -36,35 +43,33 @@ struct NodeRef
         };
     };
 
-
-    bool isMesh;
+    glm::mat4x4 localTRSmatrix;
 };
 
 struct NodeRecursive
 {
     uint32_t childrenSoFar;
     uint32_t childrenCount;
+    glm::mat4x4 globalTRSmaxtix;
 };
 
 class NodesOfScene
 {
-public:
+public: // functions
     NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scene& in_scene,
                  MeshesOfNodes* in_meshesOfNodes_ptr, Anvil::BaseDevice* const in_device_ptr);
 
     std::vector<DrawRequest> DrawUsingFrustumCull(const std::array<Plane, 6> in_viewport_planes);
 
-public:
-	std::vector<NodeRef> nodes;
+private: // data
+    std::vector<NodeInfo> nodesInfos;
 
-private:
-    void AddNode(const tinygltf::Model& in_model, const tinygltf::Node& in_node, glm::mat4 parentTRSmatrix,
-                       std::vector<glm::mat4>& meshesByIdTRS);
+    uint32_t nextObjectsID = 0;
+
+    void AddNode(const tinygltf::Model& in_model,
+                 const tinygltf::Node& in_node);
 
     glm::mat4 CreateTRSmatrix(const tinygltf::Node& in_node) const;
-
-private:
-    std::vector<glm::mat4> meshesById_TRS;
 
     Anvil::BaseDevice* const device_ptr;
 

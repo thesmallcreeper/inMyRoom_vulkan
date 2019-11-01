@@ -155,18 +155,18 @@ public:  //functions
     PipelinesFactory(Anvil::BaseDevice* const in_device_ptr);
     ~PipelinesFactory();
 
-    Anvil::PipelineID getGraphicsPipelineID(GraphicsPipelineSpecs in_pipelineSpecs);
-    Anvil::PipelineID getComputePipelineID(ComputePipelineSpecs in_pipelineSpecs);
+    Anvil::PipelineID GetGraphicsPipelineID(GraphicsPipelineSpecs in_pipelineSpecs);
+    Anvil::PipelineID GetComputePipelineID(ComputePipelineSpecs in_pipelineSpecs);
 
-    VkPipeline getPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
-                                   Anvil::PipelineID in_pipeline_id) const;
+    VkPipeline GetPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
+                                         Anvil::PipelineID in_pipeline_id) const;
 
-    Anvil::PipelineLayout* getPipelineLayout(Anvil::PipelineBindPoint in_pipeline_bind_point,
-                                             Anvil::PipelineID in_pipeline_id) const;
+    Anvil::PipelineLayout* GetPipelineLayout(Anvil::PipelineBindPoint in_pipeline_bind_point,
+                                                   Anvil::PipelineID in_pipeline_id) const;
 
 private: //functions
-    Anvil::PipelineID createGraphicsPipeline(GraphicsPipelineSpecs pipelineSpecs);
-    Anvil::PipelineID createComputePipeline(ComputePipelineSpecs pipelineSpecs);
+    Anvil::PipelineID CreateGraphicsPipeline(GraphicsPipelineSpecs pipelineSpecs);
+    Anvil::PipelineID CreateComputePipeline(ComputePipelineSpecs pipelineSpecs);
 
 private: //data
     Anvil::BaseDevice* const device_ptr;

@@ -10,11 +10,52 @@
 #include <cstring>
 #include <iostream>
 
-TexturesOfMaterials::TexturesOfMaterials(tinygltf::Model& in_model, const std::string& in_imagesFolder, bool use_mipmaps,
+TexturesOfMaterials::TexturesOfMaterials(bool use_mipmaps,
                                          ImagesUsageOfTextures* in_imagesUsageOfTextures_ptr,
                                          Anvil::BaseDevice* const in_device_ptr)
+    :imagesUsageOfTextures_ptr(in_imagesUsageOfTextures_ptr),
+     device_ptr(in_device_ptr),
+     useMipmaps(use_mipmaps),
+     imagesSoFar(0),
+     texturesSoFar(0)
 {
-    for (tinygltf::Image& thisImage : in_model.images)
+    // Default sampler ( its index is 0 )
+
+    Anvil::SamplerUniquePtr image_sampler_ptr;
+
+    auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
+                                                            Anvil::Filter::LINEAR,
+                                                            Anvil::Filter::LINEAR,
+                                                            Anvil::SamplerMipmapMode::LINEAR,
+                                                            Anvil::SamplerAddressMode::REPEAT,
+                                                            Anvil::SamplerAddressMode::REPEAT,
+                                                            Anvil::SamplerAddressMode::REPEAT,
+                                                            0.0f, /* in_lod_bias        */
+                                                            16.0f, /* in_max_anisotropy  */
+                                                            false, /* in_compare_enable  */
+                                                            Anvil::CompareOp::NEVER, /* in_compare_enable  */
+                                                            0.0f, /* in_min_lod         */
+                                                            16.0f, /* in_max_lod         */
+                                                            Anvil::BorderColor::INT_OPAQUE_BLACK,
+                                                            false); /* in_use_unnormalized_coordinates */
+
+    image_sampler_ptr = Anvil::Sampler::create(std::move(create_info_ptr));
+
+    samplers_uptrs.emplace_back(std::move(image_sampler_ptr));
+
+}
+
+
+TexturesOfMaterials::~TexturesOfMaterials()
+{
+    samplers_uptrs.clear();
+    imagesViews_upts.clear();
+    images_uptrs.clear();
+}
+
+void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, const std::string& in_imagesFolder)
+{
+    for (const tinygltf::Image& thisImage : in_model.images)
     {
         std::unique_ptr<uint8_t[]> local_original_image_buffer;
 
@@ -49,8 +90,7 @@ TexturesOfMaterials::TexturesOfMaterials(tinygltf::Model& in_model, const std::s
         create_directory(path_to_mipmap_folder);
 
         Anvil::Format original_image_vulkan_format = componentsCountToVulkanFormat_map.find(imageCompCount)->second;
-        CMP_FORMAT original_image_compressonator_format = vulkanFormatToCompressonatorFormat_map
-                                                          .find(original_image_vulkan_format)->second;
+        CMP_FORMAT original_image_compressonator_format = vulkanFormatToCompressonatorFormat_map.find(original_image_vulkan_format)->second;
 
         CMP_Texture srcTexture;
 
@@ -72,7 +112,7 @@ TexturesOfMaterials::TexturesOfMaterials(tinygltf::Model& in_model, const std::s
         std::vector<Anvil::MipmapRawData> mipmaps_raw_data;
 
         size_t mipmap_levels;
-        if (use_mipmaps)
+        if (useMipmaps)
         {
             if (width >= height)
                 mipmap_levels = static_cast<size_t>(std::floor(std::log2(width))) - 1;
@@ -119,12 +159,11 @@ TexturesOfMaterials::TexturesOfMaterials(tinygltf::Model& in_model, const std::s
 
             mipmaps.emplace_back(this_mipmap);
 
-            mipmaps_raw_data.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(
-                Anvil::ImageAspectFlagBits::COLOR_BIT,
-                static_cast<uint32_t>(this_mipmap_level),
-                this_mipmap.pData,
-                this_mipmap.dwDataSize,
-                this_mipmap.dwDataSize / this_mipmap_height));
+            mipmaps_raw_data.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
+                                                                                         static_cast<uint32_t>(this_mipmap_level),
+                                                                                         this_mipmap.pData,
+                                                                                         this_mipmap.dwDataSize,
+                                                                                         this_mipmap.dwDataSize / this_mipmap_height));
 
             if (this_mipmap_width > 1) this_mipmap_width /= 2;
             if (this_mipmap_height > 1) this_mipmap_height /= 2;
@@ -134,7 +173,7 @@ TexturesOfMaterials::TexturesOfMaterials(tinygltf::Model& in_model, const std::s
         Anvil::ImageViewUniquePtr image_view_ptr;
 
         {
-            auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(in_device_ptr,
+            auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
                                                                         Anvil::ImageType::_2D,
                                                                         image_preferred_format,
                                                                         Anvil::ImageTiling::OPTIMAL,
@@ -146,7 +185,7 @@ TexturesOfMaterials::TexturesOfMaterials(tinygltf::Model& in_model, const std::s
                                                                         Anvil::SampleCountFlagBits::_1_BIT,
                                                                         Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                         Anvil::SharingMode::EXCLUSIVE,
-                                                                        use_mipmaps, /* in_use_full_mipmap_chain */
+                                                                        useMipmaps, /* in_use_full_mipmap_chain */
                                                                         Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
                                                                         Anvil::ImageCreateFlagBits::NONE,
                                                                         Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
@@ -160,7 +199,7 @@ TexturesOfMaterials::TexturesOfMaterials(tinygltf::Model& in_model, const std::s
             delete this_data.pData;
 
         {
-            auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(in_device_ptr,
+            auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(device_ptr,
                                                                          image_ptr.get(),
                                                                          0, /* n_base_layer        */
                                                                          0, /* n_base_mipmap_level */
@@ -185,72 +224,94 @@ TexturesOfMaterials::TexturesOfMaterials(tinygltf::Model& in_model, const std::s
         imagesViews_upts.emplace_back(std::move(image_view_ptr));
     }
 
+    for (const tinygltf::Texture& this_texture : in_model.textures)
     {
-        // Default sampler because ffs glTF specs has autism
-        Anvil::SamplerUniquePtr image_sampler_ptr;
+        TextureInfo this_texture_info;
 
-        auto create_info_ptr = Anvil::SamplerCreateInfo::create(in_device_ptr,
-                                                                Anvil::Filter::LINEAR,
-                                                                Anvil::Filter::LINEAR,
-                                                                Anvil::SamplerMipmapMode::LINEAR,
-                                                                Anvil::SamplerAddressMode::REPEAT,
-                                                                Anvil::SamplerAddressMode::REPEAT,
-                                                                Anvil::SamplerAddressMode::REPEAT,
-                                                                0.0f, /* in_lod_bias        */
-                                                                16.0f, /* in_max_anisotropy  */
-                                                                false, /* in_compare_enable  */
-                                                                Anvil::CompareOp::NEVER, /* in_compare_enable  */
-                                                                0.0f, /* in_min_lod         */
-                                                                16.0f, /* in_max_lod         */
-                                                                Anvil::BorderColor::INT_OPAQUE_BLACK,
-                                                                false); /* in_use_unnormalized_coordinates */
+        this_texture_info.imageIndex = imagesSoFar + this_texture.source;
 
-        image_sampler_ptr = Anvil::Sampler::create(std::move(create_info_ptr));
+        if (this_texture.sampler != -1)
+        {
+            const tinygltf::Sampler& this_sampler = in_model.samplers[this_texture.sampler];
 
-        samplers_uptrs.emplace_back(std::move(image_sampler_ptr));
+            SamplerSpecs this_sampler_specs;
+            this_sampler_specs.magFilter = static_cast<glTFsamplerMagFilter>(this_sampler.magFilter);
+            this_sampler_specs.minFilter = static_cast<glTFsamplerMinFilter>(this_sampler.minFilter);
+            this_sampler_specs.wrapS = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
+            this_sampler_specs.wrapT = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
+
+            this_texture_info.samplerIndex = GetSamplerIndex(this_sampler_specs);
+        }
+        else
+            this_texture_info.samplerIndex = 0;
+
+        texturesInfos.emplace_back(this_texture_info);
+
     }
 
-    for (tinygltf::Sampler& thisSampler : in_model.samplers)
-    {
-        Anvil::SamplerUniquePtr image_sampler_ptr;
+    imagesSoFar += in_model.images.size();
+    
+    modelToTextureIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), texturesSoFar);
+    texturesSoFar += in_model.textures.size();
+}
 
-        auto create_info_ptr = Anvil::SamplerCreateInfo::create(in_device_ptr,
-                                                                glTFsamplerMagFilterToFilter_map.find(static_cast<glTFsamplerMagFilter>(thisSampler.magFilter))->second,
-                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map.find(static_cast<glTFsamplerMinFilter>(thisSampler.magFilter))->second.first,
-                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map.find(static_cast<glTFsamplerMinFilter>(thisSampler.magFilter))->second.second,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(thisSampler.wrapS))->second,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(thisSampler.wrapT))->second,
+size_t TexturesOfMaterials::GetSamplerIndex(SamplerSpecs in_samplerSpecs)
+{
+    auto search = samplerSpecsToSamplerIndex_umap.find(in_samplerSpecs);
+    if (search != samplerSpecsToSamplerIndex_umap.end())
+    {
+        return search->second;
+    }
+    else
+    {
+        Anvil::SamplerUniquePtr image_sampler_uptr;
+
+        auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
+                                                                glTFsamplerMagFilterToFilter_map.find(static_cast<glTFsamplerMagFilter>(in_samplerSpecs.magFilter))->second,
+                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map.find(static_cast<glTFsamplerMinFilter>(in_samplerSpecs.minFilter))->second.first,
+                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map.find(static_cast<glTFsamplerMinFilter>(in_samplerSpecs.minFilter))->second.second,
+                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(in_samplerSpecs.wrapS))->second,
+                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(in_samplerSpecs.wrapT))->second,
                                                                 Anvil::SamplerAddressMode::REPEAT,
                                                                 0.0f, /* in_lod_bias        */
                                                                 16.0f, /* in_max_anisotropy  */
                                                                 false, /* in_compare_enable  */
-                                                                Anvil::CompareOp::NEVER, /* in_compare_enable  */
+                                                                Anvil::CompareOp::NEVER,    /* in_compare_enable  */
                                                                 0.0f, /* in_min_lod         */
                                                                 16.0f, /* in_min_lod         */
                                                                 Anvil::BorderColor::INT_OPAQUE_BLACK,
                                                                 false); /* in_use_unnormalized_coordinates */
 
-        image_sampler_ptr = Anvil::Sampler::create(std::move(create_info_ptr));
+        image_sampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
 
-        samplers_uptrs.emplace_back(std::move(image_sampler_ptr));
-    }
+        samplers_uptrs.emplace_back(std::move(image_sampler_uptr));
 
-    for (tinygltf::Texture& thisTexture : in_model.textures)
-    {
-        TextureInfo thisTextureInfo;
-        thisTextureInfo.imageIndex = thisTexture.source;
-        if (thisTexture.sampler != -1)
-            thisTextureInfo.samplerIndex = thisTexture.sampler + 1;
-        else
-            thisTextureInfo.samplerIndex = 0;
+        size_t index_in_vector = samplers_uptrs.size() - 1;
+        samplerSpecsToSamplerIndex_umap.emplace(in_samplerSpecs, index_in_vector);
 
-        texturesInfos.emplace_back(thisTextureInfo);
+        return index_in_vector;
     }
 }
 
-TexturesOfMaterials::~TexturesOfMaterials()
+size_t TexturesOfMaterials::GetTextureIndexOffsetOfModel(const tinygltf::Model& in_model)
 {
-    samplers_uptrs.clear();
-    imagesViews_upts.clear();
-    images_uptrs.clear();
+    auto search = modelToTextureIndexOffset_umap.find(const_cast<tinygltf::Model*>(&in_model));
+
+    assert(search != modelToTextureIndexOffset_umap.end());
+
+    return search->second;
+}
+
+Anvil::ImageView* TexturesOfMaterials::GetImageView(size_t in_texture_index)
+{
+    TextureInfo this_textureInfo = texturesInfos[in_texture_index];
+
+    return  imagesViews_upts[this_textureInfo.imageIndex].get();
+}
+
+Anvil::Sampler* TexturesOfMaterials::GetSampler(size_t in_texture_index)
+{
+    TextureInfo this_textureInfo = texturesInfos[in_texture_index];
+
+    return  samplers_uptrs[this_textureInfo.samplerIndex].get();
 }

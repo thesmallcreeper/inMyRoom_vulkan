@@ -60,26 +60,45 @@ public: // functions
 
     ~PrimitivesOfMeshes();
 
-    void addPrimitive(tinygltf::Model& in_model,
-                      tinygltf::Primitive& in_primitive);
+    void AddPrimitive(const tinygltf::Model& in_model,
+                      const tinygltf::Primitive& in_primitive);
 
-    void initPrimitivesSet(PrimitivesSetSpecs in_primitives_set_specs,
+    void InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_specs,
                            const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
                            Anvil::RenderPass* renderpass_ptr,
                            Anvil::SubPassID subpassID);
 
-    void flashBuffersToDevice();
+    void FlashDevice();
 
-    size_t primitivesCount();
+    size_t GetPrimitivesCount();
 
-    void startRecordOBB();
+    void StartRecordOBB();
 
-    OBB  getOBBandReset();
+    OBB  GetOBBandReset();
 
-    const std::vector<PrimitiveSpecificSetInfo>& getPrimitivesSetInfos(std::string in_primitives_set_name) const;
-    const std::vector<PrimitiveGeneralInfo>& getPrimitivesGeneralInfos() const;
+    const std::vector<PrimitiveSpecificSetInfo>& GetPrimitivesSetInfos(std::string in_primitives_set_name) const;
+    const std::vector<PrimitiveGeneralInfo>& GetPrimitivesGeneralInfos() const;
 
-public: // data
+    Anvil::Buffer* GetIndexBufferPtr() { return indexBuffer_uptr.get(); }
+    Anvil::Buffer* GetPositionBufferPtr() { return positionBuffer_uptr.get(); }
+    Anvil::Buffer* GetNormalBufferPtr() { return normalBuffer_uptr.get(); }
+    Anvil::Buffer* GetTangentBufferPtr() { return tangentBuffer_uptr.get(); }
+    Anvil::Buffer* GetTexcoord0BufferPtr() { return texcoord0Buffer_uptr.get(); }
+    Anvil::Buffer* GetTexcoord1BufferPtr() { return texcoord1Buffer_uptr.get(); }
+    Anvil::Buffer* GetColor0BufferPtr() { return color0Buffer_uptr.get(); }
+
+private: // functions
+    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref,
+                                      bool shouldFlipYZ_position,
+                                      bool vec3_to_vec4,
+                                      size_t alignment,
+                                      const tinygltf::Model& in_model,
+                                      const tinygltf::Accessor& in_accessor) const;
+
+    Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
+                                                            Anvil::BufferUsageFlagBits in_bufferusageflag,
+                                                            std::string buffers_name) const;
+private: // data
     Anvil::BufferUniquePtr indexBuffer_uptr;
     Anvil::BufferUniquePtr positionBuffer_uptr;
     Anvil::BufferUniquePtr normalBuffer_uptr;
@@ -88,18 +107,6 @@ public: // data
     Anvil::BufferUniquePtr texcoord1Buffer_uptr;
     Anvil::BufferUniquePtr color0Buffer_uptr;
 
-private: // functions
-    void addAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref,
-                                      bool shouldFlipYZ_position,
-                                      bool vec3_to_vec4,
-                                      size_t alignment,
-                                      tinygltf::Model& in_model,
-                                      tinygltf::Accessor in_accessor) const;
-
-    Anvil::BufferUniquePtr createDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
-                                                            Anvil::BufferUsageFlagBits in_bufferusageflag,
-                                                            std::string buffers_name) const;
-private: // data
     std::vector<unsigned char> localIndexBuffer;
     std::vector<unsigned char> localPositionBuffer;
     std::vector<unsigned char> localNormalBuffer;

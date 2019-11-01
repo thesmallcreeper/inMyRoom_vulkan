@@ -19,7 +19,7 @@ PipelinesFactory::~PipelinesFactory()
     }
 }
 
-Anvil::PipelineID PipelinesFactory::getGraphicsPipelineID(const GraphicsPipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PipelinesFactory::GetGraphicsPipelineID(const GraphicsPipelineSpecs in_pipelineSpecs)
 {
     auto search = graphicsPipelineSpecsToPipelineID_umap.find(in_pipelineSpecs);
 	if (search != graphicsPipelineSpecsToPipelineID_umap.end())
@@ -28,13 +28,13 @@ Anvil::PipelineID PipelinesFactory::getGraphicsPipelineID(const GraphicsPipeline
 	}
 	else
 	{
-		Anvil::PipelineID new_pipelineID = createGraphicsPipeline(in_pipelineSpecs);
+		Anvil::PipelineID new_pipelineID = CreateGraphicsPipeline(in_pipelineSpecs);
 		graphicsPipelineSpecsToPipelineID_umap.emplace(in_pipelineSpecs, new_pipelineID);
 		return new_pipelineID;
 	}
 }
 
-Anvil::PipelineID PipelinesFactory::getComputePipelineID(const ComputePipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PipelinesFactory::GetComputePipelineID(const ComputePipelineSpecs in_pipelineSpecs)
 {
     auto search = computePipelineSpecsToPipelineID_umap.find(in_pipelineSpecs);
     if (search != computePipelineSpecsToPipelineID_umap.end())
@@ -43,14 +43,14 @@ Anvil::PipelineID PipelinesFactory::getComputePipelineID(const ComputePipelineSp
     }
     else
     {
-        Anvil::PipelineID new_pipelineID = createComputePipeline(in_pipelineSpecs);
+        Anvil::PipelineID new_pipelineID = CreateComputePipeline(in_pipelineSpecs);
         computePipelineSpecsToPipelineID_umap.emplace(in_pipelineSpecs, new_pipelineID);
         return new_pipelineID;
     }
 }
 
-VkPipeline PipelinesFactory::getPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
-                                                      Anvil::PipelineID in_pipeline_id) const
+VkPipeline PipelinesFactory::GetPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
+                                                       Anvil::PipelineID in_pipeline_id) const
 {
     VkPipeline pipeline_vk = (in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE) ? device_ptr->get_compute_pipeline_manager()->get_pipeline(in_pipeline_id)
                                                                                            : device_ptr->get_graphics_pipeline_manager()->get_pipeline(in_pipeline_id);
@@ -58,8 +58,8 @@ VkPipeline PipelinesFactory::getPipelineVkHandle(Anvil::PipelineBindPoint in_pip
     return pipeline_vk;
 }
 
-Anvil::PipelineLayout* PipelinesFactory::getPipelineLayout(Anvil::PipelineBindPoint in_pipeline_bind_point,
-                                                                Anvil::PipelineID in_pipeline_id) const
+Anvil::PipelineLayout* PipelinesFactory::GetPipelineLayout(Anvil::PipelineBindPoint in_pipeline_bind_point,
+                                                                 Anvil::PipelineID in_pipeline_id) const
 {
     Anvil::PipelineLayout* pipeline_layout = (in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE) ? device_ptr->get_compute_pipeline_manager()->get_pipeline_layout(in_pipeline_id)
                                                                                                            : device_ptr->get_graphics_pipeline_manager()->get_pipeline_layout(in_pipeline_id);
@@ -67,7 +67,7 @@ Anvil::PipelineLayout* PipelinesFactory::getPipelineLayout(Anvil::PipelineBindPo
     return pipeline_layout;
 }
 
-Anvil::PipelineID PipelinesFactory::createGraphicsPipeline(GraphicsPipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PipelinesFactory::CreateGraphicsPipeline(GraphicsPipelineSpecs in_pipelineSpecs)
 {
     auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 
@@ -286,7 +286,7 @@ Anvil::PipelineID PipelinesFactory::createGraphicsPipeline(GraphicsPipelineSpecs
     return pipelineID;
 }
 
-Anvil::PipelineID PipelinesFactory::createComputePipeline(ComputePipelineSpecs in_pipelineSpecs)
+Anvil::PipelineID PipelinesFactory::CreateComputePipeline(ComputePipelineSpecs in_pipelineSpecs)
 {
     auto compute_manager_ptr(device_ptr->get_graphics_pipeline_manager());
 

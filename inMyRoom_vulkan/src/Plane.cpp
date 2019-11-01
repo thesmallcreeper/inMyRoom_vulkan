@@ -14,16 +14,16 @@ Plane Plane::CreatePlane(const glm::vec3 in_normal, const float in_d)
     return return_plane;
 }
 
-IntersectResult Plane::intersectCuboid(const Cuboid in_cuboid) const
+IntersectResult Plane::IntersectCuboid(const Cuboid in_cuboid) const
 {
-    glm::vec3 cuboid_halfLengths = in_cuboid.getHalfLengths();
+    glm::vec3 cuboid_halfLengths = in_cuboid.GetHalfLengths();
 
     float e = 0.f;
-    e += cuboid_halfLengths.x * std::abs( glm::dot(this->normal , in_cuboid.getSideDirectionU()) );
-    e += cuboid_halfLengths.y * std::abs( glm::dot(this->normal , in_cuboid.getSideDirectionV()) );
-    e += cuboid_halfLengths.z * std::abs( glm::dot(this->normal , in_cuboid.getSideDirectionW()) );
+    e += cuboid_halfLengths.x * std::abs( glm::dot(this->normal , in_cuboid.GetSideDirectionU()) );
+    e += cuboid_halfLengths.y * std::abs( glm::dot(this->normal , in_cuboid.GetSideDirectionV()) );
+    e += cuboid_halfLengths.z * std::abs( glm::dot(this->normal , in_cuboid.GetSideDirectionW()) );
 
-    float s = glm::dot(in_cuboid.getCenter(), this->normal) + this->d;
+    float s = glm::dot(in_cuboid.GetCenter(), this->normal) + this->d;
 
     if (s - e > 0) return IntersectResult::OUTSIDE;
     if (s + e < 0) return IntersectResult::INSIDE;

@@ -10,7 +10,7 @@ ShadersSetsFamiliesCache::ShadersSetsFamiliesCache(Anvil::BaseDevice* const in_d
 {
 }
 
-void ShadersSetsFamiliesCache::addShadersSetsFamily(ShadersSetsFamilyInitInfo in_shadersSetsFamilyInitInfos)
+void ShadersSetsFamiliesCache::AddShadersSetsFamily(ShadersSetsFamilyInitInfo in_shadersSetsFamilyInitInfos)
 {
     ShadersSetsFamilySourceStrings thisShaderSetSourceString;
 
@@ -59,14 +59,14 @@ void ShadersSetsFamiliesCache::addShadersSetsFamily(ShadersSetsFamilyInitInfo in
     shadersSetFamilyNameToShadersSetFamilySourceStrings_umap.emplace(in_shadersSetsFamilyInitInfos.shadersSetFamilyName, thisShaderSetSourceString);
 }
 
-ShadersSet ShadersSetsFamiliesCache::getShadersSet(ShadersSpecs in_shaderSpecs)
+ShadersSet ShadersSetsFamiliesCache::GetShadersSet(ShadersSpecs in_shaderSpecs)
 {
     auto search = shaderSpecsToShadersSetIndex_umap.find(in_shaderSpecs);
     if (search != shaderSpecsToShadersSetIndex_umap.end())
         return shadersSets[search->second];
     else
     {
-        ShadersSet newShaderSet = createShadersSet(in_shaderSpecs);
+        ShadersSet newShaderSet = CreateShadersSet(in_shaderSpecs);
 
         shadersSets.emplace_back(newShaderSet);
         shaderSpecsToShadersSetIndex_umap.emplace(in_shaderSpecs, shadersSets.size() - 1);
@@ -75,7 +75,7 @@ ShadersSet ShadersSetsFamiliesCache::getShadersSet(ShadersSpecs in_shaderSpecs)
     }
 }
 
-ShadersSet ShadersSetsFamiliesCache::createShadersSet(ShadersSpecs in_shaderSpecs)
+ShadersSet ShadersSetsFamiliesCache::CreateShadersSet(ShadersSpecs in_shaderSpecs)
 {
     auto search = shadersSetFamilyNameToShadersSetFamilySourceStrings_umap.find(in_shaderSpecs.shadersSetFamilyName);
     assert(search != shadersSetFamilyNameToShadersSetFamilySourceStrings_umap.end());

@@ -11,7 +11,7 @@
 
 #include "PrimitivesOfMeshes.h"
 
-struct MeshRange
+struct MeshInfo
 {
     size_t primitiveFirstOffset;
     size_t primitiveRangeSize;
@@ -21,14 +21,23 @@ struct MeshRange
 
 class MeshesOfNodes
 {
-public:
-    MeshesOfNodes(tinygltf::Model& in_model, PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
-                Anvil::BaseDevice* const in_device_ptr);
-    ~MeshesOfNodes();
+public: // functions
+    MeshesOfNodes(PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
+                  Anvil::BaseDevice* const in_device_ptr);
 
-    std::vector<MeshRange> meshes;
+    void AddMeshesOfModel(const tinygltf::Model& in_model);
 
-private:
+    size_t GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model) const;
+
+    MeshInfo GetMesh(size_t this_mesh_index) const;
+
+private: // data
+    size_t meshesSoFar;
+
+    std::vector<MeshInfo> meshes;
+
+    std::unordered_map<tinygltf::Model*, size_t> modelToMeshIndexOffset_umap;
+
     Anvil::BaseDevice* const device_ptr;
 
     PrimitivesOfMeshes* primitivesOfMeshes_ptr;

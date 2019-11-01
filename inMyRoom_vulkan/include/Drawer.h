@@ -49,14 +49,14 @@ public: //functions
            PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
            Anvil::BaseDevice* const device_ptr);
 
-    void addDrawRequests(std::vector<DrawRequest> in_draw_requests);
+    void AddDrawRequests(std::vector<DrawRequest> in_draw_requests);
 
-    void drawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
+    void DrawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                           std::string in_primitives_set_mame,
                           const std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs);
 
 private: //functions
-    void drawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
+    void DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                   const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs,
                   const std::vector<PrimitiveSpecificSetInfo>& in_primitives_set_infos,
                   const std::vector<PrimitiveGeneralInfo>& in_primitives_general_infos,

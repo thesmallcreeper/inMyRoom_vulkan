@@ -10,6 +10,28 @@
 
 #include "tiny_gltf.h"
 
+#include "misc/swapchain_create_info.h"
+#include "misc/memory_allocator.h"
+#include "misc/buffer_create_info.h"
+#include "misc/image_create_info.h"
+#include "misc/image_view_create_info.h"
+#include "misc/semaphore_create_info.h"
+#include "misc/fence_create_info.h"
+#include "misc/framebuffer_create_info.h"
+#include "misc/render_pass_create_info.h"
+#include "wrappers/rendering_surface.h"
+#include "wrappers/buffer.h"
+#include "wrappers/command_buffer.h"
+#include "wrappers/command_pool.h"
+#include "wrappers/descriptor_set_group.h"
+#include "wrappers/framebuffer.h"
+#include "wrappers/image.h"
+#include "wrappers/image_view.h"
+#include "wrappers/swapchain.h"
+#include "wrappers/render_pass.h"
+#include "wrappers/semaphore.h"
+#include "wrappers/fence.h"
+
 #include "WindowWithAsyncInput.h"
 #include "CameraBaseClass.h"
 #include "ViewportFrustum.h"
@@ -31,13 +53,14 @@ public:
              uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount);
     ~Graphics();
 
-    void BindCamera        (CameraBaseClass* in_camera);
+    void BindCamera(CameraBaseClass* in_camera);
 
-    void DrawFrame         ();
+    void DrawFrame();
 
 
 private:
-    std::string GetFilePathExtension(const std::string &FileName);
+    std::string GetFilePathFolder(const std::string& in_fileName);
+    std::string GetFilePathExtension(const std::string& in_fileName);
 
     void LoadScene();
 
@@ -49,6 +72,8 @@ private:
     void InitCameraDsg();
     void InitSemaphoresAndFences();
     void InitCommandBuffers();
+    void InitPipelinesFactory();
+    void InitShadersSetsFamiliesCache();
 
     void RecordCommandBuffer(uint32_t swapchainImageIndex);
 

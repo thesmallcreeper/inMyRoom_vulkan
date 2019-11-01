@@ -18,7 +18,7 @@ public:
     static Plane CreatePlane(const glm::vec3 in_normal, const float in_d);
 
 public:
-    IntersectResult intersectCuboid(const Cuboid in_cuboid) const;
+    IntersectResult IntersectCuboid(const Cuboid in_cuboid) const;
 
 private:
     glm::vec4 normal;

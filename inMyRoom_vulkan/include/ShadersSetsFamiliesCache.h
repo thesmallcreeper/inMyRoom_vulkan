@@ -119,12 +119,12 @@ class ShadersSetsFamiliesCache
 public: //functions
     ShadersSetsFamiliesCache(Anvil::BaseDevice* const in_device_ptr);
 
-    void addShadersSetsFamily(ShadersSetsFamilyInitInfo in_shadersSetsFamilyInitInfos);
+    void AddShadersSetsFamily(ShadersSetsFamilyInitInfo in_shadersSetsFamilyInitInfos);
 
-    ShadersSet getShadersSet(ShadersSpecs in_shaderSpecs);
+    ShadersSet GetShadersSet(ShadersSpecs in_shaderSpecs);
 
 private: //functions
-    ShadersSet createShadersSet(ShadersSpecs in_shaderSpecs);
+    ShadersSet CreateShadersSet(ShadersSpecs in_shaderSpecs);
 
 private: // data
     Anvil::BaseDevice* const device_ptr;

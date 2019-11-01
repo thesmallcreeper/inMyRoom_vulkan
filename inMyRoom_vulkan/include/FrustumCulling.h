@@ -7,9 +7,9 @@
 class FrustumCulling
 {
 public:
-    void setFrustumPlanes(const std::array<Plane, 6> in_frustum_planes);
+    void SetFrustumPlanes(const std::array<Plane, 6> in_frustum_planes);
 
-    bool isCuboidInsideFrustum(const Cuboid in_cuboid) const;
+    bool IsCuboidInsideFrustum(const Cuboid in_cuboid) const;
 private:
     std::array<Plane, 6> frustumPlanes;
 };

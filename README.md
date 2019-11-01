@@ -10,7 +10,7 @@ Feel free to share you opinion on anything, ask, file bugs or suggest enhancemen
 * GLM , math library for OpenGL but can be used with a little bit hacking for Vulkan. Also 50MB .pdf removed
 * configuru , config file library. Got sligthly modified but changes got pulled by the original repo ;)
 * tinygltf , glTF model import.
-* MathGeoLib , math library for culling in the future. Not yet used.
+* DiTO , aglo for OBB.
 
 # Installation (Compiling)
 

@@ -12,13 +12,13 @@ public:
     static Cuboid MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Cuboid& rhs);
 
 public:
-    glm::vec4 getCenter() const;
+    glm::vec4 GetCenter() const;
 
-    glm::vec4 getSideDirectionU() const;
-    glm::vec4 getSideDirectionV() const;
-    glm::vec4 getSideDirectionW() const;
+    glm::vec4 GetSideDirectionU() const;
+    glm::vec4 GetSideDirectionV() const;
+    glm::vec4 GetSideDirectionW() const;
 
-    glm::vec3 getHalfLengths() const;
+    glm::vec3 GetHalfLengths() const;
 
 protected:
     glm::vec4 center;

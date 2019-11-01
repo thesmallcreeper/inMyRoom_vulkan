@@ -16,25 +16,25 @@ Cuboid Cuboid::MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Cuboid& r
     return return_cuboid;
 }
 
-glm::vec4 Cuboid::getCenter() const
+glm::vec4 Cuboid::GetCenter() const
 {
     return center;
 }
 
-glm::vec4 Cuboid::getSideDirectionU() const
+glm::vec4 Cuboid::GetSideDirectionU() const
 {
     return sideDirections.u;
 }
-glm::vec4 Cuboid::getSideDirectionV() const
+glm::vec4 Cuboid::GetSideDirectionV() const
 {
     return sideDirections.v;
 }
-glm::vec4 Cuboid::getSideDirectionW() const
+glm::vec4 Cuboid::GetSideDirectionW() const
 {
     return sideDirections.w;
 }
 
-glm::vec3 Cuboid::getHalfLengths() const
+glm::vec3 Cuboid::GetHalfLengths() const
 {
     return halfLengths;
 }
