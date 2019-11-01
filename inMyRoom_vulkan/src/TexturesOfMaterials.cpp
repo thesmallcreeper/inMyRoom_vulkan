@@ -11,9 +11,9 @@
 #include <iostream>
 
 TexturesOfMaterials::TexturesOfMaterials(bool use_mipmaps,
-                                         ImagesUsageOfTextures* in_imagesUsageOfTextures_ptr,
+                                         ImagesAboutOfTextures* in_imagesAboutOfTextures_ptr,
                                          Anvil::BaseDevice* const in_device_ptr)
-    :imagesUsageOfTextures_ptr(in_imagesUsageOfTextures_ptr),
+    :imagesAboutOfTextures_ptr(in_imagesAboutOfTextures_ptr),
      device_ptr(in_device_ptr),
      useMipmaps(use_mipmaps),
      imagesSoFar(0),
@@ -188,8 +188,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                                                                         useMipmaps, /* in_use_full_mipmap_chain */
                                                                         Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
                                                                         Anvil::ImageCreateFlagBits::NONE,
-                                                                        Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                                                                        /* in_final_image_layout    */
+                                                                        Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL, /* in_final_image_layout    */
                                                                         &mipmaps_raw_data);
 
             image_ptr = Anvil::Image::create(std::move(create_info_ptr));

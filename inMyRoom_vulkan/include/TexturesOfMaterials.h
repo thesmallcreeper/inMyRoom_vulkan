@@ -32,7 +32,7 @@ namespace fs = std::filesystem;
 #include "glTFenum.h"
 #include "Compressonator.h"
 
-#include "ImagesUsageOfTextures.h"
+#include "ImagesAboutOfTextures.h"
 
 struct SamplerSpecs
 {
@@ -83,7 +83,7 @@ class TexturesOfMaterials
 {
 public: // functions
     TexturesOfMaterials(bool use_mipmaps,
-                       ImagesUsageOfTextures* in_imagesUsageOfTextures_ptr,
+                       ImagesAboutOfTextures* in_imagesAboutOfTextures_ptr,
                        Anvil::BaseDevice* const in_device_ptr);
     ~TexturesOfMaterials();
 
@@ -158,6 +158,6 @@ private: // data
         {glTFsamplerWrap::repeat, Anvil::SamplerAddressMode::REPEAT}
     };
 
-    ImagesUsageOfTextures* imagesUsageOfTextures_ptr;
+    ImagesAboutOfTextures* imagesAboutOfTextures_ptr;
     Anvil::BaseDevice* const device_ptr;
 };

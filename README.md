@@ -26,10 +26,10 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  * Launch solution by opening `/inMyRoom_vulkan/inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile.
  * Note: To run application successfully `/inMyRoom_vulkan/inMyRoom_vulkan/` should be your working folder.
  
- (Well... you can go with CMake way, but due to my lack of CMake knowledge this solution is better ;) )
+ (You can also use CMake, VS2019 toolset has some issues )
  
- ## Linux using CMake with Clang or GCC
- 
+ ## Linux using CMake with GCC (or Clang)
+  
  * For window creation and I/O handling XCB is used.
  
  So for Ubuntu environment you need these packages:
@@ -41,11 +41,11 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  ```
  $ pacman -S xcb-util
  ```
- * Also you need Clang/Clang++ or GCC/G++ installed.
+ * Also you need GCC/G++ (or Clang/Clang++) installed.
  * Create a `build` folder at `/inMyRoom_vulkan/inMyRoom_vulkan/`.
  * Open terminal with `/inMyRoom_vulkan/inMyRoom_vulkan/build/` as your working folder and pick up your favorite compiler.
  
- If you want to use Clang/Clang++ type: (Clang linker throws errors if you use `-DCMAKE_BUILD_TYPE=Release`)
+ If you want to use Clang/Clang++ type: (Clang linker throws errors if you use `-DCMAKE_BUILD_TYPE=Release`, that's why I choose GCC lately)
  ```
  $ export CC=/usr/bin/clang
  $ export CXX=/usr/bin/clang++

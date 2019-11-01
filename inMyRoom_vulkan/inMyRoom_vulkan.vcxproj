@@ -36,7 +36,7 @@
     <ClCompile Include="src\PrimitivesOfMeshes.cpp" />
     <ClCompile Include="src\NaiveCamera.cpp" />
     <ClCompile Include="src\TexturesOfMaterials.cpp" />
-    <ClCompile Include="src\ImagesUsageOfTextures.cpp" />
+    <ClCompile Include="src\ImagesAboutOfTextures.cpp" />
     <ClCompile Include="src\VulkanInit.cpp" />
     <ClCompile Include="src\WindowWithAsyncInput.cpp" />
     <ClCompile Include="src\Engine.cpp" />
@@ -65,7 +65,7 @@
     <ClInclude Include="include\CameraBaseClass.h" />
     <ClInclude Include="include\NaiveCamera.h" />
     <ClInclude Include="include\TexturesOfMaterials.h" />
-    <ClInclude Include="include\ImagesUsageOfTextures.h" />
+    <ClInclude Include="include\ImagesAboutOfTextures.h" />
     <ClInclude Include="include\VulkanInit.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />

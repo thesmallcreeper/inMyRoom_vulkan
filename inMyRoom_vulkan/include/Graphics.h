@@ -36,7 +36,7 @@
 #include "CameraBaseClass.h"
 #include "ViewportFrustum.h"
 
-#include "ImagesUsageOfTextures.h"
+#include "ImagesAboutOfTextures.h"
 #include "TexturesOfMaterials.h"
 #include "MaterialsOfPrimitives.h"
 #include "ShadersSetsFamiliesCache.h"
@@ -83,7 +83,7 @@ private:
 
     tinygltf::Model model;
 
-    std::unique_ptr<ImagesUsageOfTextures> imagesUsageOfTextures_uptr;
+    std::unique_ptr<ImagesAboutOfTextures> imagesAboutOfTextures_uptr;
     std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;
     std::unique_ptr<MaterialsOfPrimitives> materialsOfPrimitives_uptr;
     std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;

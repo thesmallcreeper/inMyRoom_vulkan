@@ -64,7 +64,7 @@ Graphics::~Graphics()
 
     meshesOfNodes_uptr.reset();
     texturesOfMaterials_uptr.reset();
-    imagesUsageOfTextures_uptr.reset();
+    imagesAboutOfTextures_uptr.reset();
     materialsOfPrimitives_uptr.reset();
     shadersSetsFamiliesCache_uptr.reset();
     pipelinesFactory_uptr.reset();
@@ -643,13 +643,13 @@ void Graphics::InitScene()
     const tinygltf::Scene& scene = model.scenes[0];
 
     // Find out how each texture is being used (color, normal, etc..)
-    printf("-Initializing ImagesUsageOfTextures\n");
-    imagesUsageOfTextures_uptr = std::make_unique<ImagesUsageOfTextures>();
-    imagesUsageOfTextures_uptr->AddImagesUsageOfModel(model);
+    printf("-Initializing ImagesAboutOfTextures\n");
+    imagesAboutOfTextures_uptr = std::make_unique<ImagesAboutOfTextures>();
+    imagesAboutOfTextures_uptr->AddImagesUsageOfModel(model);
 
     // Mapmaps, compress textures and copy to GPU
     printf("-Initializing TexturesOfMaterials\n");
-    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesUsageOfTextures_uptr.get(), device_ptr);
+    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesAboutOfTextures_uptr.get(), device_ptr);
     texturesOfMaterials_uptr->AddTexturesOfModel(model, GetFilePathFolder(cfgFile["sceneInput"]["path"].as_string()));
 
     // Create materials description sets
@@ -660,7 +660,7 @@ void Graphics::InitScene()
     // Initialize models-primtives handler to GPU
     printf("-Initializing PrimitivesOfMeshes\n");
     primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesFactory_uptr.get(), shadersSetsFamiliesCache_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr); //needs flash
-    //primitivesOfMeshes_uptr collects primitives from meshesOfNodes_uptr
+  //primitivesOfMeshes_uptr-> collects primitives from meshesOfNodes_uptr
 
     // For every mesh copy primitives of it to GPU
     printf("-Initializing MeshesOfNodes\n");

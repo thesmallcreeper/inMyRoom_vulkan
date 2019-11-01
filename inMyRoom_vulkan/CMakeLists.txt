@@ -60,6 +60,8 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/NaiveCamera.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Drawer.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/WindowWithAsyncInput.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/ShadersSetsFamiliesCache.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/PipelinesFactory.h"
         #includes-.h geometry
         "${inMyRoom_vulkan_SOURCE_DIR}/include/ViewportFrustum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/FrustumCulling.h"
@@ -70,9 +72,7 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/NodesOfScene.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MeshesOfNodes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MaterialsOfPrimitives.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/PipelinesOfPrimitives.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/ShadersOfPrimitives.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/ImagesUsageOfTextures.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/ImagesAboutOfTextures.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/TexturesOfMaterials.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/PrimitivesOfMeshes.h"
         
@@ -89,6 +89,8 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/NaiveCamera.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Drawer.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/WindowWithAsyncInput.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/ShadersSetsFamiliesCache.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/PipelinesFactory.cpp"
          #includes-.h geometry
         "${inMyRoom_vulkan_SOURCE_DIR}/src/ViewportFrustum.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/FrustumCulling.cpp"
@@ -99,9 +101,7 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/NodesOfScene.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MeshesOfNodes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MaterialsOfPrimitives.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/PipelinesOfPrimitives.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/ShadersOfPrimitives.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/ImagesUsageOfTextures.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/ImagesAboutOfTextures.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/TexturesOfMaterials.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/PrimitivesOfMeshes.cpp"
     )
