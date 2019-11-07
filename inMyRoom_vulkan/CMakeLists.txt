@@ -51,6 +51,7 @@ include_directories(
 SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/hash_combine.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/const_maps.h"
         #includes-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/VulkanInit.h"
@@ -62,6 +63,7 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/WindowWithAsyncInput.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/ShadersSetsFamiliesCache.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/PipelinesFactory.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/MipmapsGenerator.h"
         #includes-.h geometry
         "${inMyRoom_vulkan_SOURCE_DIR}/include/ViewportFrustum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/FrustumCulling.h"
@@ -91,6 +93,7 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/WindowWithAsyncInput.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/ShadersSetsFamiliesCache.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/PipelinesFactory.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/MipmapsGenerator.cpp"
          #includes-.h geometry
         "${inMyRoom_vulkan_SOURCE_DIR}/src/ViewportFrustum.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/FrustumCulling.cpp"
