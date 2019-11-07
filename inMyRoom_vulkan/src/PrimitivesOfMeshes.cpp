@@ -171,6 +171,14 @@ void PrimitivesOfMeshes::FlashDevice()
     if (!localColor0Buffer.empty())
         color0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localColor0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Color0 Buffer");
 
+    localIndexBuffer.clear();
+    localPositionBuffer.clear();
+    localNormalBuffer.clear();
+    localTangentBuffer.clear();
+    localTexcoord0Buffer.clear();
+    localTexcoord1Buffer.clear();
+    localColor0Buffer.clear();
+
     hasBuffersBeenFlashed = true;
 }
 

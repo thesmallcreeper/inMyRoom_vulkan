@@ -111,7 +111,8 @@ private: //data
 
     ImageAbout image_about;
 
-    Anvil::SamplerUniquePtr imageSampler_uptr;
+    Anvil::SamplerUniquePtr imageComputeSampler_uptr;
+    Anvil::SamplerUniquePtr imageRenderpassSampler_uptr;
 
     Anvil::ImageUniquePtr original_8bitPerChannel_image_uptr;
     Anvil::ImageViewUniquePtr original_8bitPerChannel_imageView_uptr;

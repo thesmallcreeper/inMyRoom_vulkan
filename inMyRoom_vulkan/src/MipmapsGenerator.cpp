@@ -126,6 +126,47 @@ MipmapsGenerator::MipmapsGenerator(PipelinesFactory* in_pipelinesFactory_ptr,
         }
 
     }
+
+    // Create samplers
+    {
+        auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
+                                                                Anvil::Filter::NEAREST,
+                                                                Anvil::Filter::NEAREST,
+                                                                Anvil::SamplerMipmapMode::NEAREST,
+                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
+                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
+                                                                Anvil::SamplerAddressMode::REPEAT,
+                                                                0.0f, /* in_lod_bias        */
+                                                                1.0f, /* in_max_anisotropy  */
+                                                                false, /* in_compare_enable  */
+                                                                Anvil::CompareOp::NEVER,    /* in_compare_enable  */
+                                                                0.0f, /* in_min_lod         */
+                                                                0.0f, /* in_min_lod         */
+                                                                Anvil::BorderColor::INT_OPAQUE_BLACK,
+                                                                false); /* in_use_unnormalized_coordinates */
+
+        imageRenderpassSampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
+    }
+
+    {
+        auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
+                                                                Anvil::Filter::NEAREST,
+                                                                Anvil::Filter::NEAREST,
+                                                                Anvil::SamplerMipmapMode::NEAREST,
+                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
+                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
+                                                                Anvil::SamplerAddressMode::REPEAT,
+                                                                0.0f, /* in_lod_bias        */
+                                                                1.0f, /* in_max_anisotropy  */
+                                                                false, /* in_compare_enable  */
+                                                                Anvil::CompareOp::NEVER,    /* in_compare_enable  */
+                                                                0.0f, /* in_min_lod         */
+                                                                0.0f, /* in_min_lod         */
+                                                                Anvil::BorderColor::INT_OPAQUE_BLACK,
+                                                                true); /* in_use_unnormalized_coordinates */
+
+        imageComputeSampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
+    }
 }
 
 MipmapsGenerator::~MipmapsGenerator()
@@ -185,27 +226,6 @@ void MipmapsGenerator::Init()
         vulkanOriginalFormat = componentsCountToVulkanFormat_map.find(originalImageCompCount)->second;
 
         sizeOfLocalBuffer = originalImageCompCount * original_width * original_height;
-    }
-
-    // Create sampler
-    {
-        auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
-                                                                Anvil::Filter::NEAREST,
-                                                                Anvil::Filter::NEAREST,
-                                                                Anvil::SamplerMipmapMode::NEAREST,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
-                                                                Anvil::SamplerAddressMode::REPEAT,
-                                                                0.0f, /* in_lod_bias        */
-                                                                1.0f, /* in_max_anisotropy  */
-                                                                false, /* in_compare_enable  */
-                                                                Anvil::CompareOp::NEVER,    /* in_compare_enable  */
-                                                                0.0f, /* in_min_lod         */
-                                                                0.0f, /* in_min_lod         */
-                                                                Anvil::BorderColor::INT_OPAQUE_BLACK,
-                                                                false); /* in_use_unnormalized_coordinates */
-
-        imageSampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
     }
 
     // Copy the original 8-bit per channel image to GPU
@@ -371,11 +391,11 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     {
         Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
                                                                                    original_8bitPerChannel_imageView_uptr.get(),
-                                                                                   imageSampler_uptr.get());
+                                                                                   imageComputeSampler_uptr.get());
 
         descriptorSetGroup_uptr->set_binding_item(0, 0, this_texture_bind);
     }
-    // Update DS 0/1 : storage 16bit image (destination)
+    // Update DS 1/0 : storage 16bit image (destination)
     {
         Anvil::DescriptorSet::StorageImageBindingElement this_image_bind(Anvil::ImageLayout::GENERAL,
                                                                          mipmap_16bitPerChannel_imageView_uptr.get());
@@ -388,7 +408,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     {
         Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
                                                                                    mipmap_16bitPerChannel_imageView_uptr.get(),
-                                                                                   imageSampler_uptr.get());
+                                                                                   imageRenderpassSampler_uptr.get());
 
         descriptorSetGroup_uptr->set_binding_item(2, 0, this_texture_bind);
     }

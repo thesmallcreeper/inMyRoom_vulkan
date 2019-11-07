@@ -64,7 +64,6 @@ Graphics::~Graphics()
 
     meshesOfNodes_uptr.reset();
     texturesOfMaterials_uptr.reset();
-    imagesAboutOfTextures_uptr.reset();
     materialsOfPrimitives_uptr.reset();
     shadersSetsFamiliesCache_uptr.reset();
     pipelinesFactory_uptr.reset();
@@ -652,6 +651,8 @@ void Graphics::InitShadersSetsFamiliesCache()
 
 void Graphics::InitScene()
 {
+    std::unique_ptr<MipmapsGenerator> mipmapsGenerator_uptr;
+    std::unique_ptr<ImagesAboutOfTextures> imagesAboutOfTextures_uptr;
 
     const tinygltf::Scene& scene = model.scenes[0];
 

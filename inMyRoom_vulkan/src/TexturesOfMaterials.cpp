@@ -80,6 +80,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
         }
 
         std::vector<Anvil::MipmapRawData> compressed_mipmaps_raw_data;
+        std::vector<void*> garbage_collector;
 
         for (size_t this_mipmap_level = 0; this_mipmap_level < mipmaps_levels_over_4x4; this_mipmap_level++)
         {
@@ -140,6 +141,8 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                     this_compressed_mipmap = dstTexture;
                 }
 
+                garbage_collector.emplace_back(this_compressed_mipmap.pData);
+
                 compressed_mipmaps_raw_data.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
                                                                                                         static_cast<uint32_t>(this_mipmap_level),
                                                                                                         this_compressed_mipmap.pData,
@@ -172,6 +175,9 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
 
             image_ptr = Anvil::Image::create(std::move(create_info_ptr));
         }
+
+        for (void* this_garbage : garbage_collector)
+            std::free(this_garbage);
 
         {
             auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(device_ptr,

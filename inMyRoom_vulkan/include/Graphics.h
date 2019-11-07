@@ -82,7 +82,6 @@ private:
 
     tinygltf::Model model;
 
-    std::unique_ptr<ImagesAboutOfTextures> imagesAboutOfTextures_uptr;
     std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;
     std::unique_ptr<MaterialsOfPrimitives> materialsOfPrimitives_uptr;
     std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;
@@ -90,7 +89,6 @@ private:
     std::unique_ptr<NodesOfScene> nodesOfScene_uptr;
     std::unique_ptr<PrimitivesOfMeshes> primitivesOfMeshes_uptr;
     std::unique_ptr<MeshesOfNodes> meshesOfNodes_uptr;
-    std::unique_ptr<MipmapsGenerator> mipmapsGenerator_uptr;
 
     CameraBaseClass* camera_ptr;
     ViewportFrustum cameraFrustum;
