@@ -250,7 +250,7 @@ ShadersSet ShadersSetsFamiliesCache::CreateShadersSet(ShadersSpecs in_shaderSpec
                                                                                                                   std::move(module_ptr),
                                                                                                                   Anvil::ShaderStage::COMPUTE));
 
-        thisShaderSet.vertexShaderModule_ptr = entryPoint_ptr.get();
+        thisShaderSet.computeShaderModule_ptr = entryPoint_ptr.get();
         shaderModulesStageEntryPoints_uptrs.emplace_back(std::move(entryPoint_ptr));
     }
 

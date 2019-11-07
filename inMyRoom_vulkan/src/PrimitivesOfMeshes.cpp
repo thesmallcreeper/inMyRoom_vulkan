@@ -191,6 +191,15 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
         PrimitiveSpecificSetInfo this_primitiveSpecificSetInfo;
 
         GraphicsPipelineSpecs this_pipelineSpecs = this_primitivesGeneralInfo.pipelineSpecs;
+
+        std::vector<PushConstantSpecs> this_push_constant_specs;
+        PushConstantSpecs modelMatrixPushConstant;
+        modelMatrixPushConstant.offset = 0;
+        modelMatrixPushConstant.size = sizeof(glm::mat4x4);
+        modelMatrixPushConstant.shader_flags = Anvil::ShaderStageFlagBits::VERTEX_BIT;
+        this_push_constant_specs.emplace_back(modelMatrixPushConstant);
+        this_pipelineSpecs.pushConstantSpecs = this_push_constant_specs;
+
         ShadersSpecs this_shaderSpecs = in_primitives_set_specs.shaderSpecs;
 
         int32_t layout_location = 0;

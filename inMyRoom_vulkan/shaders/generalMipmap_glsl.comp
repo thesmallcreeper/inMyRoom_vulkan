@@ -1,0 +1,27 @@
+#version 450
+
+layout( local_size_x = 4, local_size_y = 4 ) in;
+
+layout( set = 0, binding = 0) uniform sampler2D inTexture;
+
+#ifdef IS_R
+layout( set = 1, binding = 0, r16f) uniform image2D outImage;
+#endif
+#ifdef IS_RG
+layout( set = 1, binding = 0, rg16f) uniform image2D outImage;
+#endif
+#ifdef IS_RGBA
+layout( set = 1, binding = 0, rgba16f) uniform image2D outImage;
+#endif
+
+void main()
+{
+    vec2 position_normalized = vec2(float(gl_GlobalInvocationID.x) / float(gl_NumWorkGroups.x * gl_WorkGroupSize.x),
+                                    float(gl_GlobalInvocationID.y) / float(gl_NumWorkGroups.y * gl_WorkGroupSize.y));
+                                    
+                                    
+    vec4 this_sample = texture( inTexture, position_normalized).rgba;
+    
+    imageStore( outImage, ivec2(gl_GlobalInvocationID.xy), this_sample);
+    
+}

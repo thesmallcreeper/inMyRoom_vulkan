@@ -4,6 +4,7 @@
 #include <string>
 
 #include "tiny_gltf.h"
+#include "glTFenum.h"
 
 enum class ImageMap
 {
@@ -20,12 +21,15 @@ enum class ImageMap
 struct ImageAbout
 {
     ImageMap map = ImageMap::undefined;
+    glTFsamplerWrap wrapS = glTFsamplerWrap::repeat;
+    glTFsamplerWrap wrapT = glTFsamplerWrap::repeat;
     const tinygltf::Image* sibling_baseColor_image = nullptr;
     const tinygltf::Image* sibling_metallic_image = nullptr;
     const tinygltf::Image* sibling_roughness_image = nullptr;
     const tinygltf::Image* sibling_normal_image = nullptr;
     const tinygltf::Image* sibling_occlusion_image = nullptr;
     const tinygltf::Image* sibling_emissive_image = nullptr;
+
 
 };
 

@@ -9,15 +9,11 @@
 
 #include <utility>
 #include <cassert>
+#include <algorithm>
 #include <unordered_map>
+#include <cstring>
+#include <iostream>
 #include "hash_combine.h"
-#ifdef FILESYSTEM_IS_EXPERIMENTAL
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#else
-#include <filesystem>
-namespace fs = std::filesystem;
-#endif
 
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
@@ -32,7 +28,9 @@ namespace fs = std::filesystem;
 #include "glTFenum.h"
 #include "Compressonator.h"
 
-#include "ImagesAboutOfTextures.h"
+#include "const_maps.h"
+#include "MipmapsGenerator.h"
+
 
 struct SamplerSpecs
 {
@@ -83,11 +81,11 @@ class TexturesOfMaterials
 {
 public: // functions
     TexturesOfMaterials(bool use_mipmaps,
-                       ImagesAboutOfTextures* in_imagesAboutOfTextures_ptr,
-                       Anvil::BaseDevice* const in_device_ptr);
+                        MipmapsGenerator* in_mipmapsGenerator_ptr,
+                        Anvil::BaseDevice* const in_device_ptr);
     ~TexturesOfMaterials();
 
-    void AddTexturesOfModel(const tinygltf::Model& in_model, const std::string& in_imagesFolder);
+    void AddTexturesOfModel(const tinygltf::Model& in_model, const std::string in_imagesFolder);
     size_t GetTextureIndexOffsetOfModel(const tinygltf::Model& in_model);
 
     Anvil::ImageView* GetImageView(size_t in_texture_index);
@@ -96,6 +94,7 @@ public: // functions
 private: // functions
 
     size_t GetSamplerIndex(SamplerSpecs in_samplerSpecs);
+ 
 
 private: // data
     const bool useMipmaps;
@@ -113,51 +112,9 @@ private: // data
 
     std::unordered_map<tinygltf::Model*, size_t> modelToTextureIndexOffset_umap;
 
-    const Anvil::Format image_preferred_format = Anvil::Format::BC7_SRGB_BLOCK;
+    const Anvil::Format image_preferred_compressed_format = Anvil::Format::BC7_SRGB_BLOCK;
 
-    const Anvil::SamplerMipmapMode defaultMipmapMode = Anvil::SamplerMipmapMode::LINEAR;
+    MipmapsGenerator* mipmapsGenerator_ptr;
 
-    std::map<int, Anvil::Format> componentsCountToVulkanFormat_map
-    {
-        {1, Anvil::Format::R8_SRGB},
-        {2, Anvil::Format::R8G8_SRGB},
-        {3, Anvil::Format::R8G8B8_SRGB},
-        {4, Anvil::Format::R8G8B8A8_SRGB}
-    };
-
-    std::map<Anvil::Format, CMP_FORMAT> vulkanFormatToCompressonatorFormat_map
-    {
-        {Anvil::Format::R8_SRGB, CMP_FORMAT_R_8},
-        {Anvil::Format::R8G8_SRGB, CMP_FORMAT_RG_8},
-        {Anvil::Format::R8G8B8_SRGB, CMP_FORMAT_RGB_888},
-        {Anvil::Format::R8G8B8A8_SRGB, CMP_FORMAT_RGBA_8888},
-        {Anvil::Format::BC7_SRGB_BLOCK, CMP_FORMAT_BC7},
-        {Anvil::Format::BC3_SRGB_BLOCK, CMP_FORMAT_BC3}
-    };
-
-    std::map<glTFsamplerMagFilter, Anvil::Filter> glTFsamplerMagFilterToFilter_map
-    {
-        {glTFsamplerMagFilter::nearest, Anvil::Filter::NEAREST},
-        {glTFsamplerMagFilter::linear, Anvil::Filter::LINEAR}
-    };
-
-    std::map<glTFsamplerMinFilter, std::pair<Anvil::Filter, Anvil::SamplerMipmapMode>> glTFsamplerMinFilterToFilterAndMipmapMode_map
-    {
-        {glTFsamplerMinFilter::nearest, {Anvil::Filter::NEAREST, defaultMipmapMode}},
-        {glTFsamplerMinFilter::linear, {Anvil::Filter::LINEAR, defaultMipmapMode}},
-        {glTFsamplerMinFilter::nearest_mipmap_nearest, {Anvil::Filter::NEAREST, Anvil::SamplerMipmapMode::NEAREST}},
-        {glTFsamplerMinFilter::linear_mipmap_nearest, {Anvil::Filter::LINEAR, Anvil::SamplerMipmapMode::NEAREST}},
-        {glTFsamplerMinFilter::nearest_mipmap_linear, {Anvil::Filter::NEAREST, Anvil::SamplerMipmapMode::LINEAR}},
-        {glTFsamplerMinFilter::linear_mipmap_linear, {Anvil::Filter::LINEAR, Anvil::SamplerMipmapMode::LINEAR}},
-    };
-
-    std::map<glTFsamplerWrap, Anvil::SamplerAddressMode> glTFsamplerWrapToAddressMode_map
-    {
-        {glTFsamplerWrap::clamp_to_edge, Anvil::SamplerAddressMode::CLAMP_TO_EDGE},
-        {glTFsamplerWrap::mirrored_repeat, Anvil::SamplerAddressMode::MIRRORED_REPEAT},
-        {glTFsamplerWrap::repeat, Anvil::SamplerAddressMode::REPEAT}
-    };
-
-    ImagesAboutOfTextures* imagesAboutOfTextures_ptr;
     Anvil::BaseDevice* const device_ptr;
 };

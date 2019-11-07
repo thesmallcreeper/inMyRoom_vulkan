@@ -75,6 +75,7 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
                                                                   1,
                                                                   Anvil::ShaderStageFlagBits::FRAGMENT_BIT);
 
+                    // later use
                     Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(
                         Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
                         texturesOfMaterials_ptr->GetImageView(this_baseColorTextureIndex),

@@ -18,6 +18,19 @@
 
 #include "ShadersSetsFamiliesCache.h"
 
+struct PushConstantSpecs
+{
+    uint32_t offset;
+    uint32_t size;
+    Anvil::ShaderStageFlags shader_flags;
+};
+
+struct ViewportAndScissorsSpecs
+{
+    int width = -1;
+    int height = -1;
+};
+
 struct GraphicsPipelineSpecs
 {
     glTFmode drawMode = static_cast<glTFmode>(-1);
@@ -31,6 +44,8 @@ struct GraphicsPipelineSpecs
     glTFcomponentType texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType color0ComponentType = static_cast<glTFcomponentType>(-1);
     std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetsCreateInfo_ptrs;
+    std::vector<PushConstantSpecs> pushConstantSpecs;
+    ViewportAndScissorsSpecs viewportAndScissorSpecs;
     ShadersSet pipelineShaders;
     Anvil::RenderPass* renderpass_ptr = nullptr;
     Anvil::SubPassID subpassID = 0;
@@ -60,6 +75,8 @@ namespace std
             hash_combine(result, in_pipelineSpecs.texcoord0ComponentType);
             hash_combine(result, in_pipelineSpecs.texcoord1ComponentType);
             hash_combine(result, in_pipelineSpecs.color0ComponentType);
+            hash_combine(result, in_pipelineSpecs.viewportAndScissorSpecs.width);
+            hash_combine(result, in_pipelineSpecs.viewportAndScissorSpecs.height);
             hash_combine(result, in_pipelineSpecs.renderpass_ptr);
             hash_combine(result, in_pipelineSpecs.subpassID);
             hash_combine(result, in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr);
@@ -73,6 +90,7 @@ namespace std
          //       hash_combine(result, *this_descriptorSetCreateInfo_ptr);
          //   }
 
+         // missing push constant
             return result;
         }
     };
@@ -109,6 +127,8 @@ namespace std
                             (lhs.texcoord0ComponentType == rhs.texcoord0ComponentType) &&
                             (lhs.texcoord1ComponentType == rhs.texcoord1ComponentType) &&
                             (lhs.color0ComponentType == rhs.color0ComponentType) &&
+                            (lhs.viewportAndScissorSpecs.width == rhs.viewportAndScissorSpecs.width) &&
+                            (lhs.viewportAndScissorSpecs.height == rhs.viewportAndScissorSpecs.height) &&
                             (lhs.renderpass_ptr == rhs.renderpass_ptr) &&
                             (lhs.subpassID == rhs.subpassID) &&
                             (lhs.pipelineShaders.fragmentShaderModule_ptr == rhs.pipelineShaders.fragmentShaderModule_ptr) &&
@@ -121,6 +141,14 @@ namespace std
                 for (size_t i = 0; (i < lhs.descriptorSetsCreateInfo_ptrs.size()) && isEqual; i++)
                 {
                     isEqual &= *(lhs.descriptorSetsCreateInfo_ptrs[i]) == *(rhs.descriptorSetsCreateInfo_ptrs[i]);
+                }
+            else
+                return false;
+
+            if ((lhs.pushConstantSpecs.size() == rhs.pushConstantSpecs.size()) && isEqual)
+                for (size_t i = 0; (i < lhs.pushConstantSpecs.size()) && isEqual; i++)
+                {
+                    isEqual &= (lhs.pushConstantSpecs[i].offset == rhs.pushConstantSpecs[i].offset);
                 }
             else
                 return false;

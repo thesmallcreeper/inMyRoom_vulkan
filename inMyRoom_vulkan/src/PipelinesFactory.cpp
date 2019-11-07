@@ -50,7 +50,7 @@ Anvil::PipelineID PipelinesFactory::GetComputePipelineID(const ComputePipelineSp
 }
 
 VkPipeline PipelinesFactory::GetPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
-                                                       Anvil::PipelineID in_pipeline_id) const
+                                                 Anvil::PipelineID in_pipeline_id) const
 {
     VkPipeline pipeline_vk = (in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE) ? device_ptr->get_compute_pipeline_manager()->get_pipeline(in_pipeline_id)
                                                                                            : device_ptr->get_graphics_pipeline_manager()->get_pipeline(in_pipeline_id);
@@ -90,10 +90,12 @@ Anvil::PipelineID PipelinesFactory::CreateGraphicsPipeline(GraphicsPipelineSpecs
                                                                                   ? *in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr
                                                                                   : Anvil::ShaderModuleStageEntryPoint());
 
-    // TODO: Add option at creation
-    pipeline_create_info_ptr->attach_push_constant_range(0                                          /*in_offset*/,
-                                                         sizeof(float) * 4 * 4                      /*in_size*/,
-                                                         Anvil::ShaderStageFlagBits::VERTEX_BIT     /*in_stages*/);
+    for (auto this_push_constant_spec : in_pipelineSpecs.pushConstantSpecs)
+    {
+        pipeline_create_info_ptr->attach_push_constant_range(this_push_constant_spec.offset           /*in_offset*/,
+                                                             this_push_constant_spec.size             /*in_size*/,
+                                                             this_push_constant_spec.shader_flags     /*in_stages*/);
+    }
 
     if (in_pipelineSpecs.descriptorSetsCreateInfo_ptrs.size())
     {
@@ -265,6 +267,22 @@ Anvil::PipelineID PipelinesFactory::CreateGraphicsPipeline(GraphicsPipelineSpecs
                                                            Anvil::FrontFace::COUNTER_CLOCKWISE,
                                                            1.0f); /* line_width */
 
+    if (in_pipelineSpecs.viewportAndScissorSpecs.width != -1 && in_pipelineSpecs.viewportAndScissorSpecs.height != -1)
+    {
+        {
+            float width = static_cast<float>(in_pipelineSpecs.viewportAndScissorSpecs.width);
+            float height = static_cast<float>(in_pipelineSpecs.viewportAndScissorSpecs.height);
+            pipeline_create_info_ptr->set_viewport_properties(0, 0.0f, 0.f, width, height, 0.f, 1.f);
+        }
+
+        {
+            int width = in_pipelineSpecs.viewportAndScissorSpecs.width;
+            int height = in_pipelineSpecs.viewportAndScissorSpecs.height;
+            pipeline_create_info_ptr->set_scissor_box_properties(0, 0, 0, width, height);
+        }
+    }
+
+
     if (in_pipelineSpecs.depthCompare != Anvil::CompareOp::NEVER)
     {
         pipeline_create_info_ptr->toggle_depth_test(true,
@@ -288,7 +306,7 @@ Anvil::PipelineID PipelinesFactory::CreateGraphicsPipeline(GraphicsPipelineSpecs
 
 Anvil::PipelineID PipelinesFactory::CreateComputePipeline(ComputePipelineSpecs in_pipelineSpecs)
 {
-    auto compute_manager_ptr(device_ptr->get_graphics_pipeline_manager());
+    auto compute_manager_ptr(device_ptr->get_compute_pipeline_manager());
 
     auto pipeline_create_info_ptr = Anvil::ComputePipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
                                                                              *in_pipelineSpecs.pipelineShaders.computeShaderModule_ptr);

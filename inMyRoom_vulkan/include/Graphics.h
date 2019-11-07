@@ -43,6 +43,7 @@
 #include "PipelinesFactory.h"
 #include "NodesOfScene.h"
 #include "PrimitivesOfMeshes.h"
+#include "MipmapsGenerator.h"
 #include "MeshesOfNodes.h"
 #include "Drawer.h"
 
@@ -78,8 +79,6 @@ private:
     void RecordCommandBuffer(uint32_t swapchainImageIndex);
 
 private:
-    Anvil::BaseDevice* const     device_ptr;
-    Anvil::Swapchain* const      swapchain_ptr;
 
     tinygltf::Model model;
 
@@ -91,6 +90,7 @@ private:
     std::unique_ptr<NodesOfScene> nodesOfScene_uptr;
     std::unique_ptr<PrimitivesOfMeshes> primitivesOfMeshes_uptr;
     std::unique_ptr<MeshesOfNodes> meshesOfNodes_uptr;
+    std::unique_ptr<MipmapsGenerator> mipmapsGenerator_uptr;
 
     CameraBaseClass* camera_ptr;
     ViewportFrustum cameraFrustum;
@@ -128,4 +128,7 @@ private:
     std::vector<Anvil::PrimaryCommandBufferUniquePtr> cmdBuffers_uptrs;
 
     const configuru::Config& cfgFile;
+
+    Anvil::BaseDevice* const     device_ptr;
+    Anvil::Swapchain* const      swapchain_ptr;
 };

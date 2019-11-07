@@ -10,6 +10,20 @@
 #define TINYGLTF_TYPE_VECTOR (64 + 4)
 #define TINYGLTF_TYPE_MATRIX (64 + 16)
 
+
+enum class glTFtype
+{
+    type_scalar = TINYGLTF_TYPE_SCALAR,
+    type_vector = TINYGLTF_TYPE_VECTOR,
+    type_matrix = TINYGLTF_TYPE_MATRIX,
+    type_vec2 = TINYGLTF_TYPE_VEC2,
+    type_vec3 = TINYGLTF_TYPE_VEC3,
+    type_vec4 = TINYGLTF_TYPE_VEC4,
+    type_mat2 = TINYGLTF_TYPE_MAT2,
+    type_mat3 = TINYGLTF_TYPE_MAT3,
+    type_mat4 = TINYGLTF_TYPE_MAT4
+};
+
 enum class glTFmode
 {
     points = 0,
@@ -31,19 +45,6 @@ enum class glTFcomponentType
     type_unsigned_int = 5125,
     type_float = 5126,
     type_double = 5130
-};
-
-enum class glTFtype
-{
-    type_scalar = TINYGLTF_TYPE_SCALAR,
-    type_vector = TINYGLTF_TYPE_VECTOR,
-    type_matrix = TINYGLTF_TYPE_MATRIX,
-    type_vec2 = TINYGLTF_TYPE_VEC2,
-    type_vec3 = TINYGLTF_TYPE_VEC3,
-    type_vec4 = TINYGLTF_TYPE_VEC4,
-    type_mat2 = TINYGLTF_TYPE_MAT2,
-    type_mat3 = TINYGLTF_TYPE_MAT3,
-    type_mat4 = TINYGLTF_TYPE_MAT4
 };
 
 enum class glTFparameterType

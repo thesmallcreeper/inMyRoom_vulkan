@@ -635,6 +635,19 @@ void Graphics::InitShadersSetsFamiliesCache()
         this_shaderSetInitInfo.vertexShaderSourceFilename = "zprepassShader_glsl.vert";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "General Mipmap Compute Shader";
+        this_shaderSetInitInfo.computeShaderSourceFilename = "generalMipmap_glsl.comp";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Image 16bit To 8bit Pass";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "16bitTo8bit_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "16bitTo8bit_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
 }
 
 void Graphics::InitScene()
@@ -642,14 +655,31 @@ void Graphics::InitScene()
 
     const tinygltf::Scene& scene = model.scenes[0];
 
+
     // Find out how each texture is being used (color, normal, etc..)
     printf("-Initializing ImagesAboutOfTextures\n");
     imagesAboutOfTextures_uptr = std::make_unique<ImagesAboutOfTextures>();
     imagesAboutOfTextures_uptr->AddImagesUsageOfModel(model);
 
-    // Mapmaps, compress textures and copy to GPU
+    // Create mipmaps toolkit
+    printf("-Initializing MipmapsGenerator\n");
+    mipmapsGenerator_uptr = std::make_unique<MipmapsGenerator>(pipelinesFactory_uptr.get(),
+                                                               shadersSetsFamiliesCache_uptr.get(),
+                                                               imagesAboutOfTextures_uptr.get(),
+                                                               "Image 16bit To 8bit Pass",
+                                                               "General Mipmap Compute Shader", /* baseColor_shadername */
+                                                               "General Mipmap Compute Shader", /* metallic_shadername */
+                                                               "General Mipmap Compute Shader", /* roughness_shadername */
+                                                               "General Mipmap Compute Shader", /* normal_shadername */
+                                                               "General Mipmap Compute Shader", /* occlusion_shadername */
+                                                               "General Mipmap Compute Shader", /* emissive_shadername */
+                                                               cmdBuffers_uptrs[0].get(),
+                                                               device_ptr);
+
+
+    // Edit textures and copy to GPU
     printf("-Initializing TexturesOfMaterials\n");
-    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesAboutOfTextures_uptr.get(), device_ptr);
+    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), mipmapsGenerator_uptr.get(), device_ptr);
     texturesOfMaterials_uptr->AddTexturesOfModel(model, GetFilePathFolder(cfgFile["sceneInput"]["path"].as_string()));
 
     // Create materials description sets

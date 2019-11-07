@@ -23,6 +23,7 @@
     <ClCompile Include="src\Cuboid.cpp" />
     <ClCompile Include="src\Drawer.cpp" />
     <ClCompile Include="src\FrustumCulling.cpp" />
+    <ClCompile Include="src\MipmapsGenerator.cpp" />
     <ClCompile Include="src\OBB.cpp" />
     <ClCompile Include="src\Plane.cpp" />
     <ClCompile Include="src\ViewportFrustum.cpp" />
@@ -51,6 +52,8 @@
     <ClInclude Include="include\Cuboid.h" />
     <ClInclude Include="include\Drawer.h" />
     <ClInclude Include="include\FrustumCulling.h" />
+    <ClInclude Include="include\const_maps.h" />
+    <ClInclude Include="include\MipmapsGenerator.h" />
     <ClInclude Include="include\OBB.h" />
     <ClInclude Include="include\Plane.h" />
     <ClInclude Include="include\ViewportFrustum.h" />
