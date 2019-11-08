@@ -31,7 +31,7 @@ struct CommandBufferState
     VkDeviceSize texcoord1BufferOffset = -1;
     VkDeviceSize color0BufferOffset = -1;
     Anvil::IndexType indexBufferType = static_cast<Anvil::IndexType>(-1);
-    VkPipeline vkGraphicsPipeline;
+    VkPipeline vkGraphicsPipeline = static_cast<VkPipeline>(nullptr);
 };
 
 enum class sorting
