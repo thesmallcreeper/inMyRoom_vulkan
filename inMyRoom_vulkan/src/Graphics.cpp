@@ -252,10 +252,6 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
 
         by_pipeline_drawer.AddDrawRequests(draw_requests);
 
-        by_pipeline_drawer.DrawCallRequests(cmd_buffer_ptr, "Z-Prepass" ,lower_descriptor_sets);
-
-        cmd_buffer_ptr->record_next_subpass(Anvil::SubpassContents::INLINE);
-
         by_pipeline_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", lower_descriptor_sets);
 
         cmd_buffer_ptr->record_end_render_pass();
@@ -521,17 +517,6 @@ void Graphics::InitRenderpasses()
                                                                  false, /* may_alias */
                                                                  &depth_attachment_id);
 
-        // z-prepass pass
-        renderpass_create_info_ptr->add_subpass(&zprepassSubpassID);
-        renderpass_create_info_ptr->add_subpass_depth_stencil_attachment(zprepassSubpassID,
-                                                                         Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                         depth_attachment_id);
-        renderpass_create_info_ptr->add_external_to_subpass_dependency(zprepassSubpassID,
-                                                                       Anvil::PipelineStageFlagBits::LATE_FRAGMENT_TESTS_BIT,
-                                                                       Anvil::PipelineStageFlagBits::EARLY_FRAGMENT_TESTS_BIT,
-                                                                       Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_READ_BIT,
-                                                                       Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                                                                       Anvil::DependencyFlagBits::BY_REGION_BIT);
         // texture pass
         renderpass_create_info_ptr->add_subpass(&textureSubpassID);
         renderpass_create_info_ptr->add_subpass_color_attachment(textureSubpassID,
@@ -540,15 +525,8 @@ void Graphics::InitRenderpasses()
                                                                  0,        /* in_location                      */
                                                                  nullptr); /* in_opt_attachment_resolve_id_ptr */
         renderpass_create_info_ptr->add_subpass_depth_stencil_attachment(textureSubpassID,
-                                                                         Anvil::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                                                                         Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                                          depth_attachment_id);
-        renderpass_create_info_ptr->add_subpass_to_subpass_dependency(zprepassSubpassID,
-                                                                      textureSubpassID,
-                                                                      Anvil::PipelineStageFlagBits::LATE_FRAGMENT_TESTS_BIT,
-                                                                      Anvil::PipelineStageFlagBits::EARLY_FRAGMENT_TESTS_BIT,
-                                                                      Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                                                                      Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_READ_BIT,
-                                                                      Anvil::DependencyFlagBits::BY_REGION_BIT);
 
 
         renderpass_uptr = Anvil::RenderPass::create(std::move(renderpass_create_info_ptr),
@@ -707,27 +685,15 @@ void Graphics::InitScene()
         std::vector<const Anvil::DescriptorSetCreateInfo*> low_descriptor_sets_create_infos;
         low_descriptor_sets_create_infos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
         {
-            printf("-Initializing \"Z-Prepass Pass\" primitives set\n");
-
-            PrimitivesSetSpecs this_primitives_set_specs;
-            this_primitives_set_specs.primitivesSetName = "Z-Prepass";
-            this_primitives_set_specs.useDepthWrite = true;
-            this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
-            this_primitives_set_specs.useMaterial = false;
-            this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Z-Prepass Shaders";
-
-            primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), zprepassSubpassID);
-        }
-        {
             printf("-Initializing \"Texture Pass\" primitives set\n");
 
             PrimitivesSetSpecs this_primitives_set_specs;
             this_primitives_set_specs.primitivesSetName = "Texture-Pass";
-            this_primitives_set_specs.useDepthWrite = false;
-            this_primitives_set_specs.depthCompare = Anvil::CompareOp::EQUAL;
+            this_primitives_set_specs.useDepthWrite = true;
+            this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
             this_primitives_set_specs.useMaterial = true;
             this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
-            this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");
+//          this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");     cannot for transparent shits
 
             primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), textureSubpassID);
 

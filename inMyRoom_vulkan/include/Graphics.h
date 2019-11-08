@@ -117,7 +117,6 @@ private:
 
     uint32_t                      lastSemaphoreUsed;
 
-    Anvil::SubPassID              zprepassSubpassID;
     Anvil::SubPassID              textureSubpassID;
 
     size_t zprepassPassSetIndex;

@@ -45,6 +45,9 @@ void main()
     #ifdef USE_BASE_COLOR_TEXTURE_TEXCOORD0
     {
         vec4 text_color= texture(base_color_texture, vert_texcoord0).rgba;
+        if(text_color.a < 0.05)
+            discard;
+        
         frag_color = text_color;
     }
     #endif
