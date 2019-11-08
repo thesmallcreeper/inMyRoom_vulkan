@@ -17,9 +17,9 @@ NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scen
 
     nodesInfos.emplace_back(world_space_node);
 
-    for (size_t i : in_scene.nodes)
+    for (size_t this_scene_node : in_scene.nodes)
     {
-        const tinygltf::Node& this_node = in_model.nodes[i];
+        const tinygltf::Node& this_node = in_model.nodes[this_scene_node];
         const glm::mat4 local_trs_matrix = CreateTRSmatrix(this_node);
 
         NodeInfo new_nodeInfo;
@@ -43,7 +43,6 @@ NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scen
             entry_node_childrenCount++;
 
             nodesInfos.emplace_back(new_nodeInfo);
-            NodeInfo& this_node_ref_in_vector = *nodesInfos.rbegin();
 
             size_t size_of_nodes_vector_before = nodesInfos.size();
             for (int this_child : this_node.children)
@@ -52,7 +51,15 @@ NodesOfScene::NodesOfScene(const tinygltf::Model& in_model, const tinygltf::Scen
             }
             size_t size_of_nodes_vector_after = nodesInfos.size();
 
-            this_node_ref_in_vector.nodeAndChildrenSize = static_cast<uint32_t>(size_of_nodes_vector_after - size_of_nodes_vector_before);
+            nodesInfos[size_of_nodes_vector_before - 1].nodeAndChildrenSize = static_cast<uint32_t>(size_of_nodes_vector_after - size_of_nodes_vector_before);
+        }
+        else
+        {
+            new_nodeInfo.isMesh = false;
+            new_nodeInfo.childrenCount = 0;
+            new_nodeInfo.nodeAndChildrenSize = 0;
+
+            nodesInfos.emplace_back(new_nodeInfo);
         }
     }
 
@@ -63,6 +70,7 @@ void NodesOfScene::AddNode(const tinygltf::Model& in_model,
                            const tinygltf::Node& in_gltf_node)
 {
     NodeInfo new_nodeInfo;
+    new_nodeInfo.localTRSmatrix = CreateTRSmatrix(in_gltf_node);
 
     if (in_gltf_node.mesh > -1)
     {
@@ -76,10 +84,8 @@ void NodesOfScene::AddNode(const tinygltf::Model& in_model,
     {
         new_nodeInfo.isMesh = false;
         new_nodeInfo.childrenCount = static_cast<uint32_t>(in_gltf_node.children.size());
-        new_nodeInfo.localTRSmatrix = CreateTRSmatrix(in_gltf_node);
 
         nodesInfos.emplace_back(new_nodeInfo);
-        NodeInfo& this_node_ref_in_vector = *nodesInfos.rbegin();
 
         size_t size_of_nodes_vector_before = nodesInfos.size();
         for (size_t i = 0; i < in_gltf_node.children.size(); i++)
@@ -88,7 +94,15 @@ void NodesOfScene::AddNode(const tinygltf::Model& in_model,
         }
         size_t size_of_nodes_vector_after = nodesInfos.size();
 
-        this_node_ref_in_vector.nodeAndChildrenSize = static_cast<uint32_t>(size_of_nodes_vector_after - size_of_nodes_vector_before);
+        nodesInfos[size_of_nodes_vector_before - 1].nodeAndChildrenSize = static_cast<uint32_t>(size_of_nodes_vector_after - size_of_nodes_vector_before);
+    }
+    else
+    {
+        new_nodeInfo.isMesh = false;
+        new_nodeInfo.childrenCount = 0;
+        new_nodeInfo.nodeAndChildrenSize = 0;
+
+        nodesInfos.emplace_back(new_nodeInfo);
     }
 }
 
@@ -113,7 +127,7 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<Pla
 
     while (depth_nodes_stack.size())
     {
-        if (depth_nodes_stack.top().childrenSoFar != depth_nodes_stack.top().childrenCount)
+        if (depth_nodes_stack.top().childrenSoFar < depth_nodes_stack.top().childrenCount)
         {
             depth_nodes_stack.top().childrenSoFar++;
 
@@ -121,14 +135,14 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<Pla
 
             if (this_node.shouldRender)
             {
-                const glm::mat4x4& global_TRS_matrix = depth_nodes_stack.top().globalTRSmaxtix * this_node.localTRSmatrix;
+                const glm::mat4x4& node_global_TRS_matrix = depth_nodes_stack.top().globalTRSmaxtix * this_node.localTRSmatrix;
 
                 if (this_node.isMesh)
                 {
                     const MeshInfo this_mesh_range = meshesOfNodes_ptr->GetMesh(this_node.meshIndex);
 
                     const OBB& this_OBB = this_mesh_range.boundBox;
-                    Cuboid this_cuboid = global_TRS_matrix * this_OBB;
+                    Cuboid this_cuboid = node_global_TRS_matrix * this_OBB;
 
                     if (frustum_culling.IsCuboidInsideFrustum(this_cuboid)) // per mesh-object OBB culling
                         for (size_t primitive_index = this_mesh_range.primitiveFirstOffset; primitive_index < this_mesh_range.primitiveFirstOffset + this_mesh_range.primitiveRangeSize; primitive_index++)
@@ -136,7 +150,7 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<Pla
                             DrawRequest this_draw_request;
                             this_draw_request.primitiveIndex = primitive_index;
                             this_draw_request.objectID = this_node.objectID;
-                            this_draw_request.TRSmatrix = global_TRS_matrix;
+                            this_draw_request.TRSmatrix = node_global_TRS_matrix;
                             draw_requests.emplace_back(this_draw_request);
                         }
                 }
@@ -145,7 +159,7 @@ std::vector<DrawRequest> NodesOfScene::DrawUsingFrustumCull(const std::array<Pla
                     NodeRecursive entering_node_state;
                     entering_node_state.childrenCount = this_node.childrenCount;
                     entering_node_state.childrenSoFar = 0;
-                    entering_node_state.globalTRSmaxtix = global_TRS_matrix;
+                    entering_node_state.globalTRSmaxtix = node_global_TRS_matrix;
 
                     depth_nodes_stack.push(entering_node_state);
                 }
@@ -173,8 +187,8 @@ glm::mat4 NodesOfScene::CreateTRSmatrix(const tinygltf::Node& in_node) const
                            0.f, 0.f, 0.f, 1.f)
               * glm::mat4(in_node.matrix[0] , in_node.matrix[1] , in_node.matrix[2] , in_node.matrix[3] ,
                           in_node.matrix[4] , in_node.matrix[5] , in_node.matrix[6] , in_node.matrix[7] ,
-                          in_node.matrix[8] , in_node.matrix[9] , in_node.matrix[10], in_node.matrix[11],
-                          in_node.matrix[12], in_node.matrix[13], in_node.matrix[14], in_node.matrix[15])
+                          in_node.matrix[8] , in_node.matrix[9] , in_node.matrix[10], in_node.matrix[11] ,
+                          in_node.matrix[12] , in_node.matrix[13], in_node.matrix[14], in_node.matrix[15] )
               * glm::mat4(1.f, 0.f, 0.f, 0.f,
                           0.f,-1.f, 0.f, 0.f,
                           0.f, 0.f,-1.f, 0.f,
