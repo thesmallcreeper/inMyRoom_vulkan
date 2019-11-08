@@ -21,8 +21,8 @@ enum class ImageMap
 struct ImageAbout
 {
     ImageMap map = ImageMap::undefined;
-    glTFsamplerWrap wrapS = glTFsamplerWrap::repeat;
-    glTFsamplerWrap wrapT = glTFsamplerWrap::repeat;
+    glTFsamplerWrap wrapS = glTFsamplerWrap::mirrored_repeat;
+    glTFsamplerWrap wrapT = glTFsamplerWrap::mirrored_repeat;
     const tinygltf::Image* sibling_baseColor_image = nullptr;
     const tinygltf::Image* sibling_metallic_image = nullptr;
     const tinygltf::Image* sibling_roughness_image = nullptr;

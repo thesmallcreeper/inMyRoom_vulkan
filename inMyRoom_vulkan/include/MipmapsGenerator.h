@@ -49,9 +49,9 @@ struct MipmapInfo
 {
     Anvil::Format image_vulkan_format;
     size_t size;
-    size_t pitch;
-    size_t width;
-    size_t height;
+    uint32_t pitch;
+    uint32_t width;
+    uint32_t height;
     unique_ptr<uint8_t[]> data_uptr;
 };
 
@@ -74,7 +74,7 @@ public:
     ~MipmapsGenerator();
 
     void Reset();
-    void ResetAndCopyImage(const tinygltf::Image& in_image ,const std::string in_imagesFolder);
+    void BindNewImage(const tinygltf::Image& in_image ,const std::string in_imagesFolder);
 
     MipmapInfo GetOriginal();
     MipmapInfo GetOriginalNullptr();
@@ -83,7 +83,15 @@ public:
 
 private: //functions
 
-    void Init();
+    void LoadImageToGPU();
+
+    void InitQuadIndexBuffer();
+    void InitQuadPositionBuffer();
+    void InitQuadTexcoordBuffer();
+    void InitComputeSampler();
+    void InitRenderpassSampler();
+
+    void InitGPUimageAndView(uint8_t* in_image_raw, size_t image_size);
 
     std::string GetShaderSetName(ImageMap map) const;
 
@@ -94,7 +102,7 @@ private: //functions
 private: //data
     std::string imagesFolder;
 
-    bool isItInited = false;
+    bool isImageLoaded = false;
 
     Anvil::BufferUniquePtr quadIndexBuffer_uptr;
     Anvil::BufferUniquePtr quadPositionBuffer_uptr;
@@ -102,20 +110,21 @@ private: //data
 
     std::unique_ptr<uint8_t[]> default_image_buffer;
 
-    int32_t original_width;
-    int32_t original_height;
-    int32_t defaultImageCompCount;
-    int32_t originalImageCompCount;
+    uint32_t original_width;
+    uint32_t original_height;
+    uint32_t defaultImageCompCount;
+    uint32_t alignedImageCompCount;
     Anvil::Format vulkanDefaultFormat;
     Anvil::Format vulkanOriginalFormat;
+    size_t alignedImageSize;
 
     ImageAbout image_about;
 
     Anvil::SamplerUniquePtr imageComputeSampler_uptr;
     Anvil::SamplerUniquePtr imageRenderpassSampler_uptr;
 
-    Anvil::ImageUniquePtr original_8bitPerChannel_image_uptr;
-    Anvil::ImageViewUniquePtr original_8bitPerChannel_imageView_uptr;
+    Anvil::ImageUniquePtr alignedDefault_8bitPerChannel_image_uptr;
+    Anvil::ImageViewUniquePtr alignedDefault_8bitPerChannel_imageView_uptr;
 
     std::string _16bitTo8bit_shadername;
     std::string baseColor_shadername;

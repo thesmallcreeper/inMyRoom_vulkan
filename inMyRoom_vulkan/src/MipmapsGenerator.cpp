@@ -33,140 +33,12 @@ MipmapsGenerator::MipmapsGenerator(PipelinesFactory* in_pipelinesFactory_ptr,
     occlusion_shadername = in_occlusion_shadername;
     emissive_shadername = in_emissive_shadername;
 
-    isItInited = false;
+    isImageLoaded = false;
 
-    // Fullscreen renderpass
-    {
-        {
-            auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
-
-            std::vector<uint32_t> index = {
-                // indexes        
-                0, 1, 2,
-                2, 1, 3
-            };
-
-            auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                            sizeof(uint32_t) * index.size(),
-                                                                            Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                            Anvil::SharingMode::EXCLUSIVE,
-                                                                            Anvil::BufferCreateFlagBits::NONE,
-                                                                            Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT);
-
-            quadIndexBuffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-            quadIndexBuffer_uptr->set_name("QuadIndexBuffer");
-
-            allocator_ptr->add_buffer(quadIndexBuffer_uptr.get(),
-                                      Anvil::MemoryFeatureFlagBits::NONE);
-
-            quadIndexBuffer_uptr->write(0,
-                                        sizeof(uint32_t) * index.size(),
-                                        index.data());
-        }
-
-        {
-            auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
-
-            std::vector<float> position = {
-                // positions         
-                -1.0f, -1.0f, 0.1f,
-                -1.0f,  1.0f, 0.1f,
-                 1.0f, -1.0f, 0.1f,
-                 1.0f,  1.0f, 0.1f
-            };
-
-            auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                            sizeof(float) * position.size(),
-                                                                            Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                            Anvil::SharingMode::EXCLUSIVE,
-                                                                            Anvil::BufferCreateFlagBits::NONE,
-                                                                            Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
-
-            quadPositionBuffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-            quadPositionBuffer_uptr->set_name("QuadPositionBuffer");
-
-            allocator_ptr->add_buffer(quadPositionBuffer_uptr.get(),
-                                      Anvil::MemoryFeatureFlagBits::NONE);
-
-            quadPositionBuffer_uptr->write(0,
-                                           sizeof(float) * position.size(),
-                                           position.data());
-        }
-
-        {
-            auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
-
-            std::vector<float> texcoords = {
-                // texcoords
-                0.0f, 0.0f,
-                0.0f, 1.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f
-            };
-
-            auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                            sizeof(float) * texcoords.size(),
-                                                                            Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                            Anvil::SharingMode::EXCLUSIVE,
-                                                                            Anvil::BufferCreateFlagBits::NONE,
-                                                                            Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
-
-            quadTexcoordsBuffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-            quadTexcoordsBuffer_uptr->set_name("QuadTexcoordsBuffer");
-
-            allocator_ptr->add_buffer(quadTexcoordsBuffer_uptr.get(),
-                                      Anvil::MemoryFeatureFlagBits::NONE);
-
-            quadTexcoordsBuffer_uptr->write(0,
-                                            sizeof(float)* texcoords.size(),
-                                            texcoords.data());
-        }
-
-    }
-
-    // Create samplers
-    {
-        auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
-                                                                Anvil::Filter::NEAREST,
-                                                                Anvil::Filter::NEAREST,
-                                                                Anvil::SamplerMipmapMode::NEAREST,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
-                                                                Anvil::SamplerAddressMode::REPEAT,
-                                                                0.0f, /* in_lod_bias        */
-                                                                1.0f, /* in_max_anisotropy  */
-                                                                false, /* in_compare_enable  */
-                                                                Anvil::CompareOp::NEVER,    /* in_compare_enable  */
-                                                                0.0f, /* in_min_lod         */
-                                                                0.0f, /* in_min_lod         */
-                                                                Anvil::BorderColor::INT_OPAQUE_BLACK,
-                                                                false); /* in_use_unnormalized_coordinates */
-
-        imageRenderpassSampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
-    }
-
-    {
-        auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
-                                                                Anvil::Filter::NEAREST,
-                                                                Anvil::Filter::NEAREST,
-                                                                Anvil::SamplerMipmapMode::NEAREST,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
-                                                                Anvil::SamplerAddressMode::REPEAT,
-                                                                0.0f, /* in_lod_bias        */
-                                                                1.0f, /* in_max_anisotropy  */
-                                                                false, /* in_compare_enable  */
-                                                                Anvil::CompareOp::NEVER,    /* in_compare_enable  */
-                                                                0.0f, /* in_min_lod         */
-                                                                0.0f, /* in_min_lod         */
-                                                                Anvil::BorderColor::INT_OPAQUE_BLACK,
-                                                                true); /* in_use_unnormalized_coordinates */
-
-        imageComputeSampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
-    }
+    // Init vertex bvuffers
+    InitQuadIndexBuffer();
+    InitQuadPositionBuffer();
+    InitQuadTexcoordBuffer();
 }
 
 MipmapsGenerator::~MipmapsGenerator()
@@ -176,13 +48,146 @@ MipmapsGenerator::~MipmapsGenerator()
 
 void MipmapsGenerator::Reset()
 {
-    original_8bitPerChannel_image_uptr.reset();
-    original_8bitPerChannel_imageView_uptr.reset();
+    alignedDefault_8bitPerChannel_image_uptr.reset();
+    alignedDefault_8bitPerChannel_imageView_uptr.reset();
 
-    isItInited = false;
+    isImageLoaded = false;
 }
 
-void MipmapsGenerator::ResetAndCopyImage(const tinygltf::Image& in_image, const std::string in_imagesFolder)
+void MipmapsGenerator::InitQuadIndexBuffer()
+{
+    auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
+
+    std::vector<uint32_t> index = {
+        // indexes        
+        0, 1, 2,
+        2, 1, 3
+    };
+
+    auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
+                                                                    sizeof(uint32_t) * index.size(),
+                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                    Anvil::SharingMode::EXCLUSIVE,
+                                                                    Anvil::BufferCreateFlagBits::NONE,
+                                                                    Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT);
+
+    quadIndexBuffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
+
+    quadIndexBuffer_uptr->set_name("QuadIndexBuffer");
+
+    allocator_ptr->add_buffer(quadIndexBuffer_uptr.get(),
+                                Anvil::MemoryFeatureFlagBits::NONE);
+
+    quadIndexBuffer_uptr->write(0,
+                                sizeof(uint32_t) * index.size(),
+                                index.data());
+}
+
+void MipmapsGenerator::InitQuadPositionBuffer()
+{
+    auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
+
+    std::vector<float> position = {
+        // positions         
+        -1.0f, -1.0f, 0.1f,
+        -1.0f,  1.0f, 0.1f,
+         1.0f, -1.0f, 0.1f,
+         1.0f,  1.0f, 0.1f
+    };
+
+    auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
+                                                                    sizeof(float) * position.size(),
+                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                    Anvil::SharingMode::EXCLUSIVE,
+                                                                    Anvil::BufferCreateFlagBits::NONE,
+                                                                    Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+
+    quadPositionBuffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
+
+    quadPositionBuffer_uptr->set_name("QuadPositionBuffer");
+
+    allocator_ptr->add_buffer(quadPositionBuffer_uptr.get(),
+                                Anvil::MemoryFeatureFlagBits::NONE);
+
+    quadPositionBuffer_uptr->write(0,
+                                    sizeof(float) * position.size(),
+                                    position.data());
+}
+
+void MipmapsGenerator::InitQuadTexcoordBuffer()
+{
+    auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
+
+    std::vector<float> texcoords = {
+        // texcoords
+        0.0f, 0.0f,
+        0.0f, 1.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f
+    };
+
+    auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
+                                                                    sizeof(float) * texcoords.size(),
+                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                    Anvil::SharingMode::EXCLUSIVE,
+                                                                    Anvil::BufferCreateFlagBits::NONE,
+                                                                    Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+
+    quadTexcoordsBuffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
+
+    quadTexcoordsBuffer_uptr->set_name("QuadTexcoordsBuffer");
+
+    allocator_ptr->add_buffer(quadTexcoordsBuffer_uptr.get(),
+                                Anvil::MemoryFeatureFlagBits::NONE);
+
+    quadTexcoordsBuffer_uptr->write(0,
+                                    sizeof(float) * texcoords.size(),
+                                    texcoords.data());
+}
+
+void MipmapsGenerator::InitComputeSampler()
+{
+    auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
+                                                            Anvil::Filter::NEAREST,
+                                                            Anvil::Filter::NEAREST,
+                                                            Anvil::SamplerMipmapMode::NEAREST,
+                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
+                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
+                                                            Anvil::SamplerAddressMode::REPEAT,
+                                                            0.0f, /* in_lod_bias        */
+                                                            1.0f, /* in_max_anisotropy  */
+                                                            false, /* in_compare_enable  */
+                                                            Anvil::CompareOp::NEVER,    /* in_compare_enable  */
+                                                            0.0f, /* in_min_lod         */
+                                                            0.0f, /* in_min_lod         */
+                                                            Anvil::BorderColor::INT_OPAQUE_BLACK,
+                                                            false); /* in_use_unnormalized_coordinates */
+
+    imageComputeSampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
+}
+
+void MipmapsGenerator::InitRenderpassSampler()
+{
+    auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
+                                                            Anvil::Filter::NEAREST,
+                                                            Anvil::Filter::NEAREST,
+                                                            Anvil::SamplerMipmapMode::NEAREST,
+                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
+                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
+                                                            Anvil::SamplerAddressMode::REPEAT,
+                                                            0.0f, /* in_lod_bias        */
+                                                            1.0f, /* in_max_anisotropy  */
+                                                            false, /* in_compare_enable  */
+                                                            Anvil::CompareOp::NEVER,    /* in_compare_enable  */
+                                                            0.0f, /* in_min_lod         */
+                                                            0.0f, /* in_min_lod         */
+                                                            Anvil::BorderColor::INT_OPAQUE_BLACK,
+                                                            false); /* in_use_unnormalized_coordinates */
+
+    imageRenderpassSampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
+}
+
+void MipmapsGenerator::BindNewImage(const tinygltf::Image& in_image, const std::string in_imagesFolder)
 {
     Reset();
 
@@ -197,7 +202,7 @@ void MipmapsGenerator::ResetAndCopyImage(const tinygltf::Image& in_image, const 
 
         fs::path absolute_path_to_original_image = fs::absolute(path_to_original_image);
 
-        unsigned char* stbi_data = stbi_load(absolute_path_to_original_image.generic_string().c_str(), &original_width, &original_height, &defaultImageCompCount, 0);
+        unsigned char* stbi_data = stbi_load(absolute_path_to_original_image.generic_string().c_str(), (int*)&original_width, (int*)&original_height, (int*)&defaultImageCompCount, 0);
         assert(stbi_data);
 
         default_image_buffer.reset(new uint8_t[original_width * original_height * defaultImageCompCount]);
@@ -207,35 +212,41 @@ void MipmapsGenerator::ResetAndCopyImage(const tinygltf::Image& in_image, const 
 
         stbi_image_free(stbi_data);
     }
-    else // gotta support that
+    else // gotta support that TODO
     {
         assert(0);
     }
 }
 
 
-void MipmapsGenerator::Init()
+void MipmapsGenerator::LoadImageToGPU()
 {
-    // Load image ready to push to gpu
-    std::unique_ptr<uint8_t[]> local_image_buffer;
-    size_t sizeOfLocalBuffer;
+    // Align image
+    std::unique_ptr<uint8_t[]> aligned_image_buffer;
+    aligned_image_buffer = CopyToLocalBuffer(default_image_buffer.get(), defaultImageCompCount * original_width * original_height, (defaultImageCompCount != 3) ? false : true);
+
+    alignedImageCompCount = (defaultImageCompCount != 3) ? defaultImageCompCount : 4;
+    alignedImageSize = alignedImageCompCount * original_width * original_height;
+    vulkanOriginalFormat = componentsCountToVulkanFormat_map.find(alignedImageCompCount)->second;
+
+    InitGPUimageAndView(aligned_image_buffer.get(), alignedImageSize);
+
+    // Init samplers
+    InitComputeSampler();
+    InitRenderpassSampler();
+
+    isImageLoaded = true;
+}
+
+void MipmapsGenerator::InitGPUimageAndView(uint8_t* in_image_raw, size_t image_size)
+{
     {
-        local_image_buffer = CopyToLocalBuffer(default_image_buffer.get(), defaultImageCompCount * original_width * original_height, (defaultImageCompCount != 3) ? false : true);
-        originalImageCompCount = (defaultImageCompCount != 3) ? defaultImageCompCount : 4;
-
-        vulkanOriginalFormat = componentsCountToVulkanFormat_map.find(originalImageCompCount)->second;
-
-        sizeOfLocalBuffer = originalImageCompCount * original_width * original_height;
-    }
-
-    // Copy the original 8-bit per channel image to GPU
-    {
-        std::vector<Anvil::MipmapRawData> compressed_mipmaps_raw_data;
-        compressed_mipmaps_raw_data.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
+        std::vector<Anvil::MipmapRawData> aligned_image_mipmapRawData;
+        aligned_image_mipmapRawData.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
                                                                                                 0,
-                                                                                                local_image_buffer.get(),
-                                                                                                sizeOfLocalBuffer,
-                                                                                                sizeOfLocalBuffer / original_height));
+                                                                                                in_image_raw,
+                                                                                                static_cast<uint32_t>(image_size),
+                                                                                                static_cast<uint32_t>(image_size / original_height)));
 
         auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
                                                                     Anvil::ImageType::_2D,
@@ -252,43 +263,42 @@ void MipmapsGenerator::Init()
                                                                     false, /* in_use_full_mipmap_chain */
                                                                     Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
                                                                     Anvil::ImageCreateFlagBits::NONE,
-                                                                    Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL , /* in_final_image_layout    */
-                                                                    &compressed_mipmaps_raw_data);
+                                                                    Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL, /* in_final_image_layout    */
+                                                                    &aligned_image_mipmapRawData);
 
-        original_8bitPerChannel_image_uptr = Anvil::Image::create(std::move(create_info_ptr));
+        alignedDefault_8bitPerChannel_image_uptr = Anvil::Image::create(std::move(create_info_ptr));
     }
 
     {
         auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(device_ptr,
-                                                                     original_8bitPerChannel_image_uptr.get(),
+                                                                     alignedDefault_8bitPerChannel_image_uptr.get(),
                                                                      0, /* n_base_layer        */
                                                                      0, /* n_base_mipmap_level */
                                                                      1, /* n_mipmaps           */
                                                                      Anvil::ImageAspectFlagBits::COLOR_BIT,
                                                                      vulkanOriginalFormat,
                                                                      Anvil::ComponentSwizzle::R,
-                                                                     (originalImageCompCount >= 2)
+                                                                     (alignedImageCompCount >= 2)
                                                                      ? Anvil::ComponentSwizzle::G
                                                                      : Anvil::ComponentSwizzle::ZERO,
-                                                                     (originalImageCompCount >= 3)
+                                                                     (alignedImageCompCount >= 3)
                                                                      ? Anvil::ComponentSwizzle::B
                                                                      : Anvil::ComponentSwizzle::ZERO,
-                                                                     (originalImageCompCount >= 4)
+                                                                     (alignedImageCompCount >= 4)
                                                                      ? Anvil::ComponentSwizzle::A
                                                                      : Anvil::ComponentSwizzle::ONE);
 
-        original_8bitPerChannel_imageView_uptr = Anvil::ImageView::create(std::move(create_info_ptr));
+        alignedDefault_8bitPerChannel_imageView_uptr = Anvil::ImageView::create(std::move(create_info_ptr));
     }
-
-    isItInited = true;
 }
+
 
 MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
 {
     assert(mipmap_level > 0);
 
-    if (!isItInited)
-        Init();
+    if (!isImageLoaded)
+        LoadImageToGPU();
 
     uint32_t this_mipmap_width = std::max<uint32_t>(original_width >> mipmap_level, 4);
     uint32_t this_mipmap_height = std::max<uint32_t>(original_height >> mipmap_level, 4);
@@ -296,15 +306,24 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     Anvil::ImageUniquePtr mipmap_16bitPerChannel_image_uptr;
     Anvil::ImageViewUniquePtr mipmap_16bitPerChannel_imageView_uptr;
 
+    Anvil::Format vulkan_aligned_16BitPerChannelFormat = vulkanSRGBFormatTo16BitPerChannel_map.find(vulkanOriginalFormat)->second;
     Anvil::ImageUniquePtr mipmap_8bitPerChannel_image_uptr;
     Anvil::ImageViewUniquePtr mipmap_8bitPerChannel_imageView_uptr;
 
+    Anvil::DescriptorSetGroupUniquePtr descriptorSetGroup_uptr;
+
+    Anvil::BufferUniquePtr device_to_host_buffer;
+
+    Anvil::PipelineID this_compute_pipelineID;
+    Anvil::PipelineID this_gfx_pipelineID;
+
+    Anvil::FramebufferUniquePtr framebuffer_uptr;
+
     // 16-bit compute-output channel format
-    Anvil::Format vulkan16BitPerChannelFormat = vulkanSRGBFormatTo16BitPerChannel_map.find(vulkanOriginalFormat)->second;
     {
         auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
                                                                     Anvil::ImageType::_2D,
-                                                                    vulkan16BitPerChannelFormat,
+                                                                    vulkan_aligned_16BitPerChannelFormat,
                                                                     Anvil::ImageTiling::OPTIMAL,
                                                                     Anvil::ImageUsageFlagBits::STORAGE_BIT | Anvil::ImageUsageFlagBits::SAMPLED_BIT,
                                                                     static_cast<uint32_t>(this_mipmap_width),
@@ -330,22 +349,21 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                      0, /* n_base_mipmap_level */
                                                                      1, /* n_mipmaps           */
                                                                      Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                     vulkan16BitPerChannelFormat,
+                                                                     vulkan_aligned_16BitPerChannelFormat,
                                                                      Anvil::ComponentSwizzle::R,
-                                                                     (originalImageCompCount >= 2)
+                                                                     (alignedImageCompCount >= 2)
                                                                      ? Anvil::ComponentSwizzle::G
                                                                      : Anvil::ComponentSwizzle::ZERO,
-                                                                     (originalImageCompCount >= 3)
+                                                                     (alignedImageCompCount >= 3)
                                                                      ? Anvil::ComponentSwizzle::B
                                                                      : Anvil::ComponentSwizzle::ZERO,
-                                                                     (originalImageCompCount >= 4)
+                                                                     (alignedImageCompCount >= 4)
                                                                      ? Anvil::ComponentSwizzle::A
                                                                      : Anvil::ComponentSwizzle::ONE);
 
         mipmap_16bitPerChannel_imageView_uptr = Anvil::ImageView::create(std::move(create_info_ptr));
     }
 
-    Anvil::DescriptorSetGroupUniquePtr descriptorSetGroup_uptr;
     {
         // Create description set for original 8-bit images and storage of 16-bit mipmap
         std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> dsg_create_infos_ptr;
@@ -390,7 +408,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     // Update DS 0/0 : sampled 8bit image (source)
     {
         Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                                                                                   original_8bitPerChannel_imageView_uptr.get(),
+                                                                                   alignedDefault_8bitPerChannel_imageView_uptr.get(),
                                                                                    imageComputeSampler_uptr.get());
 
         descriptorSetGroup_uptr->set_binding_item(0, 0, this_texture_bind);
@@ -446,23 +464,22 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                      Anvil::ImageAspectFlagBits::COLOR_BIT,
                                                                      vulkanOriginalFormat,
                                                                      Anvil::ComponentSwizzle::R,
-                                                                     (originalImageCompCount >= 2)
+                                                                     (alignedImageCompCount >= 2)
                                                                      ? Anvil::ComponentSwizzle::G
                                                                      : Anvil::ComponentSwizzle::ZERO,
-                                                                     (originalImageCompCount >= 3)
+                                                                     (alignedImageCompCount >= 3)
                                                                      ? Anvil::ComponentSwizzle::B
                                                                      : Anvil::ComponentSwizzle::ZERO,
-                                                                     (originalImageCompCount >= 4)
+                                                                     (alignedImageCompCount >= 4)
                                                                      ? Anvil::ComponentSwizzle::A
                                                                      : Anvil::ComponentSwizzle::ONE);
 
         mipmap_8bitPerChannel_imageView_uptr = Anvil::ImageView::create(std::move(create_info_ptr));
     }
 
-    Anvil::BufferUniquePtr device_to_host_buffer;
     {
         auto create_info_ptr = Anvil::BufferCreateInfo::create_alloc(device_ptr,
-                                                                     this_mipmap_width * this_mipmap_height * originalImageCompCount,
+                                                                     this_mipmap_width * this_mipmap_height * alignedImageCompCount,
                                                                      Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                      Anvil::SharingMode::EXCLUSIVE,
                                                                      Anvil::BufferCreateFlagBits::NONE,
@@ -474,15 +491,14 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
 
 
     // Create compute pipeline for filtering
-    Anvil::PipelineID this_compute_pipelineID;
     {
         ShadersSpecs this_shader_specs;
         this_shader_specs.shadersSetFamilyName = GetShaderSetName(image_about.map);
-        if (originalImageCompCount == 1)
+        if (alignedImageCompCount == 1)
             this_shader_specs.emptyDefinition.emplace_back("IS_R");
-        else if (originalImageCompCount == 2)
+        else if (alignedImageCompCount == 2)
             this_shader_specs.emptyDefinition.emplace_back("IS_RG");
-        else if(originalImageCompCount == 4)
+        else if(alignedImageCompCount == 4)
             this_shader_specs.emptyDefinition.emplace_back("IS_RGBA");
 
         ShadersSet this_shader_set = shadersSetsFamiliesCache_ptr->GetShadersSet(this_shader_specs);
@@ -524,15 +540,14 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     }
 
     // Create graphics pipeline for 16bit to 8bit RGB
-    Anvil::PipelineID this_gfx_pipelineID;
     {
         ShadersSpecs this_shader_specs;
         this_shader_specs.shadersSetFamilyName = _16bitTo8bit_shadername;
-        if (originalImageCompCount == 1)
+        if (alignedImageCompCount == 1)
             this_shader_specs.emptyDefinition.emplace_back("IS_R");
-        else if (originalImageCompCount == 2)
+        else if (alignedImageCompCount == 2)
             this_shader_specs.emptyDefinition.emplace_back("IS_RG");
-        else if (originalImageCompCount == 4)
+        else if (alignedImageCompCount == 4)
             this_shader_specs.emptyDefinition.emplace_back("IS_RGBA");
 
         ShadersSet this_shader_set = shadersSetsFamiliesCache_ptr->GetShadersSet(this_shader_specs);
@@ -557,7 +572,6 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     }
 
     // Create framebuffer
-    Anvil::FramebufferUniquePtr framebuffer_uptr;
     {
         auto create_info_ptr = Anvil::FramebufferCreateInfo::create(device_ptr,
                                                                     this_mipmap_width,
@@ -760,7 +774,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     device_ptr->wait_idle();
 
     MipmapInfo this_mipmap_info;
-    this_mipmap_info.data_uptr = CopyDeviceImageToLocalBuffer(device_to_host_buffer.get(), this_mipmap_width * this_mipmap_height * originalImageCompCount, (defaultImageCompCount != 3) ? false : true);
+    this_mipmap_info.data_uptr = CopyDeviceImageToLocalBuffer(device_to_host_buffer.get(), this_mipmap_width * this_mipmap_height * alignedImageCompCount, (defaultImageCompCount != 3) ? false : true);
     this_mipmap_info.width = this_mipmap_width;
     this_mipmap_info.height = this_mipmap_height;
     this_mipmap_info.pitch = this_mipmap_width * defaultImageCompCount;

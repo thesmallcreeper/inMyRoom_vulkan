@@ -21,8 +21,8 @@ void main()
     
     float ratio = inTextureSize.x / outImageSize.x;
     
-    vec2 position_normalized = vec2(float(gl_GlobalInvocationID.x) * ratio,
-                                    float(gl_GlobalInvocationID.y) * ratio);
+    vec2 position_normalized = vec2(float(gl_GlobalInvocationID.x) / float(gl_NumWorkGroups.x * gl_WorkGroupSize.x),
+                                    float(gl_GlobalInvocationID.y) / float(gl_NumWorkGroups.y * gl_WorkGroupSize.y));
                                     
                                     
     vec4 this_sample = texture( inTexture, position_normalized).rgba;

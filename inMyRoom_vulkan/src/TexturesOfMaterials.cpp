@@ -66,7 +66,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
             assert(0);
         }
 
-        mipmapsGenerator_ptr->ResetAndCopyImage(this_image, in_imagesFolder);
+        mipmapsGenerator_ptr->BindNewImage(this_image, in_imagesFolder);
         MipmapInfo original_info = mipmapsGenerator_ptr->GetOriginalNullptr();
 
         size_t mipmaps_levels_over_4x4;
@@ -91,8 +91,8 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                 if (!LoadDDSFile(this_mipmap_filename.c_str(), this_compressed_mipmap))
                 {
                     std::cout << "--" << this_image.uri << " , creating mipmap level: " << this_mipmap_level 
-                              << " original_width= " << (original_info.width >> this_mipmap_level)
-                              << " original_height= " << (original_info.height >> this_mipmap_level) << "\n";
+                              << " ,width= " << (original_info.width >> this_mipmap_level)
+                              << " ,height= " << (original_info.height >> this_mipmap_level) << "\n";
 
                     std::cout << "---Creating mipmap\n";
 
