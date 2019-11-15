@@ -693,7 +693,7 @@ void Graphics::InitScene()
             this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
             this_primitives_set_specs.useMaterial = true;
             this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
-//          this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");     cannot for transparent shits
+        //  this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");  //   cannot for transparent shits
 
             primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), textureSubpassID);
 
