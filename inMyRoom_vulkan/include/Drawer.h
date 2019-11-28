@@ -9,7 +9,7 @@
 
 #include "glm/mat4x4.hpp"
 
-#include "PrimitivesOfMeshes.h"
+#include "Meshes/PrimitivesOfMeshes.h"
 
 struct DrawRequest
 {

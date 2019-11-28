@@ -33,20 +33,22 @@
 #include "wrappers/semaphore.h"
 #include "wrappers/fence.h"
 
-#include "ModelDrawComp.h"
+#include "ECS/GeneralComponents/ModelDrawComp.h"
+#include "Geometry/ViewportFrustum.h"
+
 #include "WindowWithAsyncInput.h"
 #include "CameraBaseClass.h"
-#include "ViewportFrustum.h"
 
-#include "ImagesAboutOfTextures.h"
-#include "TexturesOfMaterials.h"
-#include "MaterialsOfPrimitives.h"
-#include "ShadersSetsFamiliesCache.h"
 #include "PipelinesFactory.h"
-#include "PrimitivesOfMeshes.h"
 #include "MipmapsGenerator.h"
-#include "MeshesOfNodes.h"
 #include "Drawer.h"
+
+#include "Meshes/ImagesAboutOfTextures.h"
+#include "Meshes/TexturesOfMaterials.h"
+#include "Meshes/MaterialsOfPrimitives.h"
+#include "Meshes/MeshesOfNodes.h"
+#include "Meshes/PrimitivesOfMeshes.h"
+#include "ShadersSetsFamiliesCache.h"
 
 class Engine;       // Forward declaration
 

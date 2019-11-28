@@ -5,8 +5,8 @@
 
 #include "NaiveCamera.h"
 
-#include "PositionComp.h"
-#include "NodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/PositionComp.h"
+#include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 
 Engine::Engine(configuru::Config& in_cfgFile)
     :

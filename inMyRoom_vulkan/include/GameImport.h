@@ -7,9 +7,9 @@
 
 #include "configuru.hpp"
 
-#include "PositionComp.h"
-#include "NodeGlobalMatrixComp.h"
-#include "ModelDrawComp.h"
+#include "ECS/GeneralComponents/PositionComp.h"
+#include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/ModelDrawComp.h"
 
 #include "glm/gtx/matrix_decompose.hpp"
 
