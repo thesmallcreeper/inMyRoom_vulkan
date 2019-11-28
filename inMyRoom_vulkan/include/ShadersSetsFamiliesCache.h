@@ -19,19 +19,19 @@ struct ShadersSet
     Anvil::ShaderModuleStageEntryPoint* tessEvaluationShaderModule_ptr = nullptr;
     Anvil::ShaderModuleStageEntryPoint* vertexShaderModule_ptr = nullptr;
     Anvil::ShaderModuleStageEntryPoint* computeShaderModule_ptr = nullptr;
+
+    bool operator==(const ShadersSet& rhs)
+    {
+        bool isEqual = (fragmentShaderModule_ptr == rhs.fragmentShaderModule_ptr) &&
+            (geometryShaderModule_ptr == rhs.geometryShaderModule_ptr) &&
+            (tessControlShaderModule_ptr == rhs.tessControlShaderModule_ptr) &&
+            (tessEvaluationShaderModule_ptr == rhs.tessEvaluationShaderModule_ptr) &&
+            (vertexShaderModule_ptr == rhs.vertexShaderModule_ptr) &&
+            (computeShaderModule_ptr == rhs.computeShaderModule_ptr);
+
+        return isEqual;
+    }
 };
-
-inline bool operator==(const ShadersSet& lhs, const ShadersSet& rhs)
-{
-    bool isEqual =  (lhs.fragmentShaderModule_ptr == rhs.fragmentShaderModule_ptr) &&
-                    (lhs.geometryShaderModule_ptr == rhs.geometryShaderModule_ptr) &&
-                    (lhs.tessControlShaderModule_ptr == rhs.tessControlShaderModule_ptr) &&
-                    (lhs.tessEvaluationShaderModule_ptr == rhs.tessEvaluationShaderModule_ptr) &&
-                    (lhs.vertexShaderModule_ptr == rhs.vertexShaderModule_ptr) &&
-                    (lhs.computeShaderModule_ptr == rhs.computeShaderModule_ptr);
-
-    return isEqual;
-}
 
 struct ShadersSetsFamilyInitInfo
 {

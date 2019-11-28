@@ -52,6 +52,18 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/glTFenum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/hash_combine.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/const_maps.h"
+        #includes-.h geometry
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/ViewportFrustum.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/FrustumCulling.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Plane.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Cuboid.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/OBB.h"
+        #includes-.h of meshes
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/MeshesOfNodes.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/MaterialsOfPrimitives.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/ImagesAboutOfTextures.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/TexturesOfMaterials.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/PrimitivesOfMeshes.h"
         #includes-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/VulkanInit.h"
@@ -64,24 +76,23 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/ShadersSetsFamiliesCache.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/PipelinesFactory.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/MipmapsGenerator.h"
-        #includes-.h geometry
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/ViewportFrustum.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/FrustumCulling.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/Plane.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/Cuboid.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/OBB.h"
-        #includes-.h of scene
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/NodesOfScene.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/MeshesOfNodes.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/MaterialsOfPrimitives.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/ImagesAboutOfTextures.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/TexturesOfMaterials.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/PrimitivesOfMeshes.h"
         
         #main.cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/main.cpp"
         #etc-.cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/../DiTO/dito.cpp"
+         #includes-.h geometry
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/ViewportFrustum.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/FrustumCulling.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Plane.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Cuboid.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/OBB.cpp"
+        #source-.cpp of meshes
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/MeshesOfNodes.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/MaterialsOfPrimitives.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/ImagesAboutOfTextures.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/TexturesOfMaterials.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/PrimitivesOfMeshes.cpp"
         #source-.cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/VulkanInit.cpp"
@@ -94,19 +105,6 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/ShadersSetsFamiliesCache.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/PipelinesFactory.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/MipmapsGenerator.cpp"
-         #includes-.h geometry
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/ViewportFrustum.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/FrustumCulling.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/Plane.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/Cuboid.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/OBB.cpp"
-        #source-.cpp of scene
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/NodesOfScene.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/MeshesOfNodes.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/MaterialsOfPrimitives.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/ImagesAboutOfTextures.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/TexturesOfMaterials.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/PrimitivesOfMeshes.cpp"
     )
 
 add_executable(inMyRoom_vulkan ${SRC})

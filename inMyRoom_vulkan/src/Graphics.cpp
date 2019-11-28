@@ -1,11 +1,13 @@
 #include "Graphics.h"
+#include "Engine.h"
 
-Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
+Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
                    uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount)
     :
     cfgFile(in_cfgFile),
     swapchainImagesCount(swapchainImagesCount),
     lastSemaphoreUsed(0),
+    engine_ptr(in_engine_ptr),
     device_ptr(in_device_ptr),
     swapchain_ptr(in_swapchain_ptr),
     windowWidth(windowWidth),
@@ -20,9 +22,6 @@ Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_p
                                           static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
                                           cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
                                           cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
-
-    printf("Loading scene\n");
-    LoadScene();
 
     printf("Initializing camera buffers\n");
     InitCameraBuffers();
@@ -42,10 +41,11 @@ Graphics::Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_p
     InitPipelinesFactory();
     printf("Initializing ShadersSetsFamiliesCache\n");
     InitShadersSetsFamiliesCache();
+    printf("Initializing meshes tree\n");
+    InitMeshesTree();
+    printf("Initializing graphics oriented components\n");\
+    InitGraphicsComponents();
 
-    printf("Initializing scene\n");
-    InitScene();
-    printf("Finished initialization\n");
 }
 
 Graphics::~Graphics()
@@ -70,8 +70,6 @@ Graphics::~Graphics()
     primitivesOfMeshes_uptr.reset();
 
     cameraDescriptorSetGroup_uptr.reset();
-
-    nodesOfScene_uptr.reset();
 
     cameraBuffer_uptrs.clear();
     perspectiveBuffer_uptrs.clear();
@@ -248,7 +246,9 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
                                   primitivesOfMeshes_uptr.get(),
                                   device_ptr);
 
-        std::vector<DrawRequest> draw_requests = nodesOfScene_uptr->DrawUsingFrustumCull(cullingFrustum.GetWorldSpacePlanesOfFrustum());
+        FrustumCulling frustum_culling;
+        frustum_culling.SetFrustumPlanes(cullingFrustum.GetWorldSpacePlanesOfFrustum());
+        std::vector<DrawRequest> draw_requests = modelDrawComp_uptr->DrawUsingFrustumCull(meshesOfNodes_uptr.get(), &frustum_culling);
 
         by_pipeline_drawer.AddDrawRequests(draw_requests);
 
@@ -258,61 +258,6 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
     }
 
     cmd_buffer_ptr->stop_recording();
-}
-
-void Graphics::BindCamera(CameraBaseClass* in_camera)
-{
-    camera_ptr = in_camera;
-}
-
-
-void Graphics::LoadScene()
-{
-    std::string path = cfgFile["sceneInput"]["path"].as_string();
-
-    tinygltf::TinyGLTF loader;
-    std::string err;
-    std::string warn;
-
-    std::string ext = GetFilePathExtension(path);
-
-    bool ret = false;
-    if (ext.compare(".glb") == 0) {
-        // assume binary glTF.
-        ret = loader.LoadBinaryFromFile(&model, &err, &warn, path.c_str());
-    }
-    else {
-        // assume ascii glTF.
-        ret = loader.LoadASCIIFromFile(&model, &err, &warn, path.c_str());
-    }
-
-    if (!warn.empty()) {
-        printf("Warn: %s\n", warn.c_str());
-    }
-
-    if (!err.empty()) {
-        printf("ERR: %s\n", err.c_str());
-    }
-    if (!ret) {
-        printf("Failed to load .glTF : %s\n", path.c_str());
-        exit(-1);
-    }
-}
-
-
-std::string Graphics::GetFilePathExtension(const std::string& in_filePath)
-{
-    if (in_filePath.find_last_of(".") != std::string::npos)
-        return in_filePath.substr(in_filePath.find_last_of(".") + 1);
-    return "";
-}
-
-std::string Graphics::GetFilePathFolder(const std::string& in_filePath)
-{
-    if (in_filePath.find_last_of("/") != std::string::npos)
-        return in_filePath.substr(0, in_filePath.find_last_of("/"));
-    else
-        return "";
 }
 
 void Graphics::InitCameraBuffers()
@@ -627,22 +572,12 @@ void Graphics::InitShadersSetsFamiliesCache()
     }
 }
 
-void Graphics::InitScene()
+void Graphics::InitMeshesTree()
 {
-    std::unique_ptr<MipmapsGenerator> mipmapsGenerator_uptr;
-    std::unique_ptr<ImagesAboutOfTextures> imagesAboutOfTextures_uptr;
-
-    const tinygltf::Scene& scene = model.scenes[0];
-
-
     // Find out how each texture is being used (color, normal, etc..)
-    printf("-Initializing ImagesAboutOfTextures\n");
-    imagesAboutOfTextures_uptr = std::make_unique<ImagesAboutOfTextures>();
-    imagesAboutOfTextures_uptr->AddImagesUsageOfModel(model);
+    imagesAboutOfTextures_uptr = std::make_unique<ImagesAboutOfTextures>();                                                                                                         //useless afterwards
 
-    // Create mipmaps toolkit
-    printf("-Initializing MipmapsGenerator\n");
-    mipmapsGenerator_uptr = std::make_unique<MipmapsGenerator>(pipelinesFactory_uptr.get(),
+    mipmapsGenerator_uptr = std::make_unique<MipmapsGenerator>(pipelinesFactory_uptr.get(),                                                                                         //useless afterwards
                                                                shadersSetsFamiliesCache_uptr.get(),
                                                                imagesAboutOfTextures_uptr.get(),
                                                                "Image 16bit To 8bit Pass",
@@ -655,30 +590,48 @@ void Graphics::InitScene()
                                                                cmdBuffers_uptrs[0].get(),
                                                                device_ptr);
 
+    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), mipmapsGenerator_uptr.get(), device_ptr);
+
+    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device_ptr);                                                               //needs flash
+
+    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesFactory_uptr.get(), shadersSetsFamiliesCache_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr); //needs flash
+
+    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get(), device_ptr);
+}
+
+void Graphics::InitGraphicsComponents()
+{
+    modelDrawComp_uptr = std::make_unique<ModelDrawComp>(engine_ptr->GetECSwrapperPtr());
+    engine_ptr->GetECSwrapperPtr()->AddComponent(modelDrawComp_uptr.get());
+}
+
+void Graphics::LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder)
+{
+    // Find out how each texture is being used (color, normal, etc..)
+    printf("-Initializing ImagesAboutOfTextures\n");
+    imagesAboutOfTextures_uptr->AddImagesUsageOfModel(in_model);
 
     // Edit textures and copy to GPU
     printf("-Initializing TexturesOfMaterials\n");
-    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), mipmapsGenerator_uptr.get(), device_ptr);
-    texturesOfMaterials_uptr->AddTexturesOfModel(model, GetFilePathFolder(cfgFile["sceneInput"]["path"].as_string()));
+    texturesOfMaterials_uptr->AddTexturesOfModel(in_model, in_model_images_folder);
 
     // Create materials description sets
     printf("-Initializing MaterialsOfPrimitives\n");
-    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device_ptr); //needs flash
-    materialsOfPrimitives_uptr->AddMaterialsOfModel(model);
+    materialsOfPrimitives_uptr->AddMaterialsOfModel(in_model);
 
     // Initialize models-primtives handler to GPU
     printf("-Initializing PrimitivesOfMeshes\n");
-    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesFactory_uptr.get(), shadersSetsFamiliesCache_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr); //needs flash
   //primitivesOfMeshes_uptr-> collects primitives from meshesOfNodes_uptr
 
     // For every mesh copy primitives of it to GPU
     printf("-Initializing MeshesOfNodes\n");
-    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get(), device_ptr);
-    meshesOfNodes_uptr->AddMeshesOfModel(model);
+    meshesOfNodes_uptr->AddMeshesOfModel(in_model);
+}
 
-    // Create scene nodes
-    printf("-Initializing NodesOfScene\n");
-    nodesOfScene_uptr = std::make_unique<NodesOfScene>(model, scene, meshesOfNodes_uptr.get(), device_ptr);
+void Graphics::EndModelsLoad()
+{
+    imagesAboutOfTextures_uptr.reset();
+    mipmapsGenerator_uptr.reset();
 
     // Create primitives sets (shaders-pipelines for each kind of primitive)
     {
@@ -693,7 +646,7 @@ void Graphics::InitScene()
             this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
             this_primitives_set_specs.useMaterial = true;
             this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
-        //  this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");  //   cannot for transparent shits
+            //  this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");  //   cannot for transparent shits
 
             primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), textureSubpassID);
 
@@ -703,5 +656,15 @@ void Graphics::InitScene()
     //Flashing device
     primitivesOfMeshes_uptr->FlashDevice();
     materialsOfPrimitives_uptr->FlashDevice();
+}
 
+void Graphics::BindCamera(CameraBaseClass* in_camera)
+{
+    camera_ptr = in_camera;
+}
+
+MeshesOfNodes* Graphics::GetMeshesOfNodesPtr()
+{
+    assert(meshesOfNodes_uptr.get());
+    return meshesOfNodes_uptr.get();
 }

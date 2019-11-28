@@ -37,7 +37,7 @@ InputManager::~InputManager()
     eventVector.clear();
 }
 
-void InputManager::BindCameraFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr)
+void InputManager::BindPlayerInputFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr)
 {
     std::lock_guard<std::mutex> lock(controlMutex);
 
@@ -57,11 +57,11 @@ void InputManager::BindCameraFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr
         camera_ptr->Unfreeze();
 }
 
-std::vector<eventInputID> InputManager::GrabAndResetEventVector()
+std::vector<eventInputIDenums> InputManager::GrabAndResetEventVector()
 {
     std::lock_guard<std::mutex> lock(controlMutex);
 
-    std::vector<eventInputID> returnVector;
+    std::vector<eventInputIDenums> returnVector;
     returnVector.swap(eventVector);
     return returnVector;
 }
@@ -96,7 +96,7 @@ void InputManager::KeyReleased(const Anvil::KeyID in_key)
         search->second();
 }
 
-void InputManager::AddToQueue(eventInputID event)
+void InputManager::AddToQueue(eventInputIDenums event)
 {
     // KeyPressed or keyReleased access this function that are have locked the mutex 2. wtf i sayy
 

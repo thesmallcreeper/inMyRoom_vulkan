@@ -1,9 +1,12 @@
 #include "Engine.h"
 
-#include "Graphics.h"
 #include "InputManager.h"
+#include "configuru.hpp"
 
 #include "NaiveCamera.h"
+
+#include "PositionComp.h"
+#include "NodeGlobalMatrixComp.h"
 
 Engine::Engine(configuru::Config& in_cfgFile)
     :
@@ -32,15 +35,34 @@ Engine::Engine(configuru::Config& in_cfgFile)
                                                                        this,
                                                                        std::placeholders::_1),
                                                              this);
+    {
+        engineExportedFunctions.engine_ptr = this;
+    }
+    {
+        ECSwrapper_uptr = std::make_unique<ECSwrapper>(&engineExportedFunctions);
 
-    graphics_uptr = std::make_unique<Graphics>(cfgFile, device_uptr.get(), swapchain_uptr.get(),
-                                               windowWidth, windowHeight, swapchainImagesCount);
+        std::unique_ptr<PositionComp> position_comp_uptr= std::make_unique<PositionComp>(ECSwrapper_uptr.get());
+        ECSwrapper_uptr->AddComponentAndOwnership(std::move(position_comp_uptr));
 
-    camera_uptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float(), glm::vec3(0.f, 0.f, +1.f), glm::vec3(0.f, 0.f, 0.f));
+        std::unique_ptr<NodeGlobalMatrixComp> nodeGlobalMatrix_comp_uptr = std::make_unique<NodeGlobalMatrixComp>(ECSwrapper_uptr.get());
+        ECSwrapper_uptr->AddComponentAndOwnership(std::move(nodeGlobalMatrix_comp_uptr));
+    }
+    {
+        graphics_uptr = std::make_unique<Graphics>(this, cfgFile, device_uptr.get(), swapchain_uptr.get(),
+                                                   windowWidth, windowHeight, swapchainImagesCount);
+    }
+    {
+        std::string game_file_path = cfgFile["game"]["path"].as_string();
+        gameImport_uptr = std::make_unique<GameImport>(this, game_file_path);
+    }
+    {
+        camera_uptr = std::make_unique<NaiveCamera>(cfgFile["NaiveCamera"]["Speed"].as_float(),
+                                                    glm::vec3(0.f, 0.f, +1.f), glm::vec3(0.f, 0.f, 0.f));
+    }
 
     graphics_uptr->BindCamera(camera_uptr.get());
 
-    inputManager.BindCameraFreezeOldUnfreezeNew(camera_uptr.get());
+    inputManager.BindPlayerInputFreezeOldUnfreezeNew(camera_uptr.get());
 
 }
 
@@ -67,7 +89,9 @@ Engine::~Engine()
                                                                           std::placeholders::_1),
                                                                 this);
 
-    inputManager.BindCameraFreezeOldUnfreezeNew(nullptr);
+    gameImport_uptr.reset();
+    ECSwrapper_uptr.reset();
+    inputManager.BindPlayerInputFreezeOldUnfreezeNew(nullptr);
     graphics_uptr.reset();
     camera_uptr.reset();
 }
@@ -98,6 +122,17 @@ void Engine::CallbackFunction_on_mouse_movement(Anvil::CallbackArgument*   in_ca
     inputManager.MouseMoved(callback_data_ptr->xOffset, callback_data_ptr->yOffset);
 }
 
+Graphics* Engine::GetGraphicsPtr()
+{
+    return graphics_uptr.get();
+}
+
+ECSwrapper* Engine::GetECSwrapperPtr()
+{
+    return ECSwrapper_uptr.get();
+}
+
+
 void Engine::Run()
 {
     while (!breakMainLoop)
@@ -119,6 +154,7 @@ void Engine::Run()
             }
         }
 
+        ECSwrapper_uptr->Update(true);
         graphics_uptr->DrawFrame();
     }
 }

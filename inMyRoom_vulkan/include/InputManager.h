@@ -10,7 +10,7 @@
 
 #include "CameraBaseClass.h"
 
-enum eventInputID
+enum eventInputIDenums
 {
     /*Quit key bind*/
     SHOULD_CLOSE,
@@ -24,9 +24,9 @@ public:
     InputManager(configuru::Config& in_cfgFile);
     ~InputManager();
 
-    std::vector<eventInputID> GrabAndResetEventVector();
+    std::vector<eventInputIDenums> GrabAndResetEventVector();
 
-    void BindCameraFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr);
+    void BindPlayerInputFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr);
 
     void KeyPressed(Anvil::KeyID in_key);
     void KeyReleased(Anvil::KeyID in_key);
@@ -50,7 +50,7 @@ private:
     void StopMovingUp();
     void StopMovingDown();
 
-    void AddToQueue(eventInputID event);
+    void AddToQueue(eventInputIDenums event);
 
     bool forwardKeyIsPressed = false;
     bool backwardKeyIsPressed = false;
@@ -68,7 +68,7 @@ private:
 
     CameraBaseClass* volatile camera_ptr = nullptr;
 
-    std::vector<eventInputID> eventVector;
+    std::vector<eventInputIDenums> eventVector;
 
     std::mutex controlMutex;
 

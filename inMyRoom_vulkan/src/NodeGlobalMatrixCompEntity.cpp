@@ -1,0 +1,89 @@
+#include "NodeGlobalMatrixCompEntity.h"
+
+#include "NodeGlobalMatrixComp.h"
+#include "PositionComp.h"
+
+NodeGlobalMatrixComp* NodeGlobalMatrixCompEntity::nodeGlobalMatrixComp_ptr = nullptr;
+
+NodeGlobalMatrixCompEntity::NodeGlobalMatrixCompEntity(const Entity this_entity)
+    :thisEntity(this_entity)
+{
+}
+
+NodeGlobalMatrixCompEntity::~NodeGlobalMatrixCompEntity()
+{
+}
+
+NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::GetEmpty()
+{
+    NodeGlobalMatrixCompEntity this_nodeGlobalMatrixCompEntity(0);
+
+    return this_nodeGlobalMatrixCompEntity;
+}
+
+NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::CreateComponentEntityByMap(const Entity in_entity, const ComponentEntityInitMap in_map)
+{
+    NodeGlobalMatrixCompEntity this_nodeGlobalMatrixCompEntity(in_entity);
+
+    // "ParentEntity", localScale.xyz = vec4.xyz    (optional)
+    {
+        auto search = in_map.entityMap.find("ParentEntity");
+        if (search != in_map.entityMap.end())
+        {
+            Entity this_entity = search->second;
+            this_nodeGlobalMatrixCompEntity.parentEntity = this_entity;
+        }
+    }
+    // "MatrixColumn0", globalMatrix[0] = vec4      (optional)
+    {
+        auto search = in_map.vec4Map.find("MatrixColumn0");
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec4 this_vec4 = search->second;
+            this_nodeGlobalMatrixCompEntity.globalMatrix[0] = this_vec4;
+        }
+    }
+    // "MatrixColumn1", globalMatrix[0] = vec4      (optional)
+    {
+        auto search = in_map.vec4Map.find("MatrixColumn1");
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec4 this_vec4 = search->second;
+            this_nodeGlobalMatrixCompEntity.globalMatrix[1] = this_vec4;
+        }
+    }
+    // "MatrixColumn2", globalMatrix[2] = vec4      (optional)
+    {
+        auto search = in_map.vec4Map.find("MatrixColumn2");
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec4 this_vec4 = search->second;
+            this_nodeGlobalMatrixCompEntity.globalMatrix[0] = this_vec4;
+        }
+    }
+    // "MatrixColumn3", globalMatrix[3] = vec4      (optional)
+    {
+        auto search = in_map.vec4Map.find("MatrixColumn3");
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec4 this_vec4 = search->second;
+            this_nodeGlobalMatrixCompEntity.globalMatrix[0] = this_vec4;
+        }
+    }
+
+    return this_nodeGlobalMatrixCompEntity;
+}
+
+void NodeGlobalMatrixCompEntity::Update(PositionComp* const positionComp_ptr)
+{
+    PositionCompEntity* current_position_componentEntity = reinterpret_cast<PositionCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));
+
+    if (parentEntity != 0)
+    {
+        NodeGlobalMatrixCompEntity* parent_nodeGlobalMatrix_componentEntity = reinterpret_cast<NodeGlobalMatrixCompEntity*>(nodeGlobalMatrixComp_ptr->GetComponentEntity(parentEntity));
+        globalMatrix = current_position_componentEntity->GetGlobalMatrix(parent_nodeGlobalMatrix_componentEntity->globalMatrix);
+    }
+    else
+        globalMatrix = current_position_componentEntity->GetGlobalMatrix(glm::mat4(1.f));
+
+}

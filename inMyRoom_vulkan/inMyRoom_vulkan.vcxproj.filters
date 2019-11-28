@@ -9,12 +9,6 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
-    <Filter Include="Source Files\Scene">
-      <UniqueIdentifier>{3d47ba8c-67af-4bf5-82df-16b23b68aa52}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Scene">
-      <UniqueIdentifier>{1d5cc62f-24cc-4565-b9a2-f008d5c966ce}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
@@ -30,6 +24,33 @@
     </Filter>
     <Filter Include="Header Files\_etc">
       <UniqueIdentifier>{3f363aaa-a27a-4d80-96ad-22df54595c09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ECS">
+      <UniqueIdentifier>{396bdbe3-36f9-4f4d-8049-ad9fa3de9eca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ECS">
+      <UniqueIdentifier>{ac012df4-4ef2-4eff-b74e-292a2857920f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ECS\DefaultComponents">
+      <UniqueIdentifier>{56abb707-1bb3-4c96-9cf0-710f5974f743}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ECS\DefaultComponents">
+      <UniqueIdentifier>{d75e11d7-eab7-4fcb-9b63-e10482474f03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ECS\DefaultComponentsEntities">
+      <UniqueIdentifier>{5366686a-1561-472d-b9fa-af32a0b7f722}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ECS\DefaultComponentsEntities">
+      <UniqueIdentifier>{a6517493-85bc-4293-bc34-1d6011ec439a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Meshes">
+      <UniqueIdentifier>{3d47ba8c-67af-4bf5-82df-16b23b68aa52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Meshes">
+      <UniqueIdentifier>{1d5cc62f-24cc-4565-b9a2-f008d5c966ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ECS\_etc">
+      <UniqueIdentifier>{32f0c443-68d6-41bc-9195-7a16d4cf5bfd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -61,19 +82,13 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\TexturesOfMaterials.cpp">
-      <Filter>Source Files\Scene</Filter>
+      <Filter>Source Files\Meshes</Filter>
     </ClCompile>
     <ClCompile Include="src\PrimitivesOfMeshes.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\MeshesOfNodes.cpp">
-      <Filter>Source Files\Scene</Filter>
+      <Filter>Source Files\Meshes</Filter>
     </ClCompile>
     <ClCompile Include="src\MaterialsOfPrimitives.cpp">
-      <Filter>Source Files\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="src\NodesOfScene.cpp">
-      <Filter>Source Files\Scene</Filter>
+      <Filter>Source Files\Meshes</Filter>
     </ClCompile>
     <ClCompile Include="src\ViewportFrustum.cpp">
       <Filter>Source Files\Geometry</Filter>
@@ -100,9 +115,51 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ImagesAboutOfTextures.cpp">
-      <Filter>Source Files\Scene</Filter>
+      <Filter>Source Files\Meshes</Filter>
     </ClCompile>
     <ClCompile Include="src\MipmapsGenerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECSwrapper.cpp">
+      <Filter>Source Files\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\EntitiesHandler.cpp">
+      <Filter>Source Files\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ComponentBaseClass.cpp">
+      <Filter>Source Files\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\EnginesExportedFunctions.cpp">
+      <Filter>Source Files\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PositionComp.cpp">
+      <Filter>Source Files\ECS\DefaultComponents</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PositionCompEntity.cpp">
+      <Filter>Source Files\ECS\DefaultComponentsEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MeshesOfNodes.cpp">
+      <Filter>Source Files\Meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\NodeGlobalMatrixComp.cpp">
+      <Filter>Source Files\ECS\DefaultComponents</Filter>
+    </ClCompile>
+    <ClCompile Include="src\NodeGlobalMatrixCompEntity.cpp">
+      <Filter>Source Files\ECS\DefaultComponentsEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ModelDrawComp.cpp">
+      <Filter>Source Files\ECS\DefaultComponents</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ModelDrawCompEntity.cpp">
+      <Filter>Source Files\ECS\DefaultComponentsEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GameImport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ComponentRawBaseClass.cpp">
+      <Filter>Source Files\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ComponentSparseBaseClass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -147,19 +204,16 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\TexturesOfMaterials.h">
-      <Filter>Header Files\Scene</Filter>
+      <Filter>Header Files\Meshes</Filter>
     </ClInclude>
     <ClInclude Include="include\PrimitivesOfMeshes.h">
-      <Filter>Header Files\Scene</Filter>
+      <Filter>Header Files\Meshes</Filter>
     </ClInclude>
     <ClInclude Include="include\MeshesOfNodes.h">
-      <Filter>Header Files\Scene</Filter>
+      <Filter>Header Files\Meshes</Filter>
     </ClInclude>
     <ClInclude Include="include\MaterialsOfPrimitives.h">
-      <Filter>Header Files\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="include\NodesOfScene.h">
-      <Filter>Header Files\Scene</Filter>
+      <Filter>Header Files\Meshes</Filter>
     </ClInclude>
     <ClInclude Include="..\DiTO\dito.h">
       <Filter>Header Files\_etc</Filter>
@@ -186,13 +240,58 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\ImagesAboutOfTextures.h">
-      <Filter>Header Files\Scene</Filter>
+      <Filter>Header Files\Meshes</Filter>
     </ClInclude>
     <ClInclude Include="include\const_maps.h">
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
     <ClInclude Include="include\MipmapsGenerator.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECSwrapper.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\EntitiesHandler.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ComponentBaseClass.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\EnginesExportedFunctions.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ComponentSparseBaseClass.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ComponentRawBaseClass.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PositionComp.h">
+      <Filter>Header Files\ECS\DefaultComponents</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PositionCompEntity.h">
+      <Filter>Header Files\ECS\DefaultComponentsEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\NodeGlobalMatrixCompEntity.h">
+      <Filter>Header Files\ECS\DefaultComponentsEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\NodeGlobalMatrixComp.h">
+      <Filter>Header Files\ECS\DefaultComponents</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ComponentsIDsEnum.h">
+      <Filter>Header Files\ECS\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ModelDrawComp.h">
+      <Filter>Header Files\ECS\DefaultComponents</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ModelDrawCompEntity.h">
+      <Filter>Header Files\ECS\DefaultComponentsEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\GameImport.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECStypes.h">
+      <Filter>Header Files\ECS\_etc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

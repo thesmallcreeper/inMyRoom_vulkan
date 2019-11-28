@@ -5,6 +5,7 @@
 #include <future>
 #include <fstream>
 #include <utility>
+#include <cassert>
 
 #include "configuru.hpp"
 
@@ -32,6 +33,7 @@
 #include "wrappers/semaphore.h"
 #include "wrappers/fence.h"
 
+#include "ModelDrawComp.h"
 #include "WindowWithAsyncInput.h"
 #include "CameraBaseClass.h"
 #include "ViewportFrustum.h"
@@ -41,54 +43,58 @@
 #include "MaterialsOfPrimitives.h"
 #include "ShadersSetsFamiliesCache.h"
 #include "PipelinesFactory.h"
-#include "NodesOfScene.h"
 #include "PrimitivesOfMeshes.h"
 #include "MipmapsGenerator.h"
 #include "MeshesOfNodes.h"
 #include "Drawer.h"
 
+class Engine;       // Forward declaration
+
 class Graphics
 {
 public:
-    Graphics(configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
+    Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
              uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount);
     ~Graphics();
+
+    void LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder);
+    void EndModelsLoad();
 
     void BindCamera(CameraBaseClass* in_camera);
 
     void DrawFrame();
 
+    MeshesOfNodes* GetMeshesOfNodesPtr();
 
 private:
-    std::string GetFilePathFolder(const std::string& in_fileName);
-    std::string GetFilePathExtension(const std::string& in_fileName);
 
-    void LoadScene();
 
     void InitCameraBuffers();
     void InitImages();
     void InitFramebuffers();
     void InitRenderpasses();
-    void InitScene();
     void InitCameraDsg();
     void InitSemaphoresAndFences();
     void InitCommandBuffers();
     void InitPipelinesFactory();
     void InitShadersSetsFamiliesCache();
+    void InitMeshesTree();
+    void InitGraphicsComponents();
 
     void RecordCommandBuffer(uint32_t swapchainImageIndex);
 
 private:
+    std::unique_ptr<ModelDrawComp> modelDrawComp_uptr;
 
-    tinygltf::Model model;
-
+    std::unique_ptr<MipmapsGenerator> mipmapsGenerator_uptr;
+    std::unique_ptr<ImagesAboutOfTextures> imagesAboutOfTextures_uptr;
     std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;
     std::unique_ptr<MaterialsOfPrimitives> materialsOfPrimitives_uptr;
-    std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;
-    std::unique_ptr<PipelinesFactory> pipelinesFactory_uptr;
-    std::unique_ptr<NodesOfScene> nodesOfScene_uptr;
     std::unique_ptr<PrimitivesOfMeshes> primitivesOfMeshes_uptr;
     std::unique_ptr<MeshesOfNodes> meshesOfNodes_uptr;
+
+    std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;
+    std::unique_ptr<PipelinesFactory> pipelinesFactory_uptr;
 
     CameraBaseClass* camera_ptr;
     ViewportFrustum cameraFrustum;
@@ -128,4 +134,6 @@ private:
 
     Anvil::BaseDevice* const     device_ptr;
     Anvil::Swapchain* const      swapchain_ptr;
+
+    Engine* const          engine_ptr;
 };
