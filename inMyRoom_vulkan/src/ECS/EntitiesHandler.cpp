@@ -1,6 +1,7 @@
 #include "ECS/EntitiesHandler.h"
 
 #include <cassert>
+#include <algorithm>
 
 EntitiesHandler::EntitiesHandler()
 {

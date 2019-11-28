@@ -81,6 +81,7 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Meshes/PrimitivesOfMeshes.h"
         #include-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/GameImport.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/VulkanInit.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/InputManager.h"
@@ -123,6 +124,7 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Meshes/PrimitivesOfMeshes.cpp"
         #source-.cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/GameImport.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/VulkanInit.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/InputManager.cpp"

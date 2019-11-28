@@ -3,7 +3,7 @@
 #include <map>
 #include <unordered_map>
 
-#include "gltfenum.h"
+#include "glTFenum.h"
 #include "Compressonator.h"
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
