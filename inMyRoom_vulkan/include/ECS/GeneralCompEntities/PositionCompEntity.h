@@ -35,7 +35,7 @@ public:
 public: // data
     glm::vec3 localScale = glm::vec3(1.f, 1.f, 1.f);;
 
-    glm::qua<float> localRotation = glm::qua<float>(0.f, 0.f, 0.f, 1.f);
+    glm::qua<float> localRotation = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
 
     glm::vec3 localTranslation = glm::vec3(0.f, 0.f, 0.f);;
     glm::vec3 globalTranslation = glm::vec3(0.f, 0.f, 0.f);

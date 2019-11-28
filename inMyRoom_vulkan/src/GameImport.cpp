@@ -16,7 +16,9 @@ GameImport::GameImport(Engine* in_engine_ptr, std::string gameConfig_path)
 
     gameConfig = configuru::parse_file(gameConfig_path, configuru::CFG);
 
+    printf("Importing game\n");
     ImportGame();
+    printf("Initializing game\n");
     InitializeGame();
 }
 
@@ -203,12 +205,9 @@ PositionCompEntity GameImport::CreatePositionInfo(const tinygltf::Node& in_node)
                                            0.f, 0.f, -1.f, 0.f,
                                            0.f, 0.f, 0.f, 1.f);
 
-        glm::vec3 skew;
-        glm::vec4 perspective;
-        glm::qua<float> rotation_conj;
-
-        glm::decompose<float, glm::qualifier::packed_highp>(TRSmatrix, return_positionCompEntity.localScale, rotation_conj, return_positionCompEntity.localTranslation, skew, perspective);
-        return_positionCompEntity.localRotation = glm::conjugate(rotation_conj);
+        glm::vec3 skew_temp;
+        glm::vec4 perspective_temp;
+        glm::decompose<float, glm::qualifier::packed_highp>(TRSmatrix, return_positionCompEntity.localScale, return_positionCompEntity.localRotation, return_positionCompEntity.localTranslation, skew_temp, perspective_temp);
     }
     else
     {

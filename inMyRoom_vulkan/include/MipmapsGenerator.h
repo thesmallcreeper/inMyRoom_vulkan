@@ -41,8 +41,8 @@ namespace fs = std::filesystem;
 #include "tiny_gltf.h"
 #include "const_maps.h"
 
+#include "Meshes/ImagesAboutOfTextures.h"
 #include "PipelinesFactory.h"
-#include "ImagesAboutOfTextures.h"
 #include "ShadersSetsFamiliesCache.h"
 
 struct MipmapInfo
