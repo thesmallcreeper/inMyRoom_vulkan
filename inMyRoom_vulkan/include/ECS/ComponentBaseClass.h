@@ -23,13 +23,14 @@ public:
     virtual void AsyncUpdate( /* brah */ ) = 0;  // TODO
      
 //  ------- void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                 // Component entity specific task at component memory layout level
-    virtual void AddComponentEntityByMap(const Entity this_entity, const ComponentEntityInitMap this_map) = 0;     // Component entity specific task at component level
+    virtual void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) = 0;     // Component entity specific task at component level
     virtual void RemoveComponentEntity(const Entity this_entity) = 0;                                              // Component entity memory specific task at component memory layout level
     virtual void CompleteAddsAndRemoves() = 0;                                                                     // Component entity memory specific task at component memory layout level
     virtual ComponentEntityPtr GetComponentEntity(const Entity this_entity) = 0;                                   // Component entity memory specific task at component memory layout level
 
     componentID GetComponentID() const;
     std::string GetComponentName() const;
+    ECSwrapper* GetECSwrapper() const;
 
 public:  // Only component entities should call that
     void InformEntitiesHandlerAboutAddition(const Entity this_entity) const;

@@ -10,7 +10,7 @@ typedef uint32_t Entity;
 typedef uint32_t componentID;
 typedef void* ComponentEntityPtr;
 
-struct ComponentEntityInitMap
+struct CompEntityInitMap
 {
     std::map<std::string, glm::vec4> vec4Map;
     std::map<std::string, float> floatMap;

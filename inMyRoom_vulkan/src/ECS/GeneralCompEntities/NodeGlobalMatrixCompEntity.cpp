@@ -3,6 +3,8 @@
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/PositionComp.h"
 
+#include "ECS/ECSwrapper.h"
+
 NodeGlobalMatrixComp* NodeGlobalMatrixCompEntity::nodeGlobalMatrixComp_ptr = nullptr;
 
 NodeGlobalMatrixCompEntity::NodeGlobalMatrixCompEntity(const Entity this_entity)
@@ -21,17 +23,27 @@ NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::GetEmpty()
     return this_nodeGlobalMatrixCompEntity;
 }
 
-NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::CreateComponentEntityByMap(const Entity in_entity, const ComponentEntityInitMap in_map)
+NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
 {
     NodeGlobalMatrixCompEntity this_nodeGlobalMatrixCompEntity(in_entity);
 
     // "ParentEntity", localScale.xyz = vec4.xyz    (optional)
     {
-        auto search = in_map.entityMap.find("ParentEntity");
-        if (search != in_map.entityMap.end())
         {
-            Entity this_entity = search->second;
-            this_nodeGlobalMatrixCompEntity.parentEntity = this_entity;
+            auto search = in_map.entityMap.find("ParentEntity");
+            if (search != in_map.entityMap.end())
+            {
+                Entity this_parent_entity = search->second;
+                this_nodeGlobalMatrixCompEntity.parentEntity = this_parent_entity;
+            }
+        }
+        {
+            auto search = in_map.stringMap.find("ParentName");
+            if (search != in_map.stringMap.end())
+            {
+                Entity this_entity = nodeGlobalMatrixComp_ptr->GetECSwrapper()->GetEntitiesHandler()->FindEntityByRelativeName(search->second, in_entity);
+                this_nodeGlobalMatrixCompEntity.parentEntity = this_entity;
+            }
         }
     }
     // "MatrixColumn0", globalMatrix[0] = vec4      (optional)

@@ -13,6 +13,11 @@ ECSwrapper::~ECSwrapper()
         if(this_component.second != nullptr)
             this_component.second->Deinit();
 
+    RemoveEntityAndChildrenFromAllComponentsAndDelete(0);
+    CompleteAddsAndRemoves();
+
+    entitiesHandler_uptr.reset();
+
     componentsBaseClassOwnership_uptrs.clear();
     entitiesHandler_uptr.reset();
 }
@@ -59,16 +64,18 @@ void ECSwrapper::AddComponentAndOwnership(std::unique_ptr<ComponentBaseClass> th
     componentsBaseClassOwnership_uptrs.emplace_back(std::move(this_component_uptr));
 }
 
-void ECSwrapper::RemoveEntityFromAllComponents(Entity this_entity)
+void ECSwrapper::RemoveEntityAndChildrenFromAllComponentsAndDelete(Entity this_entity)
 {
-    std::vector<componentID> components_of_entity = entitiesHandler_uptr->GetComponentsOfEntity(this_entity);
-    for (componentID this_component : components_of_entity)
-        GetComponentByID(this_component)->RemoveComponentEntity(this_entity);
-}
+    std::vector<Entity> children_of_entity = entitiesHandler_uptr->GetChildrenOfEntity(this_entity);
+    for (auto& this_child : children_of_entity)
+        RemoveEntityAndChildrenFromAllComponentsAndDelete(this_child);
 
-void ECSwrapper::RemoveEntityFromAllComponentsAndDelete(Entity this_entity)
-{
-    RemoveEntityFromAllComponents(this_entity);
+    if (this_entity != 0)
+    {
+        std::vector<componentID> components_of_entity = entitiesHandler_uptr->GetComponentsOfEntity(this_entity);
+        for (componentID this_component : components_of_entity)
+            GetComponentByID(this_component)->RemoveComponentEntity(this_entity);
+    }
 
     entitesThatGoingToGetEmptyToRemove.emplace_back(this_entity);
 }

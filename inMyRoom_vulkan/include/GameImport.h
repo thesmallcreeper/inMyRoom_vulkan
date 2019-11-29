@@ -1,12 +1,10 @@
 #pragma once
 
 #include <string>
-#include <algorithm>
-#include <cassert>
-#include <iterator>
 
 #include "configuru.hpp"
 
+#include "ECS/ECStypes.h"
 #include "ECS/GeneralComponents/PositionComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
@@ -15,11 +13,13 @@
 
 struct Node
 {
-    PositionCompEntity positionEntity = PositionCompEntity::GetEmpty(); // entity stays unitialiazed
-    uint32_t meshIndex = -1;
+    std::vector<std::pair<componentID, CompEntityInitMap>> componentsAndInitMaps;
+    bool shouldAddNodeGlobalMatrixCompEntity = false;
 
     Entity latestEntity = 0;                // for fabs->Entities
+    uint32_t glTFnodeID = -1;
     std::string nodeName = "";
+
     std::vector<std::unique_ptr<Node>> children;
 
     Node()
@@ -27,9 +27,11 @@ struct Node
     }
     Node(Node const& other) 
     {
-        positionEntity = other.positionEntity;
-        meshIndex = other.meshIndex;
+        componentsAndInitMaps = other.componentsAndInitMaps;
+        shouldAddNodeGlobalMatrixCompEntity = other.shouldAddNodeGlobalMatrixCompEntity;
+
         latestEntity = other.latestEntity;
+        glTFnodeID = other.glTFnodeID;
         nodeName = other.nodeName;
         for (size_t index = 0; index < other.children.size(); index++)
         {
@@ -57,13 +59,13 @@ private:
     std::unique_ptr<Node> ImportModel(std::string model_name, tinygltf::Model& this_model);
     std::unique_ptr<Node> ImportNode(tinygltf::Node& this_node, tinygltf::Model& this_model);
 
-    void AddNodeToEntityHandler(Entity parent_entity, Node* this_node);
+    void AddNodeToEntityHandler(Entity parent_entity, std::string parent_full_name, Node* this_node);           // fullname == "" means no name for the children D:
     void AddNodeComponentsToECS(Entity parent_entity, Node* this_node);
     
     static std::string GetFilePathFolder(const std::string& in_fileName);
     static std::string GetFilePathExtension(const std::string& in_fileName);
 
-    static PositionCompEntity CreatePositionInfo(const tinygltf::Node& in_node);
+    static CompEntityInitMap CreatePositionInfo(const tinygltf::Node& in_node);
 
     std::string NumberToString(size_t number);
 

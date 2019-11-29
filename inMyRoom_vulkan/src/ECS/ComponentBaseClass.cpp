@@ -22,6 +22,11 @@ std::string ComponentBaseClass::GetComponentName() const
     return thisComponentName;
 }
 
+ECSwrapper* ComponentBaseClass::GetECSwrapper() const
+{
+    return ecsWrapper_ptr;
+}
+
 void ComponentBaseClass::InformEntitiesHandlerAboutAddition(const Entity this_entity) const
 {
     ecsWrapper_ptr->GetEntitiesHandler()->EntityAttachedTo(this_entity, thisComponentID);

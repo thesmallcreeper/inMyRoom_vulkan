@@ -111,9 +111,6 @@
     <ClCompile Include="src\ECS\EnginesExportedFunctions.cpp">
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
-    <ClCompile Include="src\ECS\EntitiesHandler.cpp">
-      <Filter>Source Files\ECS</Filter>
-    </ClCompile>
     <ClCompile Include="src\ECS\GeneralComponents\ModelDrawComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
@@ -161,6 +158,9 @@
     </ClCompile>
     <ClCompile Include="src\Meshes\TexturesOfMaterials.cpp">
       <Filter>Source Files\Meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\EntitiesHandler.cpp">
+      <Filter>Source Files\ECS</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

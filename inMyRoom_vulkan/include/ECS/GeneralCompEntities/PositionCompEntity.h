@@ -18,12 +18,12 @@ public:
     static PositionCompEntity GetEmpty();
 
     /*  CreateComponentEntityByMap - Position
-        "LocalScale",           localScale.xyz          = vec4.xyz
-        "LocalRotation",        localRotation.xyzw      = vec4.xyzw
-        "LocalTranslation",     localTranslation.xyz    = vec4.xyz
+        "LocalScale",           localScale.xyz          = vec4.xyz      (optional)
+        "LocalRotation",        localRotation.xyzw      = vec4.xyzw     (optional)
+        "LocalTranslation",     localTranslation.xyz    = vec4.xyz      (optional)
         "GlobalTranslation",    globalTranslation.xyz   = vec4.xyz      (optional)
     */
-    static PositionCompEntity CreateComponentEntityByMap(const Entity in_entity, const ComponentEntityInitMap in_map);
+    static PositionCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
 
     void LocalScale(const glm::vec3 in_scale);
     void LocalRotate(const glm::qua<float> in_rotation);

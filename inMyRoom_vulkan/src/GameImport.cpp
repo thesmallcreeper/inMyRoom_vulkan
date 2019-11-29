@@ -1,6 +1,9 @@
 #include "GameImport.h"
 #include "Engine.h"
 
+#include <algorithm>
+#include <cassert>
+
 #include "tiny_gltf.h"
 #include "glm/gtc/type_ptr.hpp"
 
@@ -46,6 +49,7 @@ void GameImport::ImportGame()
         for (size_t index = 0; index < models.size(); index++)
         {
             std::unique_ptr<Node> this_model_node = ImportModel(models_name[index], models[index]);
+
             imports_umap.emplace(models_name[index], std::move(this_model_node));
         }
     }
@@ -93,12 +97,20 @@ std::unique_ptr<Node> GameImport::ImportModel(std::string model_name, tinygltf::
 {
     std::unique_ptr<Node> model_node = std::make_unique<Node>();
     model_node->nodeName = model_name;
+
     for (tinygltf::Scene& this_gltf_scene : this_model.scenes)
     {
         std::unique_ptr<Node> scene_node = std::make_unique<Node>();;
 
         scene_node->nodeName = this_gltf_scene.name;
         assert(scene_node->nodeName != "");
+
+        // Add position comp entity
+        {
+            CompEntityInitMap this_map;
+            scene_node->componentsAndInitMaps.emplace_back(static_cast<componentID>(componentIDenum::Position), this_map);
+        }
+        scene_node->shouldAddNodeGlobalMatrixCompEntity = true;
 
         for (size_t this_gltf_scene_node_index : this_gltf_scene.nodes)
         {
@@ -118,10 +130,22 @@ std::unique_ptr<Node> GameImport::ImportNode(tinygltf::Node& this_gltf_node, tin
 
     return_node_uptr->nodeName = this_gltf_node.name;
 
-    return_node_uptr->positionEntity = CreatePositionInfo(this_gltf_node);
+    // Position component
+    {
+        return_node_uptr->componentsAndInitMaps.emplace_back(std::make_pair(static_cast<componentID>(componentIDenum::Position), CreatePositionInfo(this_gltf_node)));
+    }
 
+    // Model draw component
     if (this_gltf_node.mesh != -1)
-        return_node_uptr->meshIndex = static_cast<uint32_t>(this_gltf_node.mesh + engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(this_model));
+    {
+        CompEntityInitMap this_map;
+        this_map.intMap["MeshIndex"] = this_gltf_node.mesh + static_cast<int>(engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(this_model));
+
+        return_node_uptr->componentsAndInitMaps.emplace_back(std::make_pair(static_cast<componentID>(componentIDenum::ModelDraw), this_map));
+    }
+
+    // NodeGlobalMatrixCompEntity is added on the spot (later)
+    return_node_uptr->shouldAddNodeGlobalMatrixCompEntity = true;
 
     if (this_gltf_node.children.size())
     {
@@ -185,9 +209,9 @@ std::string GameImport::GetFilePathFolder(const std::string& in_filePath)
         return "";
 }
 
-PositionCompEntity GameImport::CreatePositionInfo(const tinygltf::Node& in_node)
+CompEntityInitMap GameImport::CreatePositionInfo(const tinygltf::Node& in_node)
 {
-    PositionCompEntity return_positionCompEntity = PositionCompEntity::GetEmpty();
+    PositionCompEntity targeted_positionCompEntity = PositionCompEntity::GetEmpty();
 
     if (in_node.matrix.size() == 16)
     {
@@ -207,26 +231,32 @@ PositionCompEntity GameImport::CreatePositionInfo(const tinygltf::Node& in_node)
 
         glm::vec3 skew_temp;
         glm::vec4 perspective_temp;
-        glm::decompose<float, glm::qualifier::packed_highp>(TRSmatrix, return_positionCompEntity.localScale, return_positionCompEntity.localRotation, return_positionCompEntity.localTranslation, skew_temp, perspective_temp);
+        glm::decompose<float, glm::qualifier::packed_highp>(TRSmatrix, targeted_positionCompEntity.localScale, targeted_positionCompEntity.localRotation, targeted_positionCompEntity.localTranslation, skew_temp, perspective_temp);
     }
     else
     {
         glm::mat4 return_matrix = glm::mat4(1.0f);
         if (in_node.scale.size() == 3)
         {
-            return_positionCompEntity.localScale = glm::vec3(in_node.scale[0], in_node.scale[1], in_node.scale[2]);
+            targeted_positionCompEntity.localScale = glm::vec3(in_node.scale[0], in_node.scale[1], in_node.scale[2]);
         }
         if (in_node.rotation.size() == 4)
         {
-            return_positionCompEntity.localRotation = glm::qua<float>(static_cast<float>(in_node.rotation[3]), static_cast<float>(in_node.rotation[0]), static_cast<float>(-in_node.rotation[1]), static_cast<float>(-in_node.rotation[2]));
+            targeted_positionCompEntity.localRotation = glm::qua<float>(static_cast<float>(in_node.rotation[3]), static_cast<float>(in_node.rotation[0]), static_cast<float>(-in_node.rotation[1]), static_cast<float>(-in_node.rotation[2]));
         }
         if (in_node.translation.size() == 3)
         {
-            return_positionCompEntity.localTranslation = glm::vec3(in_node.translation[0], -in_node.translation[1], -in_node.translation[2]); 
+            targeted_positionCompEntity.localTranslation = glm::vec3(in_node.translation[0], -in_node.translation[1], -in_node.translation[2]); 
         }
     }
 
-    return return_positionCompEntity;
+    CompEntityInitMap return_compEntity;
+    return_compEntity.vec4Map["LocalScale"] = glm::vec4(targeted_positionCompEntity.localScale, 1.0);
+    return_compEntity.vec4Map["LocalRotation"] = glm::vec4(targeted_positionCompEntity.localRotation.x, targeted_positionCompEntity.localRotation.y, 
+                                                           targeted_positionCompEntity.localRotation.z, targeted_positionCompEntity.localRotation.w);
+    return_compEntity.vec4Map["LocalTranslation"] = glm::vec4(targeted_positionCompEntity.localTranslation, 1.0);
+
+    return return_compEntity;
 }
 
 void GameImport::InitializeGame()
@@ -240,6 +270,12 @@ void GameImport::InitializeGame()
     }
 }
 
+Entity GameImport::AddFabAndGetRoot(std::string prefab, std::string parent_path, std::string preferred_name)
+{
+    Entity parent_entity = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->FindEntityByName(parent_path);
+    return AddFabAndGetRoot(prefab, parent_entity, preferred_name);
+}
+
 Entity GameImport::AddFabAndGetRoot(std::string fab_name, Entity parent_entity, std::string preferred_name)
 {
     if (preferred_name == "")
@@ -249,7 +285,15 @@ Entity GameImport::AddFabAndGetRoot(std::string fab_name, Entity parent_entity, 
     assert(search != fabs_umap.end());
 
     Node* this_root_node = search->second.get();
-    AddNodeToEntityHandler(parent_entity, this_root_node);
+    this_root_node->nodeName = preferred_name;          // Will be used as a variable to pass down the preferred name;
+
+    std::string parent_full_name;
+    if (parent_entity != 0)
+        parent_full_name = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->GetEntityName(parent_entity);
+    else
+        parent_full_name = "_root";
+
+    AddNodeToEntityHandler(parent_entity, parent_full_name, this_root_node);
 
     AddNodeComponentsToECS(parent_entity, this_root_node);
 
@@ -258,13 +302,7 @@ Entity GameImport::AddFabAndGetRoot(std::string fab_name, Entity parent_entity, 
     return this_root_node->latestEntity;
 }
 
-Entity GameImport::AddFabAndGetRoot(std::string prefab, std::string parent_path, std::string preferred_name)
-{
-    Entity parent_entity = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->FindEntityByName(parent_path);
-    return AddFabAndGetRoot(prefab, parent_entity, preferred_name);
-}
-
-void GameImport::AddNodeToEntityHandler(Entity parent_entity, Node* this_node)
+void GameImport::AddNodeToEntityHandler(Entity parent_entity, std::string parent_full_name, Node* this_node)
 {
     // TODO naming
 
@@ -274,39 +312,41 @@ void GameImport::AddNodeToEntityHandler(Entity parent_entity, Node* this_node)
     else
         this_entity = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->CreateEntity();
 
+    std::string this_full_name = "";
+    if (parent_full_name.size() && this_node->nodeName != "")
+    {
+        if (parent_full_name == "_root")
+            this_full_name = this_node->nodeName;
+        else
+            this_full_name = parent_full_name + "/" + this_node->nodeName;
+
+        engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->AddEntityName(this_entity, this_full_name);
+    }
+
     this_node->latestEntity = this_entity;
 
     for (size_t index = 0; index < this_node->children.size(); index++)
-        AddNodeToEntityHandler(this_entity, this_node->children[index].get());
+        AddNodeToEntityHandler(this_entity, this_full_name, this_node->children[index].get());
 }
 
 void GameImport::AddNodeComponentsToECS(Entity parent_entity, Node* this_node)
 {
     Entity this_entity = this_node->latestEntity;
 
+    // Add fab's components
+    for (auto& this_component_initMap_pair : this_node->componentsAndInitMaps)
     {
-        PositionCompEntity this_position_entity = this_node->positionEntity;
-        this_position_entity.thisEntity = this_entity;
-
-        PositionComp* position_comp_ptr = static_cast<PositionComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::Position)));
-        position_comp_ptr->AddComponent(this_entity, this_position_entity);
+        engine_ptr->GetECSwrapperPtr()->GetComponentByID(this_component_initMap_pair.first)->AddComponentEntityByMap(this_entity, this_component_initMap_pair.second);
     }
 
+    // Add NodeGlobalMatrixCompEntity
+    if(this_node->shouldAddNodeGlobalMatrixCompEntity)
     {
         NodeGlobalMatrixCompEntity this_node_global_matrix_entity(this_entity);
         this_node_global_matrix_entity.parentEntity = parent_entity;
 
         NodeGlobalMatrixComp* node_global_matrix_comp_ptr = static_cast<NodeGlobalMatrixComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::NodeGlobalMatrix)));
         node_global_matrix_comp_ptr->AddComponent(this_entity, this_node_global_matrix_entity);
-    }
-
-    if (this_node->meshIndex != -1)
-    {
-        ModelDrawCompEntity this_model_draw_entity(this_entity);
-        this_model_draw_entity.meshIndex = this_node->meshIndex;
-
-        ModelDrawComp* model_draw_comp_ptr = static_cast<ModelDrawComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::ModelDraw)));
-        model_draw_comp_ptr->AddComponent(this_entity, this_model_draw_entity);
     }
 
     for (size_t index = 0; index < this_node->children.size(); index++)

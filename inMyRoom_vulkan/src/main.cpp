@@ -27,8 +27,8 @@ int main()
         return -1;
     }
 
-    Engine mainEngine(cfgFile);
-    mainEngine.Run();
+    std::unique_ptr<Engine> mainEngine_uptr = std::make_unique<Engine>(cfgFile);
+    mainEngine_uptr->Run();
 
     return 0;
 }

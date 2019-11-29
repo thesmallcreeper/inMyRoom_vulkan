@@ -18,7 +18,7 @@ public:
 //  void AsyncUpdate(/* to do */) override;
     
     void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                      // Component entity specific task at component memory layout level
-    void AddComponentEntityByMap(const Entity this_entity, const ComponentEntityInitMap this_map) override;     // Component entity specific task at component level
+    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;     // Component entity specific task at component level
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task at component memory layout level
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task at component memory layout level
     ComponentEntityPtr GetComponentEntity(const Entity this_entity) override;                                   // Component entity memory specific task at component memory layout level
@@ -99,7 +99,7 @@ void ComponentRawBaseClass<ComponentEntityType>::AddComponent(const Entity this_
 }
 
 template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const ComponentEntityInitMap this_map)
+void ComponentRawBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map)
 {
     ComponentEntityType this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
     AddComponent(this_entity, this_componentEntity);

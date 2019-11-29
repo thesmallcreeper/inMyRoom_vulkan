@@ -24,8 +24,7 @@ public:
     void AddComponent(ComponentBaseClass* this_component_ptr);
     void AddComponentAndOwnership(std::unique_ptr<ComponentBaseClass> this_component_uptr);
 
-    void RemoveEntityFromAllComponents(Entity this_entity);
-    void RemoveEntityFromAllComponentsAndDelete(Entity this_entity);
+    void RemoveEntityAndChildrenFromAllComponentsAndDelete(Entity this_entity); // todo
 
     void Update(bool complete_adds_and_removes);
     void FixedUpdate(bool complete_adds_and_removes);

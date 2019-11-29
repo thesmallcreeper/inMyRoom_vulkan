@@ -20,7 +20,7 @@ public:
             "MeshIndex",         meshIndex               = int    
             "ShouldDraw",        shouldDraw              = int         (optional)
     */
-    static ModelDrawCompEntity CreateComponentEntityByMap(const Entity in_entity, const ComponentEntityInitMap in_map);
+    static ModelDrawCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
 
     void DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeGlobalMatrix_ptr, MeshesOfNodes* meshesOfNodes_ptr, FrustumCulling* frustumCulling_ptr, std::vector<DrawRequest>& draw_requests) const;
 

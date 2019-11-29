@@ -23,33 +23,36 @@ PositionCompEntity PositionCompEntity::GetEmpty()
     return this_positionCompEntity;
 }
 
-PositionCompEntity PositionCompEntity::CreateComponentEntityByMap(const Entity in_entity, const ComponentEntityInitMap in_map)
+PositionCompEntity PositionCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
 {
     PositionCompEntity this_positionCompEntity(in_entity);
 
-    // "LocalScale", localScale.xyz = vec4.xyz
+    // "LocalScale", localScale.xyz = vec4.xyz              (optional)
     {
         auto search = in_map.vec4Map.find("LocalScale");
-        assert(search != in_map.vec4Map.end());
-
-        glm::vec4 this_vec4 = search->second;
-        this_positionCompEntity.localScale = glm::vec3(this_vec4.x, this_vec4.y, this_vec4.z);
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec4 this_vec4 = search->second;
+            this_positionCompEntity.localScale = glm::vec3(this_vec4.x, this_vec4.y, this_vec4.z);
+        }
     }
-    // "LocalRotation", localRotation.xyzw = vec4.xyzw
+    // "LocalRotation", localRotation.xyzw = vec4.xyzw      (optional)
     {
         auto search = in_map.vec4Map.find("LocalRotation");
-        assert(search != in_map.vec4Map.end());
-
-        glm::vec4 this_vec4 = search->second;
-        this_positionCompEntity.localRotation = glm::qua<float>(this_vec4.x , this_vec4.y, this_vec4.z, this_vec4.w);
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec4 this_vec4 = search->second;
+            this_positionCompEntity.localRotation = glm::qua<float>(this_vec4.w, this_vec4.x, this_vec4.y, this_vec4.z);
+        }
     }
-    // "LocalTranslation", localTranslation.xyz = vec4.xyz
+    // "LocalTranslation", localTranslation.xyz = vec4.xyz  (optional)
     {
         auto search = in_map.vec4Map.find("LocalTranslation");
-        assert(search != in_map.vec4Map.end());
-
-        glm::vec4 this_vec4 = search->second;
-        this_positionCompEntity.localTranslation = glm::vec3(this_vec4.x, this_vec4.y, this_vec4.z);
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec4 this_vec4 = search->second;
+            this_positionCompEntity.localTranslation = glm::vec3(this_vec4.x, this_vec4.y, this_vec4.z);
+        }
     }
     // "GlobalTranslation", globalTranslation.xyz = vec4.xyz (optional)
     {
