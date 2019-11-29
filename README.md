@@ -5,8 +5,8 @@ Still in early stage, hope you will find something intresting on it.
 Feel free to share you opinion on anything, ask, file bugs or suggest enhancement using "Issues" :)
 
 ### Deps - Submodules
-* Anvil , Vulkan library of AMD that has been modified on user I/O part of it.
-* Compressonator , image compression library. Mipmaps creation not yet available.
+* Anvil , Vulkan library of AMD that has been modified on the user I/O part of it.
+* Compressonator , image compression library.
 * GLM , math library for OpenGL but can be used with a little bit hacking for Vulkan. Also 50MB .pdf removed
 * configuru , config file library. Got sligthly modified but changes got pulled by the original repo ;)
 * tinygltf , glTF model import.
@@ -14,19 +14,19 @@ Feel free to share you opinion on anything, ask, file bugs or suggest enhancemen
 
 # Installation (Compiling)
 
-  First of all, you need a Vulkan-ready graphics driver, a modern C++ compiler, CMake, Git, Vulkan SDK installed (1.1.114.0 prefered) and environment variable `VULKAN_SDK_PATH` (Windows),  `VULKAN_SDK` (Linux) pointing to the installation path of SDK.
+  First of all, you need a Vulkan-ready graphics driver, a modern C++ compiler, CMake, Git, Vulkan SDK installed (1.1.114.0 preferred) and environment variable `VULKAN_SDK_PATH` (Windows),  `VULKAN_SDK` (Linux) pointing to the installation path of the SDK.
   
-  Also download all the repo and submodules by running the following command.
+  Having environment, download all the repo and submodules by running the following command.
   ```
 git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/thesmallcreeper/inMyRoom_vulkan.git
   ```
- ## Windows using Visual Studio 2017
+ ## Windows using Visual Studio 2017/2019
  
- * Run `buildForVS2017.bat` script. This will generate project files for Anvil and MathGeoLib using CMake.
+ * Run `buildForVS2017.bat` script. This will generate project files for Anvil and Compressonator using CMake.
  * Launch solution by opening `/inMyRoom_vulkan/inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile.
  * Note: To run application successfully `/inMyRoom_vulkan/inMyRoom_vulkan/` should be your working folder.
  
- (You can also use CMake, VS2019 toolset has some issues )
+ (You can also use CMake, VS2019 toolset has some issues on the submodules)
  
  ## Linux using CMake with GCC (or Clang)
   
@@ -45,7 +45,7 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  * Create a `build` folder at `/inMyRoom_vulkan/inMyRoom_vulkan/`.
  * Open terminal with `/inMyRoom_vulkan/inMyRoom_vulkan/build/` as your working folder and pick up your favorite compiler.
  
- If you want to use Clang/Clang++ type: (Clang linker throws errors if you use `-DCMAKE_BUILD_TYPE=Release`, that's why I choose GCC lately)
+ If you want to use Clang/Clang++ type: (Clang linker throws errors if you use `-DCMAKE_BUILD_TYPE=Release`, that's why I prefer GCC)
  ```
  $ export CC=/usr/bin/clang
  $ export CXX=/usr/bin/clang++
@@ -82,5 +82,4 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  
  gg ez :D (Actually.. I hope so :P )
  
-  #### Note: When application launch and load a scene for first time this is gonna take some time, because mipmaps should be created, compressed and saved/cached for later reuse/relaunch.
-  #### Note 2: Mipmap chain creation has been disabled bacause Compressonator SDK does not support mipmaps yet. You can create them on your own and put them in cache folders but "who has time for that??"
+  #### Note: When application you load a scene for first time it is gonna take some time, because mipmaps should be created, compressed and saved/cached for later reuse/relaunch.
