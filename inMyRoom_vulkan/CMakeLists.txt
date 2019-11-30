@@ -65,7 +65,7 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/ECS/ComponentsIDsEnum.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/ECS/ECStypes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/ECS/ECSwrapper.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/ECS/EnginesExportedFunctions.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/ECS/ExportedFunctions.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/ECS/EntitiesHandler.h"
         #include-.h geometry
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Geometry/ViewportFrustum.h"
@@ -81,7 +81,8 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Meshes/PrimitivesOfMeshes.h"
         #include-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Engine.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/GameImport.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/ExportedFunctionsConstructor.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/GameImporter.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/VulkanInit.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/InputManager.h"
@@ -108,7 +109,7 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/ECS/ComponentRawBaseClass.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/ECS/ComponentSparseBaseClass.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/ECS/ECSwrapper.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/ECS/EnginesExportedFunctions.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/ECS/ExportedFunctions.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/ECS/EntitiesHandler.cpp"
         #source-.cpp geometry
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Geometry/ViewportFrustum.cpp"
@@ -124,7 +125,8 @@ SET(SRC #etc-.h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Meshes/PrimitivesOfMeshes.cpp"
         #source-.cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/GameImport.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/ExportedFunctionsConstructor.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/GameImporter.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/VulkanInit.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/InputManager.cpp"
