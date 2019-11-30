@@ -6,10 +6,10 @@
 
 #include "misc/window_factory.h"
 
-#include "GameImport.h"
+#include "GameImporter.h"
 #include "Graphics.h"
 #include "ECS/ECSwrapper.h"
-#include "ECS/EnginesExportedFunctions.h"
+#include "ExportedFunctionsConstructor.h"
 #include "InputManager.h"
 #include "CameraBaseClass.h"
 #include "VulkanInit.h"
@@ -21,15 +21,13 @@ public:
     ~Engine();
 
     Graphics* GetGraphicsPtr();
+    GameImporter* GetGameImporter();
     ECSwrapper* GetECSwrapperPtr();
 
     void Run();
 
-private:
-    // void LoadScene();
 
 private: // data
-    EnginesExportedFunctions engineExportedFunctions;
 
     configuru::Config& cfgFile;
 
@@ -38,9 +36,10 @@ private: // data
     void CallbackFunction_on_keypress_released(Anvil::CallbackArgument* in_callback_data_raw_ptr);
     void CallbackFunction_on_mouse_movement(Anvil::CallbackArgument*    in_callback_data_raw_ptr);
 
-    std::unique_ptr<GameImport> gameImport_uptr;
+    std::unique_ptr<GameImporter> gameImporter_uptr;
     std::unique_ptr<Graphics> graphics_uptr;
     std::unique_ptr<ECSwrapper> ECSwrapper_uptr;
+    std::unique_ptr<ExportedFunctionsConstructor> exportedFunctionsConstructor_uptr;
 
     std::unique_ptr<CameraBaseClass> camera_uptr;
 

@@ -9,17 +9,17 @@
 
 #include "ECS/EntitiesHandler.h"
 #include "ECS/ComponentBaseClass.h"
-#include "ECS/EnginesExportedFunctions.h"
+#include "ECS/ExportedFunctions.h"
 
 class ECSwrapper
 {
 public:
-    ECSwrapper(EnginesExportedFunctions* in_enginesExportedFunctions_ptr);
+    ECSwrapper(ExportedFunctions* in_enginesExportedFunctions_ptr);
     ~ECSwrapper();
 
-    EntitiesHandler* GetEntitiesHandler();
+    EntitiesHandler*    GetEntitiesHandler();
     ComponentBaseClass* GetComponentByID(componentID component_id);
-    componentID GetComponentIDbyName(std::string component_name);
+    componentID         GetComponentIDbyName(std::string component_name);
 
     void AddComponent(ComponentBaseClass* this_component_ptr);
     void AddComponentAndOwnership(std::unique_ptr<ComponentBaseClass> this_component_uptr);
@@ -32,7 +32,7 @@ public:
 
     void CompleteAddsAndRemoves();
 
-    EnginesExportedFunctions*    GetEnginesExportedFunctions();
+    ExportedFunctions*    GetEnginesExportedFunctions();
 
 private:    // data
     std::vector<Entity> entitesThatGoingToGetEmptyToRemove;
@@ -44,6 +44,6 @@ private:    // data
 
     std::unique_ptr<EntitiesHandler> entitiesHandler_uptr;
 
-    EnginesExportedFunctions* const enginesExportedFunctions_ptr;
+    ExportedFunctions* const exportedFunctions_ptr;
 };
 

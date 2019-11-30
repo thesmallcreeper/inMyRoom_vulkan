@@ -97,3 +97,7 @@ glm::mat4x4 PositionCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_
 
     return gTTRS_matrix_in_global_space;
 }
+
+void PositionCompEntity::Init()
+{
+}

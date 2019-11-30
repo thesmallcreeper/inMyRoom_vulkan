@@ -70,3 +70,7 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(NodeGlobalMatrixComp* nodeGlobalM
             }
     }
 }
+
+void ModelDrawCompEntity::Init()
+{
+}

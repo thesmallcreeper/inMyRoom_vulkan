@@ -32,6 +32,8 @@ public:
 
     glm::mat4x4 GetGlobalMatrix(const glm::mat4x4 parent_global_matrix);
 
+    void Init();
+
 public: // data
     glm::vec3 localScale = glm::vec3(1.f, 1.f, 1.f);;
 

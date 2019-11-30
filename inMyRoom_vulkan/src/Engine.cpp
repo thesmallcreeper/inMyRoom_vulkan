@@ -39,11 +39,11 @@ Engine::Engine(configuru::Config& in_cfgFile)
     }
 
     {   // Initializing engine exported functions
-        engineExportedFunctions.engine_ptr = this;
+        exportedFunctionsConstructor_uptr = std::make_unique<ExportedFunctionsConstructor>(this);
     }
 
     {   // Initializing ECS
-        ECSwrapper_uptr = std::make_unique<ECSwrapper>(&engineExportedFunctions);
+        ECSwrapper_uptr = std::make_unique<ECSwrapper>(exportedFunctionsConstructor_uptr.get());
 
         std::unique_ptr<PositionComp> position_comp_uptr= std::make_unique<PositionComp>(ECSwrapper_uptr.get());
         ECSwrapper_uptr->AddComponentAndOwnership(std::move(position_comp_uptr));
@@ -59,7 +59,7 @@ Engine::Engine(configuru::Config& in_cfgFile)
 
     {   // Game importing
         std::string game_file_path = cfgFile["game"]["path"].as_string();
-        gameImport_uptr = std::make_unique<GameImport>(this, game_file_path);
+        gameImporter_uptr = std::make_unique<GameImporter>(this, game_file_path);
     }
 
     {   // camera
@@ -95,7 +95,7 @@ Engine::~Engine()
                                                                           std::placeholders::_1),
                                                                 this);
 
-    gameImport_uptr.reset();
+    gameImporter_uptr.reset();
     ECSwrapper_uptr.reset();
     inputManager.BindPlayerInputFreezeOldUnfreezeNew(nullptr);
     graphics_uptr.reset();
@@ -133,6 +133,11 @@ Graphics* Engine::GetGraphicsPtr()
     return graphics_uptr.get();
 }
 
+GameImporter* Engine::GetGameImporter()
+{
+    return gameImporter_uptr.get();
+}
+
 ECSwrapper* Engine::GetECSwrapperPtr()
 {
     return ECSwrapper_uptr.get();
@@ -159,7 +164,8 @@ void Engine::Run()
             }
         }
 
-        ECSwrapper_uptr->Update(true);
+        ECSwrapper_uptr->Update(false);
         graphics_uptr->DrawFrame();
+        ECSwrapper_uptr->CompleteAddsAndRemoves();
     }
 }

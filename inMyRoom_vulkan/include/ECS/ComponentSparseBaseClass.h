@@ -160,6 +160,7 @@ void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
             entitiesOfComponent_set.emplace(this_entity);
             entityToIndexToVector_umap.emplace(this_entity, entity_index);
 
+            componentEntitiesSparse[entity_index].Init();
         }
 
         componentEntitiesToAdd.clear();

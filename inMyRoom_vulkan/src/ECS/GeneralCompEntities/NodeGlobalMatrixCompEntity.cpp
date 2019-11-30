@@ -99,3 +99,7 @@ void NodeGlobalMatrixCompEntity::Update(PositionComp* const positionComp_ptr)
         globalMatrix = current_position_componentEntity->GetGlobalMatrix(glm::mat4(1.f));
 
 }
+
+void NodeGlobalMatrixCompEntity::Init()
+{
+}

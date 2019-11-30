@@ -26,6 +26,8 @@ public:
 
     void Update(class PositionComp* const positionComp_ptr);
 
+    void Init();
+
 public: // data
     glm::mat4x4 globalMatrix = glm::mat4x4(1.f);
 

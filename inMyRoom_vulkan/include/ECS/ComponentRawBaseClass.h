@@ -18,7 +18,7 @@ public:
 //  void AsyncUpdate(/* to do */) override;
     
     void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                      // Component entity specific task at component memory layout level
-    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;     // Component entity specific task at component level
+    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;          // Component entity specific task at component level
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task at component memory layout level
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task at component memory layout level
     ComponentEntityPtr GetComponentEntity(const Entity this_entity) override;                                   // Component entity memory specific task at component memory layout level
@@ -145,6 +145,8 @@ void ComponentRawBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
             isItEmptyRawVector[this_entity] = false;
 
             InformEntitiesHandlerAboutAddition(this_entity);
+
+            componentEntitiesRaw[this_entity].Init();
         }
 
         componentEntitiesToAdd.clear();

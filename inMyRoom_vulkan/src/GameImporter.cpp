@@ -1,4 +1,5 @@
-#include "GameImport.h"
+#include "GameImporter.h"
+
 #include "Engine.h"
 
 #include <algorithm>
@@ -7,7 +8,7 @@
 #include "tiny_gltf.h"
 #include "glm/gtc/type_ptr.hpp"
 
-GameImport::GameImport(Engine* in_engine_ptr, std::string gameConfig_path)
+GameImporter::GameImporter(Engine* in_engine_ptr, std::string gameConfig_path)
     :folderName(GetFilePathFolder(gameConfig_path)),
      engine_ptr(in_engine_ptr)
 {
@@ -25,75 +26,85 @@ GameImport::GameImport(Engine* in_engine_ptr, std::string gameConfig_path)
     InitializeGame();
 }
 
-void GameImport::ImportGame()
+void GameImporter::ImportGame()
 {
-    {   // imports
-        std::vector<tinygltf::Model> models;
-        std::vector<std::string> models_name;
-        std::vector<std::string> models_folder;
+    AddImports();
+    AddFabs();
+}
 
-        for (const configuru::Config& arrayIterator : gameConfig["imports"]["toImport"].as_array())
-        {
-            std::string this_file_to_import = folderName + "/" + gameConfig["imports"][arrayIterator.as_string()].as_string();
+void GameImporter::AddImports()
+{
+    std::vector<tinygltf::Model> models;
+    std::vector<std::string> models_name;
+    std::vector<std::string> models_folder;
 
-            models.emplace_back(LoadModel(this_file_to_import));
-            models_name.emplace_back(arrayIterator.as_string());
-            models_folder.emplace_back(GetFilePathFolder(this_file_to_import));
-        }
+    for (const configuru::Config& arrayIterator : gameConfig["imports"]["toImport"].as_array())
+    {
+        std::string this_file_to_import = folderName + "/" + gameConfig["imports"][arrayIterator.as_string()].as_string();
 
-        for (size_t index = 0; index < models.size(); index++)
-            engine_ptr->GetGraphicsPtr()->LoadModel(models[index], models_folder[index]);
-
-        engine_ptr->GetGraphicsPtr()->EndModelsLoad();
-
-        for (size_t index = 0; index < models.size(); index++)
-        {
-            std::unique_ptr<Node> this_model_node = ImportModel(models_name[index], models[index]);
-
-            imports_umap.emplace(models_name[index], std::move(this_model_node));
-        }
+        models.emplace_back(LoadModel(this_file_to_import));
+        models_name.emplace_back(arrayIterator.as_string());
+        models_folder.emplace_back(GetFilePathFolder(this_file_to_import));
     }
 
-    {   // fabs
-        for (const configuru::Config& arrayIterator : gameConfig["fabs"]["toFab"].as_array())
+    for (size_t index = 0; index < models.size(); index++)
+        engine_ptr->GetGraphicsPtr()->LoadModel(models[index], models_folder[index]);
+
+    engine_ptr->GetGraphicsPtr()->EndModelsLoad();
+
+    for (size_t index = 0; index < models.size(); index++)
+    {
+        std::unique_ptr<Node> this_model_node = ImportModel(models_name[index], models[index]);
+
+        imports_umap.emplace(models_name[index], std::move(this_model_node));
+    }
+
+}
+
+void GameImporter::AddFabs()
+{
+    for (const configuru::Config& arrayIterator : gameConfig["fabs"]["toFab"].as_array())
+    {
+        std::string this_fab_name = arrayIterator.as_string();
+        std::string this_fab_import_path = gameConfig["fabs"][this_fab_name]["basedOn"].as_string();
+
+        auto search = imports_umap.find(this_fab_import_path.substr(0, this_fab_import_path.find_first_of("/")));
+        assert(search != imports_umap.end());
+
+        const Node* this_import_ptr = search->second.get();
+
+        std::string rest_of_path;
+        if (this_fab_import_path.find_first_of("/") != std::string::npos)
+            rest_of_path = this_fab_import_path.substr(this_fab_import_path.find_first_of("/") + 1);
+        else
+            rest_of_path = "";
+
+        const Node* this_node = this_import_ptr;
+        while (rest_of_path.substr(0, rest_of_path.find_first_of("/")) != "")
         {
-            std::string this_fab_name = arrayIterator.as_string();
-            std::string this_fab_import_path = gameConfig["fabs"][this_fab_name]["basedOn"].as_string();
+            std::string child_name = rest_of_path.substr(0, rest_of_path.find_first_of("/"));
 
-            auto search = imports_umap.find(this_fab_import_path.substr(0, this_fab_import_path.find_first_of("/")));
-            assert(search != imports_umap.end());
+            auto search = std::find_if(this_node->children.begin(), this_node->children.end(), [child_name](const auto& child_uptr_ref) {return child_uptr_ref->nodeName == child_name; });
+            assert(search != this_node->children.end());
 
-            const Node* this_import_ptr = search->second.get();
-            std::string rest_of_path = this_fab_import_path.substr(this_fab_import_path.find_first_of("/") + 1);
+            this_node = search->get();
 
-            const Node* this_node = this_import_ptr;
-            while (rest_of_path.substr(0, rest_of_path.find_first_of("/")) != "")
-            {
-                std::string child_name = rest_of_path.substr(0, rest_of_path.find_first_of("/"));
-
-                auto search = std::find_if(this_node->children.begin(), this_node->children.end(), [child_name](const auto& child_uptr_ref) {return child_uptr_ref->nodeName == child_name; });
-                assert(search != this_node->children.end());
-
-                this_node = search->get();
-
-                if (rest_of_path.find_first_of("/") != std::string::npos)
-                    rest_of_path = rest_of_path.substr(rest_of_path.find_first_of("/") + 1);
-                else
-                    rest_of_path = "";
-            }
-            // now this_node points to the base of the fab
-
-            std::unique_ptr<Node> this_fab = std::make_unique<Node>(*this_node);
-            this_fab->nodeName = this_fab_name;
-
-            // TODO
-
-            fabs_umap.emplace(this_fab_name, std::move(this_fab));
+            if (rest_of_path.find_first_of("/") != std::string::npos)
+                rest_of_path = rest_of_path.substr(rest_of_path.find_first_of("/") + 1);
+            else
+                rest_of_path = "";
         }
+
+        std::unique_ptr<Node> this_fab = std::make_unique<Node>(*this_node);
+        this_fab->nodeName = this_fab_name;
+
+        // TODO AddFabsProperties
+
+        fabs_umap.emplace(this_fab_name, std::move(this_fab));
     }
 }
 
-std::unique_ptr<Node> GameImport::ImportModel(std::string model_name, tinygltf::Model& this_model)
+std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf::Model& this_model)
 {
     std::unique_ptr<Node> model_node = std::make_unique<Node>();
     model_node->nodeName = model_name;
@@ -124,7 +135,7 @@ std::unique_ptr<Node> GameImport::ImportModel(std::string model_name, tinygltf::
     return std::move(model_node);
 }
 
-std::unique_ptr<Node> GameImport::ImportNode(tinygltf::Node& this_gltf_node, tinygltf::Model& this_model)
+std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, tinygltf::Model& this_model)
 {
     std::unique_ptr<Node> return_node_uptr = std::make_unique<Node>();
 
@@ -159,7 +170,7 @@ std::unique_ptr<Node> GameImport::ImportNode(tinygltf::Node& this_gltf_node, tin
     return std::move(return_node_uptr);
 }
 
-tinygltf::Model GameImport::LoadModel(std::string path)
+tinygltf::Model GameImporter::LoadModel(std::string path)
 {
     tinygltf::Model model;
 
@@ -194,14 +205,14 @@ tinygltf::Model GameImport::LoadModel(std::string path)
     return std::move(model);
 }
 
-std::string GameImport::GetFilePathExtension(const std::string& in_filePath)
+std::string GameImporter::GetFilePathExtension(const std::string& in_filePath)
 {
     if (in_filePath.find_last_of(".") != std::string::npos)
         return in_filePath.substr(in_filePath.find_last_of("."));
     return "";
 }
 
-std::string GameImport::GetFilePathFolder(const std::string& in_filePath)
+std::string GameImporter::GetFilePathFolder(const std::string& in_filePath)
 {
     if (in_filePath.find_last_of("/") != std::string::npos)
         return in_filePath.substr(0, in_filePath.find_last_of("/"));
@@ -209,7 +220,7 @@ std::string GameImport::GetFilePathFolder(const std::string& in_filePath)
         return "";
 }
 
-CompEntityInitMap GameImport::CreatePositionInfo(const tinygltf::Node& in_node)
+CompEntityInitMap GameImporter::CreatePositionInfo(const tinygltf::Node& in_node)
 {
     PositionCompEntity targeted_positionCompEntity = PositionCompEntity::GetEmpty();
 
@@ -259,7 +270,7 @@ CompEntityInitMap GameImport::CreatePositionInfo(const tinygltf::Node& in_node)
     return return_compEntity;
 }
 
-void GameImport::InitializeGame()
+void GameImporter::InitializeGame()
 {
     for (const configuru::Config& arrayIterator : gameConfig["init"]["toInit"].as_array())
     {
@@ -267,16 +278,18 @@ void GameImport::InitializeGame()
         std::string this_init_fab_using = gameConfig["init"][this_init_name].as_string();
 
         AddFabAndGetRoot(this_init_fab_using, 0, this_init_name);
+
+        engine_ptr->GetECSwrapperPtr()->CompleteAddsAndRemoves();
     }
 }
 
-Entity GameImport::AddFabAndGetRoot(std::string prefab, std::string parent_path, std::string preferred_name)
+Entity GameImporter::AddFabAndGetRoot(std::string fab_name, std::string parent_path, std::string preferred_name)
 {
     Entity parent_entity = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->FindEntityByName(parent_path);
-    return AddFabAndGetRoot(prefab, parent_entity, preferred_name);
+    return AddFabAndGetRoot(fab_name, parent_entity, preferred_name);
 }
 
-Entity GameImport::AddFabAndGetRoot(std::string fab_name, Entity parent_entity, std::string preferred_name)
+Entity GameImporter::AddFabAndGetRoot(std::string fab_name, Entity parent_entity, std::string preferred_name)
 {
     if (preferred_name == "")
         preferred_name = fab_name + "_" + NumberToString(anonymousAddedFabsSoFar++);
@@ -297,14 +310,11 @@ Entity GameImport::AddFabAndGetRoot(std::string fab_name, Entity parent_entity, 
 
     AddNodeComponentsToECS(parent_entity, this_root_node);
 
-    engine_ptr->GetECSwrapperPtr()->CompleteAddsAndRemoves();
-
     return this_root_node->latestEntity;
 }
 
-void GameImport::AddNodeToEntityHandler(Entity parent_entity, std::string parent_full_name, Node* this_node)
+void GameImporter::AddNodeToEntityHandler(Entity parent_entity, std::string parent_full_name, Node* this_node)
 {
-    // TODO naming
 
     Entity this_entity;
     if (parent_entity != 0)
@@ -329,7 +339,7 @@ void GameImport::AddNodeToEntityHandler(Entity parent_entity, std::string parent
         AddNodeToEntityHandler(this_entity, this_full_name, this_node->children[index].get());
 }
 
-void GameImport::AddNodeComponentsToECS(Entity parent_entity, Node* this_node)
+void GameImporter::AddNodeComponentsToECS(Entity parent_entity, Node* this_node)
 {
     Entity this_entity = this_node->latestEntity;
 
@@ -353,7 +363,41 @@ void GameImport::AddNodeComponentsToECS(Entity parent_entity, Node* this_node)
         AddNodeComponentsToECS(this_entity, this_node->children[index].get());
 }
 
-std::string GameImport::NumberToString(size_t number)
+Node* GameImporter::GetFabNode(std::string fab_node)
+{
+    std::string fab_name = fab_node.substr(0, fab_node.find_first_of("/"));
+
+    auto search = fabs_umap.find(fab_name);
+    assert(search != fabs_umap.end());
+
+    Node* this_root_node = search->second.get();
+
+    std::string rest_of_path;
+    if (fab_name.find_first_of("/") != std::string::npos)
+        rest_of_path = rest_of_path.substr(rest_of_path.find_first_of("/") + 1);
+    else
+        rest_of_path = "";
+
+    Node* this_node = this_root_node;
+    while (rest_of_path.substr(0, rest_of_path.find_first_of("/")) != "")
+    {
+        std::string child_name = rest_of_path.substr(0, rest_of_path.find_first_of("/"));
+
+        auto search = std::find_if(this_node->children.begin(), this_node->children.end(), [child_name](const auto& child_uptr_ref) {return child_uptr_ref->nodeName == child_name; });
+        assert(search != this_node->children.end());
+
+        this_node = search->get();
+
+        if (rest_of_path.find_first_of("/") != std::string::npos)
+            rest_of_path = rest_of_path.substr(rest_of_path.find_first_of("/") + 1);
+        else
+            rest_of_path = "";
+    }
+
+    return this_node;
+}
+
+std::string GameImporter::NumberToString(size_t number)
 {
     uint8_t* number_uint8 = reinterpret_cast<uint8_t*>(&number);
 

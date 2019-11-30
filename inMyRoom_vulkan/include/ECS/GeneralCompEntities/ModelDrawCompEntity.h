@@ -24,6 +24,8 @@ public:
 
     void DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeGlobalMatrix_ptr, MeshesOfNodes* meshesOfNodes_ptr, FrustumCulling* frustumCulling_ptr, std::vector<DrawRequest>& draw_requests) const;
 
+    void Init();
+
 public: // data
     uint32_t meshIndex;
     bool shouldDraw = true;

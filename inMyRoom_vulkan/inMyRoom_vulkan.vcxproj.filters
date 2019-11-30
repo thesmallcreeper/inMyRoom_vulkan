@@ -93,9 +93,6 @@
     <ClCompile Include="src\MipmapsGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\GameImport.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp">
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
@@ -106,9 +103,6 @@
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\ECSwrapper.cpp">
-      <Filter>Source Files\ECS</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ECS\EnginesExportedFunctions.cpp">
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\GeneralComponents\ModelDrawComp.cpp">
@@ -161,6 +155,15 @@
     </ClCompile>
     <ClCompile Include="src\ECS\EntitiesHandler.cpp">
       <Filter>Source Files\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\ExportedFunctions.cpp">
+      <Filter>Source Files\ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ExportedFunctionsConstructor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GameImporter.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -215,9 +218,6 @@
     <ClInclude Include="include\MipmapsGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\GameImport.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\ECS\ComponentBaseClass.h">
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
@@ -228,9 +228,6 @@
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
     <ClInclude Include="include\ECS\ECSwrapper.h">
-      <Filter>Header Files\ECS</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ECS\EnginesExportedFunctions.h">
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
     <ClInclude Include="include\ECS\EntitiesHandler.h">
@@ -292,6 +289,15 @@
     </ClInclude>
     <ClInclude Include="include\Meshes\TexturesOfMaterials.h">
       <Filter>Header Files\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\ExportedFunctions.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ExportedFunctionsConstructor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\GameImporter.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

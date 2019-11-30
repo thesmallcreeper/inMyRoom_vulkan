@@ -1,7 +1,7 @@
 #include "ECS/ECSwrapper.h"
 
-ECSwrapper::ECSwrapper(EnginesExportedFunctions* in_enginesExportedFunctions_ptr)
-    :enginesExportedFunctions_ptr(in_enginesExportedFunctions_ptr)
+ECSwrapper::ECSwrapper(ExportedFunctions* in_enginesExportedFunctions_ptr)
+    :exportedFunctions_ptr(in_enginesExportedFunctions_ptr)
 {
     componentIDtoComponentBaseClass_map.emplace(static_cast<componentID>(componentIDenum::Default), nullptr);
     entitiesHandler_uptr = std::make_unique<EntitiesHandler>();
@@ -122,7 +122,7 @@ void ECSwrapper::CompleteAddsAndRemoves()
     entitesThatGoingToGetEmptyToRemove.clear();
 }
 
-EnginesExportedFunctions* ECSwrapper::GetEnginesExportedFunctions()
+ExportedFunctions* ECSwrapper::GetEnginesExportedFunctions()
 {
-    return enginesExportedFunctions_ptr;
+    return exportedFunctions_ptr;
 }

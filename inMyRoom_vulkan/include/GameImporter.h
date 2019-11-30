@@ -11,47 +11,22 @@
 
 #include "glm/gtx/matrix_decompose.hpp"
 
-struct Node
-{
-    std::vector<std::pair<componentID, CompEntityInitMap>> componentsAndInitMaps;
-    bool shouldAddNodeGlobalMatrixCompEntity = false;
-
-    Entity latestEntity = 0;                // for fabs->Entities
-    uint32_t glTFnodeID = -1;
-    std::string nodeName = "";
-
-    std::vector<std::unique_ptr<Node>> children;
-
-    Node()
-    {
-    }
-    Node(Node const& other) 
-    {
-        componentsAndInitMaps = other.componentsAndInitMaps;
-        shouldAddNodeGlobalMatrixCompEntity = other.shouldAddNodeGlobalMatrixCompEntity;
-
-        latestEntity = other.latestEntity;
-        glTFnodeID = other.glTFnodeID;
-        nodeName = other.nodeName;
-        for (size_t index = 0; index < other.children.size(); index++)
-        {
-            const Node* this_child_node_ptr = other.children[index].get();
-            children.emplace_back(std::make_unique<Node>(*this_child_node_ptr));
-        }
-    }
-};
-
 class Engine;       // Forward declaration
 
-class GameImport
+class GameImporter
 {
 public:
-    GameImport(Engine* in_engine_ptr, std::string gameConfig_path);
+    GameImporter(Engine* in_engine_ptr, std::string gameConfig_path);
 
-    Entity AddFabAndGetRoot(std::string prefab, Entity parent_entity = 0, std::string preferred_name = "");
-    Entity AddFabAndGetRoot(std::string prefab, std::string parent_path , std::string preferred_name = "");
+    Entity AddFabAndGetRoot(std::string fab_name, Entity parent_entity = 0, std::string preferred_name = "");
+    Entity AddFabAndGetRoot(std::string fab_name, std::string parent_path , std::string preferred_name = "");
+
+    Node* GetFabNode(std::string fab_node);
 private:
     void ImportGame();
+    void AddImports();
+    void AddFabs();
+
     void InitializeGame();
 
     tinygltf::Model LoadModel(std::string path);
