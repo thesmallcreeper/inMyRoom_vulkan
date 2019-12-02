@@ -1,7 +1,6 @@
 #pragma once
 
 #include <unordered_map>
-#include <string>
 
 #include "tiny_gltf.h"
 #include "glTFenum.h"

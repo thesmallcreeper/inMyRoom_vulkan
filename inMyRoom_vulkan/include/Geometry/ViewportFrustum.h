@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #define GLM_FORECE_DEPTH_ZERO_TO_ONE
 
 #include "glm/mat4x4.hpp"
@@ -7,8 +9,6 @@
 #include "glm/gtc/matrix_transform.hpp"
 
 #include "Geometry/Plane.h"
-
-#include <array>
 
 class ViewportFrustum
 {

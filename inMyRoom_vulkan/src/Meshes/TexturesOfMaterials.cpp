@@ -1,9 +1,20 @@
 #include "Meshes/TexturesOfMaterials.h"
 
+#include <cstring>
+#include <iostream>
+#include <utility>
+#include <cassert>
+#include <algorithm>
+
 #include "stb_image.h"
 #include "stb_image_write.h"
 
 #include "DDS_Helpers.h"
+#include "Compressonator.h"
+
+#include "misc/image_create_info.h"
+#include "misc/image_view_create_info.h"
+#include "misc/sampler_create_info.h"
 
 TexturesOfMaterials::TexturesOfMaterials(bool use_mipmaps,
                                          MipmapsGenerator* in_mipmapsGenerator_ptr,

@@ -1,5 +1,9 @@
 #include "Meshes/MaterialsOfPrimitives.h"
 
+#include "misc/memory_allocator.h"
+#include "misc/buffer_create_info.h"
+#include "misc/descriptor_set_create_info.h"
+
 #include "glm/vec4.hpp"
 
 MaterialsOfPrimitives::MaterialsOfPrimitives(TexturesOfMaterials* in_materialsTextures_ptr,

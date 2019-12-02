@@ -1,25 +1,11 @@
 #pragma once
 
 #include <memory>
-#include <thread>
-#include <future>
-#include <fstream>
-#include <utility>
-#include <cassert>
 
 #include "configuru.hpp"
 
 #include "tiny_gltf.h"
 
-#include "misc/swapchain_create_info.h"
-#include "misc/memory_allocator.h"
-#include "misc/buffer_create_info.h"
-#include "misc/image_create_info.h"
-#include "misc/image_view_create_info.h"
-#include "misc/semaphore_create_info.h"
-#include "misc/fence_create_info.h"
-#include "misc/framebuffer_create_info.h"
-#include "misc/render_pass_create_info.h"
 #include "wrappers/rendering_surface.h"
 #include "wrappers/buffer.h"
 #include "wrappers/command_buffer.h"
@@ -33,16 +19,16 @@
 #include "wrappers/semaphore.h"
 #include "wrappers/fence.h"
 
-#include "ECS/GeneralComponents/CameraComp.h"
-#include "ECS/GeneralComponents/ModelDrawComp.h"
-
-#include "Geometry/ViewportFrustum.h"
-
 #include "WindowWithAsyncInput.h"
 
 #include "PipelinesFactory.h"
 #include "MipmapsGenerator.h"
 #include "Drawer.h"
+
+#include "ECS/GeneralComponents/CameraComp.h"
+#include "ECS/GeneralComponents/ModelDrawComp.h"
+
+#include "Geometry/ViewportFrustum.h"
 
 #include "Meshes/ImagesAboutOfTextures.h"
 #include "Meshes/TexturesOfMaterials.h"

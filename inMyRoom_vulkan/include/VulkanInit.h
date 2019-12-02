@@ -8,9 +8,6 @@
 #include "wrappers/instance.h"
 #include "wrappers/device.h"
 #include "wrappers/rendering_surface.h"
-#include "misc/window_factory.h"
-#include "misc/swapchain_create_info.h"
-#include "misc/rendering_surface_create_info.h"
 
 #include "WindowWithAsyncInput.h"
 

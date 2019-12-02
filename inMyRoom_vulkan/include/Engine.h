@@ -8,10 +8,11 @@
 
 #include "GameImporter.h"
 #include "Graphics.h"
-#include "ECS/ECSwrapper.h"
 #include "ExportedFunctionsConstructor.h"
 #include "InputManager.h"
 #include "VulkanInit.h"
+
+#include "ECS/ECSwrapper.h"
 
 class Engine: public VulkanInit
 {

@@ -1,5 +1,7 @@
 #include "PipelinesFactory.h"
 
+#include <cassert>
+
 PipelinesFactory::PipelinesFactory(Anvil::BaseDevice* const in_device_ptr)
     : device_ptr(in_device_ptr)
 {

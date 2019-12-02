@@ -14,7 +14,7 @@ public:
 
     Entity CreateEntity();
     Entity CreateEntityWithParent(Entity parent);
-    void   DeleteEmptyEntity(Entity this_entity);   // TODO children vector, and delete children
+    void   DeleteEmptyEntity(Entity this_entity);
 
     void   AddEntityName(Entity this_entity, std::string name);
     Entity FindEntityByName(std::string name);

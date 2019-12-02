@@ -6,8 +6,6 @@
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 
-#include "dito.h"
-
 #include "Geometry/Cuboid.h"
 
 class OBB: public Cuboid

@@ -5,6 +5,7 @@
 #include "wrappers/device.h"
 #include "wrappers/descriptor_set.h"
 #include "wrappers/command_buffer.h"
+
 #include "glTFenum.h"
 
 #include "glm/mat4x4.hpp"

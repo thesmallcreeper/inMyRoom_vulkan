@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <iterator>
 
+#include "misc/memory_allocator.h"
+#include "misc/buffer_create_info.h"
+#include "misc/base_pipeline_manager.h"
+
 PrimitivesOfMeshes::PrimitivesOfMeshes(PipelinesFactory* in_pipelinesFactory_ptr,
                                        ShadersSetsFamiliesCache* in_shadersSetsFamiliesCache_ptr,
                                        MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,

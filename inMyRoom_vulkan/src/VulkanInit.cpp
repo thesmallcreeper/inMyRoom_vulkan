@@ -2,6 +2,9 @@
 
 #include <iostream>
 
+#include "misc/window_factory.h"
+#include "misc/swapchain_create_info.h"
+#include "misc/rendering_surface_create_info.h"
 
 #ifdef _DEBUG
 #define ENABLE_VALIDATION

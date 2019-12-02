@@ -1,5 +1,14 @@
 #include "MipmapsGenerator.h"
 
+#include "misc/image_create_info.h"
+#include "misc/image_view_create_info.h"
+#include "misc/framebuffer_create_info.h"
+#include "misc/sampler_create_info.h"
+#include "misc/render_pass_create_info.h"
+#include "misc/buffer_create_info.h"
+#include "misc/memory_allocator.h"
+#include "misc/fence_create_info.h"
+
 #include "stb_image.h"
 #include "stb_image_write.h"
 

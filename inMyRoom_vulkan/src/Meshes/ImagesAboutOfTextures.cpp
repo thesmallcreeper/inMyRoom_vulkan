@@ -1,6 +1,7 @@
 #include "Meshes/ImagesAboutOfTextures.h"
 
 #include <array>
+#include <string>
 
 void ImagesAboutOfTextures::AddImagesUsageOfModel(const tinygltf::Model& in_model)
 {

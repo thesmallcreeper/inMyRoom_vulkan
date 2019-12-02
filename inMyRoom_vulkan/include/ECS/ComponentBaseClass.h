@@ -22,11 +22,11 @@ public:
     virtual void FixedUpdate() = 0;
     virtual void AsyncInput(InputType input_type, void* struct_data = nullptr) = 0;
      
-//  ------- void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                 // Component entity specific task at component memory layout level
-    virtual void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) = 0;          // Component entity specific task at component level
-    virtual void RemoveComponentEntity(const Entity this_entity) = 0;                                              // Component entity memory specific task at component memory layout level
-    virtual void CompleteAddsAndRemoves() = 0;                                                                     // Component entity memory specific task at component memory layout level
-    virtual ComponentEntityPtr GetComponentEntity(const Entity this_entity) = 0;                                   // Component entity memory specific task at component memory layout level // TODO
+//  ------- void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                 // Component entity specific task
+    virtual void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) = 0;          // Component entity specific task
+    virtual void RemoveComponentEntity(const Entity this_entity) = 0;                                              // Component entity memory specific task
+    virtual void CompleteAddsAndRemoves() = 0;                                                                     // Component entity memory specific task
+//  ------- ComponentEntityPtr GetComponentEntity(const Entity this_entity) = 0;                                   // Component entity memory specific task
 
     componentID GetComponentID() const;
     std::string GetComponentName() const;

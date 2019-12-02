@@ -1,6 +1,19 @@
 #include "Graphics.h"
 #include "Engine.h"
 
+#include <utility>
+#include <cassert>
+
+#include "misc/swapchain_create_info.h"
+#include "misc/memory_allocator.h"
+#include "misc/buffer_create_info.h"
+#include "misc/image_create_info.h"
+#include "misc/image_view_create_info.h"
+#include "misc/semaphore_create_info.h"
+#include "misc/fence_create_info.h"
+#include "misc/framebuffer_create_info.h"
+#include "misc/render_pass_create_info.h"
+
 Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
                    uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount)
     :

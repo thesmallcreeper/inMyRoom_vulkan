@@ -17,11 +17,11 @@ public:
 //  void FixedUpdate() override;
 //  void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
     
-    void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                      // Component entity specific task at component memory layout level
-    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;          // Component entity specific task at component level
-    void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task at component memory layout level
-    void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task at component memory layout level
-    ComponentEntityPtr GetComponentEntity(const Entity this_entity) override;                                   // Component entity memory specific task at component memory layout level
+    void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                      // Component entity specific task
+    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;          // Component entity specific task
+    void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
+    void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
+    ComponentEntityPtr GetComponentEntity(const Entity this_entity);                                            // Component entity memory specific task
 
 protected:
     std::vector<ComponentEntityType> componentEntitiesRaw;

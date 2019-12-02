@@ -1,5 +1,7 @@
 #include "Geometry/OBB.h"
 
+#include "dito.h"
+
 OBB OBB::CreateOBB(const std::vector<glm::vec3>& in_points)
 {
     DiTO::OBB<float> dito_OBB;

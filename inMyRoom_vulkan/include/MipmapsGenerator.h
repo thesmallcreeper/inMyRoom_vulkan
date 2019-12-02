@@ -15,14 +15,6 @@ namespace fs = std::experimental::filesystem;
 namespace fs = std::filesystem;
 #endif
 
-#include "misc/image_create_info.h"
-#include "misc/image_view_create_info.h"
-#include "misc/framebuffer_create_info.h"
-#include "misc/sampler_create_info.h"
-#include "misc/render_pass_create_info.h"
-#include "misc/buffer_create_info.h"
-#include "misc/memory_allocator.h"
-#include "misc/fence_create_info.h"
 #include "wrappers/device.h"
 #include "wrappers/descriptor_set_group.h"
 #include "wrappers/image.h"
@@ -41,9 +33,10 @@ namespace fs = std::filesystem;
 #include "tiny_gltf.h"
 #include "const_maps.h"
 
-#include "Meshes/ImagesAboutOfTextures.h"
 #include "PipelinesFactory.h"
 #include "ShadersSetsFamiliesCache.h"
+
+#include "Meshes/ImagesAboutOfTextures.h"
 
 struct MipmapInfo
 {

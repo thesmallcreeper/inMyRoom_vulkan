@@ -7,17 +7,10 @@
 #endif
 #endif
 
-#include <utility>
-#include <cassert>
-#include <algorithm>
 #include <unordered_map>
-#include <cstring>
-#include <iostream>
+
 #include "hash_combine.h"
 
-#include "misc/image_create_info.h"
-#include "misc/image_view_create_info.h"
-#include "misc/sampler_create_info.h"
 #include "wrappers/device.h"
 #include "wrappers/descriptor_set_group.h"
 #include "wrappers/image.h"
@@ -26,7 +19,6 @@
 
 #include "tiny_gltf.h"
 #include "glTFenum.h"
-#include "Compressonator.h"
 
 #include "const_maps.h"
 #include "MipmapsGenerator.h"
