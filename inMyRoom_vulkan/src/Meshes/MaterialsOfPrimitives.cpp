@@ -49,7 +49,7 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
                     uniform_size += sizeof(glm::vec4);
                 }
 
-                this_descriptorSetCreateInfo_ptr->add_binding(bindingCount++,
+                this_descriptorSetCreateInfo_ptr->add_binding(static_cast<uint32_t>(bindingCount++),
                                                               Anvil::DescriptorType::UNIFORM_BUFFER,
                                                               1,
                                                               Anvil::ShaderStageFlagBits::FRAGMENT_BIT);
@@ -70,7 +70,7 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
 
                     size_t this_baseColorTextureIndex = texturesOfMaterials_ptr->GetTextureIndexOffsetOfModel(in_model) + search->second.TextureIndex();
 
-                    this_descriptorSetCreateInfo_ptr->add_binding(bindingCount++,
+                    this_descriptorSetCreateInfo_ptr->add_binding(static_cast<uint32_t>(bindingCount++),
                                                                   Anvil::DescriptorType::COMBINED_IMAGE_SAMPLER,
                                                                   1,
                                                                   Anvil::ShaderStageFlagBits::FRAGMENT_BIT);
@@ -139,7 +139,7 @@ void MaterialsOfPrimitives::FlashDevice()
         for (uint32_t binding_index = 0; binding_index < textures_bindings[set_index].size(); binding_index++)
         {
             materialsDescriptorSetGroup_uptr->set_binding_item(set_index,
-                                                               binding_index + uniform_bindings[set_index].size(),
+                                                               static_cast<Anvil::BindingIndex>(binding_index + uniform_bindings[set_index].size()),
                                                                textures_bindings[set_index][binding_index]);
         }
     }

@@ -10,7 +10,7 @@
 
 #include "ECS/ECStypes.h"
 
-enum eventInputIDenums
+enum class eventInputIDenums
 {
     /*Quit key bind*/
     SHOULD_CLOSE,
@@ -86,8 +86,8 @@ private:
             "MoveRight",
             std::make_pair(std::bind(&InputManager::MoveRight, this), std::bind(&InputManager::StopMovingRight, this))
         },
-        {"Exit", std::make_pair(std::bind(&InputManager::AddToQueue, this, SHOULD_CLOSE), nullptr)},
-        {"CullingDebug", std::make_pair(std::bind(&InputManager::AddToQueue, this, TOGGLE_CULLING_DEBUG), nullptr)}
+        {"Exit", std::make_pair(std::bind(&InputManager::AddToQueue, this, eventInputIDenums::SHOULD_CLOSE), nullptr)},
+        {"CullingDebug", std::make_pair(std::bind(&InputManager::AddToQueue, this, eventInputIDenums::TOGGLE_CULLING_DEBUG), nullptr)}
     };
 
     std::unordered_map<std::string, Anvil::KeyID> buttomAliasToKey_map =

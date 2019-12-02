@@ -604,7 +604,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
             cmd_buffer_ptr->record_bind_descriptor_sets(Anvil::PipelineBindPoint::COMPUTE,
                                                         device_ptr->get_compute_pipeline_manager()->get_pipeline_layout(this_compute_pipelineID),
                                                         0,
-                                                        descriptor_sets_ptrs.size(),
+                                                        static_cast<uint32_t>(descriptor_sets_ptrs.size()),
                                                         descriptor_sets_ptrs.data(),
                                                         0,
                                                         nullptr);
@@ -676,7 +676,10 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                 vertex_buffers.emplace_back(quadTexcoordsBuffer_uptr.get());
                 vertex_buffer_offsets.emplace_back(0);
 
-                cmd_buffer_ptr->record_bind_vertex_buffers(0, vertex_buffers.size(), vertex_buffers.data(), vertex_buffer_offsets.data());
+                cmd_buffer_ptr->record_bind_vertex_buffers(0,
+                                                           static_cast<uint32_t>(vertex_buffers.size()),
+                                                           vertex_buffers.data(),
+                                                           vertex_buffer_offsets.data());
             }
 
             {
@@ -685,7 +688,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                 cmd_buffer_ptr->record_bind_descriptor_sets(Anvil::PipelineBindPoint::GRAPHICS,
                                                             device_ptr->get_graphics_pipeline_manager()->get_pipeline_layout(this_gfx_pipelineID),
                                                             0,
-                                                            descriptor_sets_ptrs.size(),
+                                                            static_cast<uint32_t>(descriptor_sets_ptrs.size()),
                                                             descriptor_sets_ptrs.data(),
                                                             0,
                                                             nullptr);

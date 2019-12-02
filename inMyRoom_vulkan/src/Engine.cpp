@@ -147,12 +147,12 @@ void Engine::Run()
         {
             switch (this_event)
             {
-            case SHOULD_CLOSE:
+             case eventInputIDenums::SHOULD_CLOSE:
                 {
                     breakMainLoop = true;
                     break;
                 }
-            case TOGGLE_CULLING_DEBUG:
+            case eventInputIDenums::TOGGLE_CULLING_DEBUG:
                 {
                     graphics_uptr->ToggleCullingDebugging();
                     break;

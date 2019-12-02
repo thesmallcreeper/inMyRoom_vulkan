@@ -112,11 +112,11 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
             const uint32_t descriptor_sets_count = static_cast<const uint32_t>(descriptor_sets_ptrs.size());
             in_cmd_buffer_ptr->record_bind_descriptor_sets(Anvil::PipelineBindPoint::GRAPHICS,
                                                            this_primitiveSpecificSetInfo.pipelineLayout_ptr,
-                                                           0,       /* in_first_set */
-                                                           descriptor_sets_ptrs.size(), /* in_set_count */
-                                                           descriptor_sets_ptrs.data(),
-                                                           0,       /* in_dynamic_offset_count */
-                                                           nullptr); /* in_dynamic_offset_ptrs  */
+                                                           0,                           /* in_first_set */
+                                                           static_cast<const uint32_t>(descriptor_sets_ptrs.size()), /* in_set_count */
+                                                           descriptor_sets_ptrs.data(), /* in_set_data */
+                                                           0,                           /* in_dynamic_offset_count */
+                                                           nullptr);                    /* in_dynamic_offset_ptrs  */
 
             ref_command_buffer_state.descriptor_sets_ptrs = descriptor_sets_ptrs;
         }
@@ -127,9 +127,9 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
         {
             in_cmd_buffer_ptr->record_push_constants(this_primitiveSpecificSetInfo.pipelineLayout_ptr,
                                                      Anvil::ShaderStageFlagBits::VERTEX_BIT,
-                                                     0,                     /*in_offset*/
-                                                     sizeof(float) * 4 * 4, /*in_size*/
-                                                     &in_draw_request.TRSmatrix);
+                                                     0,                                            /*in_offset*/
+                                                     static_cast<uint32_t>(sizeof(float) * 4 * 4), /*in_size*/
+                                                     &in_draw_request.TRSmatrix);                  /*in_data*/
 
             ref_command_buffer_state.objectID = in_draw_request.objectID;
         }

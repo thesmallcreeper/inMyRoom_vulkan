@@ -5,7 +5,7 @@ OBB OBB::CreateOBB(const std::vector<glm::vec3>& in_points)
     DiTO::OBB<float> dito_OBB;
     const DiTO::Vector<float>* dito_points = reinterpret_cast<const DiTO::Vector<float>*>(in_points.data());
 
-    DiTO_14(const_cast<DiTO::Vector<float>*>(dito_points), in_points.size(), dito_OBB);
+    DiTO_14(const_cast<DiTO::Vector<float>*>(dito_points), static_cast<int>(in_points.size()), dito_OBB);
     // const_casting was used in order to avoid editing dito.h/.cpp which indeed, according to its docs, does not modifies dito_points but does not make use of "const"
 
     OBB return_OBB;

@@ -113,7 +113,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                     srcTexture.dwPitch = this_mipmap.pitch;
                     srcTexture.format = vulkanFormatToCompressonatorFormat_map.find(this_mipmap.image_vulkan_format)->second;
                     srcTexture.pData = this_mipmap.data_uptr.get();
-                    srcTexture.dwDataSize = this_mipmap.size;
+                    srcTexture.dwDataSize = static_cast<CMP_DWORD>(this_mipmap.size);
 
                     CMP_Texture dstTexture;
 
@@ -182,9 +182,9 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
         {
             auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(device_ptr,
                                                                          image_ptr.get(),
-                                                                         0,                         /* n_base_layer        */
-                                                                         0,                         /* n_base_mipmap_level */
-                                                                         mipmaps_levels_over_4x4,   /* n_mipmaps           */
+                                                                         0,                                                /* n_base_layer        */
+                                                                         0,                                                /* n_base_mipmap_level */
+                                                                         static_cast<uint32_t>(mipmaps_levels_over_4x4),   /* n_mipmaps           */
                                                                          Anvil::ImageAspectFlagBits::COLOR_BIT,
                                                                          image_preferred_compressed_format,
                                                                          Anvil::ComponentSwizzle::R,

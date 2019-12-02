@@ -162,6 +162,13 @@ void DefaultCameraInputCompEntity::Freeze()
 void DefaultCameraInputCompEntity::Unfreeze()
 {
     isFreezed = false;
+
+    movementState.movingForward = false;
+    movementState.movingBackward = false;
+    movementState.movingRight = false;
+    movementState.movingLeft = false;
+    movementState.movingUp = false;
+    movementState.movingDown = false;
 }
 
 void DefaultCameraInputCompEntity::MoveCamera(float xRotation_rads, float yRotation_rads)
@@ -170,18 +177,18 @@ void DefaultCameraInputCompEntity::MoveCamera(float xRotation_rads, float yRotat
 
     new_global_direction = glm::rotate(new_global_direction, yRotation_rads, glm::normalize(glm::cross(new_global_direction, upDirection)));
     {
-        const float minTheta = 0.01f * glm::half_pi<float>();
-        const float maxAbsDirectionY = glm::cos(minTheta);
-        const float minXZLength = glm::sin(minTheta);
+        constexpr const float min_theta = 0.01f * glm::half_pi<float>();
+        const float max_abs_directionY = glm::cos(min_theta);
+        const float min_XZlength = glm::sin(min_theta);
 
-        glm::vec2 oldXZorientation(globalDirection.x, globalDirection.z);
-        glm::vec2 newXZorientation(new_global_direction.x, new_global_direction.z);
+        glm::vec2 old_XZorientation(globalDirection.x, globalDirection.z);
+        glm::vec2 new_XZorientation(new_global_direction.x, new_global_direction.z);
 
-        if (((glm::dot(oldXZorientation, newXZorientation) < 0.0f) || (glm::dot(oldXZorientation, newXZorientation) == 0.0f) || (glm::dot(oldXZorientation, newXZorientation) == -0.0f)
-             || (std::abs(new_global_direction.y) > maxAbsDirectionY)) && (std::abs(new_global_direction.y) > 0.5f))
+        if (((glm::dot(old_XZorientation, new_XZorientation) < 0.0f) || (glm::dot(old_XZorientation, new_XZorientation) == 0.0f) || (glm::dot(old_XZorientation, new_XZorientation) == -0.0f)
+             || (std::abs(new_global_direction.y) > max_abs_directionY)) && (std::abs(new_global_direction.y) > 0.5f))
         {
-            glm::vec2 oldXZorientationNormalized = glm::normalize(oldXZorientation);
-            new_global_direction = glm::vec3(minXZLength * oldXZorientationNormalized.x, (globalDirection.y > 0.0f) ? maxAbsDirectionY : -maxAbsDirectionY, minXZLength* oldXZorientationNormalized.y);
+            glm::vec2 old_XZorientation_normalized = glm::normalize(old_XZorientation);
+            new_global_direction = glm::vec3(min_XZlength * old_XZorientation_normalized.x, (globalDirection.y > 0.0f) ? max_abs_directionY : -max_abs_directionY, min_XZlength* old_XZorientation_normalized.y);
         }
     }
     new_global_direction = glm::rotate(new_global_direction, xRotation_rads, upDirection);
