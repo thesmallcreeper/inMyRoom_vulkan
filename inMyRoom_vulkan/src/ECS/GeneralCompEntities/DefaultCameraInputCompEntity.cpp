@@ -39,8 +39,8 @@ DefaultCameraInputCompEntity DefaultCameraInputCompEntity::CreateComponentEntity
 
     // "speed",             speed                   = float         (optional-default from config)
     {
-        auto search = in_map.intMap.find("speed");
-        if (search != in_map.intMap.end())
+        auto search = in_map.floatMap.find("speed");
+        if (search != in_map.floatMap.end())
         {
             float speed = search->second;
             this_defaultCameraInputCompEntity.speed = speed;

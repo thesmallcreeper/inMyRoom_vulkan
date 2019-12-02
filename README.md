@@ -82,4 +82,4 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  
  gg ez :D (Actually.. I hope so :P )
  
-  #### Note: When application you load a scene for first time it is gonna take some time, because mipmaps should be created, compressed and saved/cached for later reuse/relaunch.
+  #### Note: When application loads a scene for first time it is gonna take some time, because mipmaps should be created, compressed and saved/cached for later reuse/relaunch.
