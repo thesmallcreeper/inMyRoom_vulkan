@@ -1,9 +1,11 @@
 #pragma once
 
-#include "ECS/ComponentRawBaseClass.h"
 #include "ECS/GeneralCompEntities/PositionCompEntity.h"
+#include "ECS/ComponentRawBaseClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
+
+
 
 class PositionComp :
     public ComponentRawBaseClass<PositionCompEntity>
@@ -14,6 +16,6 @@ public:
 
     void Update() override {};
     void FixedUpdate() override {};
-    void AsyncUpdate(/* to do */) override {};
+    void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
 };
 

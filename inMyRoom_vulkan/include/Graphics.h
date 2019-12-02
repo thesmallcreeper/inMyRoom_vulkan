@@ -33,11 +33,12 @@
 #include "wrappers/semaphore.h"
 #include "wrappers/fence.h"
 
+#include "ECS/GeneralComponents/CameraComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
+
 #include "Geometry/ViewportFrustum.h"
 
 #include "WindowWithAsyncInput.h"
-#include "CameraBaseClass.h"
 
 #include "PipelinesFactory.h"
 #include "MipmapsGenerator.h"
@@ -59,14 +60,14 @@ public:
              uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount);
     ~Graphics();
 
+    MeshesOfNodes* GetMeshesOfNodesPtr();
+
     void LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder);
     void EndModelsLoad();
 
-    void BindCamera(CameraBaseClass* in_camera);
-
     void DrawFrame();
 
-    MeshesOfNodes* GetMeshesOfNodesPtr();
+    void ToggleCullingDebugging();
 
 private:
 
@@ -86,6 +87,7 @@ private:
     void RecordCommandBuffer(uint32_t swapchainImageIndex);
 
 private:
+    std::unique_ptr<CameraComp> cameraComp_uptr;
     std::unique_ptr<ModelDrawComp> modelDrawComp_uptr;
 
     std::unique_ptr<MipmapsGenerator> mipmapsGenerator_uptr;
@@ -97,10 +99,6 @@ private:
 
     std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;
     std::unique_ptr<PipelinesFactory> pipelinesFactory_uptr;
-
-    CameraBaseClass* camera_ptr;
-    ViewportFrustum cameraFrustum;
-    ViewportFrustum cullingFrustum;
 
     const uint32_t              swapchainImagesCount;
     const uint32_t              windowWidth;

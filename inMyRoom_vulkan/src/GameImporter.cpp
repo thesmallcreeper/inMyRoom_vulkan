@@ -28,8 +28,17 @@ GameImporter::GameImporter(Engine* in_engine_ptr, std::string gameConfig_path)
 
 void GameImporter::ImportGame()
 {
+    AddEmptyNode();
     AddImports();
+
+    AddDefaultCameraFab();
     AddFabs();
+}
+
+void GameImporter::AddEmptyNode()
+{
+    std::unique_ptr<Node> this_empty_node = std::make_unique<Node>();
+    imports_umap.emplace("_empty", std::move(this_empty_node));
 }
 
 void GameImporter::AddImports()
@@ -59,6 +68,29 @@ void GameImporter::AddImports()
         imports_umap.emplace(models_name[index], std::move(this_model_node));
     }
 
+}
+
+void GameImporter::AddDefaultCameraFab()
+{
+    auto search = imports_umap.find("_empty");
+    assert(search != imports_umap.end());
+
+    std::string default_camera_fab_name = "_defaultCamera";
+
+    std::unique_ptr<Node> default_camera_fab = std::make_unique<Node>(*search->second.get());
+    default_camera_fab->nodeName = default_camera_fab_name;
+
+    {
+        CompEntityInitMap this_map;
+        default_camera_fab->componentsAndInitMaps.emplace_back(static_cast<componentID>(componentIDenum::Camera), this_map);
+    }
+    {
+        CompEntityInitMap this_map;
+        this_map.intMap.emplace("freezed", false);
+        default_camera_fab->componentsAndInitMaps.emplace_back(static_cast<componentID>(componentIDenum::DefaultCameraInput), this_map);
+    }
+
+    fabs_umap.emplace(default_camera_fab_name, std::move(default_camera_fab));
 }
 
 void GameImporter::AddFabs()
@@ -111,7 +143,7 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
 
     for (tinygltf::Scene& this_gltf_scene : this_model.scenes)
     {
-        std::unique_ptr<Node> scene_node = std::make_unique<Node>();;
+        std::unique_ptr<Node> scene_node = std::make_unique<Node>();
 
         scene_node->nodeName = this_gltf_scene.name;
         assert(scene_node->nodeName != "");
@@ -205,21 +237,6 @@ tinygltf::Model GameImporter::LoadModel(std::string path)
     return std::move(model);
 }
 
-std::string GameImporter::GetFilePathExtension(const std::string& in_filePath)
-{
-    if (in_filePath.find_last_of(".") != std::string::npos)
-        return in_filePath.substr(in_filePath.find_last_of("."));
-    return "";
-}
-
-std::string GameImporter::GetFilePathFolder(const std::string& in_filePath)
-{
-    if (in_filePath.find_last_of("/") != std::string::npos)
-        return in_filePath.substr(0, in_filePath.find_last_of("/"));
-    else
-        return "";
-}
-
 CompEntityInitMap GameImporter::CreatePositionInfo(const tinygltf::Node& in_node)
 {
     PositionCompEntity targeted_positionCompEntity = PositionCompEntity::GetEmpty();
@@ -270,8 +287,25 @@ CompEntityInitMap GameImporter::CreatePositionInfo(const tinygltf::Node& in_node
     return return_compEntity;
 }
 
+std::string GameImporter::GetFilePathExtension(const std::string& in_filePath)
+{
+    if (in_filePath.find_last_of(".") != std::string::npos)
+        return in_filePath.substr(in_filePath.find_last_of("."));
+    return "";
+}
+
+std::string GameImporter::GetFilePathFolder(const std::string& in_filePath)
+{
+    if (in_filePath.find_last_of("/") != std::string::npos)
+        return in_filePath.substr(0, in_filePath.find_last_of("/"));
+    else
+        return "";
+}
+
 void GameImporter::InitializeGame()
 {
+    InitOneDefaultCameraAndBindIt();
+
     for (const configuru::Config& arrayIterator : gameConfig["init"]["toInit"].as_array())
     {
         std::string this_init_name = arrayIterator.as_string();
@@ -281,6 +315,13 @@ void GameImporter::InitializeGame()
 
         engine_ptr->GetECSwrapperPtr()->CompleteAddsAndRemoves();
     }
+}
+
+void GameImporter::InitOneDefaultCameraAndBindIt()
+{
+    Entity default_camera_entity = AddFabAndGetRoot("_defaultCamera", 0, "");
+    CameraComp* camera_comp_ptr = reinterpret_cast<CameraComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::Camera)));
+    camera_comp_ptr->BindCameraEntity(default_camera_entity);
 }
 
 Entity GameImporter::AddFabAndGetRoot(std::string fab_name, std::string parent_path, std::string preferred_name)

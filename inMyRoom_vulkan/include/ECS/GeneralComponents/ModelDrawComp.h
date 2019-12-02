@@ -5,6 +5,8 @@
 
 #include "ECS/ComponentsIDsEnum.h"
 
+
+
 class ModelDrawComp
     :public ComponentSparseBaseClass<ModelDrawCompEntity>
 {
@@ -14,7 +16,7 @@ public:
 
     void Update() override {};
     void FixedUpdate() override {};
-    void AsyncUpdate(/* to do */) override {};
+    void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
 
     std::vector<DrawRequest> DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr, FrustumCulling* frustemCulling_ptr) const;
 };

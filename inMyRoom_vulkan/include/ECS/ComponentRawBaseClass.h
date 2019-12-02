@@ -15,7 +15,7 @@ public:
 
 //  void Update() override;
 //  void FixedUpdate() override;
-//  void AsyncUpdate(/* to do */) override;
+//  void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
     
     void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                      // Component entity specific task at component memory layout level
     void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;          // Component entity specific task at component level

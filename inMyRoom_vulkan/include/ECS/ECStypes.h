@@ -31,6 +31,8 @@ struct CompEntityInitMap
     }
 };
 
+// used a lot in: Game Import
+
 struct Node
 {
     std::vector<std::pair<componentID, CompEntityInitMap>> componentsAndInitMaps;
@@ -58,4 +60,31 @@ struct Node
             children.emplace_back(std::make_unique<Node>(*this_child_node_ptr));
         }
     }
+};
+
+// used a lot in: InputManager
+
+enum class InputType
+{
+    MouseMove,
+
+    MoveForward,
+    MoveBackward,
+    MoveRight,
+    MoveLeft,
+    MoveUp,
+    MoveDown,
+
+    StopMovingForward,
+    StopMovingBackward,
+    StopMovingRight,
+    StopMovingLeft,
+    StopMovingUp,
+    StopMovingDown
+};
+
+struct InputMouse
+{
+    float x_axis;
+    float y_axis;
 };

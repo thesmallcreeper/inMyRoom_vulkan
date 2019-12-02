@@ -13,7 +13,6 @@
 #include "misc/rendering_surface_create_info.h"
 
 #include "WindowWithAsyncInput.h"
-#include "CameraBaseClass.h"
 
 class VulkanInit
 {

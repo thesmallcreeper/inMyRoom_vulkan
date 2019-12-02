@@ -1,0 +1,210 @@
+#include "ECS/GeneralCompEntities/DefaultCameraInputCompEntity.h"
+
+#include "ECS/GeneralComponents/DefaultCameraInputComp.h"
+#include "ECS/GeneralComponents/CameraComp.h"
+
+#include <glm/gtx/rotate_vector.hpp>
+
+DefaultCameraInputComp* DefaultCameraInputCompEntity::defaultCameraInputComp_ptr = nullptr;
+
+DefaultCameraInputCompEntity::DefaultCameraInputCompEntity(const Entity this_entity)
+    :thisEntity(this_entity)
+{
+}
+
+DefaultCameraInputCompEntity::~DefaultCameraInputCompEntity()
+{
+}
+
+DefaultCameraInputCompEntity DefaultCameraInputCompEntity::GetEmpty()
+{
+    DefaultCameraInputCompEntity this_defaultCameraInputCompEntity(0);
+    this_defaultCameraInputCompEntity.speed = defaultCameraInputComp_ptr->default_speed;
+
+    return this_defaultCameraInputCompEntity;
+}
+
+DefaultCameraInputCompEntity DefaultCameraInputCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+{
+    DefaultCameraInputCompEntity this_defaultCameraInputCompEntity(in_entity);
+
+    // "freezed",           isfreezed               = bool      
+    {
+        auto search = in_map.intMap.find("freezed");
+        assert(search != in_map.intMap.end());
+
+        bool this_bool = static_cast<bool>(search->second);
+        this_defaultCameraInputCompEntity.isFreezed = this_bool;
+    }
+
+    // "speed",             speed                   = float         (optional-default from config)
+    {
+        auto search = in_map.intMap.find("speed");
+        if (search != in_map.intMap.end())
+        {
+            float speed = search->second;
+            this_defaultCameraInputCompEntity.speed = speed;
+        }
+        else
+            this_defaultCameraInputCompEntity.speed = defaultCameraInputComp_ptr->default_speed;
+    }
+
+    // "GlobalPosition",    globalPosition          = vec4.xyz      (optional-default  0, 0, 0)
+    {
+        auto search = in_map.vec4Map.find("GlobalPosition");
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec3 globalPosition = glm::vec3(search->second.x, search->second.y, search->second.z);
+            this_defaultCameraInputCompEntity.globalPosition = globalPosition;
+        }
+    }
+
+    // "GlobalDirection",   globalDirection         = vec4.xyz      (optional-default  0, 0, 1)
+    {
+        auto search = in_map.vec4Map.find("GlobalDirection");
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec3 globalDirection = glm::vec3(search->second.x, search->second.y, search->second.z);
+            this_defaultCameraInputCompEntity.globalDirection = globalDirection;
+        }
+    }
+
+    // "UpDirection",       globalUp                = vec4.xyz      (optional-default  0,-1, 0)
+    {
+        auto search = in_map.vec4Map.find("UpDirection");
+        if (search != in_map.vec4Map.end())
+        {
+            glm::vec3 globalUp = glm::vec3(search->second.x, search->second.y, search->second.z);
+            this_defaultCameraInputCompEntity.globalDirection = globalUp;
+        }
+    }
+
+    return this_defaultCameraInputCompEntity;
+}
+
+void DefaultCameraInputCompEntity::Init()
+{
+}
+
+void DefaultCameraInputCompEntity::Update(CameraComp* const cameraComp_ptr, const std::chrono::duration<float> durationOfLastState)
+{
+    if (!isFreezed)
+    {
+        CalculateSnap(durationOfLastState);
+        CameraCompEntity* this_cameraCompEntity = reinterpret_cast<CameraCompEntity*>(cameraComp_ptr->GetComponentEntity(thisEntity));
+
+        this_cameraCompEntity->UpdateCameraViewMatrix(globalPosition,
+                                                      globalDirection,
+                                                      upDirection);
+    }
+}
+
+void DefaultCameraInputCompEntity::AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState)
+{
+    if (!isFreezed)
+    {
+        CalculateSnap(durationOfLastState);
+        switch (input_type)
+        {
+            case InputType::MouseMove:
+                {
+                    InputMouse* mouse_input = reinterpret_cast<InputMouse*>(struct_data);
+                    MoveCamera(mouse_input->x_axis, mouse_input->y_axis);
+                }
+                break;
+            case InputType::MoveForward:
+                movementState.movingForward = true;
+                break;
+            case InputType::MoveBackward:
+                movementState.movingBackward = true;
+                break;
+            case InputType::MoveRight:
+                movementState.movingRight = true;
+                break;
+            case InputType::MoveLeft:
+                movementState.movingLeft = true;
+                break;
+            case InputType::MoveUp:
+                movementState.movingUp = true;
+                break;
+            case InputType::MoveDown:
+                movementState.movingDown = true;
+                break;
+            case InputType::StopMovingForward:
+                movementState.movingForward = false;
+                break;
+            case InputType::StopMovingBackward:
+                movementState.movingBackward = false;
+                break;
+            case InputType::StopMovingRight:
+                movementState.movingRight = false;
+                break;
+            case InputType::StopMovingLeft:
+                movementState.movingLeft = false;
+                break;
+            case InputType::StopMovingUp:
+                movementState.movingUp = false;
+                break;
+            case InputType::StopMovingDown:
+                movementState.movingDown = false;
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void DefaultCameraInputCompEntity::Freeze()
+{
+    isFreezed = true;
+}
+
+void DefaultCameraInputCompEntity::Unfreeze()
+{
+    isFreezed = false;
+}
+
+void DefaultCameraInputCompEntity::MoveCamera(float xRotation_rads, float yRotation_rads)
+{
+    glm::vec3 new_global_direction = globalDirection;
+
+    new_global_direction = glm::rotate(new_global_direction, yRotation_rads, glm::normalize(glm::cross(new_global_direction, upDirection)));
+    {
+        const float minTheta = 0.01f * glm::half_pi<float>();
+        const float maxAbsDirectionY = glm::cos(minTheta);
+        const float minXZLength = glm::sin(minTheta);
+
+        glm::vec2 oldXZorientation(globalDirection.x, globalDirection.z);
+        glm::vec2 newXZorientation(new_global_direction.x, new_global_direction.z);
+
+        if (((glm::dot(oldXZorientation, newXZorientation) < 0.0f) || (glm::dot(oldXZorientation, newXZorientation) == 0.0f) || (glm::dot(oldXZorientation, newXZorientation) == -0.0f)
+             || (std::abs(new_global_direction.y) > maxAbsDirectionY)) && (std::abs(new_global_direction.y) > 0.5f))
+        {
+            glm::vec2 oldXZorientationNormalized = glm::normalize(oldXZorientation);
+            new_global_direction = glm::vec3(minXZLength * oldXZorientationNormalized.x, (globalDirection.y > 0.0f) ? maxAbsDirectionY : -maxAbsDirectionY, minXZLength* oldXZorientationNormalized.y);
+        }
+    }
+    new_global_direction = glm::rotate(new_global_direction, xRotation_rads, upDirection);
+
+    globalDirection = glm::normalize(new_global_direction);
+}
+
+void DefaultCameraInputCompEntity::CalculateSnap(const std::chrono::duration<float> durationOfCurrentState)
+{
+    glm::vec3 position_delta_vector(0.0f, 0.0f, 0.0f);
+
+    if (movementState.movingForward) position_delta_vector += globalDirection;
+    if (movementState.movingBackward) position_delta_vector -= globalDirection;
+
+    if (movementState.movingRight) position_delta_vector += glm::normalize(glm::cross(globalDirection, upDirection));
+    if (movementState.movingLeft) position_delta_vector -= glm::normalize(glm::cross(globalDirection, upDirection));
+
+    if (movementState.movingUp) position_delta_vector += upDirection;
+    if (movementState.movingDown) position_delta_vector -= upDirection;
+
+    if (position_delta_vector.x != 0.0 || position_delta_vector.y != 0.0 || position_delta_vector.z != 0.0)
+        position_delta_vector = durationOfCurrentState.count() * speed * glm::normalize(position_delta_vector);
+
+    globalPosition = globalPosition + position_delta_vector;
+}
+

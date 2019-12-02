@@ -8,7 +8,7 @@
 
 #include "misc/io.h"
 
-#include "CameraBaseClass.h"
+#include "ECS/ECStypes.h"
 
 enum eventInputIDenums
 {
@@ -18,15 +18,15 @@ enum eventInputIDenums
 	TOGGLE_CULLING_DEBUG
 };
 
+class Engine;
+
 class InputManager
 {
 public:
-    InputManager(configuru::Config& in_cfgFile);
+    InputManager(Engine* engine_ptr, configuru::Config& in_cfgFile);
     ~InputManager();
 
     std::vector<eventInputIDenums> GrabAndResetEventVector();
-
-    void BindPlayerInputFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr);
 
     void KeyPressed(Anvil::KeyID in_key);
     void KeyReleased(Anvil::KeyID in_key);
@@ -66,11 +66,7 @@ private:
     std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyPressed_umap;
     std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyReleased_umap;
 
-    CameraBaseClass* volatile camera_ptr = nullptr;
-
     std::vector<eventInputIDenums> eventVector;
-
-    std::mutex controlMutex;
 
     std::map<std::string, std::pair<std::function<void()>, std::function<void()>>> functionNameToFunction_map =
     {
@@ -101,4 +97,8 @@ private:
         {"UP", Anvil::KEY_ID_UP}, {"DOWN", Anvil::KEY_ID_DOWN},
         {"LEFT", Anvil::KEY_ID_LEFT}, {"RIGHT", Anvil::KEY_ID_RIGHT}
     };
+
+    Engine* engine_ptr;
+
+    std::mutex controlMutex;
 };

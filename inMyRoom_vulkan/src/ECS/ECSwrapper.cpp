@@ -82,35 +82,41 @@ void ECSwrapper::RemoveEntityAndChildrenFromAllComponentsAndDelete(Entity this_e
 
 void ECSwrapper::Update(bool complete_adds_and_removes)
 {
+    std::lock_guard<std::mutex> lock(controlMutex);
+
     for (auto& this_component : componentIDtoComponentBaseClass_map)
         if (this_component.second != nullptr)
             this_component.second->Update();
 
     if (complete_adds_and_removes)
-        CompleteAddsAndRemoves();
+        CompleteAddsAndRemovesUnsafe();
 }
 
-void ECSwrapper::FixedUpdate(bool complete_adds_and_removes)
+void ECSwrapper::FixedUpdate()
 {
+    std::lock_guard<std::mutex> lock(controlMutex);
+
     for (auto& this_component : componentIDtoComponentBaseClass_map)
         if (this_component.second != nullptr)
             this_component.second->FixedUpdate();
-
-    if (complete_adds_and_removes)
-        CompleteAddsAndRemoves();
 }
 
-void ECSwrapper::AsyncUpdate(bool complete_adds_and_removes)
+void ECSwrapper::AsyncInput(InputType input_type, void* struct_data)
 {
+    std::lock_guard<std::mutex> lock(controlMutex);
+
     for (auto& this_component : componentIDtoComponentBaseClass_map)
         if (this_component.second != nullptr)
-            this_component.second->AsyncUpdate();
-
-    if (complete_adds_and_removes)
-        CompleteAddsAndRemoves();
+            this_component.second->AsyncInput(input_type, struct_data);
 }
 
 void ECSwrapper::CompleteAddsAndRemoves()
+{
+    std::lock_guard<std::mutex> lock(controlMutex);
+    CompleteAddsAndRemovesUnsafe();
+}
+
+void ECSwrapper::CompleteAddsAndRemovesUnsafe()
 {
     for (auto& this_component : componentIDtoComponentBaseClass_map)
         if (this_component.second != nullptr)

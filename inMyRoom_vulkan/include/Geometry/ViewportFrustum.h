@@ -33,6 +33,8 @@ public:
 
     std::array<Plane, 6> GetWorldSpacePlanesOfFrustum() const;
 
+//    ViewportFrustum& operator = (const ViewportFrustum& t);
+
 private:
     glm::mat4x4 perspectiveMatrix;
     glm::mat4x4 viewMatrix;

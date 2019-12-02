@@ -4,6 +4,9 @@
 
 #include "glm/mat4x4.hpp"
 
+
+
+
 class NodeGlobalMatrixComp;
 
 class NodeGlobalMatrixCompEntity
@@ -24,9 +27,8 @@ public:
     */
     static NodeGlobalMatrixCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
 
-    void Update(class PositionComp* const positionComp_ptr);
-
     void Init();
+    void Update(class PositionComp* const positionComp_ptr);
 
 public: // data
     glm::mat4x4 globalMatrix = glm::mat4x4(1.f);

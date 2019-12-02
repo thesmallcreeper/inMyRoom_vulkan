@@ -1,7 +1,10 @@
 #include "InputManager.h"
 
-InputManager::InputManager(configuru::Config& in_cfgFile)
-    :cfgFile(in_cfgFile)
+#include "Engine.h"
+
+InputManager::InputManager(Engine* engine_ptr, configuru::Config& in_cfgFile)
+    :cfgFile(in_cfgFile),
+     engine_ptr(engine_ptr)
 {
     std::lock_guard<std::mutex> lock(controlMutex);
 
@@ -37,26 +40,6 @@ InputManager::~InputManager()
     eventVector.clear();
 }
 
-void InputManager::BindPlayerInputFreezeOldUnfreezeNew(CameraBaseClass* in_camera_ptr)
-{
-    std::lock_guard<std::mutex> lock(controlMutex);
-
-    if (camera_ptr)
-        camera_ptr->Freeze();
-
-    camera_ptr = in_camera_ptr;
-
-    forwardKeyIsPressed = false;
-    backwardKeyIsPressed = false;
-    rightKeyIsPressed = false;
-    leftKeyIsPressed = false;
-    upKeyIsPressed = false;
-    downKeyIsPressed = false;
-
-    if (camera_ptr)
-        camera_ptr->Unfreeze();
-}
-
 std::vector<eventInputIDenums> InputManager::GrabAndResetEventVector()
 {
     std::lock_guard<std::mutex> lock(controlMutex);
@@ -73,8 +56,11 @@ void InputManager::MouseMoved(const long xOffset, const long yOffset)
     float xRotation_rads = - xOffset * mouseSensitivity;
     float yRotation_rads = - yOffset * mouseSensitivity;
 
-    if (camera_ptr)
-        camera_ptr->MoveCamera(xRotation_rads, yRotation_rads);
+    InputMouse this_input_data;
+    this_input_data.x_axis = xRotation_rads;
+    this_input_data.y_axis = yRotation_rads;
+
+    engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::MouseMove, reinterpret_cast<void*>(&this_input_data));
 }
 
 void InputManager::KeyPressed(const Anvil::KeyID in_key)
@@ -105,54 +91,54 @@ void InputManager::AddToQueue(eventInputIDenums event)
 
 void InputManager::MoveForward()
 {
-    if (camera_ptr && !forwardKeyIsPressed)
+    if (!forwardKeyIsPressed)
     {
-        camera_ptr->MoveForward();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::MoveForward, nullptr);
         forwardKeyIsPressed = true;
     }
 }
 
 void InputManager::MoveBackward()
 {
-    if (camera_ptr && !backwardKeyIsPressed)
+    if (!backwardKeyIsPressed)
     {
-        camera_ptr->MoveBackward();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::MoveBackward, nullptr);
         backwardKeyIsPressed = true;
     }
 }
 
 void InputManager::MoveLeft()
 {
-    if (camera_ptr && !leftKeyIsPressed)
+    if (!leftKeyIsPressed)
     {
-        camera_ptr->MoveLeft();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::MoveLeft, nullptr);
         leftKeyIsPressed = true;
     }
 }
 
 void InputManager::MoveRight()
 {
-    if (camera_ptr && !rightKeyIsPressed)
+    if (!rightKeyIsPressed)
     {
-        camera_ptr->MoveRight();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::MoveRight, nullptr);
         rightKeyIsPressed = true;
     }
 }
 
 void InputManager::MoveUp()
 {
-    if (camera_ptr && !upKeyIsPressed)
+    if (!upKeyIsPressed)
     {
-        camera_ptr->MoveUp();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::MoveUp, nullptr);
         upKeyIsPressed = true;
     }
 }
 
 void InputManager::MoveDown()
 {
-    if (camera_ptr && !downKeyIsPressed)
+    if (!downKeyIsPressed)
     {
-        camera_ptr->MoveDown();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::MoveDown, nullptr);
         downKeyIsPressed = true;
     }
 }
@@ -160,54 +146,54 @@ void InputManager::MoveDown()
 
 void InputManager::StopMovingForward()
 {
-    if (camera_ptr && forwardKeyIsPressed)
+    if (forwardKeyIsPressed)
     {
-        camera_ptr->StopMovingForward();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::StopMovingForward, nullptr);
         forwardKeyIsPressed = false;
     }
 }
 
 void InputManager::StopMovingBackward()
 {
-    if (camera_ptr && backwardKeyIsPressed)
+    if (backwardKeyIsPressed)
     {
-        camera_ptr->StopMovingBackward();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::StopMovingBackward, nullptr);
         backwardKeyIsPressed = false;
     }
 }
 
 void InputManager::StopMovingLeft()
 {
-    if (camera_ptr && leftKeyIsPressed)
+    if (leftKeyIsPressed)
     {
-        camera_ptr->StopMovingLeft();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::StopMovingLeft, nullptr);
         leftKeyIsPressed = false;
     }
 }
 
 void InputManager::StopMovingRight()
 {
-    if (camera_ptr && rightKeyIsPressed)
+    if (rightKeyIsPressed)
     {
-        camera_ptr->StopMovingRight();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::StopMovingRight, nullptr);
         rightKeyIsPressed = false;
     }
 }
 
 void InputManager::StopMovingUp()
 {
-    if (camera_ptr && upKeyIsPressed)
+    if (upKeyIsPressed)
     {
-        camera_ptr->StopMovingUp();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::StopMovingUp, nullptr);
         upKeyIsPressed = false;
     }
 }
 
 void InputManager::StopMovingDown()
 {
-    if (camera_ptr && downKeyIsPressed)
+    if (downKeyIsPressed)
     {
-        camera_ptr->StopMovingDown();
+        engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::StopMovingDown, nullptr);
         downKeyIsPressed = false;
     }
 }

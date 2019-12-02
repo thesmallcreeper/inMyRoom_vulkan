@@ -24,10 +24,14 @@ public:
     Node* GetFabNode(std::string fab_node);
 private:
     void ImportGame();
+
+    void AddEmptyNode();
     void AddImports();
+    void AddDefaultCameraFab();
     void AddFabs();
 
     void InitializeGame();
+    void InitOneDefaultCameraAndBindIt();
 
     tinygltf::Model LoadModel(std::string path);
 

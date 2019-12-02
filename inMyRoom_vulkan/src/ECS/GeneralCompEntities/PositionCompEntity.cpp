@@ -16,9 +16,6 @@ PositionCompEntity::~PositionCompEntity()
 PositionCompEntity PositionCompEntity::GetEmpty()
 {
     PositionCompEntity this_positionCompEntity(0);
-    this_positionCompEntity.localScale = glm::vec3(1.f, 1.f, 1.f);
-    this_positionCompEntity.localRotation = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
-    this_positionCompEntity.localTranslation = glm::vec3(0.f, 0.f, 0.f);
 
     return this_positionCompEntity;
 }

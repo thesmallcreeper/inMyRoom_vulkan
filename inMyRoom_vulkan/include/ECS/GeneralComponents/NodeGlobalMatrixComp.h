@@ -5,6 +5,8 @@
 
 #include "ECS/ComponentsIDsEnum.h"
 
+
+
 class NodeGlobalMatrixComp :
     public ComponentRawBaseClass<NodeGlobalMatrixCompEntity>
 {
@@ -14,6 +16,6 @@ public:
 
     void Update() override;
     void FixedUpdate() override {};
-    void AsyncUpdate(/* to do */) override {};
+    void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
 };
 

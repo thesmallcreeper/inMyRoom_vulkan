@@ -36,10 +36,12 @@ void ViewportFrustum::UpdatePerspectiveMatrix(float fovy,
 }
 
 void ViewportFrustum::UpdateViewMatrix(glm::vec3 in_camera_position,
-                               glm::vec3 in_camera_looking_direction,
-                               glm::vec3 in_camera_up)
+                                       glm::vec3 in_camera_looking_direction,
+                                       glm::vec3 in_camera_up)
 {
-    viewMatrix = glm::lookAt(in_camera_position, in_camera_position + in_camera_looking_direction, in_camera_up);
+    viewMatrix = glm::lookAt(in_camera_position,
+                             in_camera_position + in_camera_looking_direction,
+                             in_camera_up);
 }
 
 std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
@@ -100,3 +102,10 @@ std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
 
     return planes;
 }
+
+//ViewportFrustum& ViewportFrustum::operator=(const ViewportFrustum& other)
+//{
+//    perspectiveMatrix = other.perspectiveMatrix;
+//    viewMatrix = other.viewMatrix;
+//    return *this;
+//}

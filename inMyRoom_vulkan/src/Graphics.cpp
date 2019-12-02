@@ -13,16 +13,6 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::
     windowWidth(windowWidth),
     windowHeight(windowHeight)
 {
-    cameraFrustum.UpdatePerspectiveMatrix(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
-                                          static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
-                                          cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
-                                          cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
-
-    cullingFrustum.UpdatePerspectiveMatrix(glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
-                                          static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
-                                          cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
-                                          cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
-
     printf("Initializing camera buffers\n");
     InitCameraBuffers();
     printf("Initializing camera descriptor set\n");
@@ -45,7 +35,6 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::
     InitMeshesTree();
     printf("Initializing graphics oriented components\n");\
     InitGraphicsComponents();
-
 }
 
 Graphics::~Graphics()
@@ -100,31 +89,29 @@ void Graphics::DrawFrame()
         anvil_assert(acquire_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
     }
 
+    // TODO: move waiting down
     while(Anvil::Vulkan::vkWaitForFences(device_ptr->get_device_vk(), 1, fence_last_submit_uptr->get_fence_ptr(), VK_TRUE, 1000 * 1000) == VK_TIMEOUT);
     fence_last_submit_uptr->reset();
 
-    camera_ptr->RefreshPublicVectors();     // Input-Main thread data sync
+    ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
 
     {
-        glm::vec3 camera_position = camera_ptr->cameraPosition;
-        glm::vec3 camera_looking_direction = camera_ptr->cameraLookingDirection;
-        glm::vec3 camera_up = camera_ptr->upVector;
-        cameraFrustum.UpdateViewMatrix(camera_position, camera_looking_direction, camera_up);
+        glm::mat4x4 camera_perspective_matrix = camera_viewport_frustum.GetPerspectiveMatrix();
+        perspectiveBuffer_uptrs[n_swapchain_image]->write(0,
+                                                          sizeof(glm::mat4x4),
+                                                          &camera_perspective_matrix,
+                                                          present_queue_ptr);
     }
+
 
     {
-        glm::vec3 camera_position = camera_ptr->cullingPosition;
-        glm::vec3 camera_looking_direction = camera_ptr->cullingLookingDirection;
-        glm::vec3 camera_up = camera_ptr->upVector;
-        cullingFrustum.UpdateViewMatrix(camera_position, camera_looking_direction, camera_up);
+        glm::mat4x4 camera_view_matrix = camera_viewport_frustum.GetViewMatrix();
+        cameraBuffer_uptrs[n_swapchain_image]->write(0,
+                                                     sizeof(glm::mat4x4),
+                                                     &camera_view_matrix,
+                                                     present_queue_ptr);
     }
 
-    glm::mat4x4 camera_matrix = cameraFrustum.GetViewMatrix();
-
-    cameraBuffer_uptrs[n_swapchain_image]->write(0,
-                                                 sizeof(glm::mat4x4),
-                                                 &camera_matrix,
-                                                 present_queue_ptr);
 
     RecordCommandBuffer(n_swapchain_image);
 
@@ -246,11 +233,18 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
                                   primitivesOfMeshes_uptr.get(),
                                   device_ptr);
 
-        FrustumCulling frustum_culling;
-        frustum_culling.SetFrustumPlanes(cullingFrustum.GetWorldSpacePlanesOfFrustum());
-        std::vector<DrawRequest> draw_requests = modelDrawComp_uptr->DrawUsingFrustumCull(meshesOfNodes_uptr.get(), &frustum_culling);
+        {
+            ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
+            FrustumCulling frustum_culling;
 
-        by_pipeline_drawer.AddDrawRequests(draw_requests);
+            frustum_culling.SetFrustumPlanes(camera_viewport_frustum.GetWorldSpacePlanesOfFrustum());
+
+            std::vector<DrawRequest> draw_requests = modelDrawComp_uptr->DrawUsingFrustumCull(meshesOfNodes_uptr.get(), &frustum_culling);
+
+            by_pipeline_drawer.AddDrawRequests(draw_requests);
+        }
+
+
 
         by_pipeline_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", lower_descriptor_sets);
 
@@ -307,16 +301,6 @@ void Graphics::InitCameraBuffers()
 
         allocator_ptr->add_buffer(perspectiveBuffer_uptrs[i].get(),
                                   required_feature_flags);
-    }
-
-    for(uint32_t i = 0; i < swapchainImagesCount; i++)
-    {
-        // Camera buffer is being updated every frame
-        glm::mat4x4 perspective_matrix = cameraFrustum.GetPerspectiveMatrix();
-
-        perspectiveBuffer_uptrs[i]->write(0,
-                                          sizeof(glm::mat4x4),
-                                          &perspective_matrix);
     }
 }
 
@@ -601,6 +585,13 @@ void Graphics::InitMeshesTree()
 
 void Graphics::InitGraphicsComponents()
 {
+    cameraComp_uptr = std::make_unique<CameraComp>(engine_ptr->GetECSwrapperPtr(),
+                                                   glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
+                                                   static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
+                                                   cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
+                                                   cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
+    engine_ptr->GetECSwrapperPtr()->AddComponent(cameraComp_uptr.get());
+
     modelDrawComp_uptr = std::make_unique<ModelDrawComp>(engine_ptr->GetECSwrapperPtr());
     engine_ptr->GetECSwrapperPtr()->AddComponent(modelDrawComp_uptr.get());
 }
@@ -646,7 +637,7 @@ void Graphics::EndModelsLoad()
             this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
             this_primitives_set_specs.useMaterial = true;
             this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
-            //  this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");  //   cannot for transparent shits
+        //  this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");  //   cannot for transparent shits
 
             primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), textureSubpassID);
 
@@ -658,13 +649,13 @@ void Graphics::EndModelsLoad()
     materialsOfPrimitives_uptr->FlashDevice();
 }
 
-void Graphics::BindCamera(CameraBaseClass* in_camera)
-{
-    camera_ptr = in_camera;
-}
-
 MeshesOfNodes* Graphics::GetMeshesOfNodesPtr()
 {
     assert(meshesOfNodes_uptr.get());
     return meshesOfNodes_uptr.get();
+}
+
+void Graphics::ToggleCullingDebugging()
+{
+    cameraComp_uptr->ToggleCullingDebugging();
 }

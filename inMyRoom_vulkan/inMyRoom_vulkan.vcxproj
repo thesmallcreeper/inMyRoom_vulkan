@@ -27,9 +27,13 @@
     <ClCompile Include="src\ECS\ECSwrapper.cpp" />
     <ClCompile Include="src\ECS\ExportedFunctions.cpp" />
     <ClCompile Include="src\ECS\EntitiesHandler.cpp" />
+    <ClCompile Include="src\ECS\GeneralCompEntities\CameraCompEntity.cpp" />
+    <ClCompile Include="src\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\PositionCompEntity.cpp" />
+    <ClCompile Include="src\ECS\GeneralComponents\CameraComp.cpp" />
+    <ClCompile Include="src\ECS\GeneralComponents\DefaultCameraInputComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\ModelDrawComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\NodeGlobalMatrixComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\PositionComp.cpp" />
@@ -47,10 +51,8 @@
     <ClCompile Include="src\Meshes\TexturesOfMaterials.cpp" />
     <ClCompile Include="src\MipmapsGenerator.cpp" />
     <ClCompile Include="src\InputManager.cpp" />
-    <ClCompile Include="src\CameraBaseClass.cpp" />
     <ClCompile Include="src\ShadersSetsFamiliesCache.cpp" />
     <ClCompile Include="src\PipelinesFactory.cpp" />
-    <ClCompile Include="src\NaiveCamera.cpp" />
     <ClCompile Include="src\VulkanInit.cpp" />
     <ClCompile Include="src\WindowWithAsyncInput.cpp" />
     <ClCompile Include="src\Engine.cpp" />
@@ -71,9 +73,13 @@
     <ClInclude Include="include\ECS\ECSwrapper.h" />
     <ClInclude Include="include\ECS\ExportedFunctions.h" />
     <ClInclude Include="include\ECS\EntitiesHandler.h" />
+    <ClInclude Include="include\ECS\GeneralCompEntities\CameraCompEntity.h" />
+    <ClInclude Include="include\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelDrawCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\PositionCompEntity.h" />
+    <ClInclude Include="include\ECS\GeneralComponents\CameraComp.h" />
+    <ClInclude Include="include\ECS\GeneralComponents\DefaultCameraInputComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\ModelDrawComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\NodeGlobalMatrixComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\PositionComp.h" />
@@ -95,8 +101,6 @@
     <ClInclude Include="include\hash_combine.h" />
     <ClInclude Include="include\ShadersSetsFamiliesCache.h" />
     <ClInclude Include="include\PipelinesFactory.h" />
-    <ClInclude Include="include\CameraBaseClass.h" />
-    <ClInclude Include="include\NaiveCamera.h" />
     <ClInclude Include="include\VulkanInit.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />

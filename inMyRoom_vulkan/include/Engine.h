@@ -11,7 +11,6 @@
 #include "ECS/ECSwrapper.h"
 #include "ExportedFunctionsConstructor.h"
 #include "InputManager.h"
-#include "CameraBaseClass.h"
 #include "VulkanInit.h"
 
 class Engine: public VulkanInit
@@ -20,9 +19,9 @@ public:
     Engine(configuru::Config& in_cfgFile);
     ~Engine();
 
-    Graphics* GetGraphicsPtr();
-    GameImporter* GetGameImporter();
-    ECSwrapper* GetECSwrapperPtr();
+    Graphics*       GetGraphicsPtr();
+    GameImporter*   GetGameImporter();
+    ECSwrapper*     GetECSwrapperPtr();
 
     void Run();
 
@@ -41,9 +40,7 @@ private: // data
     std::unique_ptr<ECSwrapper> ECSwrapper_uptr;
     std::unique_ptr<ExportedFunctionsConstructor> exportedFunctionsConstructor_uptr;
 
-    std::unique_ptr<CameraBaseClass> camera_uptr;
-
-    InputManager inputManager;
+    std::unique_ptr<InputManager> inputManager_uptr;
 
     volatile bool breakMainLoop;
 };
