@@ -52,6 +52,12 @@
     <Filter Include="Source Files\Geometry">
       <UniqueIdentifier>{ad0abb18-bd68-47a9-8dab-22c7323f6975}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Shaders">
+      <UniqueIdentifier>{4ab0fcf5-a4b2-4af9-b3f2-f1ceb86fa35b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\Mipmaps">
+      <UniqueIdentifier>{62bcfb90-a1cc-4477-9404-26e041dc4150}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -164,9 +170,6 @@
     </ClCompile>
     <ClCompile Include="src\ECS\GeneralComponents\CameraComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
-    </ClCompile>
-    <ClCompile Include="include\ECS\GeneralComponents\DefaultCameraInputComp.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.cpp">
       <Filter>Source Files\ECS\GeneralCompEntities</Filter>
@@ -319,14 +322,20 @@
     <None Include="config.cfg">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="shaders\zprepassShader_glsl.vert">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="shaders\generalShader_glsl.frag">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\Shaders</Filter>
     </None>
     <None Include="shaders\generalShader_glsl.vert">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\16bitTo8bit_glsl.frag">
+      <Filter>Resource Files\Shaders\Mipmaps</Filter>
+    </None>
+    <None Include="shaders\generalMipmap_glsl.comp">
+      <Filter>Resource Files\Shaders\Mipmaps</Filter>
+    </None>
+    <None Include="shaders\16bitTo8bit_glsl.vert">
+      <Filter>Resource Files\Shaders\Mipmaps</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -109,9 +109,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="config.cfg" />
+    <None Include="shaders\16bitTo8bit_glsl.frag" />
+    <None Include="shaders\16bitTo8bit_glsl.vert" />
+    <None Include="shaders\generalMipmap_glsl.comp" />
     <None Include="shaders\generalShader_glsl.frag" />
     <None Include="shaders\generalShader_glsl.vert" />
-    <None Include="shaders\zprepassShader_glsl.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
