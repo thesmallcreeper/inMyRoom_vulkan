@@ -121,6 +121,8 @@ void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
             componentEntitiesSparse.erase(componentEntitiesSparse.begin() + search->second);
             entitiesOfComponent_set.erase(this_entity);
             entityToIndexToVector_umap.erase(this_entity);
+
+            InformEntitiesHandlerAboutRemoval(this_entity);
         }
 
         componentEntitiesToRemove.clear();
@@ -159,6 +161,8 @@ void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
 
             entitiesOfComponent_set.emplace(this_entity);
             entityToIndexToVector_umap.emplace(this_entity, entity_index);
+
+            InformEntitiesHandlerAboutAddition(this_entity);
 
             componentEntitiesSparse[entity_index].Init();
         }

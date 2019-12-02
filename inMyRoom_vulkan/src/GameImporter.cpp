@@ -447,8 +447,8 @@ std::string GameImporter::NumberToString(size_t number)
     {
         if (number_uint8[i] != 0)
         {
-            return_string += 'A' + number_uint8[i] & 0x0F;
-            return_string += 'A' + (number_uint8[i] >> 4);
+            return_string += static_cast<char>((uint8_t)('A') + (number_uint8[i] >> 4));
+            return_string += static_cast<char>((uint8_t)('A') + (number_uint8[i] & 0x0F));
         }
     }
     return return_string;

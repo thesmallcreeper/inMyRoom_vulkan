@@ -49,7 +49,7 @@ private:
     std::string NumberToString(size_t number);
 
 private:    // data
-    size_t anonymousAddedFabsSoFar = 0;
+    size_t anonymousAddedFabsSoFar = 1;
 
     std::unordered_map<std::string, std::unique_ptr<Node>> imports_umap;
     std::unordered_map<std::string, std::unique_ptr<Node>> fabs_umap;
