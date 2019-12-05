@@ -33,6 +33,8 @@ private:
     void InitializeGame();
     void InitOneDefaultCameraAndBindIt();
 
+    void AddTweaksToNode(Node* node, const configuru::Config& compoents_properties);
+
     tinygltf::Model LoadModel(std::string path);
 
     std::unique_ptr<Node> ImportModel(std::string model_name, tinygltf::Model& this_model);
@@ -44,7 +46,9 @@ private:
     static std::string GetFilePathFolder(const std::string& in_fileName);
     static std::string GetFilePathExtension(const std::string& in_fileName);
 
-    static CompEntityInitMap CreatePositionInfo(const tinygltf::Node& in_node);
+    static CompEntityInitMap CreatePositionInitMap(const tinygltf::Node& in_node);
+
+    static Node* FindNodeInTree(Node* root_node, std::string path);
 
     std::string NumberToString(size_t number);
 

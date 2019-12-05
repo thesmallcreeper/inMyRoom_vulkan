@@ -46,6 +46,15 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
     return this_modelDrawCompEntity;
 }
 
+std::vector<std::pair<std::string, MapType>> ModelDrawCompEntity::GetComponentInitMapFields()
+{
+    std::vector<std::pair<std::string, MapType>> return_pair;
+    return_pair.emplace_back(std::make_pair("MeshIndex", MapType::int_type));
+    return_pair.emplace_back(std::make_pair("ShouldDraw", MapType::int_type));
+
+    return return_pair;
+}
+
 void ModelDrawCompEntity::DrawUsingFrustumCull(NodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr, MeshesOfNodes* meshesOfNodes_ptr, FrustumCulling* frustumCulling_ptr, std::vector<DrawRequest>& draw_requests) const
 {
     if (shouldDraw)

@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <utility>
 
 #include "ECS/ECStypes.h"
 
@@ -17,6 +18,8 @@ public:
     ComponentBaseClass(const componentID this_ID, const std::string this_name, ECSwrapper* const in_ecs_wrapper_ptr);
     virtual ~ComponentBaseClass();
     virtual void Deinit() = 0;
+
+    virtual std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() = 0;
 
     virtual void Update() = 0;
     virtual void FixedUpdate() = 0;
@@ -37,6 +40,8 @@ public:  // Only component entities should call that
     void InformEntitiesHandlerAboutRemoval(const Entity this_entity) const;
 
 protected:
+    std::vector<std::pair<std::string, MapType>> componentInitMapFields;
+
     ECSwrapper* const ecsWrapper_ptr;
     const componentID thisComponentID;
     const std::string thisComponentName;

@@ -13,11 +13,11 @@ typedef void* ComponentEntityPtr;
 
 struct CompEntityInitMap
 {
-    std::map<std::string, glm::vec4> vec4Map;
-    std::map<std::string, float> floatMap;
-    std::map<std::string, int> intMap;
-    std::map<std::string, std::string> stringMap;
-    std::map<std::string, Entity> entityMap;
+    std::map<std::string, glm::vec4> vec4Map;       // vec4_type
+    std::map<std::string, float> floatMap;          // float_type
+    std::map<std::string, int> intMap;              // int_type
+    std::map<std::string, std::string> stringMap;   // string_type
+    std::map<std::string, Entity> entityMap;        // entity_type
 
     CompEntityInitMap()
     {}
@@ -31,11 +31,22 @@ struct CompEntityInitMap
     }
 };
 
+enum class MapType
+{
+    vec4_type,
+    vec3_type,
+    vec2_type,
+    float_type,
+    int_type,
+    string_type,
+    entity_type
+};
+
 // used a lot in: Game Import
 
 struct Node
 {
-    std::vector<std::pair<componentID, CompEntityInitMap>> componentsAndInitMaps;
+    std::map<componentID, CompEntityInitMap> componentIDsToInitMaps;
     bool shouldAddNodeGlobalMatrixCompEntity = false;
 
     Entity latestEntity = 0;                // for fabs->Entities
@@ -48,7 +59,7 @@ struct Node
     {}
     Node(Node const& other)
     {
-        componentsAndInitMaps = other.componentsAndInitMaps;
+        componentIDsToInitMaps = other.componentIDsToInitMaps;
         shouldAddNodeGlobalMatrixCompEntity = other.shouldAddNodeGlobalMatrixCompEntity;
 
         latestEntity = other.latestEntity;

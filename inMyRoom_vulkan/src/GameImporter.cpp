@@ -82,12 +82,12 @@ void GameImporter::AddDefaultCameraFab()
 
     {
         CompEntityInitMap this_map;
-        default_camera_fab->componentsAndInitMaps.emplace_back(static_cast<componentID>(componentIDenum::Camera), this_map);
+        default_camera_fab->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Camera), this_map);
     }
     {
         CompEntityInitMap this_map;
         this_map.intMap.emplace("freezed", false);
-        default_camera_fab->componentsAndInitMaps.emplace_back(static_cast<componentID>(componentIDenum::DefaultCameraInput), this_map);
+        default_camera_fab->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::DefaultCameraInput), this_map);
     }
 
     fabs_umap.emplace(default_camera_fab_name, std::move(default_camera_fab));
@@ -95,15 +95,15 @@ void GameImporter::AddDefaultCameraFab()
 
 void GameImporter::AddFabs()
 {
-    for (const configuru::Config& arrayIterator : gameConfig["fabs"]["toFab"].as_array())
+    for (const configuru::Config& array_iterator : gameConfig["fabs"]["toFab"].as_array())
     {
-        std::string this_fab_name = arrayIterator.as_string();
+        std::string this_fab_name = array_iterator.as_string();
         std::string this_fab_import_path = gameConfig["fabs"][this_fab_name]["basedOn"].as_string();
 
         auto search = imports_umap.find(this_fab_import_path.substr(0, this_fab_import_path.find_first_of("/")));
         assert(search != imports_umap.end());
 
-        const Node* this_import_ptr = search->second.get();
+        Node* this_import_ptr = search->second.get();
 
         std::string rest_of_path;
         if (this_fab_import_path.find_first_of("/") != std::string::npos)
@@ -111,26 +111,24 @@ void GameImporter::AddFabs()
         else
             rest_of_path = "";
 
-        const Node* this_node = this_import_ptr;
-        while (rest_of_path.substr(0, rest_of_path.find_first_of("/")) != "")
-        {
-            std::string child_name = rest_of_path.substr(0, rest_of_path.find_first_of("/"));
-
-            auto search = std::find_if(this_node->children.begin(), this_node->children.end(), [child_name](const auto& child_uptr_ref) {return child_uptr_ref->nodeName == child_name; });
-            assert(search != this_node->children.end());
-
-            this_node = search->get();
-
-            if (rest_of_path.find_first_of("/") != std::string::npos)
-                rest_of_path = rest_of_path.substr(rest_of_path.find_first_of("/") + 1);
-            else
-                rest_of_path = "";
-        }
+        Node* this_node = FindNodeInTree(this_import_ptr, rest_of_path);
 
         std::unique_ptr<Node> this_fab = std::make_unique<Node>(*this_node);
         this_fab->nodeName = this_fab_name;
 
-        // TODO AddFabsProperties
+        // Tweaks
+        if (gameConfig["fabs"][this_fab_name].has_key("tweak"))
+        {
+            for (const configuru::Config& array_iterator : gameConfig["fabs"][this_fab_name]["tweak"]["toTweak"].as_array())
+            {
+                std::string this_tweak_name = array_iterator.as_string();
+                const configuru::Config& tweak_properties = gameConfig["fabs"][this_fab_name]["tweak"][this_tweak_name];
+
+                Node* this_tweaked_node = FindNodeInTree(this_fab.get(), tweak_properties["nodeName"].as_string());
+
+                AddTweaksToNode(this_tweaked_node, tweak_properties);
+            }
+        }
 
         fabs_umap.emplace(this_fab_name, std::move(this_fab));
     }
@@ -151,8 +149,9 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
         // Add position comp entity
         {
             CompEntityInitMap this_map;
-            scene_node->componentsAndInitMaps.emplace_back(static_cast<componentID>(componentIDenum::Position), this_map);
+            scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), this_map);
         }
+        // Add matrix comp
         scene_node->shouldAddNodeGlobalMatrixCompEntity = true;
 
         for (size_t this_gltf_scene_node_index : this_gltf_scene.nodes)
@@ -175,7 +174,7 @@ std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, t
 
     // Position component
     {
-        return_node_uptr->componentsAndInitMaps.emplace_back(std::make_pair(static_cast<componentID>(componentIDenum::Position), CreatePositionInfo(this_gltf_node)));
+        return_node_uptr->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), CreatePositionInitMap(this_gltf_node));
     }
 
     // Model draw component
@@ -184,7 +183,7 @@ std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, t
         CompEntityInitMap this_map;
         this_map.intMap["MeshIndex"] = this_gltf_node.mesh + static_cast<int>(engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(this_model));
 
-        return_node_uptr->componentsAndInitMaps.emplace_back(std::make_pair(static_cast<componentID>(componentIDenum::ModelDraw), this_map));
+        return_node_uptr->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::ModelDraw), this_map);
     }
 
     // NodeGlobalMatrixCompEntity is added on the spot (later)
@@ -237,7 +236,7 @@ tinygltf::Model GameImporter::LoadModel(std::string path)
     return std::move(model);
 }
 
-CompEntityInitMap GameImporter::CreatePositionInfo(const tinygltf::Node& in_node)
+CompEntityInitMap GameImporter::CreatePositionInitMap(const tinygltf::Node& in_node)
 {
     PositionCompEntity targeted_positionCompEntity = PositionCompEntity::GetEmpty();
 
@@ -324,6 +323,77 @@ void GameImporter::InitOneDefaultCameraAndBindIt()
     camera_comp_ptr->BindCameraEntity(default_camera_entity);
 }
 
+void GameImporter::AddTweaksToNode(Node* this_node, const configuru::Config& tweak_properties)
+{
+
+    for (const std::string component_name : engine_ptr->GetECSwrapperPtr()->GetComponentsNames())
+        if (tweak_properties["components"].has_key(component_name))
+        {
+            componentID this_componentID = engine_ptr->GetECSwrapperPtr()->GetComponentIDbyName(component_name);
+            ComponentBaseClass* this_component_ptr = engine_ptr->GetECSwrapperPtr()->GetComponentByID(this_componentID);
+
+            std::vector<std::pair<std::string, MapType>> this_component_init_map_fields = this_component_ptr->GetComponentInitMapFields();
+
+            for (const std::pair<std::string, MapType> this_field : this_component_init_map_fields)
+                if (tweak_properties["components"][component_name].has_key(this_field.first))
+                {
+                    this_node->componentIDsToInitMaps.try_emplace(this_componentID, CompEntityInitMap());
+
+                    switch (this_field.second)
+                    {
+                        case MapType::vec4_type:
+                        {
+                            const configuru::Config& this_array = tweak_properties["components"][component_name][this_field.first].as_array();
+                            glm::vec4 this_vec4 = glm::vec4(this_array[0].as_float(), this_array[1].as_float(), this_array[2].as_float(), this_array[3].as_float());
+
+                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[this_field.first] = this_vec4;
+                        }
+                        break;
+                        case MapType::vec3_type:
+                        {
+                            const configuru::Config& this_array = tweak_properties["components"][component_name][this_field.first].as_array();
+                            glm::vec4 this_vec4 = glm::vec4(this_array[0].as_float(), this_array[1].as_float(), this_array[2].as_float(), 0.f);
+
+                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[this_field.first] = this_vec4;
+                        }
+                        break;
+                        case MapType::vec2_type:
+                        {
+                            const configuru::Config& this_array = tweak_properties["components"][component_name][this_field.first].as_array();
+                            glm::vec4 this_vec4 = glm::vec4(this_array[0].as_float(), this_array[1].as_float(), 0.f, 0.f);
+
+                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[this_field.first] = this_vec4;
+                        }
+                        break;
+                        case MapType::float_type:
+                        {
+                            float this_float = tweak_properties["components"][component_name][this_field.first].as_float();
+                            this_node->componentIDsToInitMaps[this_componentID].floatMap[this_field.first] = this_float;
+                        }
+                        break;
+                        case MapType::int_type:
+                        {
+                            int this_int = tweak_properties["components"][component_name][this_field.first].as_integer<int>();
+                            this_node->componentIDsToInitMaps[this_componentID].intMap[this_field.first] = this_int;
+                        }
+                        break;
+                        case MapType::entity_type:
+                        {
+                            Entity this_entity = tweak_properties["components"][component_name][this_field.first].as_integer<Entity>();
+                            this_node->componentIDsToInitMaps[this_componentID].entityMap[this_field.first] = this_entity;
+                        }
+                        break;
+                        case MapType::string_type:
+                        {
+                            std::string this_string = tweak_properties["components"][component_name][this_field.first].as_string();
+                            this_node->componentIDsToInitMaps[this_componentID].stringMap[this_field.first] = this_string;
+                        }
+                        break;
+                    }
+                }
+        }
+}
+
 Entity GameImporter::AddFabAndGetRoot(std::string fab_name, std::string parent_path, std::string preferred_name)
 {
     Entity parent_entity = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->FindEntityByName(parent_path);
@@ -385,7 +455,7 @@ void GameImporter::AddNodeComponentsToECS(Entity parent_entity, Node* this_node)
     Entity this_entity = this_node->latestEntity;
 
     // Add fab's components
-    for (auto& this_component_initMap_pair : this_node->componentsAndInitMaps)
+    for (auto& this_component_initMap_pair : this_node->componentIDsToInitMaps)
     {
         engine_ptr->GetECSwrapperPtr()->GetComponentByID(this_component_initMap_pair.first)->AddComponentEntityByMap(this_entity, this_component_initMap_pair.second);
     }
@@ -419,20 +489,27 @@ Node* GameImporter::GetFabNode(std::string fab_node)
     else
         rest_of_path = "";
 
-    Node* this_node = this_root_node;
-    while (rest_of_path.substr(0, rest_of_path.find_first_of("/")) != "")
+    Node* requested_node = FindNodeInTree(this_root_node, rest_of_path);
+
+    return requested_node;
+}
+
+Node* GameImporter::FindNodeInTree(Node* root_node, std::string path)
+{
+    Node* this_node = root_node;
+    while (path.substr(0, path.find_first_of("/")) != "")
     {
-        std::string child_name = rest_of_path.substr(0, rest_of_path.find_first_of("/"));
+        std::string child_name = path.substr(0, path.find_first_of("/"));
 
         auto search = std::find_if(this_node->children.begin(), this_node->children.end(), [child_name](const auto& child_uptr_ref) {return child_uptr_ref->nodeName == child_name; });
         assert(search != this_node->children.end());
 
         this_node = search->get();
 
-        if (rest_of_path.find_first_of("/") != std::string::npos)
-            rest_of_path = rest_of_path.substr(rest_of_path.find_first_of("/") + 1);
+        if (path.find_first_of("/") != std::string::npos)
+            path = path.substr(path.find_first_of("/") + 1);
         else
-            rest_of_path = "";
+            path = "";
     }
 
     return this_node;

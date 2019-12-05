@@ -82,6 +82,18 @@ DefaultCameraInputCompEntity DefaultCameraInputCompEntity::CreateComponentEntity
     return this_defaultCameraInputCompEntity;
 }
 
+std::vector<std::pair<std::string, MapType>> DefaultCameraInputCompEntity::GetComponentInitMapFields()
+{
+    std::vector<std::pair<std::string, MapType>> return_pair;
+    return_pair.emplace_back(std::make_pair("freezed",          MapType::int_type));
+    return_pair.emplace_back(std::make_pair("speed",            MapType::float_type));
+    return_pair.emplace_back(std::make_pair("GlobalPosition",   MapType::vec3_type));
+    return_pair.emplace_back(std::make_pair("GlobalDirection",  MapType::vec3_type));
+    return_pair.emplace_back(std::make_pair("UpDirection",      MapType::vec3_type));
+
+    return return_pair;
+}
+
 void DefaultCameraInputCompEntity::Init()
 {
 }

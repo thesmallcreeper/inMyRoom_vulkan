@@ -19,6 +19,11 @@ CameraComp::~CameraComp()
 {
 }
 
+std::vector<std::pair<std::string, MapType>> CameraComp::GetComponentInitMapFields()
+{
+    return CameraCompEntity::GetComponentInitMapFields();
+}
+
 void CameraComp::Update()
 {
     for (CameraCompEntity& this_componentEntity : componentEntitiesSparse)

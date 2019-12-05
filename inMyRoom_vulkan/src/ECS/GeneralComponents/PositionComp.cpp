@@ -13,3 +13,8 @@ PositionComp::~PositionComp()
 {
     PositionCompEntity::positionComp_ptr = nullptr;
 }
+
+std::vector<std::pair<std::string, MapType>> PositionComp::GetComponentInitMapFields()
+{
+    return PositionCompEntity::GetComponentInitMapFields();
+}

@@ -86,6 +86,19 @@ NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::CreateComponentEntityByMa
     return this_nodeGlobalMatrixCompEntity;
 }
 
+std::vector<std::pair<std::string, MapType>> NodeGlobalMatrixCompEntity::GetComponentInitMapFields()
+{
+    std::vector<std::pair<std::string, MapType>> return_pair;
+    return_pair.emplace_back(std::make_pair("ParentEntity",     MapType::entity_type));
+    return_pair.emplace_back(std::make_pair("ParentName",       MapType::string_type));
+    return_pair.emplace_back(std::make_pair("MatrixColumn0",    MapType::vec4_type));
+    return_pair.emplace_back(std::make_pair("MatrixColumn1",    MapType::vec4_type));
+    return_pair.emplace_back(std::make_pair("MatrixColumn2",    MapType::vec4_type));
+    return_pair.emplace_back(std::make_pair("MatrixColumn3",    MapType::vec4_type));
+
+    return return_pair;
+}
+
 void NodeGlobalMatrixCompEntity::Update(PositionComp* const positionComp_ptr)
 {
     PositionCompEntity* current_position_componentEntity = reinterpret_cast<PositionCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));

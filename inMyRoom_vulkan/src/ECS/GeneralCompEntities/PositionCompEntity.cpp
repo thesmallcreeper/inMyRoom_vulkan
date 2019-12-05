@@ -53,15 +53,26 @@ PositionCompEntity PositionCompEntity::CreateComponentEntityByMap(const Entity i
     }
     // "GlobalTranslation", globalTranslation.xyz = vec4.xyz (optional)
     {
-        auto search = in_map.vec4Map.find("LocalTranslation");
+        auto search = in_map.vec4Map.find("GlobalTranslation");
         if(search != in_map.vec4Map.end())
         {
             glm::vec4 this_vec4 = search->second;
-            this_positionCompEntity.localTranslation = glm::vec3(this_vec4.x, this_vec4.y, this_vec4.z);
+            this_positionCompEntity.globalTranslation = glm::vec3(this_vec4.x, this_vec4.y, this_vec4.z);
         }
     }
     
     return this_positionCompEntity;
+}
+
+std::vector<std::pair<std::string, MapType>> PositionCompEntity::GetComponentInitMapFields()
+{
+    std::vector<std::pair<std::string, MapType>> return_pair;
+    return_pair.emplace_back(std::make_pair("LocalScale",        MapType::vec3_type));
+    return_pair.emplace_back(std::make_pair("LocalRotation",     MapType::vec4_type));
+    return_pair.emplace_back(std::make_pair("LocalTranslation",  MapType::vec3_type));
+    return_pair.emplace_back(std::make_pair("GlobalTranslation", MapType::vec3_type));
+
+    return return_pair;
 }
 
 void PositionCompEntity::LocalScale(const glm::vec3 in_scale)

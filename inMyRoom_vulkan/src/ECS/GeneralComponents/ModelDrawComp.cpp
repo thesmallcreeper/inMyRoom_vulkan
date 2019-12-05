@@ -14,6 +14,11 @@ ModelDrawComp::~ModelDrawComp()
     ModelDrawCompEntity::modelDrawComp_ptr = nullptr;
 }
 
+std::vector<std::pair<std::string, MapType>> ModelDrawComp::GetComponentInitMapFields()
+{
+    return ModelDrawCompEntity::GetComponentInitMapFields();
+}
+
 std::vector<DrawRequest> ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr, FrustumCulling* frustemCulling_ptr) const
 {
     componentID nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::NodeGlobalMatrix);

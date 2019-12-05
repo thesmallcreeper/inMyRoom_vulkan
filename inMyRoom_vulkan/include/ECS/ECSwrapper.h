@@ -22,10 +22,12 @@ public:
     ComponentBaseClass* GetComponentByID(componentID component_id);
     componentID         GetComponentIDbyName(std::string component_name);
 
+    std::vector<std::string> GetComponentsNames();
+
     void AddComponent(ComponentBaseClass* this_component_ptr);                                  // On runtime the very same Update function adds and removes components, entities.
     void AddComponentAndOwnership(std::unique_ptr<ComponentBaseClass> this_component_uptr);     // So no need for mutex(dangerous) or recursive_mutex(safe).
 
-    void RemoveEntityAndChildrenFromAllComponentsAndDelete(Entity this_entity); // todo
+    void RemoveEntityAndChildrenFromAllComponentsAndDelete(Entity this_entity);
 
     void Update(bool complete_adds_and_removes);
     void FixedUpdate();                                                                         // Forbidden to add or remove anything

@@ -15,6 +15,8 @@ public:
                float default_fovy, float default_aspect, float default_near, float default_far);
     ~CameraComp() override;
 
+    std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() override;
+
     void Update() override;
     void FixedUpdate() override {};
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};

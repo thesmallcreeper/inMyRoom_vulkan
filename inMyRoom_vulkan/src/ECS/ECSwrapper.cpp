@@ -43,6 +43,17 @@ componentID ECSwrapper::GetComponentIDbyName(std::string component_name)
     return search->second;
 }
 
+std::vector<std::string> ECSwrapper::GetComponentsNames()
+{
+    std::vector<std::string> return_vector;
+
+    for (auto& this_component : componentIDtoComponentBaseClass_map)
+        if (this_component.second != nullptr)
+            return_vector.emplace_back(this_component.second->GetComponentName());
+
+    return return_vector;
+}
+
 void ECSwrapper::AddComponent(ComponentBaseClass* this_component_ptr)
 {
     {

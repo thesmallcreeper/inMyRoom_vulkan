@@ -24,6 +24,7 @@ public:
         "GlobalTranslation",    globalTranslation.xyz   = vec4.xyz      (optional)
     */
     static PositionCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
+    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void LocalScale(const glm::vec3 in_scale);
     void LocalRotate(const glm::qua<float> in_rotation);
