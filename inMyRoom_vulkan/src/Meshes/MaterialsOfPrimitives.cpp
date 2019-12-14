@@ -10,61 +10,45 @@ MaterialsOfPrimitives::MaterialsOfPrimitives(TexturesOfMaterials* in_materialsTe
                                              Anvil::BaseDevice* const in_device_ptr)
     :
     texturesOfMaterials_ptr(in_materialsTextures_ptr),
-    device_ptr(in_device_ptr),
-    materialsSoFar(0)
+    device_ptr(in_device_ptr)
 {
 }
 
 void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
 {
-    if (!in_model.materials.empty())
+    assert(!hasBeenFlased);
+
+    for (const tinygltf::Material& this_material : in_model.materials)
     {
-        std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> dsg_create_infos_ptr;
+        ShadersSpecs this_materialShaderSpecs;
+        this_materialShaderSpecs.emptyDefinition.emplace_back("USE_MATERIAL");       
 
-        for (const tinygltf::Material& this_material : in_model.materials)
         {
-            ShadersSpecs this_materialShaderSpecs;
-            this_materialShaderSpecs.emptyDefinition.emplace_back("USE_MATERIAL");
+            MaterialParameters this_materialParameters;
 
-            std::vector<std::pair<VkDeviceSize, VkDeviceSize>> this_loop_uniform_bindings_temp;
-            std::vector<Anvil::DescriptorSet::CombinedImageSamplerBindingElement> this_loop_textures_bindings;
-
-            Anvil::DescriptorSetCreateInfoUniquePtr this_descriptorSetCreateInfo_ptr = Anvil::DescriptorSetCreateInfo::create();
-
-            size_t bindingCount = 0;
             {
-                VkDeviceSize uniform_offset_ptr = static_cast<VkDeviceSize>(localMaterialsFactorsBuffer.size());
-                VkDeviceSize uniform_size = 0;
+                auto search = this_material.values.find("baseColorFactor");
 
-                {
-                    auto search = this_material.values.find("baseColorFactor");
+                assert(search != this_material.values.end());
 
-                    assert(search != this_material.values.end());
+                tinygltf::ColorValue base_color_factors = search->second.ColorFactor();
+                glm::vec4 this_material_base_color_factors(static_cast<float>(base_color_factors[0]), 
+                                                           static_cast<float>(base_color_factors[1]), 
+                                                           static_cast<float>(base_color_factors[2]), 
+                                                           static_cast<float>(base_color_factors[3]));
 
-                    tinygltf::ColorValue base_color_factors = search->second.ColorFactor();
-
-                    glm::vec4 this_material_base_color_factors(static_cast<float>(base_color_factors[0]), static_cast<float>(base_color_factors[1]), static_cast<float>(base_color_factors[2]), static_cast<float>(base_color_factors[3]));
-
-
-                    std::copy(reinterpret_cast<unsigned char*>(&this_material_base_color_factors),
-                              reinterpret_cast<unsigned char*>(&this_material_base_color_factors) + sizeof(glm::vec4),
-                              std::back_inserter(localMaterialsFactorsBuffer));
-
-                    uniform_size += sizeof(glm::vec4);
-                }
-
-                this_descriptorSetCreateInfo_ptr->add_binding(static_cast<uint32_t>(bindingCount++),
-                                                              Anvil::DescriptorType::UNIFORM_BUFFER,
-                                                              1,
-                                                              Anvil::ShaderStageFlagBits::FRAGMENT_BIT);
-
-                std::pair<VkDeviceSize, VkDeviceSize> this_uniform_bind_temp(
-                    uniform_offset_ptr,
-                    uniform_size
-                );
-
-                this_loop_uniform_bindings_temp.emplace_back(this_uniform_bind_temp);
+                this_materialParameters.baseColorFactors = this_material_base_color_factors;
             }
+
+            std::copy(reinterpret_cast<unsigned char*>(&this_materialParameters),
+                      reinterpret_cast<unsigned char*>(&this_materialParameters) + sizeof(MaterialParameters),
+                      std::back_inserter(localMaterialsParametersBuffer));
+
+        }
+
+        {
+            MaterialMapsIndexes this_materialMapsIndexes;
+
             {
                 auto search = this_material.values.find("baseColorTexture");
 
@@ -72,81 +56,99 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
                 {
                     this_materialShaderSpecs.emptyDefinition.emplace_back("USE_BASE_COLOR_TEXTURE_TEXCOORD0");
 
-                    size_t this_baseColorTextureIndex = texturesOfMaterials_ptr->GetTextureIndexOffsetOfModel(in_model) + search->second.TextureIndex();
+                    uint32_t this_baseColorTextureIndex = static_cast<uint32_t>(search->second.TextureIndex() + texturesOfMaterials_ptr->GetTextureIndexOffsetOfModel(in_model));
+                   
+                    Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                                                                                               texturesOfMaterials_ptr->GetImageView(this_baseColorTextureIndex),
+                                                                                               texturesOfMaterials_ptr->GetSampler(this_baseColorTextureIndex));
 
-                    this_descriptorSetCreateInfo_ptr->add_binding(static_cast<uint32_t>(bindingCount++),
-                                                                  Anvil::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                                                                  1,
-                                                                  Anvil::ShaderStageFlagBits::FRAGMENT_BIT);
-
-                    // later use
-                    Anvil::DescriptorSet::CombinedImageSamplerBindingElement this_texture_bind(
-                        Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                        texturesOfMaterials_ptr->GetImageView(this_baseColorTextureIndex),
-                        texturesOfMaterials_ptr->GetSampler(this_baseColorTextureIndex)
-                    );
-
-                    this_loop_textures_bindings.emplace_back(this_texture_bind);
-                }
-            }
-            materialsShadersSpecs.emplace_back(this_materialShaderSpecs);
-
-            uniform_bindings_offset_and_size.emplace_back(std::move(this_loop_uniform_bindings_temp));
-            textures_bindings.emplace_back(std::move(this_loop_textures_bindings));
-
-            dsg_create_infos_ptr.emplace_back(std::move(this_descriptorSetCreateInfo_ptr));
+                    this_materialMapsIndexes.baseColor = static_cast<uint32_t>(texturesBindings.size());
+                    texturesBindings.emplace_back(this_texture_bind);
+                }   
+                materialsMapsIndexes.emplace_back(this_materialMapsIndexes);
+            }          
         }
 
-        materialsDescriptorSetGroup_uptr = Anvil::DescriptorSetGroup::create(device_ptr,
-                                                                             dsg_create_infos_ptr,
-                                                                             false); /* in_releaseable_sets */
+        materialsShadersSpecs.emplace_back(this_materialShaderSpecs);
     }
 
     modelToMaterialIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), materialsSoFar);
-
     materialsSoFar += in_model.materials.size();
 }
 
 void MaterialsOfPrimitives::FlashDevice()
 {
+    assert(!hasBeenFlased);
+
     // Create and flash the f buffer
-    materialsFactorsBuffer_uptr = CreateDeviceBufferForLocalBuffer(std::ref(localMaterialsFactorsBuffer), Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT, "Material factors");
+    materialsParametersBuffer_uptr = CreateDeviceBufferForLocalBuffer(localMaterialsParametersBuffer, Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT, "Material Parameters");
 
-    // Prepare uniform_bindings
-    for (auto& this_temp_vector : uniform_bindings_offset_and_size)
+    // DS creation
     {
-        std::vector<Anvil::DescriptorSet::UniformBufferBindingElement> this_loop_uniform_bindings;
-        for (auto& this_temp : this_temp_vector)
-        {
-            Anvil::DescriptorSet::UniformBufferBindingElement this_uniform_bind(
-                materialsFactorsBuffer_uptr.get(),
-                this_temp.first,
-                this_temp.second
-            );
-            this_loop_uniform_bindings.emplace_back(this_uniform_bind);
-        }
-        uniform_bindings.emplace_back(std::move(this_loop_uniform_bindings));
+        // Create description set
+
+        Anvil::DescriptorSetCreateInfoUniquePtr this_description_set_create_info_uptr = Anvil::DescriptorSetCreateInfo::create();
+
+        // Add uniform buffer binding (bind: 0)
+
+        this_description_set_create_info_uptr->add_binding(0 /*in_binding_index*/,
+                                                           Anvil::DescriptorType::UNIFORM_BUFFER,
+                                                           1 /*in_descriptor_array_size*/,
+                                                           Anvil::ShaderStageFlagBits::FRAGMENT_BIT);
+
+        // Add textures binding (bind: 1)
+
+        this_description_set_create_info_uptr->add_binding(1, /*in_binding_index*/
+                                                           Anvil::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                                                           static_cast<uint32_t>(texturesBindings.size()), /*in_descriptor_array_size*/
+                                                           Anvil::ShaderStageFlagBits::FRAGMENT_BIT);
+
+        // Create DescriptorSetGroup
+        std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> dsg_create_infos_uptrs;
+        dsg_create_infos_uptrs.emplace_back(std::move(this_description_set_create_info_uptr));
+
+        descriptorSetGroup_uptr = Anvil::DescriptorSetGroup::create(device_ptr,
+                                                                    dsg_create_infos_uptrs,
+                                                                    false);
     }
 
-    for (uint32_t set_index = 0; set_index < uniform_bindings.size(); set_index++)
+    // Bind materials parameters (to bind: 0)
     {
-        for (uint32_t binding_index = 0; binding_index < uniform_bindings[set_index].size(); binding_index++)
-        {
-            materialsDescriptorSetGroup_uptr->set_binding_item(set_index,
-                                                               binding_index,
-                                                               uniform_bindings[set_index][binding_index]);
-        }
+        Anvil::DescriptorSet::UniformBufferBindingElement this_uniform_bind(materialsParametersBuffer_uptr.get(),
+                                                                            0, /*in_start_offset*/
+                                                                            materialsParametersBuffer_uptr->get_create_info_ptr()->get_size());
+
+        descriptorSetGroup_uptr->set_binding_item(0, /*in_n_set*/
+                                                  0, /*in_binding_index*/
+                                                  this_uniform_bind);
     }
 
-    for (uint32_t set_index = 0; set_index < textures_bindings.size(); set_index++)
+    // Bind sampler+textures (to bind: 1)
     {
-        for (uint32_t binding_index = 0; binding_index < textures_bindings[set_index].size(); binding_index++)
-        {
-            materialsDescriptorSetGroup_uptr->set_binding_item(set_index,
-                                                               static_cast<Anvil::BindingIndex>(binding_index + uniform_bindings[set_index].size()),
-                                                               textures_bindings[set_index][binding_index]);
-        }
+        Anvil::BindingElementArrayRange array_range;
+        array_range.first = 0;
+        array_range.second = static_cast<uint32_t>(texturesBindings.size());
+
+        descriptorSetGroup_uptr->set_binding_array_items(0, /*in_n_set*/
+                                                         1, /*in_binding_index*/
+                                                         array_range,
+                                                         texturesBindings.data());
     }
+
+    // Complete shaders sets creation
+    InformShadersSpecsAboutRanges(texturesBindings.size(), materialsSoFar);
+
+    hasBeenFlased = true;
+}
+
+MaterialMapsIndexes MaterialsOfPrimitives::GetMaterialMapsIndexes(size_t in_material_index)
+{
+    return materialsMapsIndexes[in_material_index];
+}
+
+ShadersSpecs MaterialsOfPrimitives::GetShaderSpecsNeededForMaterial(size_t in_material_index)
+{
+    return materialsShadersSpecs[in_material_index];
 }
 
 size_t MaterialsOfPrimitives::GetMaterialIndexOffsetOfModel(const tinygltf::Model& in_model)
@@ -158,19 +160,18 @@ size_t MaterialsOfPrimitives::GetMaterialIndexOffsetOfModel(const tinygltf::Mode
     return search->second;
 }
 
-ShadersSpecs MaterialsOfPrimitives::GetShaderSpecsNeededForMaterial(size_t in_material_index)
+const Anvil::DescriptorSetCreateInfo* MaterialsOfPrimitives::GetDescriptorSetCreateInfoPtr()
 {
-    return materialsShadersSpecs[in_material_index];
+    assert(hasBeenFlased);
+
+    return descriptorSetGroup_uptr->get_descriptor_set_create_info(0);
 }
 
-const Anvil::DescriptorSetCreateInfo* MaterialsOfPrimitives::GetDescriptorSetCreateInfoPtr(size_t in_material_index)
+Anvil::DescriptorSet* MaterialsOfPrimitives::GetDescriptorSetPtr()
 {
-    return materialsDescriptorSetGroup_uptr->get_descriptor_set_create_info(static_cast<uint32_t>(in_material_index));
-}
+    assert(hasBeenFlased);
 
-Anvil::DescriptorSet* MaterialsOfPrimitives::GetDescriptorSetPtr(size_t in_material_index)
-{
-    return materialsDescriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(in_material_index));
+    return descriptorSetGroup_uptr->get_descriptor_set(0);
 }
 
 Anvil::BufferUniquePtr MaterialsOfPrimitives::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer, Anvil::BufferUsageFlagBits in_bufferusageflag, std::string buffers_name) const
@@ -182,18 +183,27 @@ Anvil::BufferUniquePtr MaterialsOfPrimitives::CreateDeviceBufferForLocalBuffer(c
                                                                     Anvil::BufferCreateFlagBits::NONE,
                                                                     in_bufferusageflag);
 
-    Anvil::BufferUniquePtr buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr));
+    Anvil::BufferUniquePtr buffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
 
-    buffer_ptr->set_name(buffers_name);
+    buffer_uptr->set_name(buffers_name);
 
     auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
 
-    allocator_ptr->add_buffer(buffer_ptr.get(),
+    allocator_ptr->add_buffer(buffer_uptr.get(),
                               Anvil::MemoryFeatureFlagBits::NONE);
 
-    buffer_ptr->write(0,
+    buffer_uptr->write(0,
                       in_localBuffer.size(),
                       in_localBuffer.data());
 
-    return std::move(buffer_ptr);
+    return std::move(buffer_uptr);
+}
+
+void MaterialsOfPrimitives::InformShadersSpecsAboutRanges(size_t textures_count, size_t materials_count)
+{
+    for (ShadersSpecs& this_shaders_specs : materialsShadersSpecs)
+    {
+        this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("MATERIALS_PARAMETERS_COUNT", static_cast<int32_t>(materials_count)));
+        this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("TEXTURES_COUNT", static_cast<int32_t>(materials_count)));
+    }
 }

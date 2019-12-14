@@ -33,11 +33,12 @@ PrimitivesOfMeshes::~PrimitivesOfMeshes()
 void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
                                       const tinygltf::Primitive& in_primitive)
 {
-    assert(hasBuffersBeenFlashed == false);
+    assert(hasBeenFlashed == false);
 
     PrimitiveGeneralInfo this_primitiveInitInfo;
     this_primitiveInitInfo.pipelineSpecs.drawMode = static_cast<glTFmode>(in_primitive.mode);
-    this_primitiveInitInfo.materialIndex = materialsOfPrimitives_ptr->GetMaterialIndexOffsetOfModel(in_model) + in_primitive.material;
+    this_primitiveInitInfo.materialIndex = in_primitive.material + materialsOfPrimitives_ptr->GetMaterialIndexOffsetOfModel(in_model);
+    this_primitiveInitInfo.materialMaps = materialsOfPrimitives_ptr->GetMaterialMapsIndexes(this_primitiveInitInfo.materialIndex);
 
     {
         const tinygltf::Accessor& this_accessor = in_model.accessors[in_primitive.indices];
@@ -158,7 +159,7 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
 
 void PrimitivesOfMeshes::FlashDevice()
 {
-    assert(hasBuffersBeenFlashed == false);
+    assert(hasBeenFlashed == false);
 
     if (!localIndexBuffer.empty())
         indexBuffer_uptr = CreateDeviceBufferForLocalBuffer(localIndexBuffer, Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT, "Index Buffer");
@@ -183,7 +184,7 @@ void PrimitivesOfMeshes::FlashDevice()
     localTexcoord1Buffer.clear();
     localColor0Buffer.clear();
 
-    hasBuffersBeenFlashed = true;
+    hasBeenFlashed = true;
 }
 
 size_t PrimitivesOfMeshes::GetPrimitivesCount()
@@ -205,11 +206,21 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
         GraphicsPipelineSpecs this_pipelineSpecs = this_primitivesGeneralInfo.pipelineSpecs;
 
         std::vector<PushConstantSpecs> this_push_constant_specs;
-        PushConstantSpecs modelMatrixPushConstant;
-        modelMatrixPushConstant.offset = 0;
-        modelMatrixPushConstant.size = sizeof(glm::mat4x4);
-        modelMatrixPushConstant.shader_flags = Anvil::ShaderStageFlagBits::VERTEX_BIT;
-        this_push_constant_specs.emplace_back(modelMatrixPushConstant);
+        {
+            PushConstantSpecs TRSmatrixPushConstant;
+            TRSmatrixPushConstant.offset = 0;
+            TRSmatrixPushConstant.size = 64;
+            TRSmatrixPushConstant.shader_flags = Anvil::ShaderStageFlagBits::VERTEX_BIT;
+            this_push_constant_specs.emplace_back(TRSmatrixPushConstant);
+        }
+        {
+            PushConstantSpecs materialPushConstant;
+            materialPushConstant.offset = 96;
+            materialPushConstant.size = 32;
+            materialPushConstant.shader_flags = Anvil::ShaderStageFlagBits::FRAGMENT_BIT;
+            this_push_constant_specs.emplace_back(materialPushConstant);
+        }
+
         this_pipelineSpecs.pushConstantSpecs = this_push_constant_specs;
 
         ShadersSpecs this_shaderSpecs = in_primitives_set_specs.shaderSpecs;
@@ -217,7 +228,7 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
         int32_t layout_location = 0;
         layout_location++; // position layout_location is 0
       
-        std::vector<const Anvil::DescriptorSetCreateInfo*> this_descriptorSetCreateInfos_ptrs = *in_lower_descriptorSetCreateInfos;
+        std::vector<const Anvil::DescriptorSetCreateInfo*> this_pipeline_creation_descriptorSetCreateInfos_ptrs = *in_lower_descriptorSetCreateInfos;
         if (in_primitives_set_specs.useMaterial)
         {
             if (this_primitivesGeneralInfo.normalBufferOffset != -1)
@@ -250,21 +261,23 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
                 this_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_COLOR0_LOCATION", layout_location++));
                 this_primitiveSpecificSetInfo.usesColor0Buffer = true;
             }
-
-            this_descriptorSetCreateInfos_ptrs.emplace_back(materialsOfPrimitives_ptr->GetDescriptorSetCreateInfoPtr(this_primitivesGeneralInfo.materialIndex));
-            this_primitiveSpecificSetInfo.materialDescriptorSet_ptr = materialsOfPrimitives_ptr->GetDescriptorSetPtr(this_primitivesGeneralInfo.materialIndex);
             
-            ShadersSpecs material_shader_specs = materialsOfPrimitives_ptr->GetShaderSpecsNeededForMaterial(this_primitivesGeneralInfo.materialIndex);
+            {
+                ShadersSpecs material_shader_specs = materialsOfPrimitives_ptr->GetShaderSpecsNeededForMaterial(this_primitivesGeneralInfo.materialIndex);
 
-            std::copy(
-                material_shader_specs.emptyDefinition.begin(),
-                material_shader_specs.emptyDefinition.end(),
-                std::back_inserter(this_shaderSpecs.emptyDefinition));
+                std::copy(
+                    material_shader_specs.emptyDefinition.begin(),
+                    material_shader_specs.emptyDefinition.end(),
+                    std::back_inserter(this_shaderSpecs.emptyDefinition));
 
-            std::copy(
-                material_shader_specs.definitionValuePairs.begin(),
-                material_shader_specs.definitionValuePairs.end(),
-                std::back_inserter(this_shaderSpecs.definitionValuePairs));
+                std::copy(
+                    material_shader_specs.definitionValuePairs.begin(),
+                    material_shader_specs.definitionValuePairs.end(),
+                    std::back_inserter(this_shaderSpecs.definitionValuePairs));
+            }
+
+            this_pipeline_creation_descriptorSetCreateInfos_ptrs.emplace_back(materialsOfPrimitives_ptr->GetDescriptorSetCreateInfoPtr());
+
         }
         else
         {
@@ -276,7 +289,7 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
         }
 
 
-        this_pipelineSpecs.descriptorSetsCreateInfo_ptrs = std::move(this_descriptorSetCreateInfos_ptrs);
+        this_pipelineSpecs.descriptorSetsCreateInfo_ptrs = std::move(this_pipeline_creation_descriptorSetCreateInfos_ptrs);
         this_pipelineSpecs.pipelineShaders = shadersSetsFamiliesCache_ptr->GetShadersSet(this_shaderSpecs);
 
         this_pipelineSpecs.depthCompare = in_primitives_set_specs.depthCompare;
@@ -287,9 +300,9 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
         Anvil::PipelineID this_pipelineID = pipelinesFactory_ptr->GetGraphicsPipelineID(this_pipelineSpecs);
 
         this_primitiveSpecificSetInfo.vkGraphicsPipeline = pipelinesFactory_ptr->GetPipelineVkHandle(Anvil::PipelineBindPoint::GRAPHICS,
-                                                                                                          this_pipelineID);
+                                                                                                     this_pipelineID);
         this_primitiveSpecificSetInfo.pipelineLayout_ptr = pipelinesFactory_ptr->GetPipelineLayout(Anvil::PipelineBindPoint::GRAPHICS, 
-                                                                                                        this_pipelineID);
+                                                                                                   this_pipelineID);
 
         this_set_primitiveSpecificSetInfo.emplace_back(this_primitiveSpecificSetInfo);
     }
@@ -454,18 +467,18 @@ Anvil::BufferUniquePtr PrimitivesOfMeshes::CreateDeviceBufferForLocalBuffer(cons
                                                                     Anvil::BufferCreateFlagBits::NONE,
                                                                     in_bufferusageflag);
 
-    Anvil::BufferUniquePtr buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr));
+    Anvil::BufferUniquePtr buffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
 
-    buffer_ptr->set_name(buffers_name);
+    buffer_uptr->set_name(buffers_name);
 
-    auto allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
+    auto allocator_uptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
 
-    allocator_ptr->add_buffer(buffer_ptr.get(),
+    allocator_uptr->add_buffer(buffer_uptr.get(),
                               Anvil::MemoryFeatureFlagBits::NONE);
 
-    buffer_ptr->write(0,
+    buffer_uptr->write(0,
                       in_localBuffer.size(),
                       in_localBuffer.data());
 
-    return std::move(buffer_ptr);
+    return std::move(buffer_uptr);
 }

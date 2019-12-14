@@ -25,6 +25,7 @@ struct PrimitiveGeneralInfo
     VkDeviceSize color0BufferOffset = -1;
     GraphicsPipelineSpecs pipelineSpecs;
     size_t materialIndex = -1;
+    MaterialMapsIndexes materialMaps;
 };
 
 struct PrimitiveSpecificSetInfo
@@ -34,7 +35,6 @@ struct PrimitiveSpecificSetInfo
     bool usesTexcoord0Buffer = false;
     bool usesTexcoord1Buffer = false;
     bool usesColor0Buffer = false;
-    Anvil::DescriptorSet* materialDescriptorSet_ptr = nullptr;
     VkPipeline vkGraphicsPipeline;
     Anvil::PipelineLayout* pipelineLayout_ptr;
 };
@@ -124,8 +124,6 @@ private: // data
     MaterialsOfPrimitives* materialsOfPrimitives_ptr;
 
     Anvil::BaseDevice* const device_ptr;
-    bool hasBuffersBeenFlashed = false;
-
-    Anvil::MemoryAllocatorUniquePtr allocator_ptr;
+    bool hasBeenFlashed = false;
 };
 

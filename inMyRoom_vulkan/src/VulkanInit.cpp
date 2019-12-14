@@ -60,9 +60,7 @@ void VulkanInit::InitVulkan()
 
         /* Determine which extensions we need to request for */
         Anvil::DeviceExtensionConfiguration vk_extensions;
-#ifdef ENABLE_VALIDATION
-        vk_extensions.extension_status[VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME] = Anvil::ExtensionAvailability::ENABLE_IF_AVAILABLE;
-#endif
+        vk_extensions.extension_status[VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME] = Anvil::ExtensionAvailability::REQUIRE;
         /* Create a Vulkan device */
 
         auto create_info_ptr = Anvil::DeviceCreateInfo::create_sgpu(instance_uptr->get_physical_device(0),

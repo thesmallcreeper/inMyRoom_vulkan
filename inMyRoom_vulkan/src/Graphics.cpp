@@ -239,7 +239,7 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
 
         std::vector<Anvil::DescriptorSet*> lower_descriptor_sets;
         lower_descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
-
+        lower_descriptor_sets.emplace_back(materialsOfPrimitives_uptr->GetDescriptorSetPtr());
 
         Drawer by_pipeline_drawer(sorting::by_pipeline,
                                   "Texture-Pass",
@@ -637,6 +637,10 @@ void Graphics::EndModelsLoad()
     imagesAboutOfTextures_uptr.reset();
     mipmapsGenerator_uptr.reset();
 
+    //Flashing device
+    primitivesOfMeshes_uptr->FlashDevice();
+    materialsOfPrimitives_uptr->FlashDevice();
+
     // Create primitives sets (shaders-pipelines for each kind of primitive)
     {
         std::vector<const Anvil::DescriptorSetCreateInfo*> low_descriptor_sets_create_infos;
@@ -656,10 +660,6 @@ void Graphics::EndModelsLoad()
 
         }
     }
-
-    //Flashing device
-    primitivesOfMeshes_uptr->FlashDevice();
-    materialsOfPrimitives_uptr->FlashDevice();
 }
 
 MeshesOfNodes* Graphics::GetMeshesOfNodesPtr()

@@ -38,28 +38,32 @@ layout( location = 2 ) out vec2 vert_texcoord1;
 layout( location = 3 ) out vec4 vert_color0;
 #endif
 
-layout (push_constant) uniform PC
+// Push constants (0 byte->63 byte)
+
+layout (push_constant) uniform PushConstants
 {
-    mat4 TRSMatrix;
+     layout(offset = 0) mat4 TRSmatrix;
 };
 
-layout( set = 0 , binding = 0 ) uniform UB0_0
+// Descriptor Sets
+
+layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
 {
-    mat4 ProjectionMatrix;
+    mat4 projectionMatrix;
 };
 
-layout( set = 0 , binding = 1 ) uniform UB0_1
+layout( set = 0 , binding = 1 ) uniform cameraMatrixBuffer
 {
-    mat4 CameraMatrix;
+    mat4 cameraMatrix;
 };
 
 
 void main()
 {
-    vec4 position = CameraMatrix * TRSMatrix * app_position;
+    vec4 position = cameraMatrix * TRSmatrix * app_position;
     
     
-    gl_Position = ProjectionMatrix * position;
+    gl_Position = projectionMatrix * position;
     
     vert_position = position.xyz;
     

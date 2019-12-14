@@ -104,8 +104,6 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
 
     {
         std::vector<Anvil::DescriptorSet*> descriptor_sets_ptrs = in_low_descriptor_sets_ptrs;
-        if (this_primitiveSpecificSetInfo.materialDescriptorSet_ptr != nullptr)
-            descriptor_sets_ptrs.emplace_back(this_primitiveSpecificSetInfo.materialDescriptorSet_ptr);
 
         if (descriptor_sets_ptrs != ref_command_buffer_state.descriptor_sets_ptrs)
         {
@@ -125,15 +123,38 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
     {
         if (in_draw_request.objectID != ref_command_buffer_state.objectID)
         {
-            in_cmd_buffer_ptr->record_push_constants(this_primitiveSpecificSetInfo.pipelineLayout_ptr,
-                                                     Anvil::ShaderStageFlagBits::VERTEX_BIT,
-                                                     0,                                            /*in_offset*/
-                                                     static_cast<uint32_t>(sizeof(float) * 4 * 4), /*in_size*/
-                                                     &in_draw_request.TRSmatrix);                  /*in_data*/
+            {
+                in_cmd_buffer_ptr->record_push_constants(this_primitiveSpecificSetInfo.pipelineLayout_ptr,
+                                                         Anvil::ShaderStageFlagBits::VERTEX_BIT,
+                                                         0,                                            /*in_offset*/
+                                                         static_cast<uint32_t>(sizeof(glm::mat4)),     /*in_size*/
+                                                         &in_draw_request.TRSmatrix);                  /*in_data*/
+            }
 
-            ref_command_buffer_state.objectID = in_draw_request.objectID;
+            
+            {
+                struct  // 32 byte
+                {
+                    uint32_t materialIndex;             // 4  byte
+                    MaterialMapsIndexes materialMaps;   // 24 byte
+                    uint32_t alignment = 0;             // 4  byte
+                } data;
+
+                data.materialIndex = this_primitiveGeneralInfo.materialIndex;
+                data.materialMaps = this_primitiveGeneralInfo.materialMaps;
+
+                in_cmd_buffer_ptr->record_push_constants(this_primitiveSpecificSetInfo.pipelineLayout_ptr,
+                                                         Anvil::ShaderStageFlagBits::FRAGMENT_BIT,
+                                                         96,                                                  /*in_offset*/
+                                                         static_cast<uint32_t>(sizeof(data)),                 /*in_size*/
+                                                         &data);                                              /*in_data*/
+
+                ref_command_buffer_state.objectID = in_draw_request.objectID;
+            }
+
         }
     }
+
 
     uint32_t first_index;
 
