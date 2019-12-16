@@ -55,7 +55,12 @@ std::vector<std::pair<std::string, MapType>> ModelDrawCompEntity::GetComponentIn
     return return_pair;
 }
 
-void ModelDrawCompEntity::DrawUsingFrustumCull(NodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr, MeshesOfNodes* meshesOfNodes_ptr, FrustumCulling* frustumCulling_ptr, std::vector<DrawRequest>& draw_requests) const
+void ModelDrawCompEntity::DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
+                                               MeshesOfNodes* meshesOfNodes_ptr,
+                                               PrimitivesOfMeshes* primitivesOfMeshes_ptr,
+                                               FrustumCulling* frustumCulling_ptr,
+                                               std::vector<DrawRequest>& opaque_draw_requests,
+                                               std::vector<DrawRequest>& transparent_draw_requests) const
 {
     if (shouldDraw)
     {
@@ -75,7 +80,10 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(NodeGlobalMatrixComp* nodeGlobalM
                 this_draw_request.objectID = thisEntity;
                 this_draw_request.TRSmatrix = this_global_matrix;
 
-                draw_requests.emplace_back(this_draw_request);
+                if (primitivesOfMeshes_ptr->IsPrimitiveTransparent(primitive_index))
+                    transparent_draw_requests.emplace_back(this_draw_request);                   
+                else
+                    opaque_draw_requests.emplace_back(this_draw_request);
             }
     }
 }

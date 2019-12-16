@@ -30,6 +30,12 @@ struct MaterialMapsIndexes
     uint32_t emissive = -1;
 };
 
+struct MaterialAbout
+{
+    bool twoSided;
+    bool transparent;
+};
+
 class MaterialsOfPrimitives
 {
 public: // functions
@@ -44,6 +50,8 @@ public: // functions
     MaterialMapsIndexes GetMaterialMapsIndexes(size_t in_material_index);
 
     ShadersSpecs GetShaderSpecsNeededForMaterial(size_t in_material_index);
+
+    MaterialAbout GetMaterialAbout(size_t in_material_index);
 
     const Anvil::DescriptorSetCreateInfo* GetDescriptorSetCreateInfoPtr();
     Anvil::DescriptorSet* GetDescriptorSetPtr();
@@ -61,6 +69,8 @@ private: // data
     std::vector<MaterialMapsIndexes> materialsMapsIndexes;
 
     std::vector<ShadersSpecs> materialsShadersSpecs;
+
+    std::vector<MaterialAbout> materialsAbout;
 
     // set: 0, bind: 0, UBO with material parameters
     // set: 0, bind: 1, array Sampler+Image

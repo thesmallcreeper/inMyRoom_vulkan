@@ -92,12 +92,16 @@ ShadersSet ShadersSetsFamiliesCache::CreateShadersSet(ShadersSpecs in_shaderSpec
                                                                     Anvil::ShaderStage::FRAGMENT);
 
 
-        for (const auto& thisEmptyDefinition : in_shaderSpecs.emptyDefinition)
-            shader_ptr->add_empty_definition(thisEmptyDefinition);
+        for (const auto& this_emptyDefinition : in_shaderSpecs.emptyDefinition)
+            shader_ptr->add_empty_definition(this_emptyDefinition);
 
-        for (const auto& thisDefinitionValuePair : in_shaderSpecs.definitionValuePairs)
-            shader_ptr->add_definition_value_pair(thisDefinitionValuePair.first,
-                                                  thisDefinitionValuePair.second);
+        for (const auto& this_definitionValuePair : in_shaderSpecs.definitionValuePairs)
+            shader_ptr->add_definition_value_pair(this_definitionValuePair.first,
+                                                  this_definitionValuePair.second);
+
+        for (const auto& this_definitionStringPair : in_shaderSpecs.definitionStringPairs)
+            shader_ptr->add_definition_value_pair(this_definitionStringPair.first,
+                                                  this_definitionStringPair.second);
 
         auto module_ptr = Anvil::ShaderModule::create_from_spirv_generator(device_ptr,
                                                                            shader_ptr.get());
@@ -126,6 +130,9 @@ ShadersSet ShadersSetsFamiliesCache::CreateShadersSet(ShadersSpecs in_shaderSpec
         for (const auto& thisDefinitionValuePair : in_shaderSpecs.definitionValuePairs)
             shader_ptr->add_definition_value_pair(thisDefinitionValuePair.first,
                                                   thisDefinitionValuePair.second);
+        for (const auto& this_definitionStringPair : in_shaderSpecs.definitionStringPairs)
+            shader_ptr->add_definition_value_pair(this_definitionStringPair.first,
+                                                  this_definitionStringPair.second);
 
         auto module_ptr = Anvil::ShaderModule::create_from_spirv_generator(device_ptr,
                                                                            shader_ptr.get());
@@ -154,6 +161,9 @@ ShadersSet ShadersSetsFamiliesCache::CreateShadersSet(ShadersSpecs in_shaderSpec
         for (const auto& thisDefinitionValuePair : in_shaderSpecs.definitionValuePairs)
             shader_ptr->add_definition_value_pair(thisDefinitionValuePair.first,
                                                   thisDefinitionValuePair.second);
+        for (const auto& this_definitionStringPair : in_shaderSpecs.definitionStringPairs)
+            shader_ptr->add_definition_value_pair(this_definitionStringPair.first,
+                                                  this_definitionStringPair.second);
 
         auto module_ptr = Anvil::ShaderModule::create_from_spirv_generator(device_ptr,
                                                                            shader_ptr.get());
@@ -182,6 +192,9 @@ ShadersSet ShadersSetsFamiliesCache::CreateShadersSet(ShadersSpecs in_shaderSpec
         for (const auto& thisDefinitionValuePair : in_shaderSpecs.definitionValuePairs)
             shader_ptr->add_definition_value_pair(thisDefinitionValuePair.first,
                                                   thisDefinitionValuePair.second);
+        for (const auto& this_definitionStringPair : in_shaderSpecs.definitionStringPairs)
+            shader_ptr->add_definition_value_pair(this_definitionStringPair.first,
+                                                  this_definitionStringPair.second);
 
         auto module_ptr = Anvil::ShaderModule::create_from_spirv_generator(device_ptr,
                                                                            shader_ptr.get());
@@ -210,6 +223,9 @@ ShadersSet ShadersSetsFamiliesCache::CreateShadersSet(ShadersSpecs in_shaderSpec
         for (const auto& thisDefinitionValuePair : in_shaderSpecs.definitionValuePairs)
             shader_ptr->add_definition_value_pair(thisDefinitionValuePair.first,
                                                   thisDefinitionValuePair.second);
+        for (const auto& this_definitionStringPair : in_shaderSpecs.definitionStringPairs)
+            shader_ptr->add_definition_value_pair(this_definitionStringPair.first,
+                                                  this_definitionStringPair.second);
 
         auto module_ptr = Anvil::ShaderModule::create_from_spirv_generator(device_ptr,
                                                                            shader_ptr.get());
@@ -239,6 +255,9 @@ ShadersSet ShadersSetsFamiliesCache::CreateShadersSet(ShadersSpecs in_shaderSpec
         for (const auto& thisDefinitionValuePair : in_shaderSpecs.definitionValuePairs)
             shader_ptr->add_definition_value_pair(thisDefinitionValuePair.first,
                                                   thisDefinitionValuePair.second);
+        for (const auto& this_definitionStringPair : in_shaderSpecs.definitionStringPairs)
+            shader_ptr->add_definition_value_pair(this_definitionStringPair.first,
+                                                  this_definitionStringPair.second);
 
         auto module_ptr = Anvil::ShaderModule::create_from_spirv_generator(device_ptr,
                                                                            shader_ptr.get());

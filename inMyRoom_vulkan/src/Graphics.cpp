@@ -237,12 +237,11 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
                                                  renderpass_uptr.get(),
                                                  Anvil::SubpassContents::INLINE);
 
-        std::vector<Anvil::DescriptorSet*> lower_descriptor_sets;
-        lower_descriptor_sets.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex));
-        lower_descriptor_sets.emplace_back(materialsOfPrimitives_uptr->GetDescriptorSetPtr());
+        Drawer opaque_drawer("Texture-Pass",
+                             primitivesOfMeshes_uptr.get(),
+                             device_ptr);
 
-        Drawer by_pipeline_drawer(sorting::by_pipeline,
-                                  "Texture-Pass",
+        Drawer transparent_drawer("Texture-Pass",
                                   primitivesOfMeshes_uptr.get(),
                                   device_ptr);
 
@@ -252,14 +251,22 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
 
             frustum_culling.SetFrustumPlanes(camera_viewport_frustum.GetWorldSpacePlanesOfFrustum());
 
-            std::vector<DrawRequest> draw_requests = modelDrawComp_uptr->DrawUsingFrustumCull(meshesOfNodes_uptr.get(), &frustum_culling);
+            DrawRequestsBatch draw_requests = modelDrawComp_uptr->DrawUsingFrustumCull(meshesOfNodes_uptr.get(), primitivesOfMeshes_uptr.get(), &frustum_culling);
 
-            by_pipeline_drawer.AddDrawRequests(draw_requests);
+            opaque_drawer.AddDrawRequests(draw_requests.opaqueDrawRequests);
+            transparent_drawer.AddDrawRequests(draw_requests.transparentDrawRequests);
         }
 
+        {
+            DescriptorSetsPtrsCollection this_description_set_collection;
+            this_description_set_collection.camera_description_set_ptr = cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex);
+            this_description_set_collection.materials_description_set_ptr = materialsOfPrimitives_uptr->GetDescriptorSetPtr();
 
+            opaque_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", this_description_set_collection);
+            transparent_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", this_description_set_collection);
+        }
 
-        by_pipeline_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", lower_descriptor_sets);
+       
 
         cmd_buffer_ptr->record_end_render_pass();
     }
@@ -641,24 +648,24 @@ void Graphics::EndModelsLoad()
     primitivesOfMeshes_uptr->FlashDevice();
     materialsOfPrimitives_uptr->FlashDevice();
 
+    DescriptorSetsCreateInfosPtrsCollection this_descriptor_sets_create_infos_ptrs_collection;
+    this_descriptor_sets_create_infos_ptrs_collection.camera_description_set_create_info_ptr = cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0);    // All camera sets are the same from create info standpoint
+    this_descriptor_sets_create_infos_ptrs_collection.materials_description_set_create_info_ptr = materialsOfPrimitives_uptr->GetDescriptorSetCreateInfoPtr();
+
     // Create primitives sets (shaders-pipelines for each kind of primitive)
     {
-        std::vector<const Anvil::DescriptorSetCreateInfo*> low_descriptor_sets_create_infos;
-        low_descriptor_sets_create_infos.emplace_back(cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0));
-        {
-            printf("-Initializing \"Texture Pass\" primitives set\n");
+        printf("-Initializing \"Texture Pass\" primitives set\n");
 
-            PrimitivesSetSpecs this_primitives_set_specs;
-            this_primitives_set_specs.primitivesSetName = "Texture-Pass";
-            this_primitives_set_specs.useDepthWrite = true;
-            this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
-            this_primitives_set_specs.useMaterial = true;
-            this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
-        //  this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");  //   cannot for transparent shits
+        PrimitivesSetSpecs this_primitives_set_specs;
+        this_primitives_set_specs.primitivesSetName = "Texture-Pass";
+        this_primitives_set_specs.useDepthWrite = true;
+        this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
+        this_primitives_set_specs.useMaterial = true;
+        this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
+      //this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");  //   cannot for transparent shits
 
-            primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, &low_descriptor_sets_create_infos, renderpass_uptr.get(), textureSubpassID);
+        primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, this_descriptor_sets_create_infos_ptrs_collection, renderpass_uptr.get(), textureSubpassID);
 
-        }
     }
 }
 

@@ -265,7 +265,8 @@ Anvil::PipelineID PipelinesFactory::CreateGraphicsPipeline(GraphicsPipelineSpecs
 
     pipeline_create_info_ptr->set_primitive_topology(thisPrimitiveTopology);
     pipeline_create_info_ptr->set_rasterization_properties(Anvil::PolygonMode::FILL,
-                                                           Anvil::CullModeFlagBits::BACK_BIT,
+                                                           (in_pipelineSpecs.twoSided == false ? Anvil::CullModeFlagBits::BACK_BIT
+                                                                                               : Anvil::CullModeFlagBits::NONE),
                                                            Anvil::FrontFace::COUNTER_CLOCKWISE,
                                                            1.0f); /* line_width */
 

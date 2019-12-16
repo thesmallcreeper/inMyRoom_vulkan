@@ -32,9 +32,12 @@ struct ViewportAndScissorsSpecs
 
 struct GraphicsPipelineSpecs
 {
+    bool twoSided = false;
     glTFmode drawMode = static_cast<glTFmode>(-1);
-    Anvil::CompareOp depthCompare = Anvil::CompareOp::NEVER;
+
     bool depthWriteEnable = false;
+    Anvil::CompareOp depthCompare = Anvil::CompareOp::NEVER;
+
     glTFcomponentType indexComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType positionComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType normalComponentType = static_cast<glTFcomponentType>(-1);
@@ -42,17 +45,23 @@ struct GraphicsPipelineSpecs
     glTFcomponentType texcoord0ComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType color0ComponentType = static_cast<glTFcomponentType>(-1);
+
     std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetsCreateInfo_ptrs;
+
     std::vector<PushConstantSpecs> pushConstantSpecs;
+
     ViewportAndScissorsSpecs viewportAndScissorSpecs;
+
     ShadersSet pipelineShaders;
+
     Anvil::RenderPass* renderpass_ptr = nullptr;
     Anvil::SubPassID subpassID = 0;
 };
 
 struct ComputePipelineSpecs
-{
+{   // TODO push constants
     std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetsCreateInfo_ptrs;
+
     ShadersSet pipelineShaders;
 };
 
@@ -64,6 +73,7 @@ namespace std
         std::size_t operator()(const GraphicsPipelineSpecs& in_pipelineSpecs) const
         {
             std::size_t result = 0;
+            hash_combine(result, in_pipelineSpecs.twoSided);
             hash_combine(result, in_pipelineSpecs.drawMode);
             hash_combine(result, in_pipelineSpecs.depthCompare);
             hash_combine(result, in_pipelineSpecs.depthWriteEnable);
@@ -116,7 +126,8 @@ namespace std
     {
         bool operator()(const GraphicsPipelineSpecs& lhs, const GraphicsPipelineSpecs& rhs) const
         {
-            bool isEqual =  (lhs.drawMode == rhs.drawMode) &&
+            bool isEqual =  (lhs.twoSided == rhs.twoSided) &&
+                            (lhs.drawMode == rhs.drawMode) &&
                             (lhs.depthCompare == rhs.depthCompare) && 
                             (lhs.depthWriteEnable == rhs.depthWriteEnable) &&
                             (lhs.indexComponentType == rhs.indexComponentType) &&

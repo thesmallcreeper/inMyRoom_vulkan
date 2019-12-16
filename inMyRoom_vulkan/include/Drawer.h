@@ -14,10 +14,15 @@
 
 struct DrawRequest
 {
-    float z = 0.0f;
     uint32_t objectID;
     size_t primitiveIndex;
     glm::mat4x4 TRSmatrix;
+};
+
+struct DescriptorSetsPtrsCollection
+{
+    Anvil::DescriptorSet* camera_description_set_ptr;
+    Anvil::DescriptorSet* materials_description_set_ptr;
 };
 
 struct CommandBufferState
@@ -35,18 +40,10 @@ struct CommandBufferState
     VkPipeline vkGraphicsPipeline = static_cast<VkPipeline>(nullptr);
 };
 
-enum class sorting
-{
-    none,
-    by_increasing_z_depth,
-    by_pipeline
-};
-
 class Drawer
 {
 public: //functions
-    Drawer(sorting in_sorting_method,
-           std::string only_by_pipeline_primitives_set_name,
+    Drawer(std::string primitives_set_sorted_by_name,
            PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
            Anvil::BaseDevice* const device_ptr);
 
@@ -54,25 +51,23 @@ public: //functions
 
     void DrawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                           std::string in_primitives_set_mame,
-                          const std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs);
+                          const DescriptorSetsPtrsCollection in_descriptor_sets_ptrs_collection);
 
 private: //functions
     void DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
-                  const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs,
+                  const DescriptorSetsPtrsCollection& in_descriptor_sets_ptrs_collection,
                   const std::vector<PrimitiveSpecificSetInfo>& in_primitives_set_infos,
-                  const std::vector<PrimitiveGeneralInfo>& in_primitives_general_infos,
                   const DrawRequest in_draw_request,
                   CommandBufferState& ref_command_buffer_state);
 
     static size_t GetSizeOfComponent(glTFcomponentType component_type);
 
 private: // variebles
-    const sorting sortingMethod;
-    const std::string primitivesSetNameForByPipeline;
+    const std::string primitivesSetSortedByName;
 
-    std::vector<DrawRequest> none_drawRequests;
     std::unordered_map<VkPipeline, std::vector<DrawRequest >> by_pipeline_VkPipelineToDrawRequests_umap;
 
-    Anvil::BaseDevice* const device_ptr;
     PrimitivesOfMeshes* primitivesOfMeshes_ptr;
+
+    Anvil::BaseDevice* const device_ptr;
 };

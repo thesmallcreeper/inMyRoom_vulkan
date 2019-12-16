@@ -5602,7 +5602,7 @@
       }
     },
     {
-      "alphaCutoff": 1,
+      "alphaCutoff": 0.95,
       "alphaMode": "MASK",
       "doubleSided": true,
       "emissiveFactor": [
@@ -5694,7 +5694,7 @@
       }
     },
     {
-      "alphaCutoff": 1,
+      "alphaCutoff": 0.95,
       "alphaMode": "MASK",
       "doubleSided": true,
       "emissiveFactor": [
@@ -5847,7 +5847,7 @@
       }
     },
     {
-      "alphaCutoff": 1,
+      "alphaCutoff": 0.95,
       "alphaMode": "MASK",
       "doubleSided": true,
       "emissiveFactor": [

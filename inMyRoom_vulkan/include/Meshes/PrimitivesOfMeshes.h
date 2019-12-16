@@ -16,6 +16,7 @@ struct PrimitiveGeneralInfo
 {
     Anvil::IndexType indexBufferType;
     uint32_t indicesCount = 0;
+
     VkDeviceSize indexBufferOffset = -1;
     VkDeviceSize positionBufferOffset = -1;
     VkDeviceSize normalBufferOffset = -1;
@@ -23,29 +24,50 @@ struct PrimitiveGeneralInfo
     VkDeviceSize texcoord0BufferOffset = -1;
     VkDeviceSize texcoord1BufferOffset = -1;
     VkDeviceSize color0BufferOffset = -1;
-    GraphicsPipelineSpecs pipelineSpecs;
-    size_t materialIndex = -1;
+
+    GraphicsPipelineSpecs commonGraphicsPipelineSpecs;
+
+    uint32_t materialIndex = -1;
     MaterialMapsIndexes materialMaps;
 };
 
 struct PrimitiveSpecificSetInfo
 {
-    bool usesNormalBuffer = false;
-    bool usesTangentBuffer = false;
-    bool usesTexcoord0Buffer = false;
-    bool usesTexcoord1Buffer = false;
-    bool usesColor0Buffer = false;
+    Anvil::IndexType indexBufferType;
+    uint32_t indicesCount = 0;
+
+    VkDeviceSize indexBufferOffset = -1;
+    VkDeviceSize positionBufferOffset = -1;
+    VkDeviceSize normalBufferOffset = -1;
+    VkDeviceSize tangentBufferOffset = -1;
+    VkDeviceSize texcoord0BufferOffset = -1;
+    glTFcomponentType texcoord0ComponentType = static_cast<glTFcomponentType>(-1);
+    VkDeviceSize texcoord1BufferOffset = -1;
+    glTFcomponentType texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
+    VkDeviceSize color0BufferOffset = -1;
+    glTFcomponentType color0ComponentType = static_cast<glTFcomponentType>(-1);
+
     VkPipeline vkGraphicsPipeline;
     Anvil::PipelineLayout* pipelineLayout_ptr;
+
+    uint32_t materialIndex = -1;
+    MaterialMapsIndexes materialMaps;
 };
 
 struct PrimitivesSetSpecs
 {
     std::string primitivesSetName;
+
     ShadersSpecs shaderSpecs;
     bool useMaterial;
     bool useDepthWrite;
     Anvil::CompareOp depthCompare;
+};
+
+struct DescriptorSetsCreateInfosPtrsCollection
+{
+    const Anvil::DescriptorSetCreateInfo* camera_description_set_create_info_ptr;
+    const Anvil::DescriptorSetCreateInfo* materials_description_set_create_info_ptr;
 };
 
 class PrimitivesOfMeshes
@@ -61,14 +83,15 @@ public: // functions
     void AddPrimitive(const tinygltf::Model& in_model,
                       const tinygltf::Primitive& in_primitive);
 
+    void FlashDevice();
+
     void InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_specs,
-                           const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_lower_descriptorSetCreateInfos,
+                           DescriptorSetsCreateInfosPtrsCollection in_descriptor_sets_create_infos_ptrs_collection,
                            Anvil::RenderPass* renderpass_ptr,
                            Anvil::SubPassID subpassID);
 
-    void FlashDevice();
-
     size_t GetPrimitivesCount();
+    bool IsPrimitiveTransparent(size_t primitive_index);
 
     void StartRecordOBB();
 
@@ -118,6 +141,8 @@ private: // data
 
     std::unordered_map<std::string, std::vector<PrimitiveSpecificSetInfo>> primitivesSetsNameToVector_umap;
     std::vector<PrimitiveGeneralInfo> primitivesGeneralInfos;
+
+    std::vector<bool> primitivesTransparencyFlags;
 
     PipelinesFactory* pipelinesFactory_ptr;
     ShadersSetsFamiliesCache* shadersSetsFamiliesCache_ptr;

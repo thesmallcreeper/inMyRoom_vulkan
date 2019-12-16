@@ -19,16 +19,20 @@ std::vector<std::pair<std::string, MapType>> ModelDrawComp::GetComponentInitMapF
     return ModelDrawCompEntity::GetComponentInitMapFields();
 }
 
-std::vector<DrawRequest> ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr, FrustumCulling* frustemCulling_ptr) const
+DrawRequestsBatch ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,
+                                                      PrimitivesOfMeshes* primitivesOfMeshes_ptr,
+                                                      FrustumCulling* frustemCulling_ptr) const
 {
     componentID nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::NodeGlobalMatrix);
     NodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr = static_cast<NodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
 
-    std::vector<DrawRequest> draw_requests;
-    draw_requests.reserve(componentEntitiesSparse.size());
+    DrawRequestsBatch this_drawRequestsBatch;
+    this_drawRequestsBatch.opaqueDrawRequests.reserve(componentEntitiesSparse.size());
+    this_drawRequestsBatch.transparentDrawRequests.reserve(componentEntitiesSparse.size() / 6 + 4);
 
     for (size_t index = 0; index < componentEntitiesSparse.size(); index++)
-        componentEntitiesSparse[index].DrawUsingFrustumCull(nodeGlobalMatrixComp_ptr, meshesOfNodes_ptr, frustemCulling_ptr, draw_requests);
+        componentEntitiesSparse[index].DrawUsingFrustumCull(nodeGlobalMatrixComp_ptr, meshesOfNodes_ptr, primitivesOfMeshes_ptr, frustemCulling_ptr,
+                                                            this_drawRequestsBatch.opaqueDrawRequests, this_drawRequestsBatch.transparentDrawRequests);
 
-    return std::move(draw_requests);
+    return std::move(this_drawRequestsBatch);
 }

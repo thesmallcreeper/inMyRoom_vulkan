@@ -26,7 +26,12 @@ public:
 
     void Init();
 
-    void DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeGlobalMatrix_ptr, MeshesOfNodes* meshesOfNodes_ptr, FrustumCulling* frustumCulling_ptr, std::vector<DrawRequest>& draw_requests) const;
+    void DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
+                              MeshesOfNodes* meshesOfNodes_ptr,
+                              PrimitivesOfMeshes* primitivesOfMeshes_ptr,
+                              FrustumCulling* frustumCulling_ptr,
+                              std::vector<DrawRequest>& opaque_draw_requests,
+                              std::vector<DrawRequest>& transparent_draw_requests) const;
 
 public: // data
     uint32_t meshIndex;

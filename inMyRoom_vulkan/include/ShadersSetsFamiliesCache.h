@@ -59,6 +59,7 @@ struct ShadersSpecs
     std::string shadersSetFamilyName;
     std::vector<std::string> emptyDefinition;
     std::vector<std::pair<std::string, int32_t>> definitionValuePairs;
+    std::vector<std::pair<std::string, std::string>> definitionStringPairs;
 };
 
 namespace std
@@ -80,6 +81,11 @@ namespace std
             {
                 hash_combine(result, this_definitionValuePair.first);
                 hash_combine(result, this_definitionValuePair.second);
+            }
+            for (const auto& this_definitionStringPair : in_pipelineSpecs.definitionStringPairs)
+            {
+                hash_combine(result, this_definitionStringPair.first);
+                hash_combine(result, this_definitionStringPair.second);
             }
 
             return result;
@@ -105,6 +111,13 @@ namespace std
                 for (size_t i = 0; i < lhs.definitionValuePairs.size() && isEqual; i++)
                 {
                     isEqual &= lhs.definitionValuePairs[i] == rhs.definitionValuePairs[i];
+                }
+            else
+                return false;
+            if (lhs.definitionStringPairs.size() == rhs.definitionStringPairs.size() && isEqual)
+                for (size_t i = 0; i < lhs.definitionStringPairs.size() && isEqual; i++)
+                {
+                    isEqual &= lhs.definitionStringPairs[i] == rhs.definitionStringPairs[i];
                 }
             else
                 return false;

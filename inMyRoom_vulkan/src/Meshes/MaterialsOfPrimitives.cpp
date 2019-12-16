@@ -20,8 +20,36 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
 
     for (const tinygltf::Material& this_material : in_model.materials)
     {
+        MaterialAbout this_materialAbout;
+
         ShadersSpecs this_materialShaderSpecs;
         this_materialShaderSpecs.emptyDefinition.emplace_back("USE_MATERIAL");       
+
+        {
+            // Useful only at MASK but is needed to avoid preprocessor errors
+            this_materialShaderSpecs.definitionStringPairs.emplace_back(std::make_pair("ALPHA_CUTOFF", std::to_string(this_material.alphaCutoff)));
+
+            if (this_material.alphaMode == "BLEND")
+            {
+                this_materialAbout.transparent = true;
+                this_materialShaderSpecs.emptyDefinition.emplace_back("IS_TRANSPARENT");
+            }
+            else if (this_material.alphaMode == "MASK")
+            {
+                this_materialAbout.transparent = false;
+                this_materialShaderSpecs.emptyDefinition.emplace_back("IS_MASKED");
+            }
+            else if(this_material.alphaMode == "OPAQUE")
+            {
+                this_materialAbout.transparent = false;
+                this_materialShaderSpecs.emptyDefinition.emplace_back("IS_OPAQUE");
+            }
+
+            if (this_material.doubleSided)
+                this_materialAbout.twoSided = true;
+            else
+                this_materialAbout.twoSided = false;
+        }
 
         {
             MaterialParameters this_materialParameters;
@@ -69,6 +97,7 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
             }          
         }
 
+        materialsAbout.emplace_back(this_materialAbout);
         materialsShadersSpecs.emplace_back(this_materialShaderSpecs);
     }
 
@@ -151,6 +180,11 @@ ShadersSpecs MaterialsOfPrimitives::GetShaderSpecsNeededForMaterial(size_t in_ma
     return materialsShadersSpecs[in_material_index];
 }
 
+MaterialAbout MaterialsOfPrimitives::GetMaterialAbout(size_t in_material_index)
+{
+    return materialsAbout[in_material_index];
+}
+
 size_t MaterialsOfPrimitives::GetMaterialIndexOffsetOfModel(const tinygltf::Model& in_model)
 {
     auto search = modelToMaterialIndexOffset_umap.find(const_cast<tinygltf::Model*>(&in_model));
@@ -204,6 +238,6 @@ void MaterialsOfPrimitives::InformShadersSpecsAboutRanges(size_t textures_count,
     for (ShadersSpecs& this_shaders_specs : materialsShadersSpecs)
     {
         this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("MATERIALS_PARAMETERS_COUNT", static_cast<int32_t>(materials_count)));
-        this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("TEXTURES_COUNT", static_cast<int32_t>(materials_count)));
+        this_shaders_specs.definitionValuePairs.emplace_back(std::make_pair("TEXTURES_COUNT", static_cast<int32_t>(textures_count)));
     }
 }

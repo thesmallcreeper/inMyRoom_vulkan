@@ -3,97 +3,59 @@
 #include <limits>
 #include <cassert>
 
-Drawer::Drawer(sorting in_sorting_method,
-               std::string only_by_pipeline_primitives_set_name,
+Drawer::Drawer(std::string primitives_set_sorted_by_name,
                PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
                Anvil::BaseDevice* const in_device_ptr)
     :primitivesOfMeshes_ptr(in_primitivesOfMeshes_ptr),
-     sortingMethod(in_sorting_method),
-     primitivesSetNameForByPipeline(only_by_pipeline_primitives_set_name),
+     primitivesSetSortedByName(primitives_set_sorted_by_name),
      device_ptr(in_device_ptr)
 {
-    assert(in_sorting_method == sorting::by_pipeline && !only_by_pipeline_primitives_set_name.empty());
 }
-
-
 
 void Drawer::AddDrawRequests(std::vector<DrawRequest> in_draw_requests)
 {
-    switch (sortingMethod)
+    const std::vector<PrimitiveSpecificSetInfo>& sorted_primitives_set_infos = primitivesOfMeshes_ptr->GetPrimitivesSetInfos(primitivesSetSortedByName);
+    for (const auto& this_draw_request : in_draw_requests)
     {
-        case sorting::none:
-            none_drawRequests.insert(none_drawRequests.end(), in_draw_requests.begin(), in_draw_requests.end());
-            break;
-        case sorting::by_pipeline:
-        {
-            const std::vector<PrimitiveSpecificSetInfo>& primitives_set_infos = primitivesOfMeshes_ptr->GetPrimitivesSetInfos(primitivesSetNameForByPipeline);
-            for (const auto& this_draw_request : in_draw_requests)
-            {
-                VkPipeline this_vk_pipeline = primitives_set_infos[this_draw_request.primitiveIndex].vkGraphicsPipeline;
+        VkPipeline this_vk_pipeline = sorted_primitives_set_infos[this_draw_request.primitiveIndex].vkGraphicsPipeline;
 
-                auto search = by_pipeline_VkPipelineToDrawRequests_umap.find(this_vk_pipeline);
-                if (search != by_pipeline_VkPipelineToDrawRequests_umap.end())
-                    search->second.emplace_back(this_draw_request);
-                else
-                    by_pipeline_VkPipelineToDrawRequests_umap.emplace(this_vk_pipeline, std::initializer_list<DrawRequest> {this_draw_request});
-            }
-            break;
-        }
-        case sorting::by_increasing_z_depth:
-        default:
-            assert(0);
+        auto search = by_pipeline_VkPipelineToDrawRequests_umap.find(this_vk_pipeline);
+        if (search != by_pipeline_VkPipelineToDrawRequests_umap.end())
+            search->second.emplace_back(this_draw_request);
+        else
+            by_pipeline_VkPipelineToDrawRequests_umap.emplace(this_vk_pipeline, std::initializer_list<DrawRequest> {this_draw_request});
     }
+
 }
 
 void Drawer::DrawCallRequests(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                               std::string in_primitives_set_name,
-                              const std::vector<Anvil::DescriptorSet*> in_low_descriptor_sets_ptrs)
+                              const DescriptorSetsPtrsCollection in_descriptor_sets_ptrs_collection)
 {
     CommandBufferState command_buffer_state;
 
     const std::vector<PrimitiveSpecificSetInfo>& primitives_set_infos = primitivesOfMeshes_ptr->GetPrimitivesSetInfos(in_primitives_set_name);
-    const std::vector<PrimitiveGeneralInfo>& primitives_general_infos = primitivesOfMeshes_ptr->GetPrimitivesGeneralInfos();
 
-    switch (sortingMethod)
-    {
-        case sorting::none:
-            for (const auto& this_draw_request : none_drawRequests)
-                DrawCall(in_cmd_buffer_ptr,
-                         in_low_descriptor_sets_ptrs,
-                         primitives_set_infos,
-                         primitives_general_infos,
-                         this_draw_request,
-                         command_buffer_state);
-            break;
-        case sorting::by_pipeline:
-            for (const auto& this_draw_request_vector : by_pipeline_VkPipelineToDrawRequests_umap)
-                for (const auto& this_draw_request : this_draw_request_vector.second)
-                    DrawCall(in_cmd_buffer_ptr,
-                             in_low_descriptor_sets_ptrs,
-                             primitives_set_infos,
-                             primitives_general_infos,
-                             this_draw_request,
-                             command_buffer_state);
-            break;
-        default:
-            assert(0);
-    }
+    for (const auto& this_draw_request_vector : by_pipeline_VkPipelineToDrawRequests_umap)
+        for (const auto& this_draw_request : this_draw_request_vector.second)
+            DrawCall(in_cmd_buffer_ptr,
+                     in_descriptor_sets_ptrs_collection,
+                     primitives_set_infos,
+                     this_draw_request,
+                     command_buffer_state);
+
 }
 
 void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
-                      const std::vector<Anvil::DescriptorSet*>& in_low_descriptor_sets_ptrs,
+                      const DescriptorSetsPtrsCollection& in_descriptor_sets_ptrs_collection,
                       const std::vector<PrimitiveSpecificSetInfo>& in_primitives_set_infos,
-                      const std::vector<PrimitiveGeneralInfo>& in_primitives_general_infos,
                       const DrawRequest in_draw_request,
                       CommandBufferState& ref_command_buffer_state)
 {
 
     const PrimitiveSpecificSetInfo& this_primitiveSpecificSetInfo = in_primitives_set_infos[in_draw_request.primitiveIndex];
 
-    const PrimitiveGeneralInfo& this_primitiveGeneralInfo = in_primitives_general_infos[in_draw_request.primitiveIndex];
-
     {
-
         if (this_primitiveSpecificSetInfo.vkGraphicsPipeline != ref_command_buffer_state.vkGraphicsPipeline)
         {
             in_cmd_buffer_ptr->record_bind_vk_pipeline(Anvil::PipelineBindPoint::GRAPHICS,
@@ -103,7 +65,11 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
     }
 
     {
-        std::vector<Anvil::DescriptorSet*> descriptor_sets_ptrs = in_low_descriptor_sets_ptrs;
+        std::vector<Anvil::DescriptorSet*> descriptor_sets_ptrs;
+        if (in_descriptor_sets_ptrs_collection.camera_description_set_ptr    != nullptr)
+            descriptor_sets_ptrs.emplace_back(in_descriptor_sets_ptrs_collection.camera_description_set_ptr);
+        if (in_descriptor_sets_ptrs_collection.materials_description_set_ptr != nullptr && this_primitiveSpecificSetInfo.materialIndex != -1)
+            descriptor_sets_ptrs.emplace_back(in_descriptor_sets_ptrs_collection.materials_description_set_ptr);
 
         if (descriptor_sets_ptrs != ref_command_buffer_state.descriptor_sets_ptrs)
         {
@@ -120,6 +86,7 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
         }
     }
 
+    // TODO
     {
         if (in_draw_request.objectID != ref_command_buffer_state.objectID)
         {
@@ -131,7 +98,7 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                                                          &in_draw_request.TRSmatrix);                  /*in_data*/
             }
 
-            
+            if(this_primitiveSpecificSetInfo.materialIndex != -1)
             {
                 struct  // 32 byte
                 {
@@ -140,8 +107,8 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
                     uint32_t alignment = 0;             // 4  byte
                 } data;
 
-                data.materialIndex = this_primitiveGeneralInfo.materialIndex;
-                data.materialMaps = this_primitiveGeneralInfo.materialMaps;
+                data.materialIndex = this_primitiveSpecificSetInfo.materialIndex;
+                data.materialMaps = this_primitiveSpecificSetInfo.materialMaps;
 
                 in_cmd_buffer_ptr->record_push_constants(this_primitiveSpecificSetInfo.pipelineLayout_ptr,
                                                          Anvil::ShaderStageFlagBits::FRAGMENT_BIT,
@@ -160,21 +127,21 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
 
     {
         uint32_t size_of_indexType;
-        if (this_primitiveGeneralInfo.indexBufferType == Anvil::IndexType::UINT16)
+        if (this_primitiveSpecificSetInfo.indexBufferType == Anvil::IndexType::UINT16)
             size_of_indexType = sizeof(uint16_t);
         else
             size_of_indexType = sizeof(uint32_t);
 
-        first_index = static_cast<uint32_t>((this_primitiveGeneralInfo.indexBufferOffset - ref_command_buffer_state.indexBufferOffset) / size_of_indexType);
-        if (this_primitiveGeneralInfo.indexBufferOffset < ref_command_buffer_state.indexBufferOffset || this_primitiveGeneralInfo.indexBufferType != ref_command_buffer_state.indexBufferType ||
-            (this_primitiveGeneralInfo.indexBufferOffset - ref_command_buffer_state.indexBufferOffset) % size_of_indexType != 0 || this_primitiveGeneralInfo.indexBufferOffset - ref_command_buffer_state.indexBufferOffset >(std::numeric_limits<uint32_t>::max)())
+        first_index = static_cast<uint32_t>((this_primitiveSpecificSetInfo.indexBufferOffset - ref_command_buffer_state.indexBufferOffset) / size_of_indexType);
+        if (this_primitiveSpecificSetInfo.indexBufferOffset < ref_command_buffer_state.indexBufferOffset || this_primitiveSpecificSetInfo.indexBufferType != ref_command_buffer_state.indexBufferType
+           || (this_primitiveSpecificSetInfo.indexBufferOffset - ref_command_buffer_state.indexBufferOffset) % size_of_indexType != 0 || this_primitiveSpecificSetInfo.indexBufferOffset - ref_command_buffer_state.indexBufferOffset >(std::numeric_limits<uint32_t>::max)())
         {
             in_cmd_buffer_ptr->record_bind_index_buffer(primitivesOfMeshes_ptr->GetIndexBufferPtr(),
-                                                        this_primitiveGeneralInfo.indexBufferOffset,
-                                                        this_primitiveGeneralInfo.indexBufferType);
+                                                        this_primitiveSpecificSetInfo.indexBufferOffset,
+                                                        this_primitiveSpecificSetInfo.indexBufferType);
 
-            ref_command_buffer_state.indexBufferOffset = this_primitiveGeneralInfo.indexBufferOffset;
-            ref_command_buffer_state.indexBufferType = this_primitiveGeneralInfo.indexBufferType;
+            ref_command_buffer_state.indexBufferOffset = this_primitiveSpecificSetInfo.indexBufferOffset;
+            ref_command_buffer_state.indexBufferType = this_primitiveSpecificSetInfo.indexBufferType;
 
             first_index = 0;
         }
@@ -184,75 +151,75 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
 
     {
         // checks if a suggested vertex offset can offset correctly all the buffers
-        int32_t suggested_vertex_offset = static_cast<int32_t>((this_primitiveGeneralInfo.positionBufferOffset - ref_command_buffer_state.positionBufferOffset) / (3 * sizeof(float)));
+        int32_t suggested_vertex_offset = static_cast<int32_t>((this_primitiveSpecificSetInfo.positionBufferOffset - ref_command_buffer_state.positionBufferOffset) / (3 * sizeof(float)));
 
-        if (this_primitiveGeneralInfo.positionBufferOffset - ref_command_buffer_state.positionBufferOffset > (std::numeric_limits<int32_t>::max)()
-         || this_primitiveGeneralInfo.positionBufferOffset < ref_command_buffer_state.positionBufferOffset
-         || this_primitiveSpecificSetInfo.usesNormalBuffer == false && ref_command_buffer_state.normalBufferOffset != -1
-         || this_primitiveSpecificSetInfo.usesNormalBuffer == true && (ref_command_buffer_state.positionBufferOffset == -1 || this_primitiveGeneralInfo.normalBufferOffset - ref_command_buffer_state.normalBufferOffset != 3 * static_cast<uint64_t>(suggested_vertex_offset) * sizeof(float))
-         || this_primitiveSpecificSetInfo.usesTangentBuffer == false && ref_command_buffer_state.tangentBufferOffset != -1
-         || this_primitiveSpecificSetInfo.usesTangentBuffer == true && (ref_command_buffer_state.tangentBufferOffset == -1 || this_primitiveGeneralInfo.tangentBufferOffset - ref_command_buffer_state.tangentBufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset) * sizeof(float))
-         || this_primitiveSpecificSetInfo.usesTexcoord0Buffer == false && ref_command_buffer_state.texcoord0BufferOffset != -1
-         || this_primitiveSpecificSetInfo.usesTexcoord0Buffer == true && (ref_command_buffer_state.texcoord0BufferOffset == -1 || this_primitiveGeneralInfo.texcoord0BufferOffset - ref_command_buffer_state.texcoord0BufferOffset != 2 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveGeneralInfo.pipelineSpecs.texcoord0ComponentType))
-         || this_primitiveSpecificSetInfo.usesTexcoord1Buffer == false && ref_command_buffer_state.texcoord1BufferOffset != -1
-         || this_primitiveSpecificSetInfo.usesTexcoord1Buffer == true && (ref_command_buffer_state.texcoord1BufferOffset == -1 || this_primitiveGeneralInfo.texcoord1BufferOffset - ref_command_buffer_state.texcoord1BufferOffset != 2 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveGeneralInfo.pipelineSpecs.texcoord1ComponentType))
-         || this_primitiveSpecificSetInfo.usesColor0Buffer == false && ref_command_buffer_state.color0BufferOffset != -1
-         || this_primitiveSpecificSetInfo.usesColor0Buffer == true && (ref_command_buffer_state.color0BufferOffset == -1 || this_primitiveGeneralInfo.color0BufferOffset - ref_command_buffer_state.color0BufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveGeneralInfo.pipelineSpecs.color0ComponentType)))
+        if (this_primitiveSpecificSetInfo.positionBufferOffset - ref_command_buffer_state.positionBufferOffset > (std::numeric_limits<int32_t>::max)()
+         || this_primitiveSpecificSetInfo.positionBufferOffset < ref_command_buffer_state.positionBufferOffset
+         || this_primitiveSpecificSetInfo.normalBufferOffset == -1 && ref_command_buffer_state.normalBufferOffset != -1
+         || this_primitiveSpecificSetInfo.normalBufferOffset != -1 && (ref_command_buffer_state.positionBufferOffset == -1 || this_primitiveSpecificSetInfo.normalBufferOffset - ref_command_buffer_state.normalBufferOffset != 3 * static_cast<uint64_t>(suggested_vertex_offset) * sizeof(float))
+         || this_primitiveSpecificSetInfo.tangentBufferOffset == -1 && ref_command_buffer_state.tangentBufferOffset != -1
+         || this_primitiveSpecificSetInfo.tangentBufferOffset != -1 && (ref_command_buffer_state.tangentBufferOffset == -1 || this_primitiveSpecificSetInfo.tangentBufferOffset - ref_command_buffer_state.tangentBufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset) * sizeof(float))
+         || this_primitiveSpecificSetInfo.texcoord0BufferOffset == -1 && ref_command_buffer_state.texcoord0BufferOffset != -1
+         || this_primitiveSpecificSetInfo.texcoord0BufferOffset != -1 && (ref_command_buffer_state.texcoord0BufferOffset == -1 || this_primitiveSpecificSetInfo.texcoord0BufferOffset - ref_command_buffer_state.texcoord0BufferOffset != 2 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveSpecificSetInfo.texcoord0ComponentType))
+         || this_primitiveSpecificSetInfo.texcoord1BufferOffset == -1 && ref_command_buffer_state.texcoord1BufferOffset != -1
+         || this_primitiveSpecificSetInfo.texcoord1BufferOffset != -1 && (ref_command_buffer_state.texcoord1BufferOffset == -1 || this_primitiveSpecificSetInfo.texcoord1BufferOffset - ref_command_buffer_state.texcoord1BufferOffset != 2 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveSpecificSetInfo.texcoord1ComponentType))
+         || this_primitiveSpecificSetInfo.color0BufferOffset == -1 && ref_command_buffer_state.color0BufferOffset != -1
+         || this_primitiveSpecificSetInfo.color0BufferOffset != -1 && (ref_command_buffer_state.color0BufferOffset == -1 || this_primitiveSpecificSetInfo.color0BufferOffset - ref_command_buffer_state.color0BufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveSpecificSetInfo.color0ComponentType)))
         {
             std::vector<Anvil::Buffer*> vertex_buffers;
             std::vector<VkDeviceSize> vertex_buffer_offsets;
 
             vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetPositionBufferPtr());
-            vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.positionBufferOffset);
+            vertex_buffer_offsets.emplace_back(this_primitiveSpecificSetInfo.positionBufferOffset);
 
-            ref_command_buffer_state.positionBufferOffset = this_primitiveGeneralInfo.positionBufferOffset;
+            ref_command_buffer_state.positionBufferOffset = this_primitiveSpecificSetInfo.positionBufferOffset;
 
-            if (this_primitiveSpecificSetInfo.usesNormalBuffer == true)
+            if (this_primitiveSpecificSetInfo.normalBufferOffset != -1)
             {
                 vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetNormalBufferPtr());
-                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.normalBufferOffset);
+                vertex_buffer_offsets.emplace_back(this_primitiveSpecificSetInfo.normalBufferOffset);
 
-                ref_command_buffer_state.normalBufferOffset = this_primitiveGeneralInfo.normalBufferOffset;
+                ref_command_buffer_state.normalBufferOffset = this_primitiveSpecificSetInfo.normalBufferOffset;
             }
             else
                 ref_command_buffer_state.normalBufferOffset = -1;
 
-            if (this_primitiveSpecificSetInfo.usesTangentBuffer == true)
+            if (this_primitiveSpecificSetInfo.tangentBufferOffset != -1)
             {
                 vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetTangentBufferPtr());
-                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.tangentBufferOffset);
+                vertex_buffer_offsets.emplace_back(this_primitiveSpecificSetInfo.tangentBufferOffset);
 
-                ref_command_buffer_state.tangentBufferOffset = this_primitiveGeneralInfo.tangentBufferOffset;
+                ref_command_buffer_state.tangentBufferOffset = this_primitiveSpecificSetInfo.tangentBufferOffset;
             }
             else
                 ref_command_buffer_state.tangentBufferOffset = -1;
 
-            if (this_primitiveSpecificSetInfo.usesTexcoord0Buffer == true)
+            if (this_primitiveSpecificSetInfo.texcoord0BufferOffset != -1)
             {
                 vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetTexcoord0BufferPtr());
-                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.texcoord0BufferOffset);
+                vertex_buffer_offsets.emplace_back(this_primitiveSpecificSetInfo.texcoord0BufferOffset);
 
-                ref_command_buffer_state.texcoord0BufferOffset = this_primitiveGeneralInfo.texcoord0BufferOffset;
+                ref_command_buffer_state.texcoord0BufferOffset = this_primitiveSpecificSetInfo.texcoord0BufferOffset;
             }
             else
                 ref_command_buffer_state.texcoord0BufferOffset = -1;
 
-            if (this_primitiveSpecificSetInfo.usesTexcoord1Buffer == true)
+            if (this_primitiveSpecificSetInfo.texcoord1BufferOffset != -1)
             {
                 vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetTexcoord1BufferPtr());
-                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.texcoord1BufferOffset);
+                vertex_buffer_offsets.emplace_back(this_primitiveSpecificSetInfo.texcoord1BufferOffset);
 
-                ref_command_buffer_state.texcoord1BufferOffset = this_primitiveGeneralInfo.texcoord1BufferOffset;
+                ref_command_buffer_state.texcoord1BufferOffset = this_primitiveSpecificSetInfo.texcoord1BufferOffset;
             }
             else
                 ref_command_buffer_state.texcoord1BufferOffset = -1;
 
-            if (this_primitiveSpecificSetInfo.usesColor0Buffer == true)
+            if (this_primitiveSpecificSetInfo.color0BufferOffset != -1)
             {
                 vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetColor0BufferPtr());
-                vertex_buffer_offsets.emplace_back(this_primitiveGeneralInfo.color0BufferOffset);
+                vertex_buffer_offsets.emplace_back(this_primitiveSpecificSetInfo.color0BufferOffset);
 
-                ref_command_buffer_state.color0BufferOffset = this_primitiveGeneralInfo.color0BufferOffset;
+                ref_command_buffer_state.color0BufferOffset = this_primitiveSpecificSetInfo.color0BufferOffset;
             }
             else
                 ref_command_buffer_state.color0BufferOffset = -1;
@@ -266,10 +233,10 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
             vertex_offset = 0;
         }
         else
-            vertex_offset = static_cast<int32_t>((this_primitiveGeneralInfo.positionBufferOffset - ref_command_buffer_state.positionBufferOffset) / (3 * sizeof(float)));
+            vertex_offset = static_cast<int32_t>((this_primitiveSpecificSetInfo.positionBufferOffset - ref_command_buffer_state.positionBufferOffset) / (3 * sizeof(float)));
     }
 
-    in_cmd_buffer_ptr->record_draw_indexed(this_primitiveGeneralInfo.indicesCount,
+    in_cmd_buffer_ptr->record_draw_indexed(this_primitiveSpecificSetInfo.indicesCount,
                                            1, /* in_instance_count */
                                            first_index, /* in_first_index    */
                                            vertex_offset, /* in_vertex_offset  */

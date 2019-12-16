@@ -16,7 +16,7 @@ struct MaterialParameters
     vec4 _placeholder;
 };
 
-#ifdef USE_EARLY_FRAGMENT_TESTS
+#ifdef IS_OPAQUE
 layout(early_fragment_tests) in;
 #endif
 
@@ -45,6 +45,8 @@ layout( location = 0 ) out vec4 frag_color;
 
 #ifdef USE_MATERIAL
 
+// Push constants (92 byte->127 byte)
+
 layout (push_constant) uniform PushConstants
 {
     layout(offset = 96)     uint materialIndex;
@@ -67,20 +69,23 @@ layout (set = 1, binding = 1) uniform sampler2D textures[TEXTURES_COUNT];
 
 void main() 
 {
-    frag_color = vec4(1.0, 1.0, 1.0, 1.0);
+    frag_color = vec4(0.f, 0.f, 0.f, 1.f);
     #ifdef USE_BASE_COLOR_TEXTURE_TEXCOORD0
     {
         uint base_color_texture_index = mapsIndexes.baseColor;
         vec4 text_color= texture(textures[base_color_texture_index], vert_texcoord0).rgba;
-        if(text_color.a < 0.3)
+        
+        #ifdef IS_MASKED
+        if(text_color.a < ALPHA_CUTOFF )
             discard;
+        #endif
         
         frag_color = text_color;
     }
     #endif
     #ifdef VERT_COLOR0
     {
-        frag_color = vec4(mix(frag_color.rgb, vert_color0.rgb, vert_color0.a), 1.0);
+        frag_color = vec4(mix(frag_color.rgb, vert_color0.rgb, vert_color0.a), 1.f);
     }
     #endif
 }
