@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\DiTO\dito.cpp" />
+    <ClCompile Include="include\Meshes\SkinsOfMeshes.cpp" />
     <ClCompile Include="src\Drawer.cpp" />
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp" />
     <ClCompile Include="src\ECS\ComponentRawBaseClass.cpp" />
@@ -95,6 +96,7 @@
     <ClInclude Include="include\Meshes\MaterialsOfPrimitives.h" />
     <ClInclude Include="include\Meshes\MeshesOfNodes.h" />
     <ClInclude Include="include\Meshes\PrimitivesOfMeshes.h" />
+    <ClInclude Include="include\Meshes\SkinsOfMeshes.h" />
     <ClInclude Include="include\Meshes\TexturesOfMaterials.h" />
     <ClInclude Include="include\MipmapsGenerator.h" />
     <ClInclude Include="include\glTFenum.h" />

@@ -460,6 +460,7 @@ void PrimitivesOfMeshes::AddAccessorDataToLocalBuffer(std::vector<unsigned char>
         std::copy(&this_buffer.data[bufferview_byte_offset + accessor_byte_offset],
                   &this_buffer.data[bufferview_byte_offset + accessor_byte_offset] + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
                   std::back_inserter(localBuffer_ref));
+
     else if (shouldFlipYZ_position) // position can only be float
     {
         std::unique_ptr<float[]> temp_buffer_uptr;

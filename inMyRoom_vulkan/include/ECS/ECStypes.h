@@ -50,7 +50,7 @@ struct Node
     bool shouldAddNodeGlobalMatrixCompEntity = false;
 
     Entity latestEntity = 0;                // for fabs->Entities
-    uint32_t glTFnodeID = -1;
+    size_t glTFnodeIndex = -1;
     std::string nodeName = "";
 
     std::vector<std::unique_ptr<Node>> children;
@@ -63,7 +63,7 @@ struct Node
         shouldAddNodeGlobalMatrixCompEntity = other.shouldAddNodeGlobalMatrixCompEntity;
 
         latestEntity = other.latestEntity;
-        glTFnodeID = other.glTFnodeID;
+        glTFnodeIndex = other.glTFnodeIndex;
         nodeName = other.nodeName;
         for (size_t index = 0; index < other.children.size(); index++)
         {

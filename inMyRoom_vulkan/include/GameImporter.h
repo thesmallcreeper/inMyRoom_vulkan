@@ -50,10 +50,12 @@ private:
 
     static Node* FindNodeInTree(Node* root_node, std::string path);
 
+    static Node* FindNodeInTreeUsingGLTFindex(Node* root_node, size_t glTF_node_Index);
+
     std::string NumberToString(size_t number);
 
 private:    // data
-    size_t anonymousAddedFabsSoFar = 1;
+    size_t anonymousNameCounter = 1;
 
     std::unordered_map<std::string, std::unique_ptr<Node>> imports_umap;
     std::unordered_map<std::string, std::unique_ptr<Node>> fabs_umap;

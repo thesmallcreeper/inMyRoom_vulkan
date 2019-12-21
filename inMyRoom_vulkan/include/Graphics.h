@@ -93,7 +93,6 @@ private:
     const uint32_t              windowHeight;
 
     std::vector<Anvil::BufferUniquePtr>          cameraBuffer_uptrs;
-    std::vector<Anvil::BufferUniquePtr>          perspectiveBuffer_uptrs;
 
     Anvil::DescriptorSetGroupUniquePtr	cameraDescriptorSetGroup_uptr;
 

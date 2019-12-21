@@ -157,7 +157,11 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
         for (size_t this_gltf_scene_node_index : this_gltf_scene.nodes)
         {
             tinygltf::Node& this_gltf_scene_node = this_model.nodes[this_gltf_scene_node_index];
-            scene_node->children.emplace_back(ImportNode(this_gltf_scene_node, this_model));
+
+            std::unique_ptr<Node> this_scene_node_uptr = ImportNode(this_gltf_scene_node, this_model);
+            this_scene_node_uptr->glTFnodeIndex = this_gltf_scene_node_index;
+
+            scene_node->children.emplace_back(std::move(this_scene_node_uptr));
         }
         
         model_node->children.emplace_back(std::move(scene_node));
@@ -170,7 +174,10 @@ std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, t
 {
     std::unique_ptr<Node> return_node_uptr = std::make_unique<Node>();
 
-    return_node_uptr->nodeName = this_gltf_node.name;
+    if(this_gltf_node.name != "")
+        return_node_uptr->nodeName = this_gltf_node.name;
+    else
+        return_node_uptr->nodeName = "node_" + NumberToString(anonymousNameCounter++);
 
     // Position component
     {
@@ -194,7 +201,11 @@ std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, t
         for (size_t this_gltf_recurse_node_index : this_gltf_node.children)
         {
             tinygltf::Node& this_gltf_recurse_node = this_model.nodes[this_gltf_recurse_node_index];
-            return_node_uptr->children.emplace_back(ImportNode(this_gltf_recurse_node, this_model));
+            
+            std::unique_ptr<Node> this_recurse_node_uptr = ImportNode(this_gltf_recurse_node, this_model);
+            this_recurse_node_uptr->glTFnodeIndex = this_gltf_recurse_node_index;
+
+            return_node_uptr->children.emplace_back(std::move(this_recurse_node_uptr));
         }
     }
 
@@ -403,7 +414,7 @@ Entity GameImporter::AddFabAndGetRoot(std::string fab_name, std::string parent_p
 Entity GameImporter::AddFabAndGetRoot(std::string fab_name, Entity parent_entity, std::string preferred_name)
 {
     if (preferred_name == "")
-        preferred_name = fab_name + "_" + NumberToString(anonymousAddedFabsSoFar++);
+        preferred_name = fab_name + "_" + NumberToString(anonymousNameCounter++);
 
     auto search = fabs_umap.find(fab_name);
     assert(search != fabs_umap.end());
@@ -513,6 +524,30 @@ Node* GameImporter::FindNodeInTree(Node* root_node, std::string path)
     }
 
     return this_node;
+}
+
+Node* GameImporter::FindNodeInTreeUsingGLTFindex(Node* root_node, size_t glTF_node_Index)
+{
+    // recursive
+    Node* return_node_ptr = nullptr;
+
+    if (root_node->glTFnodeIndex == glTF_node_Index)
+        return_node_ptr = root_node;
+    else
+    {
+        for (size_t index = 0; index < root_node->children.size(); index++)
+        {
+            Node* this_result_node_ptr = FindNodeInTreeUsingGLTFindex(root_node->children[index].get(), glTF_node_Index);
+
+            if (this_result_node_ptr != nullptr)
+            {
+                return_node_ptr = this_result_node_ptr;
+                break;
+            }
+        }
+    }
+
+    return return_node_ptr;
 }
 
 std::string GameImporter::NumberToString(size_t number)

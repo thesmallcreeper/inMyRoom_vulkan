@@ -74,7 +74,6 @@ Graphics::~Graphics()
     cameraDescriptorSetGroup_uptr.reset();
 
     cameraBuffer_uptrs.clear();
-    perspectiveBuffer_uptrs.clear();
 }
 
 void Graphics::DrawFrame()
@@ -109,19 +108,18 @@ void Graphics::DrawFrame()
     ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
 
     {
-        glm::mat4x4 camera_perspective_matrix = camera_viewport_frustum.GetPerspectiveMatrix();
-        perspectiveBuffer_uptrs[n_swapchain_image]->write(0,
-                                                          sizeof(glm::mat4x4),
-                                                          &camera_perspective_matrix,
-                                                          present_queue_ptr);
-    }
+        struct
+        {
+            glm::mat4 perspective_matrix;
+            glm::mat4 view_matrix;
+        } data;
 
+        data.perspective_matrix = camera_viewport_frustum.GetPerspectiveMatrix();
+        data.view_matrix = camera_viewport_frustum.GetViewMatrix();
 
-    {
-        glm::mat4x4 camera_view_matrix = camera_viewport_frustum.GetViewMatrix();
         cameraBuffer_uptrs[n_swapchain_image]->write(0,
-                                                     sizeof(glm::mat4x4),
-                                                     &camera_view_matrix,
+                                                     2 * sizeof(glm::mat4x4),
+                                                     &data,
                                                      present_queue_ptr);
     }
 
@@ -196,27 +194,6 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
     }
 
     {
-        /* Make sure CPU-written data is flushed before we start rendering */
-        Anvil::BufferBarrier buffer_barrier(Anvil::AccessFlagBits::MEMORY_WRITE_BIT,               /* in_source_access_mask      */
-                                            Anvil::AccessFlagBits::UNIFORM_READ_BIT,               /* in_destination_access_mask */
-                                            universal_queue_family_index,                          /* in_src_queue_family_index  */
-                                            universal_queue_family_index,                          /* in_dst_queue_family_index  */
-                                            cameraBuffer_uptrs[swapchainImageIndex].get(),
-                                            0,                                                     /* in_offset                  */
-                                            sizeof(glm::mat4x4));
-
-        cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TRANSFER_BIT,
-                                                Anvil::PipelineStageFlagBits::VERTEX_SHADER_BIT,
-                                                Anvil::DependencyFlagBits::NONE,
-                                                0,                                                  /* in_memory_barrier_count        */
-                                                nullptr,                                            /* in_memory_barriers_ptr         */
-                                                1,                                                  /* in_buffer_memory_barrier_count */
-                                                &buffer_barrier,
-                                                0,                                                  /* in_image_memory_barrier_count  */
-                                                nullptr);                                           /* in_image_memory_barriers_ptr   */
-    }
-
-    {
         VkClearValue  clear_values[2];
         clear_values[0].color.float32[0] = 0.0f;
         clear_values[0].color.float32[1] = 0.0f;
@@ -278,20 +255,17 @@ void Graphics::InitCameraBuffers()
 {
     Anvil::MemoryAllocatorUniquePtr   allocator_ptr;
 
-    const Anvil::DeviceType           device_type(device_ptr->get_type());
-
     const Anvil::MemoryFeatureFlags   required_feature_flags = Anvil::MemoryFeatureFlagBits::NONE;
 
     allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
 
     cameraBuffer_uptrs.resize(swapchainImagesCount);
-    perspectiveBuffer_uptrs.resize(swapchainImagesCount);
 
     for (uint32_t i = 0; i < swapchainImagesCount; i++)
     {
         {
             auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                sizeof(glm::mat4),
+                2 * sizeof(glm::mat4),
                 Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                 Anvil::SharingMode::EXCLUSIVE,
                 Anvil::BufferCreateFlagBits::NONE,
@@ -302,24 +276,7 @@ void Graphics::InitCameraBuffers()
             cameraBuffer_uptrs[i]->set_name("Camera matrix buffer " + std::to_string(i));
         }
 
-        {
-            auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                sizeof(glm::mat4),
-                Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                Anvil::SharingMode::EXCLUSIVE,
-                Anvil::BufferCreateFlagBits::NONE,
-                Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
-
-            perspectiveBuffer_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
-
-            perspectiveBuffer_uptrs[i]->set_name("Camera matrix buffer " + std::to_string(i));
-        }
-
-
         allocator_ptr->add_buffer(cameraBuffer_uptrs[i].get(),
-                                  required_feature_flags);
-
-        allocator_ptr->add_buffer(perspectiveBuffer_uptrs[i].get(),
                                   required_feature_flags);
     }
 }
@@ -355,11 +312,15 @@ void Graphics::InitCameraDsg()
     {
         new_dsg_ptr->set_binding_item(i, /* n_set         */
                                       0, /* binding_index */
-                                      Anvil::DescriptorSet::UniformBufferBindingElement(perspectiveBuffer_uptrs[i].get()));
+                                      Anvil::DescriptorSet::UniformBufferBindingElement(cameraBuffer_uptrs[i].get(),
+                                                                                        0,
+                                                                                        sizeof(glm::mat4)));
 
         new_dsg_ptr->set_binding_item(i, /* n_set         */
                                       1, /* binding_index */
-                                      Anvil::DescriptorSet::UniformBufferBindingElement(cameraBuffer_uptrs[i].get()));
+                                      Anvil::DescriptorSet::UniformBufferBindingElement(cameraBuffer_uptrs[i].get(),
+                                                                                        sizeof(glm::mat4),
+                                                                                        sizeof(glm::mat4)));
     }
 
     cameraDescriptorSetGroup_uptr = std::move(new_dsg_ptr);
