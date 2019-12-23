@@ -6,6 +6,8 @@
 
 #include "wrappers/device.h"
 #include "wrappers/buffer.h"
+#include "wrappers/descriptor_set.h"
+#include "wrappers/descriptor_set_group.h"
 
 #include "glm/mat4x4.hpp"
 
@@ -29,20 +31,35 @@ public:
 
     size_t GetSkinIndexOffsetOfModel(const tinygltf::Model& in_model) const;
 
+    SkinInfo GetSkin(size_t this_skin_index) const;
+
     void StartRecordingNodesMatrixes(size_t in_swapchain);
 
     void AddNodeMatrix(glm::mat4 in_node_matrix);
-    size_t GetRecordSize() const;
+    size_t GetNodesRecordSize() const;
 
-    void EndRecodingAndFlash();
+    void EndRecodingAndFlash(Anvil::Queue* in_opt_flash_queue = nullptr);
+
+    const Anvil::DescriptorSetCreateInfo* GetDescriptorSetCreateInfoPtr();
+    Anvil::DescriptorSet* GetDescriptorSetPtr(size_t in_swapchain);
 
 private:
+    glm::mat4 GetAccessorMatrix(const size_t index,
+                                const tinygltf::Model& in_model,
+                                const tinygltf::Accessor& in_accessor);
+
+    void AddMatrixToInverseBindMatrixesBuffer(const glm::mat4 this_matrix);
+
+    size_t GetCountOfInverseBindMatrixes() const;
+
     Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
                                                             Anvil::BufferUsageFlagBits in_bufferusageflag,
                                                             std::string buffers_name) const;
 
 private: // data
-    std::unordered_map<tinygltf::Model*, size_t> modelToMeshIndexOffset_umap;
+    size_t skinsSoFar = 0;
+
+    std::unordered_map<tinygltf::Model*, size_t> modelToSkinIndexOffset_umap;
 
     std::vector<SkinInfo> skins;
 
@@ -58,6 +75,8 @@ private: // data
     std::vector<unsigned char> localInverseBindMatrixesBuffer;
     Anvil::BufferUniquePtr inverseBindMatrixesBuffer_uptr;
 
+    Anvil::DescriptorSetGroupUniquePtr descriptorSetGroup_uptr;
+
     Anvil::BaseDevice* const device_ptr;
-    bool hasInverseBindMatrixesBeenFlashed = false;
+    bool hasInitFlashed = false;
 };

@@ -605,7 +605,7 @@ void Graphics::EndModelsLoad()
     imagesAboutOfTextures_uptr.reset();
     mipmapsGenerator_uptr.reset();
 
-    //Flashing device
+    // Flashing device
     primitivesOfMeshes_uptr->FlashDevice();
     materialsOfPrimitives_uptr->FlashDevice();
 
@@ -623,7 +623,6 @@ void Graphics::EndModelsLoad()
         this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
         this_primitives_set_specs.useMaterial = true;
         this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
-      //this_primitives_set_specs.shaderSpecs.emptyDefinition.emplace_back("USE_EARLY_FRAGMENT_TESTS");  //   cannot for transparent shits
 
         primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, this_descriptor_sets_create_infos_ptrs_collection, renderpass_uptr.get(), textureSubpassID);
 

@@ -33,7 +33,7 @@ public: // functions
     MeshInfo GetMesh(size_t this_mesh_index) const;
 
 private: // data
-    size_t meshesSoFar;
+    size_t meshesSoFar = 0;
 
     std::vector<MeshInfo> meshes;
 

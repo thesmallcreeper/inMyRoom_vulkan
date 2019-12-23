@@ -521,7 +521,9 @@ void PrimitivesOfMeshes::AddAccessorDataToLocalBuffer(std::vector<unsigned char>
 
 }
 
-Anvil::BufferUniquePtr PrimitivesOfMeshes::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer, Anvil::BufferUsageFlagBits in_bufferusageflag, std::string buffers_name) const
+Anvil::BufferUniquePtr PrimitivesOfMeshes::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
+                                                                            Anvil::BufferUsageFlagBits in_bufferusageflag,
+                                                                            std::string buffers_name) const
 {
     auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
                                                                     in_localBuffer.size(),

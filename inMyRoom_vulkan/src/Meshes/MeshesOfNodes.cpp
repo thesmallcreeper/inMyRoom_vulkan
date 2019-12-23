@@ -5,8 +5,7 @@ MeshesOfNodes::MeshesOfNodes(PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
                              Anvil::BaseDevice* const in_device_ptr)
     :
     primitivesOfMeshes_ptr(in_primitivesOfMeshes_ptr),
-    device_ptr(in_device_ptr),
-    meshesSoFar(0)
+    device_ptr(in_device_ptr)
 {
 }
 
