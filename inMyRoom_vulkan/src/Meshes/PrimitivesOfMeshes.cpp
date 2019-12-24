@@ -28,6 +28,10 @@ PrimitivesOfMeshes::~PrimitivesOfMeshes()
     normalBuffer_uptr.reset();
     tangentBuffer_uptr.reset();
     texcoord0Buffer_uptr.reset();
+    texcoord1Buffer_uptr.reset();
+    color0Buffer_uptr.reset();
+    joints0Buffer_uptr.reset();
+    weights0Buffer_uptr.reset();
 }
 
 void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
@@ -151,6 +155,34 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
         }
     }
 
+    {
+        auto search = in_primitive.attributes.find("JOINTS_0");
+        if (search != in_primitive.attributes.end())
+        {
+            int this_joints0Attribute = search->second;
+            const tinygltf::Accessor& this_accessor = in_model.accessors[this_joints0Attribute];
+
+            this_primitiveInitInfo.joints0BufferOffset = localJoints0Buffer.size();
+            this_primitiveInitInfo.commonGraphicsPipelineSpecs.joints0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
+
+            AddAccessorDataToLocalBuffer(localJoints0Buffer, false, false, sizeof(uint16_t), in_model, this_accessor);
+        }
+    }
+
+    {
+        auto search = in_primitive.attributes.find("WEIGHTS_0");
+        if (search != in_primitive.attributes.end())
+        {
+            int this_weights0Attribute = search->second;
+            const tinygltf::Accessor& this_accessor = in_model.accessors[this_weights0Attribute];
+
+            this_primitiveInitInfo.weights0BufferOffset = localWeights0Buffer.size();
+            this_primitiveInitInfo.commonGraphicsPipelineSpecs.weights0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
+
+            AddAccessorDataToLocalBuffer(localWeights0Buffer, false, false, sizeof(float), in_model, this_accessor);
+        }
+    }
+
     this_primitiveInitInfo.commonGraphicsPipelineSpecs.drawMode = static_cast<glTFmode>(in_primitive.mode);
 
     if(in_primitive.material != -1)
@@ -197,6 +229,11 @@ void PrimitivesOfMeshes::FlashDevice()
         texcoord1Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord1Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Texcoord1 Buffer");
     if (!localColor0Buffer.empty())
         color0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localColor0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Color0 Buffer");
+    if (!localJoints0Buffer.empty())
+        joints0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localJoints0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Joints0 Buffer");
+    if (!localWeights0Buffer.empty())
+        weights0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localWeights0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Weights0 Buffer");
+
 
     localIndexBuffer.clear();
     localPositionBuffer.clear();
@@ -205,6 +242,8 @@ void PrimitivesOfMeshes::FlashDevice()
     localTexcoord0Buffer.clear();
     localTexcoord1Buffer.clear();
     localColor0Buffer.clear();
+    localJoints0Buffer.clear();
+    localWeights0Buffer.clear();
 
     hasBeenFlashed = true;
 }
@@ -244,14 +283,27 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
             this_set_graphicsPipelineSpecs.descriptorSetsCreateInfo_ptrs.emplace_back(in_descriptor_sets_create_infos_ptrs_collection.camera_description_set_create_info_ptr);
         }
 
+        if (this_primitivesGeneralInfo.joints0BufferOffset != -1 && this_primitivesGeneralInfo.weights0BufferOffset != -1)
+        {
+            this_set_graphicsPipelineSpecs.descriptorSetsCreateInfo_ptrs.emplace_back(in_descriptor_sets_create_infos_ptrs_collection.skins_description_set_create_info_ptr);
+        }
+
         {   // Push constants of pipeline
-            // TODO
+            if(this_primitivesGeneralInfo.joints0BufferOffset == -1 || this_primitivesGeneralInfo.weights0BufferOffset == -1)
             {
                 PushConstantSpecs TRSmatrixPushConstant;
                 TRSmatrixPushConstant.offset = 0;
                 TRSmatrixPushConstant.size = 64;
                 TRSmatrixPushConstant.shader_flags = Anvil::ShaderStageFlagBits::VERTEX_BIT;
                 this_set_graphicsPipelineSpecs.pushConstantSpecs.emplace_back(TRSmatrixPushConstant);
+            }
+            else
+            {
+                PushConstantSpecs SkinInfoPushConstant;
+                SkinInfoPushConstant.offset = 0;
+                SkinInfoPushConstant.size = 8;
+                SkinInfoPushConstant.shader_flags = Anvil::ShaderStageFlagBits::VERTEX_BIT;
+                this_set_graphicsPipelineSpecs.pushConstantSpecs.emplace_back(SkinInfoPushConstant);
             }
 
             if(in_primitives_set_specs.useMaterial && this_primitivesGeneralInfo.materialIndex != -1)
@@ -310,6 +362,26 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
 
                     this_primitiveSpecificSetInfo.color0ComponentType = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs.color0ComponentType;
                 }
+                if (this_primitivesGeneralInfo.joints0BufferOffset != -1)
+                {
+                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_JOINTS0");
+                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_JOINTS0_LOCATION", layout_location++));
+                    this_primitiveSpecificSetInfo.joints0BufferOffset = this_primitivesGeneralInfo.joints0BufferOffset;
+
+                    this_primitiveSpecificSetInfo.joints0ComponentType = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs.joints0ComponentType;
+                }
+                if (this_primitivesGeneralInfo.weights0BufferOffset != -1)
+                {
+                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_WEIGHTS0");
+                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_WEIGHTS0_LOCATION", layout_location++));
+                    this_primitiveSpecificSetInfo.weights0BufferOffset = this_primitivesGeneralInfo.weights0BufferOffset;
+
+                    this_primitiveSpecificSetInfo.weights0ComponentType = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs.weights0ComponentType;
+                }
+                if (this_primitivesGeneralInfo.weights0BufferOffset != -1 && this_primitivesGeneralInfo.joints0BufferOffset != -1)
+                { 
+                    this_set_shaderSpecs.emptyDefinition.emplace_back("USE_SKIN");
+                }
 
                 {
                     ShadersSpecs material_shader_specs = materialsOfPrimitives_ptr->GetShaderSpecsNeededForMaterial(this_primitivesGeneralInfo.materialIndex);
@@ -330,9 +402,16 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
                         std::back_inserter(this_set_shaderSpecs.definitionStringPairs));
                 }
 
-                if (this_primitivesGeneralInfo.materialIndex != -1)
-                    this_set_graphicsPipelineSpecs.descriptorSetsCreateInfo_ptrs.emplace_back(in_descriptor_sets_create_infos_ptrs_collection.materials_description_set_create_info_ptr);
 
+                // Add material Description set
+                if (this_primitivesGeneralInfo.materialIndex != -1)
+                {
+                    this_set_graphicsPipelineSpecs.descriptorSetsCreateInfo_ptrs.emplace_back(in_descriptor_sets_create_infos_ptrs_collection.materials_description_set_create_info_ptr);
+                    if (this_primitivesGeneralInfo.joints0BufferOffset == -1 || this_primitivesGeneralInfo.weights0BufferOffset == -1)
+                        this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("MATERIAL_DS_INDEX", 1));
+                    else
+                        this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("MATERIAL_DS_INDEX", 2));
+                }
             }
             else
             {

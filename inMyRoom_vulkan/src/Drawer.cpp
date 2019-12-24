@@ -68,6 +68,8 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
         std::vector<Anvil::DescriptorSet*> descriptor_sets_ptrs;
         if (in_descriptor_sets_ptrs_collection.camera_description_set_ptr    != nullptr)
             descriptor_sets_ptrs.emplace_back(in_descriptor_sets_ptrs_collection.camera_description_set_ptr);
+        if (in_descriptor_sets_ptrs_collection.camera_description_set_ptr    != nullptr && in_draw_request.isSkin == true)
+            descriptor_sets_ptrs.emplace_back(in_descriptor_sets_ptrs_collection.skin_description_set_ptr);
         if (in_descriptor_sets_ptrs_collection.materials_description_set_ptr != nullptr && this_primitiveSpecificSetInfo.materialIndex != -1)
             descriptor_sets_ptrs.emplace_back(in_descriptor_sets_ptrs_collection.materials_description_set_ptr);
 
@@ -90,12 +92,21 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
     {
         if (in_draw_request.objectID != ref_command_buffer_state.objectID)
         {
+            if(in_draw_request.isSkin == false)
             {
                 in_cmd_buffer_ptr->record_push_constants(this_primitiveSpecificSetInfo.pipelineLayout_ptr,
                                                          Anvil::ShaderStageFlagBits::VERTEX_BIT,
                                                          0,                                            /*in_offset*/
                                                          static_cast<uint32_t>(sizeof(glm::mat4)),     /*in_size*/
-                                                         &in_draw_request.TRSmatrix);                  /*in_data*/
+                                                         &in_draw_request.vertexData);                 /*in_data*/
+            }
+            else
+            {
+                in_cmd_buffer_ptr->record_push_constants(this_primitiveSpecificSetInfo.pipelineLayout_ptr,
+                                                         Anvil::ShaderStageFlagBits::VERTEX_BIT,
+                                                         0,                                            /*in_offset*/
+                                                         static_cast<uint32_t>(2 * sizeof(uint32_t)),  /*in_size*/
+                                                         &in_draw_request.vertexData);                 /*in_data*/
             }
 
             if(this_primitiveSpecificSetInfo.materialIndex != -1)
@@ -164,7 +175,11 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
          || this_primitiveSpecificSetInfo.texcoord1BufferOffset == -1 && ref_command_buffer_state.texcoord1BufferOffset != -1
          || this_primitiveSpecificSetInfo.texcoord1BufferOffset != -1 && (ref_command_buffer_state.texcoord1BufferOffset == -1 || this_primitiveSpecificSetInfo.texcoord1BufferOffset - ref_command_buffer_state.texcoord1BufferOffset != 2 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveSpecificSetInfo.texcoord1ComponentType))
          || this_primitiveSpecificSetInfo.color0BufferOffset == -1 && ref_command_buffer_state.color0BufferOffset != -1
-         || this_primitiveSpecificSetInfo.color0BufferOffset != -1 && (ref_command_buffer_state.color0BufferOffset == -1 || this_primitiveSpecificSetInfo.color0BufferOffset - ref_command_buffer_state.color0BufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveSpecificSetInfo.color0ComponentType)))
+         || this_primitiveSpecificSetInfo.color0BufferOffset != -1 && (ref_command_buffer_state.color0BufferOffset == -1 || this_primitiveSpecificSetInfo.color0BufferOffset - ref_command_buffer_state.color0BufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset) * GetSizeOfComponent(this_primitiveSpecificSetInfo.color0ComponentType))
+         || this_primitiveSpecificSetInfo.joints0BufferOffset == -1 && ref_command_buffer_state.joints0BufferOffset != -1
+         || this_primitiveSpecificSetInfo.joints0BufferOffset != -1 && (ref_command_buffer_state.joints0BufferOffset == -1 || this_primitiveSpecificSetInfo.joints0BufferOffset - ref_command_buffer_state.joints0BufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset)* GetSizeOfComponent(this_primitiveSpecificSetInfo.joints0ComponentType))
+         || this_primitiveSpecificSetInfo.weights0BufferOffset == -1 && ref_command_buffer_state.weights0BufferOffset != -1
+         || this_primitiveSpecificSetInfo.weights0BufferOffset != -1 && (ref_command_buffer_state.weights0BufferOffset == -1 || this_primitiveSpecificSetInfo.weights0BufferOffset - ref_command_buffer_state.weights0BufferOffset != 4 * static_cast<uint64_t>(suggested_vertex_offset)* GetSizeOfComponent(this_primitiveSpecificSetInfo.weights0ComponentType)))
         {
             std::vector<Anvil::Buffer*> vertex_buffers;
             std::vector<VkDeviceSize> vertex_buffer_offsets;
@@ -224,6 +239,25 @@ void Drawer::DrawCall(Anvil::PrimaryCommandBuffer* in_cmd_buffer_ptr,
             else
                 ref_command_buffer_state.color0BufferOffset = -1;
 
+            if (this_primitiveSpecificSetInfo.joints0BufferOffset != -1)
+            {
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetJoints0BufferPtr());
+                vertex_buffer_offsets.emplace_back(this_primitiveSpecificSetInfo.joints0BufferOffset);
+
+                ref_command_buffer_state.joints0BufferOffset = this_primitiveSpecificSetInfo.joints0BufferOffset;
+            }
+            else
+                ref_command_buffer_state.joints0BufferOffset = -1;
+
+            if (this_primitiveSpecificSetInfo.weights0BufferOffset != -1)
+            {
+                vertex_buffers.emplace_back(primitivesOfMeshes_ptr->GetWeights0BufferPtr());
+                vertex_buffer_offsets.emplace_back(this_primitiveSpecificSetInfo.weights0BufferOffset);
+
+                ref_command_buffer_state.weights0BufferOffset = this_primitiveSpecificSetInfo.weights0BufferOffset;
+            }
+            else
+                ref_command_buffer_state.weights0BufferOffset = -1;
 
             in_cmd_buffer_ptr->record_bind_vertex_buffers(0, /* in_start_binding */
                                                           static_cast<uint32_t>(vertex_buffers.size()),

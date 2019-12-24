@@ -20,6 +20,9 @@ WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platfor
     {
         /* Create a window */
 
+        // Disable scaling
+        ::SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
+
         Anvil::WindowUniquePtr m_window_ptr = Anvil::WindowFactory::create_window(platform,
                                                                                   in_title,
                                                                                   in_width,
@@ -38,7 +41,7 @@ WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platfor
         Rid[0].dwFlags = RIDEV_NOLEGACY;	// adds HID mouse and also ignores legacy mouse messages
         Rid[0].hwndTarget = 0;
 
-        RegisterRawInputDevices(Rid, 1, sizeof(Rid[0]));
+        ::RegisterRawInputDevices(Rid, 1, sizeof(Rid[0]));
 
         while (true)
         {

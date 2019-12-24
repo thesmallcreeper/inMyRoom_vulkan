@@ -81,6 +81,9 @@ void SkinsOfMeshes::FlashDevice()
 {
     assert(!hasInitFlashed);
 
+    if (localInverseBindMatrixesBuffer.empty())             // In case model has no skin
+        localInverseBindMatrixesBuffer.emplace_back(0);
+
     inverseBindMatrixesBuffer_uptr = CreateDeviceBufferForLocalBuffer(localInverseBindMatrixesBuffer,
                                                                       Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT,
                                                                       "Inverse bind matrixes buffer");
@@ -160,13 +163,10 @@ SkinInfo SkinsOfMeshes::GetSkin(size_t this_skin_index) const
     return skins[this_skin_index];
 }
 
-void SkinsOfMeshes::StartRecordingNodesMatrixes(size_t in_swapchain)
+void SkinsOfMeshes::StartRecordingNodesMatrixes()
 {
     assert(!isRecording);
     isRecording = true;
-
-    assert(in_swapchain < swapchainSize);
-    currectSwapchainBeingRecorded = in_swapchain;
 
     localCurrectSwapchainNodesMatrixesBuffer.clear();
 
@@ -178,7 +178,7 @@ void SkinsOfMeshes::AddNodeMatrix(glm::mat4 in_node_matrix)
     assert(isRecording);
 
     std::copy(reinterpret_cast<unsigned char*>(&in_node_matrix),
-              reinterpret_cast<unsigned char*>(&in_node_matrix + sizeof(glm::mat4)),
+              reinterpret_cast<unsigned char*>(&in_node_matrix) + sizeof(glm::mat4),
               std::back_inserter(localCurrectSwapchainNodesMatrixesBuffer));
 
     assert(localCurrectSwapchainNodesMatrixesBuffer.size() <= nodesMatrixesBufferSize);
@@ -189,14 +189,18 @@ size_t SkinsOfMeshes::GetNodesRecordSize() const
     return localCurrectSwapchainNodesMatrixesBuffer.size() / sizeof(glm::mat4);
 }
 
-void SkinsOfMeshes::EndRecodingAndFlash(Anvil::Queue* in_opt_flash_queue)
+void SkinsOfMeshes::EndRecodingAndFlash(size_t in_swapchain, Anvil::Queue* in_opt_flash_queue)
 {
     assert(isRecording);
 
-    nodesMatrixesBuffers_uptrs[currectSwapchainBeingRecorded]->write(0,
-                                                                     localCurrectSwapchainNodesMatrixesBuffer.size(),
-                                                                     localCurrectSwapchainNodesMatrixesBuffer.data(),
-                                                                     in_opt_flash_queue);
+    if (localCurrectSwapchainNodesMatrixesBuffer.size())
+    {
+
+        nodesMatrixesBuffers_uptrs[in_swapchain]->write(0,
+                                                        localCurrectSwapchainNodesMatrixesBuffer.size(),
+                                                        localCurrectSwapchainNodesMatrixesBuffer.data(),
+                                                        in_opt_flash_queue);
+    }
 
     isRecording = false;
     assert(!isRecording);
@@ -214,6 +218,17 @@ Anvil::DescriptorSet* SkinsOfMeshes::GetDescriptorSetPtr(size_t in_swapchain)
     assert(hasInitFlashed);
 
     return descriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(in_swapchain));
+}
+
+size_t SkinsOfMeshes::GetMaxCountOfNodesMatrices() const
+{
+    return nodesMatrixesBufferSize / sizeof(glm::mat4);
+}
+
+size_t SkinsOfMeshes::GetMaxCountOfInverseBindMatrixes() const
+{
+    assert(hasInitFlashed);
+    return inverseBindMatrixesBuffer_uptr->get_create_info_ptr()->get_size() / sizeof(glm::mat4);
 }
 
 glm::mat4 SkinsOfMeshes::GetAccessorMatrix(const size_t index, const tinygltf::Model& in_model, const tinygltf::Accessor& in_accessor)

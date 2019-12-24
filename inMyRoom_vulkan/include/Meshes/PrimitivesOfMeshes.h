@@ -24,6 +24,8 @@ struct PrimitiveGeneralInfo
     VkDeviceSize texcoord0BufferOffset = -1;
     VkDeviceSize texcoord1BufferOffset = -1;
     VkDeviceSize color0BufferOffset = -1;
+    VkDeviceSize joints0BufferOffset = -1;
+    VkDeviceSize weights0BufferOffset = -1;
 
     GraphicsPipelineSpecs commonGraphicsPipelineSpecs;
 
@@ -46,6 +48,10 @@ struct PrimitiveSpecificSetInfo
     glTFcomponentType texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
     VkDeviceSize color0BufferOffset = -1;
     glTFcomponentType color0ComponentType = static_cast<glTFcomponentType>(-1);
+    VkDeviceSize joints0BufferOffset = -1;
+    glTFcomponentType joints0ComponentType = static_cast<glTFcomponentType>(-1);
+    VkDeviceSize weights0BufferOffset = -1;
+    glTFcomponentType weights0ComponentType = static_cast<glTFcomponentType>(-1);
 
     VkPipeline vkGraphicsPipeline;
     Anvil::PipelineLayout* pipelineLayout_ptr;
@@ -67,6 +73,7 @@ struct PrimitivesSetSpecs
 struct DescriptorSetsCreateInfosPtrsCollection
 {
     const Anvil::DescriptorSetCreateInfo* camera_description_set_create_info_ptr;
+    const Anvil::DescriptorSetCreateInfo* skins_description_set_create_info_ptr;
     const Anvil::DescriptorSetCreateInfo* materials_description_set_create_info_ptr;
 };
 
@@ -107,6 +114,8 @@ public: // functions
     Anvil::Buffer* GetTexcoord0BufferPtr() { return texcoord0Buffer_uptr.get(); }
     Anvil::Buffer* GetTexcoord1BufferPtr() { return texcoord1Buffer_uptr.get(); }
     Anvil::Buffer* GetColor0BufferPtr() { return color0Buffer_uptr.get(); }
+    Anvil::Buffer* GetJoints0BufferPtr() { return joints0Buffer_uptr.get(); }
+    Anvil::Buffer* GetWeights0BufferPtr() { return weights0Buffer_uptr.get(); }
 
 private: // functions
     void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref,
@@ -127,6 +136,8 @@ private: // data
     Anvil::BufferUniquePtr texcoord0Buffer_uptr;
     Anvil::BufferUniquePtr texcoord1Buffer_uptr;
     Anvil::BufferUniquePtr color0Buffer_uptr;
+    Anvil::BufferUniquePtr joints0Buffer_uptr;
+    Anvil::BufferUniquePtr weights0Buffer_uptr;
 
     std::vector<unsigned char> localIndexBuffer;
     std::vector<unsigned char> localPositionBuffer;
@@ -135,6 +146,8 @@ private: // data
     std::vector<unsigned char> localTexcoord0Buffer;
     std::vector<unsigned char> localTexcoord1Buffer;
     std::vector<unsigned char> localColor0Buffer;
+    std::vector<unsigned char> localJoints0Buffer;
+    std::vector<unsigned char> localWeights0Buffer;
 
     std::vector<glm::vec3> pointsOfRecordingOBB;
     bool recordingOBB = false;

@@ -33,16 +33,18 @@ public:
 
     SkinInfo GetSkin(size_t this_skin_index) const;
 
-    void StartRecordingNodesMatrixes(size_t in_swapchain);
+    void StartRecordingNodesMatrixes();
 
     void AddNodeMatrix(glm::mat4 in_node_matrix);
     size_t GetNodesRecordSize() const;
 
-    void EndRecodingAndFlash(Anvil::Queue* in_opt_flash_queue = nullptr);
+    void EndRecodingAndFlash(size_t in_swapchain, Anvil::Queue* in_opt_flash_queue = nullptr);
 
     const Anvil::DescriptorSetCreateInfo* GetDescriptorSetCreateInfoPtr();
     Anvil::DescriptorSet* GetDescriptorSetPtr(size_t in_swapchain);
 
+    size_t GetMaxCountOfNodesMatrices() const;
+    size_t GetMaxCountOfInverseBindMatrixes() const;
 private:
     glm::mat4 GetAccessorMatrix(const size_t index,
                                 const tinygltf::Model& in_model,
@@ -67,7 +69,6 @@ private: // data
     const size_t nodesMatrixesBufferSize;
 
     bool isRecording = false;
-    size_t currectSwapchainBeingRecorded = -1;
 
     std::vector<unsigned char> localCurrectSwapchainNodesMatrixesBuffer;
     std::vector<Anvil::BufferUniquePtr> nodesMatrixesBuffers_uptrs;

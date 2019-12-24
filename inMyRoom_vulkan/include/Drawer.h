@@ -14,14 +14,24 @@
 
 struct DrawRequest
 {
+    bool isSkin;
     uint32_t objectID;
     size_t primitiveIndex;
-    glm::mat4x4 TRSmatrix;
+    union
+    {
+        glm::mat4x4 TRSmatrix;
+        struct
+        {
+            uint32_t inverseBindMatricesOffset;
+            uint32_t nodesMatricesOffset;
+        };
+    } vertexData;
 };
 
 struct DescriptorSetsPtrsCollection
 {
     Anvil::DescriptorSet* camera_description_set_ptr;
+    Anvil::DescriptorSet* skin_description_set_ptr;
     Anvil::DescriptorSet* materials_description_set_ptr;
 };
 
@@ -36,6 +46,8 @@ struct CommandBufferState
     VkDeviceSize texcoord0BufferOffset = -1;
     VkDeviceSize texcoord1BufferOffset = -1;
     VkDeviceSize color0BufferOffset = -1;
+    VkDeviceSize joints0BufferOffset = -1;
+    VkDeviceSize weights0BufferOffset = -1;
     Anvil::IndexType indexBufferType = static_cast<Anvil::IndexType>(-1);
     VkPipeline vkGraphicsPipeline = static_cast<VkPipeline>(nullptr);
 };

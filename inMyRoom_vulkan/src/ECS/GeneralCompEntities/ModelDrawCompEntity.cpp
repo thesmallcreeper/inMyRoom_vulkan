@@ -2,6 +2,7 @@
 
 #include "ECS/GeneralComponents/ModelDrawComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/SkinComp.h"
 
 ModelDrawComp* ModelDrawCompEntity::modelDrawComp_ptr = nullptr;
 
@@ -42,6 +43,24 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
             this_modelDrawCompEntity.shouldDraw = static_cast<bool>(this_int);
         }
     }
+    // "DisableCulling", disableCulling = int (optional)
+    {
+        auto search = in_map.intMap.find("DisableCulling");
+        if (search != in_map.intMap.end())
+        {
+            int this_int = search->second;
+            this_modelDrawCompEntity.disableCulling = static_cast<bool>(this_int);
+        }
+    }
+    // "IsSkin", isSkin = int (optional)
+    {
+        auto search = in_map.intMap.find("IsSkin");
+        if (search != in_map.intMap.end())
+        {
+            int this_int = search->second;
+            this_modelDrawCompEntity.isSkin = static_cast<bool>(this_int);
+        }
+    }
 
     return this_modelDrawCompEntity;
 }
@@ -51,11 +70,14 @@ std::vector<std::pair<std::string, MapType>> ModelDrawCompEntity::GetComponentIn
     std::vector<std::pair<std::string, MapType>> return_pair;
     return_pair.emplace_back(std::make_pair("MeshIndex", MapType::int_type));
     return_pair.emplace_back(std::make_pair("ShouldDraw", MapType::int_type));
+    return_pair.emplace_back(std::make_pair("DisableCulling", MapType::int_type));
+    return_pair.emplace_back(std::make_pair("IsSkin", MapType::int_type));
 
     return return_pair;
 }
 
 void ModelDrawCompEntity::DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
+                                               class SkinComp* skin_ptr,
                                                MeshesOfNodes* meshesOfNodes_ptr,
                                                PrimitivesOfMeshes* primitivesOfMeshes_ptr,
                                                FrustumCulling* frustumCulling_ptr,
@@ -68,23 +90,67 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeG
         const glm::mat4x4 this_global_matrix = this_meshGlobalMatrix_ptr->globalMatrix;
 
         MeshInfo this_mesh_info = meshesOfNodes_ptr->GetMesh(meshIndex);
-        const OBB& this_OBB = this_mesh_info.boundBox;
 
-        Cuboid this_cuboid = this_global_matrix * this_OBB;
+        if(!disableCulling)
+        {
+            const OBB& this_OBB = this_mesh_info.boundBox;
+            Cuboid this_cuboid = this_global_matrix * this_OBB;
 
-        if (frustumCulling_ptr->IsCuboidInsideFrustum(this_cuboid)) // per mesh-object OBB culling
+            if (frustumCulling_ptr->IsCuboidInsideFrustum(this_cuboid)) // per mesh-object OBB culling
+                for (size_t primitive_index = this_mesh_info.primitiveFirstOffset; primitive_index < this_mesh_info.primitiveFirstOffset + this_mesh_info.primitiveRangeSize; primitive_index++)
+                {
+                    DrawRequest this_draw_request;
+                    this_draw_request.primitiveIndex = primitive_index;
+                    this_draw_request.objectID = thisEntity;
+                    if (!isSkin)
+                    {                   
+                        this_draw_request.vertexData.TRSmatrix = this_global_matrix;
+
+                        this_draw_request.isSkin = false;
+                    }                       
+                    else
+                    {
+                        SkinCompEntity* this_skin_ptr = reinterpret_cast<SkinCompEntity*>(skin_ptr->GetComponentEntity(thisEntity));
+                        this_draw_request.vertexData.inverseBindMatricesOffset = this_skin_ptr->inverseBindMatricesOffset;
+                        this_draw_request.vertexData.nodesMatricesOffset = this_skin_ptr->lastNodesMatricesOffset;
+
+                        this_draw_request.isSkin = true;
+                    }
+
+                    if (primitivesOfMeshes_ptr->IsPrimitiveTransparent(primitive_index))
+                        transparent_draw_requests.emplace_back(this_draw_request);                   
+                    else
+                        opaque_draw_requests.emplace_back(this_draw_request);
+                }
+        }
+        else
+        {
             for (size_t primitive_index = this_mesh_info.primitiveFirstOffset; primitive_index < this_mesh_info.primitiveFirstOffset + this_mesh_info.primitiveRangeSize; primitive_index++)
             {
                 DrawRequest this_draw_request;
                 this_draw_request.primitiveIndex = primitive_index;
                 this_draw_request.objectID = thisEntity;
-                this_draw_request.TRSmatrix = this_global_matrix;
+                if (!isSkin)
+                {
+                    this_draw_request.vertexData.TRSmatrix = this_global_matrix;
+
+                    this_draw_request.isSkin = false;
+                }
+                else
+                {
+                    SkinCompEntity* this_skin_ptr = reinterpret_cast<SkinCompEntity*>(skin_ptr->GetComponentEntity(thisEntity));
+                    this_draw_request.vertexData.inverseBindMatricesOffset = this_skin_ptr->inverseBindMatricesOffset;
+                    this_draw_request.vertexData.nodesMatricesOffset = this_skin_ptr->lastNodesMatricesOffset;
+
+                    this_draw_request.isSkin = true;
+                }
 
                 if (primitivesOfMeshes_ptr->IsPrimitiveTransparent(primitive_index))
-                    transparent_draw_requests.emplace_back(this_draw_request);                   
+                    transparent_draw_requests.emplace_back(this_draw_request);
                 else
                     opaque_draw_requests.emplace_back(this_draw_request);
             }
+        }
     }
 }
 

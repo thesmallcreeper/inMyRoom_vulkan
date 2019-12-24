@@ -105,9 +105,9 @@ void Graphics::DrawFrame()
     while(Anvil::Vulkan::vkWaitForFences(device_ptr->get_device_vk(), 1, fence_last_submit_uptr->get_fence_ptr(), VK_TRUE, 1000 * 1000) == VK_TIMEOUT);
     fence_last_submit_uptr->reset();
 
-    ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
-
     {
+        ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
+
         struct
         {
             glm::mat4 perspective_matrix;
@@ -121,6 +121,10 @@ void Graphics::DrawFrame()
                                                      2 * sizeof(glm::mat4x4),
                                                      &data,
                                                      present_queue_ptr);
+    }
+
+    {
+        skinsOfMeshes_uptr->EndRecodingAndFlash(n_swapchain_image, present_queue_ptr);
     }
 
 
@@ -224,11 +228,13 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
 
         {
             ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
-            FrustumCulling frustum_culling;
 
+            FrustumCulling frustum_culling;
             frustum_culling.SetFrustumPlanes(camera_viewport_frustum.GetWorldSpacePlanesOfFrustum());
 
-            DrawRequestsBatch draw_requests = modelDrawComp_uptr->DrawUsingFrustumCull(meshesOfNodes_uptr.get(), primitivesOfMeshes_uptr.get(), &frustum_culling);
+            DrawRequestsBatch draw_requests = modelDrawComp_uptr->DrawUsingFrustumCull(meshesOfNodes_uptr.get(),
+                                                                                       primitivesOfMeshes_uptr.get(),
+                                                                                       &frustum_culling);
 
             opaque_drawer.AddDrawRequests(draw_requests.opaqueDrawRequests);
             transparent_drawer.AddDrawRequests(draw_requests.transparentDrawRequests);
@@ -237,6 +243,7 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
         {
             DescriptorSetsPtrsCollection this_description_set_collection;
             this_description_set_collection.camera_description_set_ptr = cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex);
+            this_description_set_collection.skin_description_set_ptr = skinsOfMeshes_uptr->GetDescriptorSetPtr(swapchainImageIndex);
             this_description_set_collection.materials_description_set_ptr = materialsOfPrimitives_uptr->GetDescriptorSetPtr();
 
             opaque_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", this_description_set_collection);
@@ -518,12 +525,6 @@ void Graphics::InitShadersSetsFamiliesCache()
     }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "Z-Prepass Shaders";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "zprepassShader_glsl.vert";
-        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
-    }
-    {
-        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
         this_shaderSetInitInfo.shadersSetFamilyName = "General Mipmap Compute Shader";
         this_shaderSetInitInfo.computeShaderSourceFilename = "generalMipmap_glsl.comp";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
@@ -561,20 +562,32 @@ void Graphics::InitMeshesTree()
 
     primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesFactory_uptr.get(), shadersSetsFamiliesCache_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr); //needs flash
 
+    skinsOfMeshes_uptr = std::make_unique<SkinsOfMeshes>(device_ptr, swapchainImagesCount, 64 * 1024);
+
     meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get(), device_ptr);
 }
 
 void Graphics::InitGraphicsComponents()
 {
-    cameraComp_uptr = std::make_unique<CameraComp>(engine_ptr->GetECSwrapperPtr(),
-                                                   glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
-                                                   static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
-                                                   cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
-                                                   cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
-    engine_ptr->GetECSwrapperPtr()->AddComponent(cameraComp_uptr.get());
+    {
+        cameraComp_uptr = std::make_unique<CameraComp>(engine_ptr->GetECSwrapperPtr(),
+                                                       glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
+                                                       static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
+                                                       cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
+                                                       cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
+        engine_ptr->GetECSwrapperPtr()->AddComponent(cameraComp_uptr.get());
+    }
 
-    modelDrawComp_uptr = std::make_unique<ModelDrawComp>(engine_ptr->GetECSwrapperPtr());
-    engine_ptr->GetECSwrapperPtr()->AddComponent(modelDrawComp_uptr.get());
+    {
+        modelDrawComp_uptr = std::make_unique<ModelDrawComp>(engine_ptr->GetECSwrapperPtr());
+        engine_ptr->GetECSwrapperPtr()->AddComponent(modelDrawComp_uptr.get());
+    }
+
+    {
+        skinComp_uptr = std::make_unique<SkinComp>(engine_ptr->GetECSwrapperPtr(),
+                                                   skinsOfMeshes_uptr.get());
+        engine_ptr->GetECSwrapperPtr()->AddComponent(skinComp_uptr.get());
+    }
 }
 
 void Graphics::LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder)
@@ -595,6 +608,9 @@ void Graphics::LoadModel(const tinygltf::Model& in_model, std::string in_model_i
     printf("-Initializing PrimitivesOfMeshes\n");
   //primitivesOfMeshes_uptr-> collects primitives from meshesOfNodes_uptr
 
+    printf("-Initialzing SkinsOfMeshes\n");
+    skinsOfMeshes_uptr->AddSkinsOfModel(in_model);
+
     // For every mesh copy primitives of it to GPU
     printf("-Initializing MeshesOfNodes\n");
     meshesOfNodes_uptr->AddMeshesOfModel(in_model);
@@ -608,9 +624,11 @@ void Graphics::EndModelsLoad()
     // Flashing device
     primitivesOfMeshes_uptr->FlashDevice();
     materialsOfPrimitives_uptr->FlashDevice();
+    skinsOfMeshes_uptr->FlashDevice();
 
     DescriptorSetsCreateInfosPtrsCollection this_descriptor_sets_create_infos_ptrs_collection;
     this_descriptor_sets_create_infos_ptrs_collection.camera_description_set_create_info_ptr = cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0);    // All camera sets are the same from create info standpoint
+    this_descriptor_sets_create_infos_ptrs_collection.skins_description_set_create_info_ptr = skinsOfMeshes_uptr->GetDescriptorSetCreateInfoPtr();
     this_descriptor_sets_create_infos_ptrs_collection.materials_description_set_create_info_ptr = materialsOfPrimitives_uptr->GetDescriptorSetCreateInfoPtr();
 
     // Create primitives sets (shaders-pipelines for each kind of primitive)
@@ -624,6 +642,9 @@ void Graphics::EndModelsLoad()
         this_primitives_set_specs.useMaterial = true;
         this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
 
+        this_primitives_set_specs.shaderSpecs.definitionValuePairs.emplace_back(std::pair("INVERSE_BIND_COUNT", static_cast<int>(skinsOfMeshes_uptr->GetMaxCountOfInverseBindMatrixes())));
+        this_primitives_set_specs.shaderSpecs.definitionValuePairs.emplace_back(std::pair("NODES_MATRICES_COUNT", static_cast<int>(skinsOfMeshes_uptr->GetMaxCountOfNodesMatrices())));
+
         primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, this_descriptor_sets_create_infos_ptrs_collection, renderpass_uptr.get(), textureSubpassID);
 
     }
@@ -633,6 +654,12 @@ MeshesOfNodes* Graphics::GetMeshesOfNodesPtr()
 {
     assert(meshesOfNodes_uptr.get());
     return meshesOfNodes_uptr.get();
+}
+
+SkinsOfMeshes* Graphics::GetSkinsOfMeshesPtr()
+{
+    assert(skinsOfMeshes_uptr.get());
+    return skinsOfMeshes_uptr.get();
 }
 
 void Graphics::ToggleCullingDebugging()

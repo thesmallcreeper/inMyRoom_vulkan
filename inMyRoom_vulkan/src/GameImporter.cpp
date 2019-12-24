@@ -146,31 +146,37 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
         scene_node->nodeName = this_gltf_scene.name;
         assert(scene_node->nodeName != "");
 
+        // Add existances
+        for (size_t this_gltf_scene_node_index : this_gltf_scene.nodes)
+        {
+            tinygltf::Node& this_gltf_scene_node = this_model.nodes[this_gltf_scene_node_index];
+
+            std::unique_ptr<Node> this_scene_node_uptr = ImportNodeExistance(this_gltf_scene_node, this_model);
+            this_scene_node_uptr->glTFnodeIndex = this_gltf_scene_node_index;
+
+            scene_node->children.emplace_back(std::move(this_scene_node_uptr));
+        }
+
+        // Add components
+        for (size_t index = 0; index < scene_node->children.size(); index++)
+            ImportNodeComponents(scene_node->children[index].get(), scene_node.get(), this_model);
+        
         // Add position comp entity
         {
             CompEntityInitMap this_map;
             scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), this_map);
         }
+
         // Add matrix comp
         scene_node->shouldAddNodeGlobalMatrixCompEntity = true;
 
-        for (size_t this_gltf_scene_node_index : this_gltf_scene.nodes)
-        {
-            tinygltf::Node& this_gltf_scene_node = this_model.nodes[this_gltf_scene_node_index];
-
-            std::unique_ptr<Node> this_scene_node_uptr = ImportNode(this_gltf_scene_node, this_model);
-            this_scene_node_uptr->glTFnodeIndex = this_gltf_scene_node_index;
-
-            scene_node->children.emplace_back(std::move(this_scene_node_uptr));
-        }
-        
         model_node->children.emplace_back(std::move(scene_node));
     }
 
     return std::move(model_node);
 }
 
-std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, tinygltf::Model& this_model)
+std::unique_ptr<Node> GameImporter::ImportNodeExistance(tinygltf::Node& this_gltf_node, tinygltf::Model& model)
 {
     std::unique_ptr<Node> return_node_uptr = std::make_unique<Node>();
 
@@ -179,20 +185,6 @@ std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, t
     else
         return_node_uptr->nodeName = "node_" + NumberToString(anonymousNameCounter++);
 
-    // Position component
-    {
-        return_node_uptr->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), CreatePositionInitMap(this_gltf_node));
-    }
-
-    // Model draw component
-    if (this_gltf_node.mesh != -1)
-    {
-        CompEntityInitMap this_map;
-        this_map.intMap["MeshIndex"] = this_gltf_node.mesh + static_cast<int>(engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(this_model));
-
-        return_node_uptr->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::ModelDraw), this_map);
-    }
-
     // NodeGlobalMatrixCompEntity is added on the spot (later)
     return_node_uptr->shouldAddNodeGlobalMatrixCompEntity = true;
 
@@ -200,9 +192,9 @@ std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, t
     {
         for (size_t this_gltf_recurse_node_index : this_gltf_node.children)
         {
-            tinygltf::Node& this_gltf_recurse_node = this_model.nodes[this_gltf_recurse_node_index];
+            tinygltf::Node& this_gltf_recurse_node = model.nodes[this_gltf_recurse_node_index];
             
-            std::unique_ptr<Node> this_recurse_node_uptr = ImportNode(this_gltf_recurse_node, this_model);
+            std::unique_ptr<Node> this_recurse_node_uptr = ImportNodeExistance(this_gltf_recurse_node, model);
             this_recurse_node_uptr->glTFnodeIndex = this_gltf_recurse_node_index;
 
             return_node_uptr->children.emplace_back(std::move(this_recurse_node_uptr));
@@ -210,6 +202,56 @@ std::unique_ptr<Node> GameImporter::ImportNode(tinygltf::Node& this_gltf_node, t
     }
 
     return std::move(return_node_uptr);
+}
+
+
+void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygltf::Model& model)
+{
+    tinygltf::Node& this_gltf_node = model.nodes[this_node->glTFnodeIndex];
+
+    // Position component
+    {
+        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), CreatePositionInitMap(this_gltf_node));
+    }
+
+    // Model draw component
+    if (this_gltf_node.mesh != -1)
+    {
+        CompEntityInitMap this_map;
+        this_map.intMap["MeshIndex"] = this_gltf_node.mesh + static_cast<int>(engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(model));
+
+        if (this_gltf_node.skin != -1)
+        {
+            this_map.intMap["IsSkin"] = static_cast<int>(true);
+            this_map.intMap["DisableCulling"] = static_cast<int>(true);
+        }
+
+        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::ModelDraw), this_map);
+    }
+
+    // Skin component
+    if (this_gltf_node.skin != -1)
+    {
+        size_t skin_index = static_cast<size_t>(this_gltf_node.skin) + engine_ptr->GetGraphicsPtr()->GetSkinsOfMeshesPtr()->GetSkinIndexOffsetOfModel(model);
+        SkinInfo this_skinInfo = engine_ptr->GetGraphicsPtr()->GetSkinsOfMeshesPtr()->GetSkin(skin_index);
+
+        CompEntityInitMap this_map;
+        this_map.intMap["InverseBindMatricesOffset"] = static_cast<int>(this_skinInfo.inverseBindMatrixesFirstOffset);
+
+        std::string this_node_path = GetPathUsingGLTFindex(root_node, this_node->glTFnodeIndex);
+        for (size_t index = 0; index < this_skinInfo.glTFnodesJoints.size(); index++)
+        {
+            std::string this_joint_path = GetPathUsingGLTFindex(root_node, this_skinInfo.glTFnodesJoints[index]);
+            std::string relative_path = GetRelativePath(this_joint_path, this_node_path);
+
+            this_map.stringMap.emplace(std::make_pair("JointRelativeName_" + std::to_string(index), relative_path));
+        }
+
+        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Skin), this_map);
+    }
+
+    for (size_t index = 0; index < this_node->children.size(); index++)
+        ImportNodeComponents(this_node->children[index].get(), root_node, model);
 }
 
 tinygltf::Model GameImporter::LoadModel(std::string path)
@@ -526,28 +568,71 @@ Node* GameImporter::FindNodeInTree(Node* root_node, std::string path)
     return this_node;
 }
 
-Node* GameImporter::FindNodeInTreeUsingGLTFindex(Node* root_node, size_t glTF_node_Index)
+std::string GameImporter::GetPathUsingGLTFindex(Node* root_node, size_t glTF_node_Index)
 {
     // recursive
-    Node* return_node_ptr = nullptr;
+    std::string return_path = "";
 
     if (root_node->glTFnodeIndex == glTF_node_Index)
-        return_node_ptr = root_node;
+        return_path = root_node->nodeName;
     else
     {
         for (size_t index = 0; index < root_node->children.size(); index++)
         {
-            Node* this_result_node_ptr = FindNodeInTreeUsingGLTFindex(root_node->children[index].get(), glTF_node_Index);
+            std::string this_result_path = GetPathUsingGLTFindex(root_node->children[index].get(), glTF_node_Index);
 
-            if (this_result_node_ptr != nullptr)
+            if (this_result_path != "")
             {
-                return_node_ptr = this_result_node_ptr;
+                return_path = root_node->nodeName + "/" + this_result_path;
                 break;
             }
         }
     }
 
-    return return_node_ptr;
+    return return_path;
+}
+
+std::string GameImporter::GetRelativePath(std::string path, std::string relative_to_path)
+{
+    // Code tweaked from https://stackoverflow.com/a/9978227
+
+    std::string return_relative_path;
+
+    // find out where the two paths diverge
+    while (path != "" && relative_to_path != "" && path.substr(0, path.find_first_of("/", 0)) == relative_to_path.substr(0, relative_to_path.find_first_of("/", 0)))
+    {
+        path = path.substr(path.find_first_of("/", 0) + 1);
+        relative_to_path = relative_to_path.substr(relative_to_path.find_first_of("/", 0) + 1);
+    }
+
+    // add "../" for each remaining token in relative_to
+    while (relative_to_path != "") 
+    {
+        return_relative_path += "../";
+
+        if (relative_to_path.find_first_of("/") != std::string::npos)
+            relative_to_path = relative_to_path.substr(relative_to_path.find_first_of("/", 0) + 1);
+        else
+            relative_to_path = "";
+    }
+
+    // add remaining path
+    while (path != "") 
+    {
+        return_relative_path += path.substr(0, path.find_first_of("/", 0));
+
+        if (path.find_first_of("/") != std::string::npos)
+        {
+            if (*return_relative_path.rbegin() != '/')
+                return_relative_path += "/";
+
+            path = path.substr(path.find_first_of("/", 0) + 1);
+        }
+        else
+            path = "";
+    }
+
+    return return_relative_path;
 }
 
 std::string GameImporter::NumberToString(size_t number)

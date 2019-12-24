@@ -27,6 +27,7 @@
 
 #include "ECS/GeneralComponents/CameraComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
+#include "ECS/GeneralComponents/SkinComp.h"
 
 #include "Geometry/ViewportFrustum.h"
 
@@ -35,6 +36,8 @@
 #include "Meshes/MaterialsOfPrimitives.h"
 #include "Meshes/MeshesOfNodes.h"
 #include "Meshes/PrimitivesOfMeshes.h"
+#include "Meshes/SkinsOfMeshes.h"
+
 #include "ShadersSetsFamiliesCache.h"
 
 
@@ -49,6 +52,7 @@ public:
     ~Graphics();
 
     MeshesOfNodes* GetMeshesOfNodesPtr();
+    SkinsOfMeshes* GetSkinsOfMeshesPtr();
 
     void LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder);
     void EndModelsLoad();
@@ -77,12 +81,14 @@ private:
 private:
     std::unique_ptr<CameraComp> cameraComp_uptr;
     std::unique_ptr<ModelDrawComp> modelDrawComp_uptr;
+    std::unique_ptr<SkinComp> skinComp_uptr;
 
     std::unique_ptr<MipmapsGenerator> mipmapsGenerator_uptr;
     std::unique_ptr<ImagesAboutOfTextures> imagesAboutOfTextures_uptr;
     std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;
     std::unique_ptr<MaterialsOfPrimitives> materialsOfPrimitives_uptr;
     std::unique_ptr<PrimitivesOfMeshes> primitivesOfMeshes_uptr;
+    std::unique_ptr<SkinsOfMeshes> skinsOfMeshes_uptr;
     std::unique_ptr<MeshesOfNodes> meshesOfNodes_uptr;
 
     std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;

@@ -54,7 +54,7 @@ layout (push_constant) uniform PushConstants
 };
 
 // Descriptor Sets
-layout (set = 1, binding = 0) uniform MaterialsParametersBuffer
+layout (set = MATERIAL_DS_INDEX, binding = 0) uniform MaterialsParametersBuffer
 {
     MaterialParameters materialsParameters[MATERIALS_PARAMETERS_COUNT];
 };
@@ -62,7 +62,7 @@ layout (set = 1, binding = 0) uniform MaterialsParametersBuffer
 #endif
 
 #ifdef USE_BASE_COLOR_TEXTURE_TEXCOORD0
-layout (set = 1, binding = 1) uniform sampler2D textures[TEXTURES_COUNT];
+layout (set = MATERIAL_DS_INDEX, binding = 1) uniform sampler2D textures[TEXTURES_COUNT];
 #endif
 
 

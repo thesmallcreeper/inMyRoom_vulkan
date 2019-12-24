@@ -256,6 +256,66 @@ Anvil::PipelineID PipelinesFactory::CreateGraphicsPipeline(GraphicsPipelineSpecs
         location++;
     }
 
+    // joints_0 attribute
+
+    if (in_pipelineSpecs.joints0ComponentType == glTFcomponentType::type_unsigned_short)
+    {
+        pipeline_create_info_ptr->add_vertex_attribute(location,
+                                                       Anvil::Format::R16G16B16A16_UINT,
+                                                       0,
+                                                       sizeof(uint16_t) * 4,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
+
+        location++;
+    }
+    else if (in_pipelineSpecs.joints0ComponentType == glTFcomponentType::type_unsigned_byte)
+    {
+        pipeline_create_info_ptr->add_vertex_attribute(location,
+                                                       Anvil::Format::R8G8B8A8_UINT,
+                                                       0,
+                                                       sizeof(uint8_t) * 4,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
+
+        location++;
+    }
+
+    // weights_0 attribute
+
+    if (in_pipelineSpecs.weights0ComponentType == glTFcomponentType::type_float)
+    {
+        pipeline_create_info_ptr->add_vertex_attribute(location,
+                                                       Anvil::Format::R32G32B32A32_SFLOAT,
+                                                       0,
+                                                       sizeof(float) * 4,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
+
+        location++;
+    }
+    else if (in_pipelineSpecs.weights0ComponentType == glTFcomponentType::type_unsigned_short)
+    {
+        pipeline_create_info_ptr->add_vertex_attribute(location,
+                                                       Anvil::Format::R16G16B16A16_UNORM,
+                                                       0,
+                                                       sizeof(uint16_t) * 4,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
+
+        location++;
+    }
+    else if (in_pipelineSpecs.weights0ComponentType == glTFcomponentType::type_unsigned_byte)
+    {
+        pipeline_create_info_ptr->add_vertex_attribute(location,
+                                                       Anvil::Format::R8G8B8A8_UNORM,
+                                                       0,
+                                                       sizeof(uint8_t) * 4,
+                                                       Anvil::VertexInputRate::VERTEX,
+                                                       location);
+
+        location++;
+    }
 
     Anvil::PrimitiveTopology thisPrimitiveTopology;
     {

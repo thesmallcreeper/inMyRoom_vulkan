@@ -12,7 +12,8 @@ enum class componentIDenum : componentID
     Default             = 0,
     Position            = 1000,
     NodeGlobalMatrix    = 2000,
-    DefaultCameraInput  = 3000,
-    Camera              = 4000,
-    ModelDraw           = 5000
+    Skin                = 3000,
+    DefaultCameraInput  = 4000,
+    Camera              = 5000,
+    ModelDraw           = 6000  // is custom
 };

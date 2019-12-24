@@ -8,6 +8,7 @@
 #include "ECS/GeneralComponents/PositionComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
+#include "ECS/GeneralComponents/SkinComp.h"
 
 #include "glm/gtx/matrix_decompose.hpp"
 
@@ -38,7 +39,9 @@ private:
     tinygltf::Model LoadModel(std::string path);
 
     std::unique_ptr<Node> ImportModel(std::string model_name, tinygltf::Model& this_model);
-    std::unique_ptr<Node> ImportNode(tinygltf::Node& this_node, tinygltf::Model& this_model);
+
+    std::unique_ptr<Node> ImportNodeExistance(tinygltf::Node& this_node, tinygltf::Model& this_model);
+    void ImportNodeComponents(Node* this_node, Node* root_node, tinygltf::Model& this_model);
 
     void AddNodeToEntityHandler(Entity parent_entity, std::string parent_full_name, Node* this_node);           // fullname == "" means no name for the children D:
     void AddNodeComponentsToECS(Entity parent_entity, Node* this_node);
@@ -50,7 +53,8 @@ private:
 
     static Node* FindNodeInTree(Node* root_node, std::string path);
 
-    static Node* FindNodeInTreeUsingGLTFindex(Node* root_node, size_t glTF_node_Index);
+    static std::string GetPathUsingGLTFindex(Node* root_node, size_t glTF_node_Index);
+    static std::string GetRelativePath(std::string path, std::string relative_to);
 
     std::string NumberToString(size_t number);
 

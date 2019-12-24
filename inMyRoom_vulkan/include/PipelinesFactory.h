@@ -45,6 +45,8 @@ struct GraphicsPipelineSpecs
     glTFcomponentType texcoord0ComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
     glTFcomponentType color0ComponentType = static_cast<glTFcomponentType>(-1);
+    glTFcomponentType joints0ComponentType = static_cast<glTFcomponentType>(-1);
+    glTFcomponentType weights0ComponentType = static_cast<glTFcomponentType>(-1);
 
     std::vector<const Anvil::DescriptorSetCreateInfo*> descriptorSetsCreateInfo_ptrs;
 
@@ -84,6 +86,8 @@ namespace std
             hash_combine(result, in_pipelineSpecs.texcoord0ComponentType);
             hash_combine(result, in_pipelineSpecs.texcoord1ComponentType);
             hash_combine(result, in_pipelineSpecs.color0ComponentType);
+            hash_combine(result, in_pipelineSpecs.joints0ComponentType);
+            hash_combine(result, in_pipelineSpecs.weights0ComponentType);
             hash_combine(result, in_pipelineSpecs.viewportAndScissorSpecs.width);
             hash_combine(result, in_pipelineSpecs.viewportAndScissorSpecs.height);
             hash_combine(result, in_pipelineSpecs.renderpass_ptr);
@@ -137,6 +141,8 @@ namespace std
                             (lhs.texcoord0ComponentType == rhs.texcoord0ComponentType) &&
                             (lhs.texcoord1ComponentType == rhs.texcoord1ComponentType) &&
                             (lhs.color0ComponentType == rhs.color0ComponentType) &&
+                            (lhs.joints0ComponentType == rhs.joints0ComponentType) &&
+                            (lhs.weights0ComponentType == rhs.weights0ComponentType) &&
                             (lhs.viewportAndScissorSpecs.width == rhs.viewportAndScissorSpecs.width) &&
                             (lhs.viewportAndScissorSpecs.height == rhs.viewportAndScissorSpecs.height) &&
                             (lhs.renderpass_ptr == rhs.renderpass_ptr) &&

@@ -180,6 +180,12 @@
     <ClCompile Include="include\Meshes\SkinsOfMeshes.cpp">
       <Filter>Source Files\Meshes</Filter>
     </ClCompile>
+    <ClCompile Include="src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
+      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralComponents\SkinComp.cpp">
+      <Filter>Source Files\ECS\GeneralComponents</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -322,6 +328,12 @@
     </ClInclude>
     <ClInclude Include="include\Meshes\SkinsOfMeshes.h">
       <Filter>Header Files\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralCompEntities\SkinCompEntity.h">
+      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralComponents\SkinComp.h">
+      <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
