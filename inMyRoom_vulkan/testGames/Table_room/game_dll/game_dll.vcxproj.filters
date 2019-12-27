@@ -156,4 +156,9 @@
       <Filter>Source Files\GameSpecific\Components</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\gameConfig.cfg">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>

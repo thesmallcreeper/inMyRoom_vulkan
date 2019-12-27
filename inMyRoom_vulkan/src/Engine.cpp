@@ -141,6 +141,8 @@ ECSwrapper* Engine::GetECSwrapperPtr()
 
 void Engine::Run()
 {
+    ECSwrapper_uptr->RefreshUpdateDeltaTime();  // In order to make 1st frame delta time about 0.
+
     while (!breakMainLoop)
     {
         for (auto this_event : inputManager_uptr->GrabAndResetEventVector())

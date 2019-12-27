@@ -1,4 +1,4 @@
-rem A small script that build (or rebuild) Anvil, Compressonator, MatheGeoLib project/solution for VS2017
+rem A small script that build (or rebuild) Anvil, Compressonator VS2019 projects files
 
 cd Anvil
 if exist "build" rmdir /s/q build

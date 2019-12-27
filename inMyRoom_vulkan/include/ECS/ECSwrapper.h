@@ -24,6 +24,7 @@ public:
     componentID         GetComponentIDbyName(std::string component_name);
 
     std::chrono::duration<float> GetUpdateDeltaTime();
+    void RefreshUpdateDeltaTime();
 
     std::vector<std::string> GetComponentsNames();
 

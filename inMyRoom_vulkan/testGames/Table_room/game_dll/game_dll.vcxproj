@@ -57,6 +57,9 @@
     <ClCompile Include="src\Components\VelocityComp.cpp" />
     <ClCompile Include="src\dllmain.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\gameConfig.cfg" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{C8A65F2E-5B6D-4D8F-B4C8-0F54DC73C446}</ProjectGuid>
