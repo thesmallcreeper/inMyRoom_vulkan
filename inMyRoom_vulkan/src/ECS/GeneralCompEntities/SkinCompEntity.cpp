@@ -1,9 +1,11 @@
 #include "ECS/GeneralCompEntities/SkinCompEntity.h"
 
+#include "ECS/ECSwrapper.h"
+
+#ifndef GAME_DLL
 #include "ECS/GeneralComponents/SkinComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 
-#include "ECS/ECSwrapper.h"
 
 SkinComp* SkinCompEntity::skinComp_ptr = nullptr;
 
@@ -83,3 +85,5 @@ void SkinCompEntity::Update(NodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr
         skinsOfMeshes_ptr->AddNodeMatrix(joint_global_matrix);
     }
 }
+
+#endif

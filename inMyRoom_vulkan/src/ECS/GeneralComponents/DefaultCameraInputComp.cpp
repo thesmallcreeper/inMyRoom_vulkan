@@ -15,11 +15,6 @@ DefaultCameraInputComp::~DefaultCameraInputComp()
     DefaultCameraInputCompEntity::defaultCameraInputComp_ptr = nullptr;
 }
 
-std::vector<std::pair<std::string, MapType>> DefaultCameraInputComp::GetComponentInitMapFields()
-{
-    return DefaultCameraInputCompEntity::GetComponentInitMapFields();
-}
-
 void DefaultCameraInputComp::Update()
 {
     auto previous_snap_timePoint = lastSnapTimePoint;

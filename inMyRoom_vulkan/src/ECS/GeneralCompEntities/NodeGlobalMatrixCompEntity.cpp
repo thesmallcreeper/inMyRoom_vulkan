@@ -1,9 +1,10 @@
 #include "ECS/GeneralCompEntities/NodeGlobalMatrixCompEntity.h"
 
+#include "ECS/ECSwrapper.h"
+
+#ifndef GAME_DLL
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/PositionComp.h"
-
-#include "ECS/ECSwrapper.h"
 
 NodeGlobalMatrixComp* NodeGlobalMatrixCompEntity::nodeGlobalMatrixComp_ptr = nullptr;
 
@@ -116,3 +117,5 @@ void NodeGlobalMatrixCompEntity::Update(PositionComp* const positionComp_ptr)
 void NodeGlobalMatrixCompEntity::Init()
 {
 }
+
+#endif

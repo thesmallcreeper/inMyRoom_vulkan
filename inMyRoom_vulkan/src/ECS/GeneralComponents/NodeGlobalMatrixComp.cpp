@@ -14,11 +14,6 @@ NodeGlobalMatrixComp::~NodeGlobalMatrixComp()
     NodeGlobalMatrixCompEntity::nodeGlobalMatrixComp_ptr = nullptr;
 }
 
-std::vector<std::pair<std::string, MapType>> NodeGlobalMatrixComp::GetComponentInitMapFields()
-{
-    return NodeGlobalMatrixCompEntity::GetComponentInitMapFields();
-}
-
 void NodeGlobalMatrixComp::Update() //ComponentRawBaseClass
 {
     componentID position_componentID = static_cast<componentID>(componentIDenum::Position);

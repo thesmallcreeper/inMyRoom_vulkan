@@ -7,10 +7,14 @@
 
 
 
+
+#ifndef GAME_DLL
 class CameraComp;
+#endif
 
 class CameraCompEntity
 {
+#ifndef GAME_DLL
 public:
     CameraCompEntity(const Entity this_entity);
     ~CameraCompEntity();
@@ -40,12 +44,15 @@ public:
                                        float aspect,
                                        float near,
                                        float far);
+
+private: // static_variable
+    friend class CameraComp;
+    static CameraComp* cameraComp_ptr;
+
+#endif
 public:
     ViewportFrustum cameraViewportFrustum;
     ViewportFrustum cullingViewportFrustum;
 
     Entity thisEntity;
-private: // static_variable
-    friend class CameraComp;
-    static CameraComp* cameraComp_ptr;
 };

@@ -10,7 +10,8 @@
 #include "ECS/GeneralComponents/ModelDrawComp.h"
 #include "ECS/GeneralComponents/SkinComp.h"
 
-#include "glm/gtx/matrix_decompose.hpp"
+#include "GameDLLimporter.h"
+
 
 class Engine;       // Forward declaration
 
@@ -26,6 +27,7 @@ public:
 private:
     void ImportGame();
 
+    void AddGameDLLcomponents();
     void AddEmptyNode();
     void AddImports();
     void AddDefaultCameraFab();
@@ -36,7 +38,7 @@ private:
 
     void AddTweaksToNode(Node* node, const configuru::Config& compoents_properties);
 
-    tinygltf::Model LoadModel(std::string path);
+    tinygltf::Model LoadglTFmodel(std::string path);
 
     std::unique_ptr<Node> ImportModel(std::string model_name, tinygltf::Model& this_model);
 
@@ -66,6 +68,9 @@ private:    // data
 
     configuru::Config gameConfig;
     const std::string folderName;
+
+    std::unique_ptr<GameDLLimporter> gameDLLimporter_uptr;
+
     Engine* const engine_ptr;
 };
 

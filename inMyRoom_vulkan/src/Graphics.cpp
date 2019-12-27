@@ -40,9 +40,9 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::
     InitSemaphoresAndFences();
     printf("Initializing command buffers\n");
     InitCommandBuffers();
-    printf("Initializing PipelinesFactory\n");
+    printf("Initializing pipelines factory\n");
     InitPipelinesFactory();
-    printf("Initializing ShadersSetsFamiliesCache\n");
+    printf("Initializing shaders sets families cache\n");
     InitShadersSetsFamiliesCache();
     printf("Initializing meshes tree\n");
     InitMeshesTree();
@@ -593,26 +593,26 @@ void Graphics::InitGraphicsComponents()
 void Graphics::LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder)
 {
     // Find out how each texture is being used (color, normal, etc..)
-    printf("-Initializing ImagesAboutOfTextures\n");
+    printf("--Adding model to ImagesAboutOfTextures\n");
     imagesAboutOfTextures_uptr->AddImagesUsageOfModel(in_model);
 
     // Edit textures and copy to GPU
-    printf("-Initializing TexturesOfMaterials\n");
+    printf("--Adding model to TexturesOfMaterials\n");
     texturesOfMaterials_uptr->AddTexturesOfModel(in_model, in_model_images_folder);
 
     // Create materials description sets
-    printf("-Initializing MaterialsOfPrimitives\n");
+    printf("--Adding model to MaterialsOfPrimitives\n");
     materialsOfPrimitives_uptr->AddMaterialsOfModel(in_model);
 
     // Initialize models-primtives handler to GPU
-    printf("-Initializing PrimitivesOfMeshes\n");
+    printf("--Adding model to PrimitivesOfMeshes\n");
   //primitivesOfMeshes_uptr-> collects primitives from meshesOfNodes_uptr
 
-    printf("-Initialzing SkinsOfMeshes\n");
+    printf("--Adding model to SkinsOfMeshes\n");
     skinsOfMeshes_uptr->AddSkinsOfModel(in_model);
 
     // For every mesh copy primitives of it to GPU
-    printf("-Initializing MeshesOfNodes\n");
+    printf("--Adding model to MeshesOfNodes\n");
     meshesOfNodes_uptr->AddMeshesOfModel(in_model);
 }
 

@@ -8,10 +8,13 @@
 
 
 
+#ifndef GAME_DLL
 class SkinComp;
+#endif
 
 class SkinCompEntity
 {
+#ifndef GAME_DLL
 public:
     SkinCompEntity(const Entity this_entity);
     ~SkinCompEntity();
@@ -28,6 +31,11 @@ public:
     void Init();
     void Update(class NodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr, SkinsOfMeshes* skinsOfMeshes_ptr);
 
+private: // static_variable
+    friend class SkinComp;
+    static SkinComp* skinComp_ptr;
+
+#endif
 public: // data
     std::vector<Entity> jointEntities;
 
@@ -36,7 +44,4 @@ public: // data
 
     Entity thisEntity;
 
-private: // static_variable
-    friend class SkinComp;
-    static SkinComp* skinComp_ptr;
 };

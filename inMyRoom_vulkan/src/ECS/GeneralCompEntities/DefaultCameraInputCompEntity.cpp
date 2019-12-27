@@ -1,9 +1,12 @@
 #include "ECS/GeneralCompEntities/DefaultCameraInputCompEntity.h"
 
-#include "ECS/GeneralComponents/DefaultCameraInputComp.h"
-#include "ECS/GeneralComponents/CameraComp.h"
+#include "ECS/ECSwrapper.h"
 
 #include <glm/gtx/rotate_vector.hpp>
+
+#ifndef GAME_DLL
+#include "ECS/GeneralComponents/DefaultCameraInputComp.h"
+#include "ECS/GeneralComponents/CameraComp.h"
 
 DefaultCameraInputComp* DefaultCameraInputCompEntity::defaultCameraInputComp_ptr = nullptr;
 
@@ -227,3 +230,4 @@ void DefaultCameraInputCompEntity::CalculateSnap(const std::chrono::duration<flo
     globalPosition = globalPosition + position_delta_vector;
 }
 
+#endif

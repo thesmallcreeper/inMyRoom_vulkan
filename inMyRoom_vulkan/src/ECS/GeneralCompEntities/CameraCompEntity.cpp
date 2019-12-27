@@ -1,5 +1,8 @@
 #include "ECS/GeneralCompEntities/CameraCompEntity.h"
 
+#include "ECS/ECSwrapper.h"
+
+#ifndef GAME_DLL
 #include "ECS/GeneralComponents/CameraComp.h"
 
 CameraComp* CameraCompEntity::cameraComp_ptr = nullptr;
@@ -148,3 +151,5 @@ void CameraCompEntity::UpdateCameraViewMatrix(glm::vec3 in_camera_position, glm:
                                            in_camera_looking_direction,
                                            in_camera_up);
 }
+
+#endif

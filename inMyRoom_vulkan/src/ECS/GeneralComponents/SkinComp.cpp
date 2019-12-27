@@ -15,11 +15,6 @@ SkinComp::~SkinComp()
     SkinCompEntity::skinComp_ptr = nullptr;
 }
 
-std::vector<std::pair<std::string, MapType>> SkinComp::GetComponentInitMapFields()
-{
-    return SkinCompEntity::GetComponentInitMapFields();
-}
-
 void SkinComp::Update() //ComponentSparseBaseClass
 {
     skinsOfMeshes_ptr->StartRecordingNodesMatrixes();
@@ -30,4 +25,3 @@ void SkinComp::Update() //ComponentSparseBaseClass
     for (size_t index = 0; index < componentEntitiesSparse.size(); index++)
         componentEntitiesSparse[index].Update(nodeGlobalMatrixComp_ptr, skinsOfMeshes_ptr);
 }
-

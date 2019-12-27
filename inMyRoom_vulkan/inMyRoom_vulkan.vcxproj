@@ -20,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\DiTO\dito.cpp" />
-    <ClCompile Include="include\Meshes\SkinsOfMeshes.cpp" />
+    <ClCompile Include="src\Meshes\SkinsOfMeshes.cpp" />
     <ClCompile Include="src\Drawer.cpp" />
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp" />
     <ClCompile Include="src\ECS\ComponentRawBaseClass.cpp" />
@@ -41,6 +41,7 @@
     <ClCompile Include="src\ECS\GeneralComponents\PositionComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\SkinComp.cpp" />
     <ClCompile Include="src\ExportedFunctionsConstructor.cpp" />
+    <ClCompile Include="src\GameDLLimporter.cpp" />
     <ClCompile Include="src\GameImporter.cpp" />
     <ClCompile Include="src\Geometry\Cuboid.cpp" />
     <ClCompile Include="src\Geometry\FrustumCulling.cpp" />
@@ -90,7 +91,9 @@
     <ClInclude Include="include\const_maps.h" />
     <ClInclude Include="include\ECS\GeneralComponents\SkinComp.h" />
     <ClInclude Include="include\ExportedFunctionsConstructor.h" />
+    <ClInclude Include="include\GameDLLimporter.h" />
     <ClInclude Include="include\GameImporter.h" />
+    <ClInclude Include="include\game_dll.h" />
     <ClInclude Include="include\Geometry\Cuboid.h" />
     <ClInclude Include="include\Geometry\FrustumCulling.h" />
     <ClInclude Include="include\Geometry\OBB.h" />
@@ -191,14 +194,13 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator\Header;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
-      <FloatingPointExceptions>
-      </FloatingPointExceptions>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>..\Compressonator\Compressonator\build;..\Anvil\build;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

@@ -8,10 +8,13 @@
 #include "Drawer.h"
 
 
+#ifndef GAME_DLL
 class ModelDrawComp;
+#endif
 
 class ModelDrawCompEntity
 {
+#ifndef GAME_DLL
 public:
     ModelDrawCompEntity(const Entity this_entity);
     ~ModelDrawCompEntity();
@@ -37,6 +40,11 @@ public:
                               std::vector<DrawRequest>& opaque_draw_requests,
                               std::vector<DrawRequest>& transparent_draw_requests) const;
 
+private: // static variable
+    friend class ModelDrawComp;
+    static ModelDrawComp* modelDrawComp_ptr;
+
+#endif
 public: // data
     uint32_t meshIndex;
     bool shouldDraw = true;
@@ -45,8 +53,4 @@ public: // data
     bool isSkin = false;
 
     Entity thisEntity;
-
-private: // static variable
-    friend class ModelDrawComp;
-    static ModelDrawComp* modelDrawComp_ptr;
 };

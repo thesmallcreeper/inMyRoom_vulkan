@@ -30,7 +30,7 @@ void MeshesOfNodes::AddMeshesOfModel(const tinygltf::Model& in_model)
 
     modelToMeshIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), meshesSoFar);
 
-    meshesSoFar += in_model.materials.size();
+    meshesSoFar += in_model.meshes.size();
 }
 
 size_t MeshesOfNodes::GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model) const

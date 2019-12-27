@@ -1,5 +1,8 @@
 #include "ECS/GeneralCompEntities/ModelDrawCompEntity.h"
 
+#include "ECS/ECSwrapper.h"
+
+#ifndef GAME_DLL
 #include "ECS/GeneralComponents/ModelDrawComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/SkinComp.h"
@@ -157,3 +160,5 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeG
 void ModelDrawCompEntity::Init()
 {
 }
+
+#endif

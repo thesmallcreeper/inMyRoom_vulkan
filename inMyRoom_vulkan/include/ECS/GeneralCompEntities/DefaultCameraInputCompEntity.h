@@ -2,15 +2,19 @@
 
 #include "ECS/ECStypes.h"
 
-#include <chrono>
-
 #include <glm/vec3.hpp>
 
+#include <chrono>
 
+
+
+#ifndef GAME_DLL
 class DefaultCameraInputComp;
+#endif
 
 class DefaultCameraInputCompEntity
 {
+#ifndef GAME_DLL
 public:
     DefaultCameraInputCompEntity(const Entity this_entity);
     ~DefaultCameraInputCompEntity();
@@ -35,6 +39,15 @@ public:
     void Freeze();
     void Unfreeze();
 
+private:
+    void MoveCamera(float xRotation_rads, float yRotation_rads);
+    void CalculateSnap(const std::chrono::duration<float> durationOfLastState);
+
+private: // static_variable
+    friend class DefaultCameraInputComp;
+    static DefaultCameraInputComp* defaultCameraInputComp_ptr;
+
+#endif
 public: //data
     struct
     {
@@ -54,12 +67,4 @@ public: //data
     volatile bool isFreezed;
 
     Entity thisEntity;
-
-private:
-    void MoveCamera(float xRotation_rads, float yRotation_rads);
-    void CalculateSnap(const std::chrono::duration<float> durationOfLastState);
-
-private: // static_variable
-    friend class DefaultCameraInputComp;
-    static DefaultCameraInputComp* defaultCameraInputComp_ptr;
 };

@@ -5,6 +5,8 @@ ECSwrapper::ECSwrapper(ExportedFunctions* in_enginesExportedFunctions_ptr)
 {
     componentIDtoComponentBaseClass_map.emplace(static_cast<componentID>(componentIDenum::Default), nullptr);
     entitiesHandler_uptr = std::make_unique<EntitiesHandler>();
+
+    lastFramePoint = std::chrono::steady_clock::now();
 }
 
 ECSwrapper::~ECSwrapper()
@@ -41,6 +43,11 @@ componentID ECSwrapper::GetComponentIDbyName(std::string component_name)
     assert(search != componentNameToComponentID_umap.end());
 
     return search->second;
+}
+
+std::chrono::duration<float> ECSwrapper::GetUpdateDeltaTime()
+{
+    return deltaTime;
 }
 
 std::vector<std::string> ECSwrapper::GetComponentsNames()
@@ -94,6 +101,13 @@ void ECSwrapper::RemoveEntityAndChildrenFromAllComponentsAndDelete(Entity this_e
 void ECSwrapper::Update(bool complete_adds_and_removes)
 {
     std::lock_guard<std::mutex> lock(controlMutex);
+
+    auto previous_frame_timePoint = lastFramePoint;
+    auto next_frame_timePoint = std::chrono::steady_clock::now();
+
+    deltaTime = next_frame_timePoint - previous_frame_timePoint;
+
+    lastFramePoint = next_frame_timePoint;
 
     for (auto& this_component : componentIDtoComponentBaseClass_map)
         if (this_component.second != nullptr)

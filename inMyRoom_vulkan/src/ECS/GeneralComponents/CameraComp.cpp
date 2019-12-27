@@ -1,8 +1,6 @@
 #include "ECS/GeneralComponents/CameraComp.h"
 
 
-
-
 CameraComp::CameraComp(ECSwrapper* const in_ecs_wrapper_ptr,
                        float default_fovy, float default_aspect, float default_near, float default_far)
     :
@@ -17,11 +15,6 @@ CameraComp::CameraComp(ECSwrapper* const in_ecs_wrapper_ptr,
 
 CameraComp::~CameraComp()
 {
-}
-
-std::vector<std::pair<std::string, MapType>> CameraComp::GetComponentInitMapFields()
-{
-    return CameraCompEntity::GetComponentInitMapFields();
 }
 
 void CameraComp::Update()

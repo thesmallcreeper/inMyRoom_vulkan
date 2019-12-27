@@ -92,8 +92,8 @@ Engine::~Engine()
                                                                 this);
 
     inputManager_uptr.reset();
-    gameImporter_uptr.reset();
     ECSwrapper_uptr.reset();
+    gameImporter_uptr.reset();
     graphics_uptr.reset();
     exportedFunctionsConstructor_uptr.reset();
 }

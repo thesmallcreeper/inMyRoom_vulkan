@@ -1,5 +1,8 @@
 #include "ECS/GeneralCompEntities/PositionCompEntity.h"
 
+#include "ECS/ECSwrapper.h"
+
+#ifndef GAME_DLL
 #include "ECS/GeneralComponents/PositionComp.h"
 
 PositionComp* PositionCompEntity::positionComp_ptr = nullptr;
@@ -75,6 +78,23 @@ std::vector<std::pair<std::string, MapType>> PositionCompEntity::GetComponentIni
     return return_pair;
 }
 
+glm::mat4x4 PositionCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_matrix)
+{
+    glm::mat4 S_matrix = glm::scale(glm::mat4(1.0f), localScale);
+    glm::mat4 R_matrix = glm::toMat4(localRotation);
+    glm::mat4 T_matrix = glm::translate(glm::mat4(1.0f), localTranslation);
+    glm::mat4 gT_matrix = glm::translate(glm::mat4(1.0f), globalTranslation);
+    glm::mat4 gTTRS_matrix_in_global_space = gT_matrix * parent_global_matrix * T_matrix * R_matrix * S_matrix;
+
+    return gTTRS_matrix_in_global_space;
+}
+
+void PositionCompEntity::Init()
+{
+}
+
+#endif
+
 void PositionCompEntity::LocalScale(const glm::vec3 in_scale)
 {
     localScale *= in_scale;
@@ -93,19 +113,4 @@ void PositionCompEntity::LocalTranslate(const glm::vec3 in_translate)
 void PositionCompEntity::GlobalTranslate(const glm::vec3 in_translate)
 {
     globalTranslation += in_translate;
-}
-
-glm::mat4x4 PositionCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_matrix)
-{
-    glm::mat4 S_matrix = glm::scale(glm::mat4(1.0f), localScale);
-    glm::mat4 R_matrix = glm::toMat4(localRotation);
-    glm::mat4 T_matrix = glm::translate(glm::mat4(1.0f), localTranslation);
-    glm::mat4 gT_matrix = glm::translate(glm::mat4(1.0f), globalTranslation);
-    glm::mat4 gTTRS_matrix_in_global_space = gT_matrix * parent_global_matrix * T_matrix * R_matrix * S_matrix;
-
-    return gTTRS_matrix_in_global_space;
-}
-
-void PositionCompEntity::Init()
-{
 }

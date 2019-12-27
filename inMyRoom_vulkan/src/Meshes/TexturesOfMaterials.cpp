@@ -101,11 +101,11 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
 
                 if (!LoadDDSFile(this_mipmap_filename.c_str(), this_compressed_mipmap))
                 {
-                    std::cout << "--" << this_image.uri << " , creating mipmap level: " << this_mipmap_level 
+                    std::cout << "---" << this_image.uri << " , creating mipmap level: " << this_mipmap_level 
                               << " ,width= " << (original_info.width >> this_mipmap_level)
                               << " ,height= " << (original_info.height >> this_mipmap_level) << "\n";
 
-                    std::cout << "---Creating mipmap\n";
+                    std::cout << "----Creating mipmap\n";
 
                     MipmapInfo this_mipmap;
 
@@ -114,7 +114,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                     else
                         this_mipmap = mipmapsGenerator_ptr->GetMipmap(this_mipmap_level);
 
-                    std::cout << "---Compressing mipmap\n";
+                    std::cout << "----Compressing mipmap\n";
 
                     CMP_Texture srcTexture;
 

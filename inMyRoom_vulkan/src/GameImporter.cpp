@@ -7,6 +7,7 @@
 
 #include "tiny_gltf.h"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/gtx/matrix_decompose.hpp"
 
 GameImporter::GameImporter(Engine* in_engine_ptr, std::string gameConfig_path)
     :folderName(GetFilePathFolder(gameConfig_path)),
@@ -28,11 +29,26 @@ GameImporter::GameImporter(Engine* in_engine_ptr, std::string gameConfig_path)
 
 void GameImporter::ImportGame()
 {
+    AddGameDLLcomponents();
+
     AddEmptyNode();
     AddImports();
 
     AddDefaultCameraFab();
     AddFabs();
+}
+
+void GameImporter::AddGameDLLcomponents()
+{
+    if (gameConfig.has_key("gameDLL"))
+    {
+        printf("-Importing gameDLL\n");
+        // TODO
+        std::string dll_path = folderName + "/" + gameConfig["gameDLL"]["path_win"].as_string();
+
+        gameDLLimporter_uptr = std::make_unique<GameDLLimporter>(engine_ptr->GetECSwrapperPtr(), dll_path);
+        gameDLLimporter_uptr->AddComponentsToECSwrapper();
+    }
 }
 
 void GameImporter::AddEmptyNode()
@@ -51,13 +67,16 @@ void GameImporter::AddImports()
     {
         std::string this_file_to_import = folderName + "/" + gameConfig["imports"][arrayIterator.as_string()].as_string();
 
-        models.emplace_back(LoadModel(this_file_to_import));
+        models.emplace_back(LoadglTFmodel(this_file_to_import));
         models_name.emplace_back(arrayIterator.as_string());
         models_folder.emplace_back(GetFilePathFolder(this_file_to_import));
     }
 
     for (size_t index = 0; index < models.size(); index++)
+    {
+        printf("-Loading model: %s\n", models_name[index].c_str());
         engine_ptr->GetGraphicsPtr()->LoadModel(models[index], models_folder[index]);
+    }
 
     engine_ptr->GetGraphicsPtr()->EndModelsLoad();
 
@@ -161,13 +180,13 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
         for (size_t index = 0; index < scene_node->children.size(); index++)
             ImportNodeComponents(scene_node->children[index].get(), scene_node.get(), this_model);
         
-        // Add position comp entity
+        // Add scene node position comp
         {
             CompEntityInitMap this_map;
             scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), this_map);
         }
 
-        // Add matrix comp
+        // Add scene node position comp
         scene_node->shouldAddNodeGlobalMatrixCompEntity = true;
 
         model_node->children.emplace_back(std::move(scene_node));
@@ -254,7 +273,7 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
         ImportNodeComponents(this_node->children[index].get(), root_node, model);
 }
 
-tinygltf::Model GameImporter::LoadModel(std::string path)
+tinygltf::Model GameImporter::LoadglTFmodel(std::string path)
 {
     tinygltf::Model model;
 

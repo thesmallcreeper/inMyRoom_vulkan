@@ -7,10 +7,14 @@
 
 
 
+
+#ifndef GAME_DLL
 class NodeGlobalMatrixComp;
+#endif
 
 class NodeGlobalMatrixCompEntity
 {
+#ifndef GAME_DLL
 public:
     NodeGlobalMatrixCompEntity(const Entity this_entity);
     ~NodeGlobalMatrixCompEntity();
@@ -31,14 +35,14 @@ public:
     void Init();
     void Update(class PositionComp* const positionComp_ptr);
 
+private: // static variable
+    friend class NodeGlobalMatrixComp;
+    static NodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr;
+#endif
 public: // data
     glm::mat4x4 globalMatrix = glm::mat4x4(1.f);
 
     Entity parentEntity = 0;
     Entity thisEntity;
-
-private: // static variable
-    friend class NodeGlobalMatrixComp;
-    static NodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr;
 };
 

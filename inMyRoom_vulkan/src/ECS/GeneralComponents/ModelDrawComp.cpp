@@ -15,11 +15,6 @@ ModelDrawComp::~ModelDrawComp()
     ModelDrawCompEntity::modelDrawComp_ptr = nullptr;
 }
 
-std::vector<std::pair<std::string, MapType>> ModelDrawComp::GetComponentInitMapFields()
-{
-    return ModelDrawCompEntity::GetComponentInitMapFields();
-}
-
 DrawRequestsBatch ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,
                                                       PrimitivesOfMeshes* primitivesOfMeshes_ptr,                 
                                                       FrustumCulling* frustemCulling_ptr) const

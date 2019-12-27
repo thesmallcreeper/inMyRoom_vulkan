@@ -6,7 +6,7 @@ enum class componentIDenum : componentID
 {
     // Add scene specific IDs
     #ifdef GAME_DLL
-    #include "GameSpecificComponentsIDsEnum.h"
+    #include "GameSpecificComponentsIDsEnum.inj"
     #endif
 
     Default             = 0,

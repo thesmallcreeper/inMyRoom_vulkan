@@ -1,0 +1,159 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\GameSpecific">
+      <UniqueIdentifier>{6db38ff2-191e-4174-8520-071d7f492ea0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\General">
+      <UniqueIdentifier>{9183ecba-6763-453a-b504-ac4a3a30883d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\General\_etc">
+      <UniqueIdentifier>{c9170076-4115-4255-9542-4ddfa282c561}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\General\GeneralCompEntities">
+      <UniqueIdentifier>{482d542f-84e6-410c-b2bf-31c349e73c81}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\General">
+      <UniqueIdentifier>{ef7adc3f-445f-41a6-b5cd-d86ecb5d9f93}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\General\GeneralCompEntities">
+      <UniqueIdentifier>{4b35f53d-684b-499e-b66b-59c2edbbd73f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\GameSpecific\Components">
+      <UniqueIdentifier>{4326f6cf-d0fb-42f6-be04-0ae69f844dfd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\GameSpecific\CompEntities">
+      <UniqueIdentifier>{0ffb445b-acdb-44ba-88dd-e4b32b7c2c0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\GameSpecific">
+      <UniqueIdentifier>{4a99cccb-d071-4a6a-a985-8a0e45cd97da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\GameSpecific\Components">
+      <UniqueIdentifier>{0a819499-0d92-4cbe-98fb-3f97d77cf081}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\GameSpecific\CompEntities">
+      <UniqueIdentifier>{2881f72d-e6fd-4e11-9c2e-5474b13ca2e7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\include\game_dll.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\GameSpecificComponentsVector.h">
+      <Filter>Header Files\GameSpecific</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\ComponentBaseClass.h">
+      <Filter>Header Files\General</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\ComponentRawBaseClass.h">
+      <Filter>Header Files\General</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\ComponentSparseBaseClass.h">
+      <Filter>Header Files\General</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\ECSwrapper.h">
+      <Filter>Header Files\General</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\EntitiesHandler.h">
+      <Filter>Header Files\General</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\ExportedFunctions.h">
+      <Filter>Header Files\General</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\ComponentsIDsEnum.h">
+      <Filter>Header Files\General\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\ECStypes.h">
+      <Filter>Header Files\General\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\CameraCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelDrawCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\PositionCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CompEntities\VelocityCompEntity.h">
+      <Filter>Header Files\GameSpecific\CompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Components\VelocityComp.h">
+      <Filter>Header Files\GameSpecific\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\GameSpecificComponentsIDsEnum.inj">
+      <Filter>Header Files\GameSpecific</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\src\game_dll.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\ComponentBaseClass.cpp">
+      <Filter>Source Files\General</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\ComponentSparseBaseClass.cpp">
+      <Filter>Source Files\General</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\ECSwrapper.cpp">
+      <Filter>Source Files\General</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\EntitiesHandler.cpp">
+      <Filter>Source Files\General</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\ExportedFunctions.cpp">
+      <Filter>Source Files\General</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\PositionCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\ComponentRawBaseClass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CompEntities\VelocityCompEntity.cpp">
+      <Filter>Source Files\GameSpecific\CompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Components\VelocityComp.cpp">
+      <Filter>Source Files\GameSpecific\Components</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

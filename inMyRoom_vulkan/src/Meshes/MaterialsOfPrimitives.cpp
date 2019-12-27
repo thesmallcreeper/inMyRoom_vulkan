@@ -57,15 +57,22 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
             {
                 auto search = this_material.values.find("baseColorFactor");
 
-                assert(search != this_material.values.end());
+                if (search != this_material.values.end())
+                {
+                    tinygltf::ColorValue base_color_factors = search->second.ColorFactor();
+                    glm::vec4 this_material_base_color_factors(static_cast<float>(base_color_factors[0]),
+                                                               static_cast<float>(base_color_factors[1]),
+                                                               static_cast<float>(base_color_factors[2]),
+                                                               static_cast<float>(base_color_factors[3]));
 
-                tinygltf::ColorValue base_color_factors = search->second.ColorFactor();
-                glm::vec4 this_material_base_color_factors(static_cast<float>(base_color_factors[0]), 
-                                                           static_cast<float>(base_color_factors[1]), 
-                                                           static_cast<float>(base_color_factors[2]), 
-                                                           static_cast<float>(base_color_factors[3]));
+                    this_materialParameters.baseColorFactors = this_material_base_color_factors;
+                }
+                else
+                {
+                    glm::vec4 this_material_base_color_factors(1.f, 1.f, 1.f, 1.f);
 
-                this_materialParameters.baseColorFactors = this_material_base_color_factors;
+                    this_materialParameters.baseColorFactors = this_material_base_color_factors;
+                }
             }
 
             std::copy(reinterpret_cast<unsigned char*>(&this_materialParameters),
@@ -102,6 +109,7 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& in_model)
     }
 
     modelToMaterialIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), materialsSoFar);
+
     materialsSoFar += in_model.materials.size();
 }
 

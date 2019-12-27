@@ -19,11 +19,13 @@ public:
 //  void FixedUpdate() override;
 //  void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
 
+    std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() override;
+
     void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                      // Component entity specific task
     void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;          // Component entity specific task
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
-    ComponentEntityPtr GetComponentEntity(const Entity this_entity);                                            // Component entity memory specific task
+    ComponentEntityPtr GetComponentEntity(const Entity this_entity) override;                                   // Component entity memory specific task
 
 protected:
     std::set<Entity> entitiesOfComponent_set;
@@ -34,10 +36,6 @@ private:
     std::vector<Entity> componentEntitiesToRemove;
     std::vector<std::pair<Entity,ComponentEntityType>> componentEntitiesToAdd;
 };
-
-
-
-
 
 // -----SOURCE-----
 
@@ -86,6 +84,12 @@ void ComponentSparseBaseClass<ComponentEntityType>::AsyncUpdate()
         this_componentEntity.AsyncUpdate();
 }
 */
+
+template<typename ComponentEntityType>
+std::vector<std::pair<std::string, MapType>> ComponentSparseBaseClass<ComponentEntityType>::GetComponentInitMapFields()
+{
+    return ComponentEntityType::GetComponentInitMapFields();
+}
 
 template<typename ComponentEntityType>
 void ComponentSparseBaseClass<ComponentEntityType>::AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity)
