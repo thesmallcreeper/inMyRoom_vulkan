@@ -10,10 +10,12 @@ enum class componentIDenum : componentID
     #endif
 
     Default             = 0,
-    Position            = 1000,
-    NodeGlobalMatrix    = 2000,
-    Skin                = 3000,
-    DefaultCameraInput  = 4000,
-    Camera              = 5000,
-    ModelDraw           = 6000  // is custom
+    AnimationComposer   = 1000,
+    AnimationActor      = 2000,
+    Position            = 3000,
+    NodeGlobalMatrix    = 4000,
+    Skin                = 5000,
+    DefaultCameraInput  = 6000,
+    Camera              = 7000,
+    ModelDraw           = 8000  // is custom
 };

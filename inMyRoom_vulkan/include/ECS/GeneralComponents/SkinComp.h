@@ -5,7 +5,7 @@
 
 #include "ECS/ComponentsIDsEnum.h"
 
-#include "Meshes/SkinsOfMeshes.h"
+#include "Graphics/Meshes/SkinsOfMeshes.h"
 
 class SkinComp 
     :public ComponentSparseBaseClass<SkinCompEntity>

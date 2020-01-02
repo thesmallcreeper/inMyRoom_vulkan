@@ -49,8 +49,8 @@ SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity
             std::string this_relative_node_name = search->second;
 
             Entity this_joint_entity = skinComp_ptr->GetECSwrapper()->GetEntitiesHandler()
-                                     ->FindEntityByRelativeName(this_relative_node_name,
-                                                                this_skinCompEntity.thisEntity);
+                                                   ->FindEntityByRelativeName(this_relative_node_name,
+                                                                              this_skinCompEntity.thisEntity);
 
             this_skinCompEntity.jointEntities.emplace_back(this_joint_entity);
 

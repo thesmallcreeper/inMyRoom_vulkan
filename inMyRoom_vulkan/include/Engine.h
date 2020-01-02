@@ -7,10 +7,11 @@
 #include "misc/window_factory.h"
 
 #include "GameImporter.h"
-#include "Graphics.h"
 #include "ExportedFunctionsConstructor.h"
 #include "InputManager.h"
-#include "VulkanInit.h"
+
+#include "Graphics/VulkanInit.h"
+#include "Graphics/Graphics.h"
 
 #include "ECS/ECSwrapper.h"
 

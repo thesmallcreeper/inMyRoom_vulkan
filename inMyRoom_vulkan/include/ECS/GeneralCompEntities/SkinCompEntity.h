@@ -2,7 +2,7 @@
 
 #include "ECS/ECStypes.h"
 
-#include "Meshes/SkinsOfMeshes.h"
+#include "Graphics/Meshes/SkinsOfMeshes.h"
 
 
 

@@ -150,10 +150,12 @@ void ECSwrapper::CompleteAddsAndRemovesUnsafe()
         if (this_component.second != nullptr)
             this_component.second->CompleteAddsAndRemoves();
 
+    for (auto& this_component : componentIDtoComponentBaseClass_map)
+        if (this_component.second != nullptr)
+            this_component.second->InitAdds();
+
     for (auto& this_entity : entitesThatGoingToGetEmptyToRemove)
         entitiesHandler_uptr->DeleteEmptyEntity(this_entity);
-
-    entitesThatGoingToGetEmptyToRemove.clear();
 }
 
 ExportedFunctions* ECSwrapper::GetEnginesExportedFunctions()

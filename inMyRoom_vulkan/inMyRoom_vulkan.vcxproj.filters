@@ -19,12 +19,6 @@
     <Filter Include="Header Files\_etc">
       <UniqueIdentifier>{3f363aaa-a27a-4d80-96ad-22df54595c09}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Meshes">
-      <UniqueIdentifier>{3d47ba8c-67af-4bf5-82df-16b23b68aa52}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Meshes">
-      <UniqueIdentifier>{1d5cc62f-24cc-4565-b9a2-f008d5c966ce}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\ECS">
       <UniqueIdentifier>{b844e6b5-d84c-4d42-9f2e-4388413134a1}</UniqueIdentifier>
     </Filter>
@@ -58,6 +52,18 @@
     <Filter Include="Resource Files\Shaders\Mipmaps">
       <UniqueIdentifier>{62bcfb90-a1cc-4477-9404-26e041dc4150}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Graphics">
+      <UniqueIdentifier>{96c6848a-3ff6-48d6-bf8f-19b0b9a00503}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Graphics\Meshes">
+      <UniqueIdentifier>{fbe56323-2147-4149-94e8-428cd04e00fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Graphics">
+      <UniqueIdentifier>{84deac23-4434-46fc-84f2-58f1dfe7e26c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Graphics\Meshes">
+      <UniqueIdentifier>{21863451-cddb-41b9-ac5d-36db9743f0c3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -66,32 +72,14 @@
     <ClCompile Include="src\Engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Graphics.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\WindowWithAsyncInput.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\InputManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\VulkanInit.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Drawer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\DiTO\dito.cpp">
       <Filter>Source Files\_ect</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PipelinesFactory.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ShadersSetsFamiliesCache.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\MipmapsGenerator.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp">
       <Filter>Source Files\ECS</Filter>
@@ -138,21 +126,6 @@
     <ClCompile Include="src\Geometry\ViewportFrustum.cpp">
       <Filter>Source Files\Geometry</Filter>
     </ClCompile>
-    <ClCompile Include="src\Meshes\ImagesAboutOfTextures.cpp">
-      <Filter>Source Files\Meshes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Meshes\MaterialsOfPrimitives.cpp">
-      <Filter>Source Files\Meshes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Meshes\MeshesOfNodes.cpp">
-      <Filter>Source Files\Meshes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Meshes\PrimitivesOfMeshes.cpp">
-      <Filter>Source Files\Meshes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Meshes\TexturesOfMaterials.cpp">
-      <Filter>Source Files\Meshes</Filter>
-    </ClCompile>
     <ClCompile Include="src\ECS\EntitiesHandler.cpp">
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
@@ -186,18 +159,57 @@
     <ClCompile Include="src\GameDLLimporter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Meshes\SkinsOfMeshes.cpp">
-      <Filter>Source Files\Meshes</Filter>
+    <ClCompile Include="src\Graphics\Drawer.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Graphics.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\MipmapsGenerator.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\PipelinesFactory.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\ShadersSetsFamiliesCache.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\VulkanInit.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Meshes\ImagesAboutOfTextures.cpp">
+      <Filter>Source Files\Graphics\Meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Meshes\MaterialsOfPrimitives.cpp">
+      <Filter>Source Files\Graphics\Meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Meshes\MeshesOfNodes.cpp">
+      <Filter>Source Files\Graphics\Meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Meshes\PrimitivesOfMeshes.cpp">
+      <Filter>Source Files\Graphics\Meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Meshes\SkinsOfMeshes.cpp">
+      <Filter>Source Files\Graphics\Meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Meshes\TexturesOfMaterials.cpp">
+      <Filter>Source Files\Graphics\Meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp">
+      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralComponents\AnimationActorComp.cpp">
+      <Filter>Source Files\ECS\GeneralComponents</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralCompEntities\AnimationComposerCompEntity.cpp">
+      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralComponents\AnimationComposerComp.cpp">
+      <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Graphics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\InputManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\WindowWithAsyncInput.h">
@@ -218,26 +230,11 @@
     <ClInclude Include="include\hash_combine.h">
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
-    <ClInclude Include="include\VulkanInit.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Drawer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\DiTO\dito.h">
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
-    <ClInclude Include="include\PipelinesFactory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ShadersSetsFamiliesCache.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\const_maps.h">
       <Filter>Header Files\_etc</Filter>
-    </ClInclude>
-    <ClInclude Include="include\MipmapsGenerator.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\ECS\ComponentBaseClass.h">
       <Filter>Header Files\ECS</Filter>
@@ -293,21 +290,6 @@
     <ClInclude Include="include\Geometry\ViewportFrustum.h">
       <Filter>Header Files\Geometry</Filter>
     </ClInclude>
-    <ClInclude Include="include\Meshes\ImagesAboutOfTextures.h">
-      <Filter>Header Files\Meshes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Meshes\MaterialsOfPrimitives.h">
-      <Filter>Header Files\Meshes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Meshes\MeshesOfNodes.h">
-      <Filter>Header Files\Meshes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Meshes\PrimitivesOfMeshes.h">
-      <Filter>Header Files\Meshes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Meshes\TexturesOfMaterials.h">
-      <Filter>Header Files\Meshes</Filter>
-    </ClInclude>
     <ClInclude Include="include\ECS\ExportedFunctions.h">
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
@@ -329,9 +311,6 @@
     <ClInclude Include="include\ECS\GeneralComponents\DefaultCameraInputComp.h">
       <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
-    <ClInclude Include="include\Meshes\SkinsOfMeshes.h">
-      <Filter>Header Files\Meshes</Filter>
-    </ClInclude>
     <ClInclude Include="include\ECS\GeneralCompEntities\SkinCompEntity.h">
       <Filter>Header Files\ECS\GeneralCompEntities</Filter>
     </ClInclude>
@@ -343,6 +322,57 @@
     </ClInclude>
     <ClInclude Include="include\game_dll.h">
       <Filter>Header Files\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\MipmapsGenerator.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\PipelinesFactory.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\ShadersSetsFamiliesCache.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\VulkanInit.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Drawer.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Meshes\ImagesAboutOfTextures.h">
+      <Filter>Header Files\Graphics\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Meshes\MaterialsOfPrimitives.h">
+      <Filter>Header Files\Graphics\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Meshes\MeshesOfNodes.h">
+      <Filter>Header Files\Graphics\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Meshes\PrimitivesOfMeshes.h">
+      <Filter>Header Files\Graphics\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Meshes\SkinsOfMeshes.h">
+      <Filter>Header Files\Graphics\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Meshes\TexturesOfMaterials.h">
+      <Filter>Header Files\Graphics\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\InputManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Graphics.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralComponents\AnimationActorComp.h">
+      <Filter>Header Files\ECS\GeneralComponents</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralCompEntities\AnimationActorCompEntity.h">
+      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralComponents\AnimationComposerComp.h">
+      <Filter>Header Files\ECS\GeneralComponents</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralCompEntities\AnimationComposerCompEntity.h">
+      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

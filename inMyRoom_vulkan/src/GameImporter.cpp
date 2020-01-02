@@ -3,6 +3,7 @@
 #include "Engine.h"
 
 #include <algorithm>
+#include <unordered_set>
 #include <cassert>
 
 #include "tiny_gltf.h"
@@ -179,14 +180,19 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
         // Add components
         for (size_t index = 0; index < scene_node->children.size(); index++)
             ImportNodeComponents(scene_node->children[index].get(), scene_node.get(), this_model);
-        
+
+        // Add animation composers
+        {
+            scene_node->children.emplace_back(ImportModelAnimationComposerAsNodes(scene_node.get(), this_model));
+        }
+
         // Add scene node position comp
         {
             CompEntityInitMap this_map;
             scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), this_map);
         }
 
-        // Add scene node position comp
+        // Add scene node matrix comp
         scene_node->shouldAddNodeGlobalMatrixCompEntity = true;
 
         model_node->children.emplace_back(std::move(scene_node));
@@ -218,6 +224,54 @@ std::unique_ptr<Node> GameImporter::ImportNodeExistance(tinygltf::Node& this_glt
 
             return_node_uptr->children.emplace_back(std::move(this_recurse_node_uptr));
         }
+    }
+
+    return std::move(return_node_uptr);
+}
+
+std::unique_ptr<Node> GameImporter::ImportModelAnimationComposerAsNodes(Node* root_node, tinygltf::Model& model)
+{
+    std::unique_ptr<Node> return_node_uptr = std::make_unique<Node>();
+    return_node_uptr->nodeName = "_animations";
+
+    for (const tinygltf::Animation& this_animation : model.animations)
+    {
+        std::unique_ptr<Node> this_animation_composer_node_uptr = std::make_unique<Node>();
+
+        CompEntityInitMap this_map;
+
+        std::string this_animation_name;
+        if (this_animation.name != "")
+            this_animation_name = this_animation.name;
+        else
+            this_animation_name = "animation_" + NumberToString(anonymousNameCounter++);
+
+        this_animation_composer_node_uptr->nodeName = this_animation_name;
+        this_map.stringMap.emplace(std::make_pair("AnimationName", this_animation_name));
+
+        std::unordered_set<std::string> animation_actor_nodes_uset;
+        for (const tinygltf::AnimationChannel this_animationChannel : this_animation.channels)
+        {
+            std::string this_channel_target_node_path = GetPathUsingGLTFindex(root_node, this_animationChannel.target_node);
+            std::string this_animation_composer_node_path = root_node->nodeName + "/" + return_node_uptr->nodeName + "/" + this_animation_name;
+
+            std::string relative_path = GetRelativePath(this_channel_target_node_path, this_animation_composer_node_path);
+
+            animation_actor_nodes_uset.emplace(relative_path);
+        }
+
+        {
+            size_t index = 0;
+            for (const std::string& this_node_relative_name : animation_actor_nodes_uset)
+            {
+                this_map.stringMap.emplace(std::make_pair("NodesRelativeName_" + std::to_string(index), this_node_relative_name));
+                index++;
+            }
+        }
+
+        this_animation_composer_node_uptr->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::AnimationComposer), this_map);
+
+        return_node_uptr->children.emplace_back(std::move(this_animation_composer_node_uptr));
     }
 
     return std::move(return_node_uptr);
@@ -267,6 +321,91 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
         }
 
         this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Skin), this_map);
+    }
+
+    // Animation actor component
+    {
+        CompEntityInitMap this_map;
+
+        size_t animations_count_of_actor = 0;
+        for (const tinygltf::Animation& this_animation : model.animations)
+        {
+            bool has_animation_init_on_actor = false;
+            
+            for (const tinygltf::AnimationChannel& this_channel : this_animation.channels)
+            {
+                if (this_channel.target_node == this_node->glTFnodeIndex)
+                {
+                    if (!has_animation_init_on_actor)
+                    {
+                        this_map.stringMap.emplace(std::make_pair("Animation_" + std::to_string(animations_count_of_actor), this_animation.name));
+                        has_animation_init_on_actor = true;
+                    }
+
+                    const tinygltf::AnimationSampler& this_animationSampler = this_animation.samplers[this_channel.sampler];    
+
+                    InterpolationType this_interpolation_type;
+                    if (this_animationSampler.interpolation == "CUBICSPLINE")
+                        this_interpolation_type = InterpolationType::CubicSpline;
+                    else if (this_animationSampler.interpolation == "STEP")
+                        this_interpolation_type = InterpolationType::Step;
+                    else
+                        this_interpolation_type = InterpolationType::Linear;
+
+                    std::vector<float> sampler_input_data = GetglTFAccessorFloat(model.accessors[this_animationSampler.input], model);
+                    std::vector<float> sampler_output_data = GetglTFAccessorFloat(model.accessors[this_animationSampler.output], model);
+
+                    if (this_channel.target_path == "translation")
+                    {
+                        assert(sampler_input_data.size() * 3 == sampler_output_data.size());
+
+                        this_map.intMap.emplace(std::make_pair(this_animation.name + "_translation_interpolation", static_cast<int>(this_interpolation_type)));
+                        for (size_t index = 0; index < sampler_input_data.size(); index++)
+                        {
+                            float input_key = sampler_input_data[index];
+                            this_map.floatMap.emplace(std::make_pair(this_animation.name + "_translation_key_" + std::to_string(index) + "_time", input_key));
+
+                            glm::vec4 output_key = glm::vec4(sampler_output_data[index * 3], -sampler_output_data[index * 3 + 1], -sampler_output_data[index * 3 + 2], 0.f);
+                            this_map.vec4Map.emplace(std::make_pair(this_animation.name + "_translation_key_" + std::to_string(index) + "_data", output_key));
+                        }
+                    }
+                    if (this_channel.target_path == "rotation")
+                    {
+                        assert(sampler_input_data.size() * 4 == sampler_output_data.size());
+
+                        this_map.intMap.emplace(std::make_pair(this_animation.name + "_rotation_interpolation", static_cast<int>(this_interpolation_type)));
+                        for (size_t index = 0; index < sampler_input_data.size(); index++)
+                        {
+                            float input_key = sampler_input_data[index];
+                            this_map.floatMap.emplace(std::make_pair(this_animation.name + "_rotation_key_" + std::to_string(index) + "_time", input_key));
+
+                            glm::vec4 output_key = glm::vec4(sampler_output_data[index * 4], -sampler_output_data[index * 4 + 1], -sampler_output_data[index * 4 + 2], sampler_output_data[index * 4 + 3]);
+                            this_map.vec4Map.emplace(std::make_pair(this_animation.name + "_rotation_key_" + std::to_string(index) + "_data", output_key));
+                        }
+                    }
+                    if (this_channel.target_path == "scale")
+                    {
+                        assert(sampler_input_data.size() * 3 == sampler_output_data.size());
+
+                        this_map.intMap.emplace(std::make_pair(this_animation.name + "_scale_interpolation", static_cast<int>(this_interpolation_type)));
+                        for (size_t index = 0; index < sampler_input_data.size(); index++)
+                        {
+                            float input_key = sampler_input_data[index];
+                            this_map.floatMap.emplace(std::make_pair(this_animation.name + "_scale_key_" + std::to_string(index) + "_time", input_key));
+
+                            glm::vec4 output_key = glm::vec4(sampler_output_data[index * 3], sampler_output_data[index * 3 + 1], sampler_output_data[index * 3 + 2], 0.f);
+                            this_map.vec4Map.emplace(std::make_pair(this_animation.name + "_scale_key_" + std::to_string(index) + "_data", output_key));
+                        }
+                    }
+                }
+            }
+
+            if (has_animation_init_on_actor)
+                animations_count_of_actor++;
+        }
+
+        if(this_map.stringMap.size())
+            this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::AnimationActor), this_map);
     }
 
     for (size_t index = 0; index < this_node->children.size(); index++)
@@ -356,6 +495,119 @@ CompEntityInitMap GameImporter::CreatePositionInitMap(const tinygltf::Node& in_n
     return_compEntity.vec4Map["LocalTranslation"] = glm::vec4(targeted_positionCompEntity.localTranslation, 1.0);
 
     return return_compEntity;
+}
+
+std::vector<float> GameImporter::GetglTFAccessorFloat(const tinygltf::Accessor& in_accessor, const tinygltf::Model& in_model)
+{
+    std::vector<unsigned char> temp_buffer;
+    {
+        size_t count_of_elements = in_accessor.count;
+        size_t accessor_byte_offset = in_accessor.byteOffset;
+
+        size_t size_of_each_component_in_byte;
+        switch (static_cast<glTFcomponentType>(in_accessor.componentType))
+        {
+            default:
+            case glTFcomponentType::type_byte:
+            case glTFcomponentType::type_unsigned_byte:
+                size_of_each_component_in_byte = sizeof(int8_t);
+                break;
+            case glTFcomponentType::type_short:
+            case glTFcomponentType::type_unsigned_short:
+                size_of_each_component_in_byte = sizeof(int16_t);
+                break;
+            case glTFcomponentType::type_float:
+                size_of_each_component_in_byte = sizeof(int32_t);
+                break;
+        }
+
+        size_t number_of_components_per_type;
+        switch (static_cast<glTFtype>(in_accessor.type))
+        {
+            default:
+            case glTFtype::type_scalar:
+                number_of_components_per_type = 1;
+                break;
+            case glTFtype::type_vec3:
+                number_of_components_per_type = 3;
+                break;
+            case glTFtype::type_vec4:
+                number_of_components_per_type = 4;
+                break;
+        }
+
+        const tinygltf::BufferView& this_bufferView = in_model.bufferViews[in_accessor.bufferView];
+        size_t bufferview_byte_offset = this_bufferView.byteOffset;
+
+        const tinygltf::Buffer& this_buffer = in_model.buffers[this_bufferView.buffer];
+
+        std::copy(&this_buffer.data[bufferview_byte_offset + accessor_byte_offset],
+                    &this_buffer.data[bufferview_byte_offset + accessor_byte_offset] + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
+                    std::back_inserter(temp_buffer));
+    }
+
+    std::vector<float> return_float_buffer;
+
+    switch (static_cast<glTFcomponentType>(in_accessor.componentType))
+    {
+        default:
+        case glTFcomponentType::type_byte:
+        {
+            size_t size = temp_buffer.size();
+            int8_t* data = reinterpret_cast<int8_t*>(temp_buffer.data());
+
+            for (size_t index = 0; index < size; index++)
+                return_float_buffer.emplace_back(std::max<float>( static_cast<float>(data[index]) / 127.f, -1.f));
+
+            break;
+        }
+        case glTFcomponentType::type_unsigned_byte:
+        {
+            size_t size = temp_buffer.size();
+            uint8_t* data = reinterpret_cast<uint8_t*>(temp_buffer.data());
+
+            for (size_t index = 0; index < size; index++)
+                return_float_buffer.emplace_back( static_cast<float>(data[index]) / 255.f);
+
+            break;
+        }  
+        case glTFcomponentType::type_short:
+        {
+            size_t size = temp_buffer.size() / sizeof(int16_t);
+            int16_t* data = reinterpret_cast<int16_t*>(temp_buffer.data());
+
+            for (size_t index = 0; index < size; index++)
+                return_float_buffer.emplace_back(std::max<float>( static_cast<float>(data[index]) / 32767.f, -1.f));
+
+            break;
+        }
+        case glTFcomponentType::type_unsigned_short:
+        {
+            size_t size = temp_buffer.size() / sizeof(uint16_t);
+            uint16_t* data = reinterpret_cast<uint16_t*>(temp_buffer.data());
+
+            for (size_t index = 0; index < size; index++)
+                return_float_buffer.emplace_back( static_cast<float>(data[index]) / 65535.f);
+
+            break;
+        }
+        case glTFcomponentType::type_float:
+        {
+            {
+                size_t size = temp_buffer.size() / sizeof(float);
+                float* data = reinterpret_cast<float*>(temp_buffer.data());
+
+                for (size_t index = 0; index < size; index++)
+                    return_float_buffer.emplace_back(data[index]);
+
+                break;
+            }
+
+            break;
+        }
+    }
+
+    return return_float_buffer;
 }
 
 std::string GameImporter::GetFilePathExtension(const std::string& in_filePath)

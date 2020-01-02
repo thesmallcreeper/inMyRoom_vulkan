@@ -27,6 +27,7 @@
     <ClInclude Include="..\..\..\include\ECS\ECSwrapper.h" />
     <ClInclude Include="..\..\..\include\ECS\EntitiesHandler.h" />
     <ClInclude Include="..\..\..\include\ECS\ExportedFunctions.h" />
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\AnimationActorCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\CameraCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelDrawCompEntity.h" />
@@ -46,6 +47,7 @@
     <ClCompile Include="..\..\..\src\ECS\ECSwrapper.cpp" />
     <ClCompile Include="..\..\..\src\ECS\EntitiesHandler.cpp" />
     <ClCompile Include="..\..\..\src\ECS\ExportedFunctions.cpp" />
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp" />

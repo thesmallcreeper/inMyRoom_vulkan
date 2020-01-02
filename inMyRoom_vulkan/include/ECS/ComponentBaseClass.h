@@ -29,6 +29,7 @@ public:
     virtual void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) = 0;          // Component entity specific task
     virtual void RemoveComponentEntity(const Entity this_entity) = 0;                                              // Component entity memory specific task
     virtual void CompleteAddsAndRemoves() = 0;                                                                     // Component entity memory specific task
+    virtual void InitAdds() = 0;                                                                                   // Component entity memory specific task
     virtual ComponentEntityPtr GetComponentEntity(const Entity this_entity) = 0;                                   // Component entity memory specific task
 
     componentID GetComponentID() const;

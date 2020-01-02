@@ -5,6 +5,7 @@
 #include "configuru.hpp"
 
 #include "ECS/ECStypes.h"
+#include "ECS/GeneralComponents/AnimationActorComp.h"
 #include "ECS/GeneralComponents/PositionComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
@@ -42,7 +43,8 @@ private:
 
     std::unique_ptr<Node> ImportModel(std::string model_name, tinygltf::Model& this_model);
 
-    std::unique_ptr<Node> ImportNodeExistance(tinygltf::Node& this_node, tinygltf::Model& this_model);
+    std::unique_ptr<Node> ImportNodeExistance(tinygltf::Node& this_gltf_node, tinygltf::Model& model);
+    std::unique_ptr<Node> ImportModelAnimationComposerAsNodes(Node* root_node, tinygltf::Model& model);
     void ImportNodeComponents(Node* this_node, Node* root_node, tinygltf::Model& this_model);
 
     void AddNodeToEntityHandler(Entity parent_entity, std::string parent_full_name, Node* this_node);           // fullname == "" means no name for the children D:
@@ -52,6 +54,7 @@ private:
     static std::string GetFilePathExtension(const std::string& in_fileName);
 
     static CompEntityInitMap CreatePositionInitMap(const tinygltf::Node& in_node);
+    static std::vector<float> GetglTFAccessorFloat(const tinygltf::Accessor& in_animationSampler, const tinygltf::Model& this_model);
 
     static Node* FindNodeInTree(Node* root_node, std::string path);
 

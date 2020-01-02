@@ -31,6 +31,16 @@ struct CompEntityInitMap
     }
 };
 
+// used a lot in: Animation Actors
+enum class InterpolationType
+{
+    Linear,
+    Step,
+    CubicSpline
+};
+
+// used a lot in: Materials
+
 enum class MapType
 {
     vec4_type,

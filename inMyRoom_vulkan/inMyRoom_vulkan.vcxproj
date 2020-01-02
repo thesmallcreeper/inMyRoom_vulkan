@@ -20,20 +20,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\DiTO\dito.cpp" />
-    <ClCompile Include="src\Meshes\SkinsOfMeshes.cpp" />
-    <ClCompile Include="src\Drawer.cpp" />
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp" />
     <ClCompile Include="src\ECS\ComponentRawBaseClass.cpp" />
     <ClCompile Include="src\ECS\ComponentSparseBaseClass.cpp" />
     <ClCompile Include="src\ECS\ECSwrapper.cpp" />
     <ClCompile Include="src\ECS\ExportedFunctions.cpp" />
     <ClCompile Include="src\ECS\EntitiesHandler.cpp" />
+    <ClCompile Include="src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp" />
+    <ClCompile Include="src\ECS\GeneralCompEntities\AnimationComposerCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\CameraCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\PositionCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\SkinCompEntity.cpp" />
+    <ClCompile Include="src\ECS\GeneralComponents\AnimationActorComp.cpp" />
+    <ClCompile Include="src\ECS\GeneralComponents\AnimationComposerComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\CameraComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\DefaultCameraInputComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\ModelDrawComp.cpp" />
@@ -48,19 +50,21 @@
     <ClCompile Include="src\Geometry\OBB.cpp" />
     <ClCompile Include="src\Geometry\Plane.cpp" />
     <ClCompile Include="src\Geometry\ViewportFrustum.cpp" />
-    <ClCompile Include="src\Meshes\ImagesAboutOfTextures.cpp" />
-    <ClCompile Include="src\Meshes\MaterialsOfPrimitives.cpp" />
-    <ClCompile Include="src\Meshes\MeshesOfNodes.cpp" />
-    <ClCompile Include="src\Meshes\PrimitivesOfMeshes.cpp" />
-    <ClCompile Include="src\Meshes\TexturesOfMaterials.cpp" />
-    <ClCompile Include="src\MipmapsGenerator.cpp" />
+    <ClCompile Include="src\Graphics\Drawer.cpp" />
+    <ClCompile Include="src\Graphics\Graphics.cpp" />
+    <ClCompile Include="src\Graphics\Meshes\ImagesAboutOfTextures.cpp" />
+    <ClCompile Include="src\Graphics\Meshes\MaterialsOfPrimitives.cpp" />
+    <ClCompile Include="src\Graphics\Meshes\MeshesOfNodes.cpp" />
+    <ClCompile Include="src\Graphics\Meshes\PrimitivesOfMeshes.cpp" />
+    <ClCompile Include="src\Graphics\Meshes\SkinsOfMeshes.cpp" />
+    <ClCompile Include="src\Graphics\Meshes\TexturesOfMaterials.cpp" />
+    <ClCompile Include="src\Graphics\MipmapsGenerator.cpp" />
+    <ClCompile Include="src\Graphics\PipelinesFactory.cpp" />
+    <ClCompile Include="src\Graphics\ShadersSetsFamiliesCache.cpp" />
+    <ClCompile Include="src\Graphics\VulkanInit.cpp" />
     <ClCompile Include="src\InputManager.cpp" />
-    <ClCompile Include="src\ShadersSetsFamiliesCache.cpp" />
-    <ClCompile Include="src\PipelinesFactory.cpp" />
-    <ClCompile Include="src\VulkanInit.cpp" />
     <ClCompile Include="src\WindowWithAsyncInput.cpp" />
     <ClCompile Include="src\Engine.cpp" />
-    <ClCompile Include="src\Graphics.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -68,7 +72,6 @@
     <ClInclude Include="..\DiTO\dito.h" />
     <ClInclude Include="..\tinygltf\stb_image.h" />
     <ClInclude Include="..\tinygltf\tiny_gltf.h" />
-    <ClInclude Include="include\Drawer.h" />
     <ClInclude Include="include\ECS\ComponentBaseClass.h" />
     <ClInclude Include="include\ECS\ComponentRawBaseClass.h" />
     <ClInclude Include="include\ECS\ComponentsIDsEnum.h" />
@@ -77,12 +80,16 @@
     <ClInclude Include="include\ECS\ECSwrapper.h" />
     <ClInclude Include="include\ECS\ExportedFunctions.h" />
     <ClInclude Include="include\ECS\EntitiesHandler.h" />
+    <ClInclude Include="include\ECS\GeneralCompEntities\AnimationActorCompEntity.h" />
+    <ClInclude Include="include\ECS\GeneralCompEntities\AnimationComposerCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\CameraCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelDrawCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\PositionCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\SkinCompEntity.h" />
+    <ClInclude Include="include\ECS\GeneralComponents\AnimationActorComp.h" />
+    <ClInclude Include="include\ECS\GeneralComponents\AnimationComposerComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\CameraComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\DefaultCameraInputComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\ModelDrawComp.h" />
@@ -99,21 +106,22 @@
     <ClInclude Include="include\Geometry\OBB.h" />
     <ClInclude Include="include\Geometry\Plane.h" />
     <ClInclude Include="include\Geometry\ViewportFrustum.h" />
-    <ClInclude Include="include\Meshes\ImagesAboutOfTextures.h" />
-    <ClInclude Include="include\Meshes\MaterialsOfPrimitives.h" />
-    <ClInclude Include="include\Meshes\MeshesOfNodes.h" />
-    <ClInclude Include="include\Meshes\PrimitivesOfMeshes.h" />
-    <ClInclude Include="include\Meshes\SkinsOfMeshes.h" />
-    <ClInclude Include="include\Meshes\TexturesOfMaterials.h" />
-    <ClInclude Include="include\MipmapsGenerator.h" />
     <ClInclude Include="include\glTFenum.h" />
+    <ClInclude Include="include\Graphics\Drawer.h" />
+    <ClInclude Include="include\Graphics\Graphics.h" />
+    <ClInclude Include="include\Graphics\Meshes\ImagesAboutOfTextures.h" />
+    <ClInclude Include="include\Graphics\Meshes\MaterialsOfPrimitives.h" />
+    <ClInclude Include="include\Graphics\Meshes\MeshesOfNodes.h" />
+    <ClInclude Include="include\Graphics\Meshes\PrimitivesOfMeshes.h" />
+    <ClInclude Include="include\Graphics\Meshes\SkinsOfMeshes.h" />
+    <ClInclude Include="include\Graphics\Meshes\TexturesOfMaterials.h" />
+    <ClInclude Include="include\Graphics\MipmapsGenerator.h" />
+    <ClInclude Include="include\Graphics\PipelinesFactory.h" />
+    <ClInclude Include="include\Graphics\ShadersSetsFamiliesCache.h" />
+    <ClInclude Include="include\Graphics\VulkanInit.h" />
     <ClInclude Include="include\hash_combine.h" />
-    <ClInclude Include="include\ShadersSetsFamiliesCache.h" />
-    <ClInclude Include="include\PipelinesFactory.h" />
-    <ClInclude Include="include\VulkanInit.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
-    <ClInclude Include="include\Graphics.h" />
     <ClInclude Include="include\InputManager.h" />
   </ItemGroup>
   <ItemGroup>

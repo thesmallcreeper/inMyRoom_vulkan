@@ -105,6 +105,9 @@
     <ClInclude Include="include\GameSpecificComponentsIDsEnum.inj">
       <Filter>Header Files\GameSpecific</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\AnimationActorCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\game_dll.cpp">
@@ -146,14 +149,17 @@
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\ECS\ComponentRawBaseClass.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\CompEntities\VelocityCompEntity.cpp">
       <Filter>Source Files\GameSpecific\CompEntities</Filter>
     </ClCompile>
     <ClCompile Include="src\Components\VelocityComp.cpp">
       <Filter>Source Files\GameSpecific\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\ComponentRawBaseClass.cpp">
+      <Filter>Source Files\General</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -23,6 +23,7 @@ public:
     void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;          // Component entity specific task
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
+    void InitAdds() override;                                                                                   // Component entity memory specific task
     ComponentEntityPtr GetComponentEntity(const Entity this_entity) override;                                   // Component entity memory specific task
 
 protected:
@@ -32,7 +33,10 @@ protected:
 
 private:
     std::vector<Entity> componentEntitiesToRemove;
+
     std::vector<std::pair<Entity, ComponentEntityType>> componentEntitiesToAdd;
+    std::vector<Entity> componentEntitiesToInit;
+
 };
 
 // -----SOURCE-----
@@ -150,12 +154,24 @@ void ComponentRawBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
 
             InformEntitiesHandlerAboutAddition(this_entity);
 
-            componentEntitiesRaw[this_entity].Init();
+            componentEntitiesToInit.emplace_back(this_entity);
         }
 
         componentEntitiesToAdd.clear();
     }
 }
+
+template<typename ComponentEntityType>
+void ComponentRawBaseClass<ComponentEntityType>::InitAdds()
+{
+    for (Entity this_entity : componentEntitiesToInit)
+    {
+        componentEntitiesRaw[this_entity].Init();
+    }
+
+    componentEntitiesToInit.clear();
+}
+
 
 template<typename ComponentEntityType>
 ComponentEntityPtr ComponentRawBaseClass<ComponentEntityType>::GetComponentEntity(const Entity this_entity)

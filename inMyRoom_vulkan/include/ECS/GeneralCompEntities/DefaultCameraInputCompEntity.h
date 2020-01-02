@@ -32,7 +32,6 @@ public:
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-
     void Update(class CameraComp* const cameraComp_ptr, const std::chrono::duration<float> durationOfLastState);
     void AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState);
 

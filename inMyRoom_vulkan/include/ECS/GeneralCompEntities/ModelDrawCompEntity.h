@@ -3,9 +3,9 @@
 #include "ECS/ECStypes.h"
 
 #include "Geometry/FrustumCulling.h"
-#include "Meshes/MeshesOfNodes.h"
-#include "Meshes/SkinsOfMeshes.h"
-#include "Drawer.h"
+#include "Graphics/Meshes/MeshesOfNodes.h"
+#include "Graphics/Meshes/SkinsOfMeshes.h"
+#include "Graphics/Drawer.h"
 
 
 #ifndef GAME_DLL
