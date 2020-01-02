@@ -1,17 +1,18 @@
 #include "ECS/GeneralCompEntities/AnimationComposerCompEntity.h"
+#include "ECS/GeneralCompEntities/AnimationActorCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
 #include "ECS/GeneralComponents/AnimationComposerComp.h"
 #include "ECS/GeneralComponents/AnimationActorComp.h"
-#include "..\..\..\include\ECS\GeneralCompEntities\AnimationComposerCompEntity.h"
 
 AnimationComposerComp* AnimationComposerCompEntity::animationComposerComp_ptr = nullptr;
 
 AnimationComposerCompEntity::AnimationComposerCompEntity(const Entity this_entity)
     :thisEntity(this_entity)
 {
+    ECSwrapper_ptr = animationComposerComp_ptr->GetECSwrapper();
 }
 
 AnimationComposerCompEntity::~AnimationComposerCompEntity()
@@ -74,7 +75,7 @@ AnimationComposerCompEntity AnimationComposerCompEntity::CreateComponentEntityBy
 std::vector<std::pair<std::string, MapType>> AnimationComposerCompEntity::GetComponentInitMapFields()
 {
     std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("ShouldAutoplay", MapType::int_type));   // TODO add bool
+    return_pair.emplace_back(std::make_pair("ShouldAutoplay", MapType::bool_type));   // TODO add bool
 
     return return_pair;
 }
@@ -91,14 +92,14 @@ void AnimationComposerCompEntity::Init()
 void AnimationComposerCompEntity::StartAnimation(bool should_loop, float time_offset)
 {
     componentID animationActor_componentID = static_cast<componentID>(componentIDenum::AnimationActor);
-    AnimationActorComp* const animationActorComp_ptr = static_cast<AnimationActorComp*>(animationComposerComp_ptr->GetECSwrapper()->GetComponentByID(animationActor_componentID));
+    ComponentBaseClass* const animationActorComp_bptr = ECSwrapper_ptr->GetComponentByID(animationActor_componentID);
 
-    componentID position_componentID = static_cast<componentID>(componentIDenum::Position);
-    ComponentBaseClass* const positionComp_bptr = animationComposerComp_ptr->GetECSwrapper()->GetComponentByID(animationActor_componentID);
+    componentID position_componentID = static_cast<componentID>(componentIDenum::NodeData);
+    ComponentBaseClass* const positionComp_bptr = ECSwrapper_ptr->GetComponentByID(animationActor_componentID);
 
     for (Entity this_actor_entity : actorEntities)
     {
-        AnimationActorCompEntity* this_actor_ptr = reinterpret_cast<AnimationActorCompEntity*>(animationActorComp_ptr->GetComponentEntity(this_actor_entity));
+        AnimationActorCompEntity* this_actor_ptr = reinterpret_cast<AnimationActorCompEntity*>(animationActorComp_bptr->GetComponentEntity(this_actor_entity));
         this_actor_ptr->StartAnimation(positionComp_bptr, animationName, should_loop, time_offset);
     }
 }
@@ -106,11 +107,11 @@ void AnimationComposerCompEntity::StartAnimation(bool should_loop, float time_of
 void AnimationComposerCompEntity::FreezeAnimation()
 {
     componentID animationActor_componentID = static_cast<componentID>(componentIDenum::AnimationActor);
-    AnimationActorComp* const animationActorComp_ptr = static_cast<AnimationActorComp*>(animationComposerComp_ptr->GetECSwrapper()->GetComponentByID(animationActor_componentID));
+    ComponentBaseClass* const animationActorComp_bptr = ECSwrapper_ptr->GetComponentByID(animationActor_componentID);
 
     for (Entity this_actor_entity : actorEntities)
     {
-        AnimationActorCompEntity* this_actor_ptr = reinterpret_cast<AnimationActorCompEntity*>(animationActorComp_ptr->GetComponentEntity(this_actor_entity));
+        AnimationActorCompEntity* this_actor_ptr = reinterpret_cast<AnimationActorCompEntity*>(animationActorComp_bptr->GetComponentEntity(this_actor_entity));
         this_actor_ptr->FreezeAnimation();
     }
 }
@@ -118,11 +119,11 @@ void AnimationComposerCompEntity::FreezeAnimation()
 void AnimationComposerCompEntity::UnfreezeAnimation()
 {
     componentID animationActor_componentID = static_cast<componentID>(componentIDenum::AnimationActor);
-    AnimationActorComp* const animationActorComp_ptr = static_cast<AnimationActorComp*>(animationComposerComp_ptr->GetECSwrapper()->GetComponentByID(animationActor_componentID));
+    ComponentBaseClass* const animationActorComp_bptr = ECSwrapper_ptr->GetComponentByID(animationActor_componentID);
 
     for (Entity this_actor_entity : actorEntities)
     {
-        AnimationActorCompEntity* this_actor_ptr = reinterpret_cast<AnimationActorCompEntity*>(animationActorComp_ptr->GetComponentEntity(this_actor_entity));
+        AnimationActorCompEntity* this_actor_ptr = reinterpret_cast<AnimationActorCompEntity*>(animationActorComp_bptr->GetComponentEntity(this_actor_entity));
         this_actor_ptr->UnfreezeAnimation();
     }
 }

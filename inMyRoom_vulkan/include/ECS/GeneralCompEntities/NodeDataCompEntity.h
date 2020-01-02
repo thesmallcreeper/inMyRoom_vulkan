@@ -9,25 +9,25 @@
 
 
 #ifndef GAME_DLL
-class PositionComp;
+class NodeDataComp;
 #endif
 
-class PositionCompEntity
+class NodeDataCompEntity
 {
 #ifndef GAME_DLL
 public:
-    PositionCompEntity(const Entity this_entity);
-    ~PositionCompEntity();
+    NodeDataCompEntity(const Entity this_entity);
+    ~NodeDataCompEntity();
 
-    static PositionCompEntity GetEmpty();
+    static NodeDataCompEntity GetEmpty();
 
-    /*  CreateComponentEntityByMap - Position
+    /*  CreateComponentEntityByMap - NodeData
         "LocalScale",           localScale.xyz          = vec4.xyz      (optional)
         "LocalRotation",        localRotation.xyzw      = vec4.xyzw     (optional)
         "LocalTranslation",     localTranslation.xyz    = vec4.xyz      (optional)
         "GlobalTranslation",    globalTranslation.xyz   = vec4.xyz      (optional)
     */
-    static PositionCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
+    static NodeDataCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     glm::mat4x4 GetGlobalMatrix(const glm::mat4x4 parent_global_matrix);
@@ -35,8 +35,8 @@ public:
     void Init();
 
 private: // static_variable
-    friend class PositionComp;
-    static PositionComp* positionComp_ptr;
+    friend class NodeDataComp;
+    static NodeDataComp* positionComp_ptr;
 
 #endif
 public: // dll visible

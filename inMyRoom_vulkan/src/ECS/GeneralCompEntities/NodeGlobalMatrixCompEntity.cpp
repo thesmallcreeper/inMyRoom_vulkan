@@ -4,7 +4,7 @@
 
 #ifndef GAME_DLL
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
-#include "ECS/GeneralComponents/PositionComp.h"
+#include "ECS/GeneralComponents/NodeDataComp.h"
 
 NodeGlobalMatrixComp* NodeGlobalMatrixCompEntity::nodeGlobalMatrixComp_ptr = nullptr;
 
@@ -100,9 +100,9 @@ std::vector<std::pair<std::string, MapType>> NodeGlobalMatrixCompEntity::GetComp
     return return_pair;
 }
 
-void NodeGlobalMatrixCompEntity::Update(PositionComp* const positionComp_ptr)
+void NodeGlobalMatrixCompEntity::Update(NodeDataComp* const positionComp_ptr)
 {
-    PositionCompEntity* current_position_componentEntity = reinterpret_cast<PositionCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));
+    NodeDataCompEntity* current_position_componentEntity = reinterpret_cast<NodeDataCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));
 
     if (parentEntity != 0)
     {

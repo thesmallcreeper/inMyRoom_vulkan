@@ -6,7 +6,7 @@
 
 #include "ECS/ECStypes.h"
 #include "ECS/GeneralComponents/AnimationActorComp.h"
-#include "ECS/GeneralComponents/PositionComp.h"
+#include "ECS/GeneralComponents/NodeDataComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
 #include "ECS/GeneralComponents/SkinComp.h"

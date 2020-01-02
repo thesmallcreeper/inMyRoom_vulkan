@@ -81,16 +81,10 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\CameraCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.h">
-      <Filter>Header Files\General\GeneralCompEntities</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelDrawCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h">
-      <Filter>Header Files\General\GeneralCompEntities</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\PositionCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h">
@@ -106,6 +100,15 @@
       <Filter>Header Files\GameSpecific</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\AnimationActorCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\AnimationComposerCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\NodeDataCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
   </ItemGroup>
@@ -134,16 +137,10 @@
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.cpp">
-      <Filter>Source Files\General\GeneralCompEntities</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp">
-      <Filter>Source Files\General\GeneralCompEntities</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\PositionCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
@@ -159,6 +156,15 @@
       <Filter>Source Files\General</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\NodeDataCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationComposerCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
   </ItemGroup>

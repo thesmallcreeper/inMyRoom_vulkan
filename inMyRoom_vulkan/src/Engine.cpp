@@ -5,9 +5,9 @@
 
 #include "ECS/GeneralComponents/AnimationActorComp.h"
 #include "ECS/GeneralComponents/AnimationComposerComp.h"
-#include "ECS/GeneralComponents/PositionComp.h"
+#include "ECS/GeneralComponents/NodeDataComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
-#include "ECS/GeneralComponents/DefaultCameraInputComp.h"
+#include "ECS/GeneralComponents/CameraDefaultInputComp.h"
 
 Engine::Engine(configuru::Config& in_cfgFile)
     :
@@ -28,13 +28,13 @@ Engine::Engine(configuru::Config& in_cfgFile)
         std::unique_ptr<AnimationComposerComp> animationComposer_comp_uptr = std::make_unique<AnimationComposerComp>(ECSwrapper_uptr.get());
         ECSwrapper_uptr->AddComponentAndOwnership(std::move(animationComposer_comp_uptr));
 
-        std::unique_ptr<PositionComp> position_comp_uptr= std::make_unique<PositionComp>(ECSwrapper_uptr.get());
+        std::unique_ptr<NodeDataComp> position_comp_uptr= std::make_unique<NodeDataComp>(ECSwrapper_uptr.get());
         ECSwrapper_uptr->AddComponentAndOwnership(std::move(position_comp_uptr));
 
         std::unique_ptr<NodeGlobalMatrixComp> nodeGlobalMatrix_comp_uptr = std::make_unique<NodeGlobalMatrixComp>(ECSwrapper_uptr.get());
         ECSwrapper_uptr->AddComponentAndOwnership(std::move(nodeGlobalMatrix_comp_uptr));
 
-        std::unique_ptr<DefaultCameraInputComp> defaultCameraInput_comp_uptr = std::make_unique<DefaultCameraInputComp>(ECSwrapper_uptr.get(), cfgFile["DefaultCamera"]["Speed"].as_float());
+        std::unique_ptr<CameraDefaultInputComp> defaultCameraInput_comp_uptr = std::make_unique<CameraDefaultInputComp>(ECSwrapper_uptr.get(), cfgFile["DefaultCamera"]["Speed"].as_float());
         ECSwrapper_uptr->AddComponentAndOwnership(std::move(defaultCameraInput_comp_uptr));
 
     }

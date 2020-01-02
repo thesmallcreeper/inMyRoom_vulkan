@@ -1,21 +1,21 @@
-#include "ECS/GeneralComponents/DefaultCameraInputComp.h"
+#include "ECS/GeneralComponents/CameraDefaultInputComp.h"
 #include "ECS/GeneralComponents/CameraComp.h"
 
 #include "ECS/ECSwrapper.h"
 
-DefaultCameraInputComp::DefaultCameraInputComp(ECSwrapper* const in_ecs_wrapper_ptr, float default_speed)
-    :ComponentSparseBaseClass<DefaultCameraInputCompEntity>(static_cast<componentID>(componentIDenum::DefaultCameraInput), "DefaultCameraInput", in_ecs_wrapper_ptr),
+CameraDefaultInputComp::CameraDefaultInputComp(ECSwrapper* const in_ecs_wrapper_ptr, float default_speed)
+    :ComponentSparseBaseClass<CameraDefaultInputCompEntity>(static_cast<componentID>(componentIDenum::CameraDefaultInput), "DefaultCameraInput", in_ecs_wrapper_ptr),
      default_speed(default_speed)
 {
-    DefaultCameraInputCompEntity::defaultCameraInputComp_ptr= this;
+    CameraDefaultInputCompEntity::defaultCameraInputComp_ptr= this;
 }
 
-DefaultCameraInputComp::~DefaultCameraInputComp()
+CameraDefaultInputComp::~CameraDefaultInputComp()
 {
-    DefaultCameraInputCompEntity::defaultCameraInputComp_ptr = nullptr;
+    CameraDefaultInputCompEntity::defaultCameraInputComp_ptr = nullptr;
 }
 
-void DefaultCameraInputComp::Update()
+void CameraDefaultInputComp::Update()
 {
     auto previous_snap_timePoint = lastSnapTimePoint;
     auto next_snap_timePoint = std::chrono::steady_clock::now();
@@ -24,13 +24,13 @@ void DefaultCameraInputComp::Update()
 
     componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
     CameraComp* const cameraComp_ptr = static_cast<CameraComp*>(ecsWrapper_ptr->GetComponentByID(camera_componentID));
-    for (DefaultCameraInputCompEntity& this_componentEntity : componentEntitiesSparse)
+    for (CameraDefaultInputCompEntity& this_componentEntity : componentEntitiesSparse)
         this_componentEntity.Update(cameraComp_ptr, duration);
 
     lastSnapTimePoint = next_snap_timePoint;
 }
 
-void DefaultCameraInputComp::AsyncInput(InputType input_type, void* struct_data)
+void CameraDefaultInputComp::AsyncInput(InputType input_type, void* struct_data)
 {
     auto previous_snap_timePoint = lastSnapTimePoint;
     auto next_snap_timePoint = std::chrono::steady_clock::now();
@@ -39,7 +39,7 @@ void DefaultCameraInputComp::AsyncInput(InputType input_type, void* struct_data)
 
     componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
     CameraComp* const cameraComp_ptr = static_cast<CameraComp*>(ecsWrapper_ptr->GetComponentByID(camera_componentID));
-    for (DefaultCameraInputCompEntity& this_componentEntity : componentEntitiesSparse)
+    for (CameraDefaultInputCompEntity& this_componentEntity : componentEntitiesSparse)
         this_componentEntity.AsyncInput(input_type, struct_data, duration);
 
     lastSnapTimePoint = next_snap_timePoint;

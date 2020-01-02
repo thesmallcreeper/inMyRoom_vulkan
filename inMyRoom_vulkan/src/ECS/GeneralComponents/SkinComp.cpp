@@ -17,7 +17,7 @@ SkinComp::~SkinComp()
 
 void SkinComp::Update() //ComponentSparseBaseClass
 {
-    skinsOfMeshes_ptr->StartRecordingNodesMatrixes();
+    skinsOfMeshes_ptr->StartRecordingNodesMatrices();
 
     componentID nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::NodeGlobalMatrix);
     NodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr = static_cast<NodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));

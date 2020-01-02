@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ECS/GeneralCompEntities/DefaultCameraInputCompEntity.h"
+#include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
 #include "ECS/ComponentSparseBaseClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
@@ -8,12 +8,12 @@
 
 
 
-class DefaultCameraInputComp
-    :public ComponentSparseBaseClass<DefaultCameraInputCompEntity>
+class CameraDefaultInputComp
+    :public ComponentSparseBaseClass<CameraDefaultInputCompEntity>
 {
 public:
-    DefaultCameraInputComp(ECSwrapper* const in_ecs_wrapper_ptr, float default_speed);
-    ~DefaultCameraInputComp();
+    CameraDefaultInputComp(ECSwrapper* const in_ecs_wrapper_ptr, float default_speed);
+    ~CameraDefaultInputComp();
 
     void Update() override;
     void FixedUpdate() override {};

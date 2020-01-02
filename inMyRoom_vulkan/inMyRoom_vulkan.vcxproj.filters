@@ -99,16 +99,10 @@
     <ClCompile Include="src\ECS\GeneralComponents\NodeGlobalMatrixComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
-    <ClCompile Include="src\ECS\GeneralComponents\PositionComp.cpp">
-      <Filter>Source Files\ECS\GeneralComponents</Filter>
-    </ClCompile>
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp">
       <Filter>Source Files\ECS\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp">
-      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ECS\GeneralCompEntities\PositionCompEntity.cpp">
       <Filter>Source Files\ECS\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="src\Geometry\Cuboid.cpp">
@@ -142,12 +136,6 @@
       <Filter>Source Files\ECS\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\GeneralComponents\CameraComp.cpp">
-      <Filter>Source Files\ECS\GeneralComponents</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.cpp">
-      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ECS\GeneralComponents\DefaultCameraInputComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
@@ -207,6 +195,18 @@
     <ClCompile Include="src\ECS\GeneralComponents\AnimationComposerComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
+    <ClCompile Include="src\ECS\GeneralComponents\CameraDefaultInputComp.cpp">
+      <Filter>Source Files\ECS\GeneralComponents</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.cpp">
+      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralComponents\NodeDataComp.cpp">
+      <Filter>Source Files\ECS\GeneralComponents</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralCompEntities\NodeDataCompEntity.cpp">
+      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -263,16 +263,10 @@
     <ClInclude Include="include\ECS\GeneralComponents\NodeGlobalMatrixComp.h">
       <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
-    <ClInclude Include="include\ECS\GeneralComponents\PositionComp.h">
-      <Filter>Header Files\ECS\GeneralComponents</Filter>
-    </ClInclude>
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelDrawCompEntity.h">
       <Filter>Header Files\ECS\GeneralCompEntities</Filter>
     </ClInclude>
     <ClInclude Include="include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h">
-      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ECS\GeneralCompEntities\PositionCompEntity.h">
       <Filter>Header Files\ECS\GeneralCompEntities</Filter>
     </ClInclude>
     <ClInclude Include="include\Geometry\Cuboid.h">
@@ -303,12 +297,6 @@
       <Filter>Header Files\ECS\GeneralCompEntities</Filter>
     </ClInclude>
     <ClInclude Include="include\ECS\GeneralComponents\CameraComp.h">
-      <Filter>Header Files\ECS\GeneralComponents</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ECS\GeneralCompEntities\DefaultCameraInputCompEntity.h">
-      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ECS\GeneralComponents\DefaultCameraInputComp.h">
       <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
     <ClInclude Include="include\ECS\GeneralCompEntities\SkinCompEntity.h">
@@ -373,6 +361,18 @@
     </ClInclude>
     <ClInclude Include="include\ECS\GeneralCompEntities\AnimationComposerCompEntity.h">
       <Filter>Header Files\ECS\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.h">
+      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralComponents\CameraDefaultInputComp.h">
+      <Filter>Header Files\ECS\GeneralComponents</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralCompEntities\NodeDataCompEntity.h">
+      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralComponents\NodeDataComp.h">
+      <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

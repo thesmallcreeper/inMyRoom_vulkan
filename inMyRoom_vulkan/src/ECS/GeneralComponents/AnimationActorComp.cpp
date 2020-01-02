@@ -1,5 +1,5 @@
 #include "ECS/GeneralComponents/AnimationActorComp.h"
-#include "ECS/GeneralComponents/PositionComp.h"
+#include "ECS/GeneralComponents/NodeDataComp.h"
 
 #include "ECS/ECSwrapper.h"
 
@@ -16,8 +16,8 @@ AnimationActorComp::~AnimationActorComp()
 
 void AnimationActorComp::Update() //ComponentSparseBaseClass
 {
-    componentID position_componentID = static_cast<componentID>(componentIDenum::Position);
-    PositionComp* const positionComp_ptr = static_cast<PositionComp*>(ecsWrapper_ptr->GetComponentByID(position_componentID));
+    componentID position_componentID = static_cast<componentID>(componentIDenum::NodeData);
+    NodeDataComp* const positionComp_ptr = static_cast<NodeDataComp*>(ecsWrapper_ptr->GetComponentByID(position_componentID));
 
     std::chrono::duration<float> delta_time = ecsWrapper_ptr->GetUpdateDeltaTime();
 

@@ -642,7 +642,7 @@ void Graphics::EndModelsLoad()
         this_primitives_set_specs.useMaterial = true;
         this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
 
-        this_primitives_set_specs.shaderSpecs.definitionValuePairs.emplace_back(std::pair("INVERSE_BIND_COUNT", static_cast<int>(skinsOfMeshes_uptr->GetMaxCountOfInverseBindMatrixes())));
+        this_primitives_set_specs.shaderSpecs.definitionValuePairs.emplace_back(std::pair("INVERSE_BIND_COUNT", static_cast<int>(skinsOfMeshes_uptr->GetMaxCountOfInverseBindMatrices())));
         this_primitives_set_specs.shaderSpecs.definitionValuePairs.emplace_back(std::pair("NODES_MATRICES_COUNT", static_cast<int>(skinsOfMeshes_uptr->GetMaxCountOfNodesMatrices())));
 
         primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, this_descriptor_sets_create_infos_ptrs_collection, renderpass_uptr.get(), textureSubpassID);

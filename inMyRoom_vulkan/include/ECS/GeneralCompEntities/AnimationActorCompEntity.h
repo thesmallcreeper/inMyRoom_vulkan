@@ -44,7 +44,7 @@ public:
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(class PositionComp* const positionComp_ptr, const std::chrono::duration<float> deltaTime);
+    void Update(class NodeDataComp* const positionComp_ptr, const std::chrono::duration<float> deltaTime);
 
 private: // help functions
     float GetAnimationTimeLength(const AnimationData& animation_data);

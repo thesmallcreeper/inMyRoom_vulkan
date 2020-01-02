@@ -15,7 +15,7 @@ VelocityComp::~VelocityComp()
 
 void VelocityComp::Update()
 {
-    componentID position_componentID = static_cast<componentID>(componentIDenum::Position);
+    componentID position_componentID = static_cast<componentID>(componentIDenum::NodeData);
     ComponentBaseClass* const positionComp_bptr = ecsWrapper_ptr->GetComponentByID(position_componentID);   
 
     std::chrono::duration<float> delta_time = ecsWrapper_ptr->GetUpdateDeltaTime();

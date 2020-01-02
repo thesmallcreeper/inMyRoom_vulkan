@@ -11,7 +11,7 @@
 
 SkinsOfMeshes::SkinsOfMeshes(Anvil::BaseDevice* const in_device_ptr, size_t in_swapchain_size, size_t in_nodes_buffer_size)
     :swapchainSize(in_swapchain_size),
-     nodesMatrixesBufferSize(in_nodes_buffer_size),
+     nodesMatricesBufferSize(in_nodes_buffer_size),
      device_ptr(in_device_ptr)
 {
     Anvil::MemoryAllocatorUniquePtr   allocator_ptr;
@@ -20,34 +20,34 @@ SkinsOfMeshes::SkinsOfMeshes(Anvil::BaseDevice* const in_device_ptr, size_t in_s
 
     allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
 
-    nodesMatrixesBuffers_uptrs.resize(swapchainSize);
+    nodesMatricesBuffers_uptrs.resize(swapchainSize);
 
     for (size_t i = 0; i < swapchainSize; i++)
     {
         {
             auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                            nodesMatrixesBufferSize,
+                                                                            nodesMatricesBufferSize,
                                                                             Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                             Anvil::SharingMode::EXCLUSIVE,
                                                                             Anvil::BufferCreateFlagBits::NONE,
                                                                             Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
 
-            nodesMatrixesBuffers_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
+            nodesMatricesBuffers_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
 
 
-            nodesMatrixesBuffers_uptrs[i]->set_name("Node's matrixes buffer " + std::to_string(i));
+            nodesMatricesBuffers_uptrs[i]->set_name("Node's matrices buffer " + std::to_string(i));
         }   
     
 
-        allocator_ptr->add_buffer(nodesMatrixesBuffers_uptrs[i].get(),
+        allocator_ptr->add_buffer(nodesMatricesBuffers_uptrs[i].get(),
                                   required_feature_flags);
     }
 }
 
 SkinsOfMeshes::~SkinsOfMeshes()
 {
-    nodesMatrixesBuffers_uptrs.clear();
-    inverseBindMatrixesBuffer_uptr.reset();
+    nodesMatricesBuffers_uptrs.clear();
+    inverseBindMatricesBuffer_uptr.reset();
 }
 
 void SkinsOfMeshes::AddSkinsOfModel(const tinygltf::Model& in_model)
@@ -57,8 +57,8 @@ void SkinsOfMeshes::AddSkinsOfModel(const tinygltf::Model& in_model)
     for (const tinygltf::Skin& this_skin : in_model.skins)
     {
         SkinInfo this_skinInfo;
-        this_skinInfo.inverseBindMatrixesFirstOffset = GetCountOfInverseBindMatrixes();
-        this_skinInfo.inverseBindMatrixesSize = this_skin.joints.size();
+        this_skinInfo.inverseBindMatricesFirstOffset = GetCountOfInverseBindMatrices();
+        this_skinInfo.inverseBindMatricesSize = this_skin.joints.size();
 
         for (size_t index = 0; index < this_skin.joints.size(); index++)
         {
@@ -66,7 +66,7 @@ void SkinsOfMeshes::AddSkinsOfModel(const tinygltf::Model& in_model)
             const glm::mat4 this_joint_inverseBindMatrix = GetAccessorMatrix(index,
                                                                              in_model,
                                                                              in_model.accessors[this_skin.inverseBindMatrices]);
-            AddMatrixToInverseBindMatrixesBuffer(this_joint_inverseBindMatrix);
+            AddMatrixToInverseBindMatricesBuffer(this_joint_inverseBindMatrix);
         }
 
         skins.emplace_back(this_skinInfo);
@@ -81,12 +81,12 @@ void SkinsOfMeshes::FlashDevice()
 {
     assert(!hasInitFlashed);
 
-    if (localInverseBindMatrixesBuffer.empty())             // In case model has no skin
-        localInverseBindMatrixesBuffer.emplace_back(0);
+    if (localInverseBindMatricesBuffer.empty())             // In case model has no skin
+        localInverseBindMatricesBuffer.emplace_back(0);
 
-    inverseBindMatrixesBuffer_uptr = CreateDeviceBufferForLocalBuffer(localInverseBindMatrixesBuffer,
+    inverseBindMatricesBuffer_uptr = CreateDeviceBufferForLocalBuffer(localInverseBindMatricesBuffer,
                                                                       Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT,
-                                                                      "Inverse bind matrixes buffer");
+                                                                      "Inverse bind matrices buffer");
 
     // Create DescriptorSetGroup
     {
@@ -104,7 +104,7 @@ void SkinsOfMeshes::FlashDevice()
                                                                1 /*in_descriptor_array_size*/,
                                                                Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
-            // Add nodes matrixes buffer (bind: 1)
+            // Add nodes Matrices buffer (bind: 1)
 
             this_description_set_create_info_uptr->add_binding(1, /*in_binding_index*/
                                                                Anvil::DescriptorType::UNIFORM_BUFFER,
@@ -123,20 +123,20 @@ void SkinsOfMeshes::FlashDevice()
         {
             // Bind inverse binding matrices (to bind: 0)
             {
-                Anvil::DescriptorSet::UniformBufferBindingElement this_uniform_bind(inverseBindMatrixesBuffer_uptr.get(),
+                Anvil::DescriptorSet::UniformBufferBindingElement this_uniform_bind(inverseBindMatricesBuffer_uptr.get(),
                                                                                     0, /*in_start_offset*/
-                                                                                    inverseBindMatrixesBuffer_uptr->get_create_info_ptr()->get_size());
+                                                                                    inverseBindMatricesBuffer_uptr->get_create_info_ptr()->get_size());
 
                 descriptorSetGroup_uptr->set_binding_item(static_cast<uint32_t>(i), /*in_n_set*/
                                                           0, /*in_binding_index*/
                                                           this_uniform_bind);
             }
 
-            // Bind nodes matrixes buffer (to bind: 1)
+            // Bind nodes Matrices buffer (to bind: 1)
             {
-                Anvil::DescriptorSet::UniformBufferBindingElement this_uniform_bind(nodesMatrixesBuffers_uptrs[i].get(),
+                Anvil::DescriptorSet::UniformBufferBindingElement this_uniform_bind(nodesMatricesBuffers_uptrs[i].get(),
                                                                                     0, /*in_start_offset*/
-                                                                                    nodesMatrixesBuffers_uptrs[i]->get_create_info_ptr()->get_size());
+                                                                                    nodesMatricesBuffers_uptrs[i]->get_create_info_ptr()->get_size());
 
                 descriptorSetGroup_uptr->set_binding_item(static_cast<uint32_t>(i), /*in_n_set*/
                                                           1, /*in_binding_index*/
@@ -163,12 +163,12 @@ SkinInfo SkinsOfMeshes::GetSkin(size_t this_skin_index) const
     return skins[this_skin_index];
 }
 
-void SkinsOfMeshes::StartRecordingNodesMatrixes()
+void SkinsOfMeshes::StartRecordingNodesMatrices()
 {
     assert(!isRecording);
     isRecording = true;
 
-    localCurrectSwapchainNodesMatrixesBuffer.clear();
+    localCurrectSwapchainNodesMatricesBuffer.clear();
 
     assert(isRecording);
 }
@@ -179,26 +179,26 @@ void SkinsOfMeshes::AddNodeMatrix(glm::mat4 in_node_matrix)
 
     std::copy(reinterpret_cast<unsigned char*>(&in_node_matrix),
               reinterpret_cast<unsigned char*>(&in_node_matrix) + sizeof(glm::mat4),
-              std::back_inserter(localCurrectSwapchainNodesMatrixesBuffer));
+              std::back_inserter(localCurrectSwapchainNodesMatricesBuffer));
 
-    assert(localCurrectSwapchainNodesMatrixesBuffer.size() <= nodesMatrixesBufferSize);
+    assert(localCurrectSwapchainNodesMatricesBuffer.size() <= nodesMatricesBufferSize);
 }
 
 size_t SkinsOfMeshes::GetNodesRecordSize() const
 {
-    return localCurrectSwapchainNodesMatrixesBuffer.size() / sizeof(glm::mat4);
+    return localCurrectSwapchainNodesMatricesBuffer.size() / sizeof(glm::mat4);
 }
 
 void SkinsOfMeshes::EndRecodingAndFlash(size_t in_swapchain, Anvil::Queue* in_opt_flash_queue)
 {
     assert(isRecording);
 
-    if (localCurrectSwapchainNodesMatrixesBuffer.size())
+    if (localCurrectSwapchainNodesMatricesBuffer.size())
     {
 
-        nodesMatrixesBuffers_uptrs[in_swapchain]->write(0,
-                                                        localCurrectSwapchainNodesMatrixesBuffer.size(),
-                                                        localCurrectSwapchainNodesMatrixesBuffer.data(),
+        nodesMatricesBuffers_uptrs[in_swapchain]->write(0,
+                                                        localCurrectSwapchainNodesMatricesBuffer.size(),
+                                                        localCurrectSwapchainNodesMatricesBuffer.data(),
                                                         in_opt_flash_queue);
     }
 
@@ -222,13 +222,13 @@ Anvil::DescriptorSet* SkinsOfMeshes::GetDescriptorSetPtr(size_t in_swapchain)
 
 size_t SkinsOfMeshes::GetMaxCountOfNodesMatrices() const
 {
-    return nodesMatrixesBufferSize / sizeof(glm::mat4);
+    return nodesMatricesBufferSize / sizeof(glm::mat4);
 }
 
-size_t SkinsOfMeshes::GetMaxCountOfInverseBindMatrixes() const
+size_t SkinsOfMeshes::GetMaxCountOfInverseBindMatrices() const
 {
     assert(hasInitFlashed);
-    return inverseBindMatrixesBuffer_uptr->get_create_info_ptr()->get_size() / sizeof(glm::mat4);
+    return inverseBindMatricesBuffer_uptr->get_create_info_ptr()->get_size() / sizeof(glm::mat4);
 }
 
 glm::mat4 SkinsOfMeshes::GetAccessorMatrix(const size_t index, const tinygltf::Model& in_model, const tinygltf::Accessor& in_accessor)
@@ -280,18 +280,18 @@ glm::mat4 SkinsOfMeshes::GetAccessorMatrix(const size_t index, const tinygltf::M
     return return_matrix;
 }
 
-void SkinsOfMeshes::AddMatrixToInverseBindMatrixesBuffer(const glm::mat4 this_matrix)
+void SkinsOfMeshes::AddMatrixToInverseBindMatricesBuffer(const glm::mat4 this_matrix)
 {
     const unsigned char* this_matrix_raw_ptr = reinterpret_cast<const unsigned char*>(&this_matrix);
 
     std::copy(this_matrix_raw_ptr,
               this_matrix_raw_ptr + sizeof(glm::mat4),
-              std::back_inserter(localInverseBindMatrixesBuffer));
+              std::back_inserter(localInverseBindMatricesBuffer));
 }
 
-size_t SkinsOfMeshes::GetCountOfInverseBindMatrixes() const
+size_t SkinsOfMeshes::GetCountOfInverseBindMatrices() const
 {
-    return localInverseBindMatrixesBuffer.size() / sizeof(glm::mat4);
+    return localInverseBindMatricesBuffer.size() / sizeof(glm::mat4);
 }
 
 Anvil::BufferUniquePtr SkinsOfMeshes::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,

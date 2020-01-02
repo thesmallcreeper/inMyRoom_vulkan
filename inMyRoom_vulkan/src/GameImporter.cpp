@@ -107,7 +107,7 @@ void GameImporter::AddDefaultCameraFab()
     {
         CompEntityInitMap this_map;
         this_map.intMap.emplace("freezed", false);
-        default_camera_fab->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::DefaultCameraInput), this_map);
+        default_camera_fab->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::CameraDefaultInput), this_map);
     }
 
     fabs_umap.emplace(default_camera_fab_name, std::move(default_camera_fab));
@@ -189,7 +189,7 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
         // Add scene node position comp
         {
             CompEntityInitMap this_map;
-            scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), this_map);
+            scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::NodeData), this_map);
         }
 
         // Add scene node matrix comp
@@ -282,9 +282,9 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
 {
     tinygltf::Node& this_gltf_node = model.nodes[this_node->glTFnodeIndex];
 
-    // Position component
+    // NodeData component
     {
-        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Position), CreatePositionInitMap(this_gltf_node));
+        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::NodeData), CreatePositionInitMap(this_gltf_node));
     }
 
     // Model draw component
@@ -309,7 +309,7 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
         SkinInfo this_skinInfo = engine_ptr->GetGraphicsPtr()->GetSkinsOfMeshesPtr()->GetSkin(skin_index);
 
         CompEntityInitMap this_map;
-        this_map.intMap["InverseBindMatricesOffset"] = static_cast<int>(this_skinInfo.inverseBindMatrixesFirstOffset);
+        this_map.intMap["InverseBindMatricesOffset"] = static_cast<int>(this_skinInfo.inverseBindMatricesFirstOffset);
 
         std::string this_node_path = GetPathUsingGLTFindex(root_node, this_node->glTFnodeIndex);
         for (size_t index = 0; index < this_skinInfo.glTFnodesJoints.size(); index++)
@@ -449,7 +449,7 @@ tinygltf::Model GameImporter::LoadglTFmodel(std::string path)
 
 CompEntityInitMap GameImporter::CreatePositionInitMap(const tinygltf::Node& in_node)
 {
-    PositionCompEntity targeted_positionCompEntity = PositionCompEntity::GetEmpty();
+    NodeDataCompEntity targeted_positionCompEntity = NodeDataCompEntity::GetEmpty();
 
     if (in_node.matrix.size() == 16)
     {
@@ -711,6 +711,11 @@ void GameImporter::AddTweaksToNode(Node* this_node, const configuru::Config& twe
                         {
                             std::string this_string = tweak_properties["components"][component_name][this_field.first].as_string();
                             this_node->componentIDsToInitMaps[this_componentID].stringMap[this_field.first] = this_string;
+                        }
+                        case MapType::bool_type:
+                        {
+                            bool this_bool = tweak_properties["components"][component_name][this_field.first].as_bool();
+                            this_node->componentIDsToInitMaps[this_componentID].intMap[this_field.first] = static_cast<int>(this_bool);
                         }
                         break;
                     }

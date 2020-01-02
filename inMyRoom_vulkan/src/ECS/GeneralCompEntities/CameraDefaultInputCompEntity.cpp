@@ -1,35 +1,35 @@
-#include "ECS/GeneralCompEntities/DefaultCameraInputCompEntity.h"
+#include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
 
 #include <glm/gtx/rotate_vector.hpp>
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/DefaultCameraInputComp.h"
+#include "ECS/GeneralComponents/CameraDefaultInputComp.h"
 #include "ECS/GeneralComponents/CameraComp.h"
 
-DefaultCameraInputComp* DefaultCameraInputCompEntity::defaultCameraInputComp_ptr = nullptr;
+CameraDefaultInputComp* CameraDefaultInputCompEntity::defaultCameraInputComp_ptr = nullptr;
 
-DefaultCameraInputCompEntity::DefaultCameraInputCompEntity(const Entity this_entity)
+CameraDefaultInputCompEntity::CameraDefaultInputCompEntity(const Entity this_entity)
     :thisEntity(this_entity)
 {
 }
 
-DefaultCameraInputCompEntity::~DefaultCameraInputCompEntity()
+CameraDefaultInputCompEntity::~CameraDefaultInputCompEntity()
 {
 }
 
-DefaultCameraInputCompEntity DefaultCameraInputCompEntity::GetEmpty()
+CameraDefaultInputCompEntity CameraDefaultInputCompEntity::GetEmpty()
 {
-    DefaultCameraInputCompEntity this_defaultCameraInputCompEntity(0);
+    CameraDefaultInputCompEntity this_defaultCameraInputCompEntity(0);
     this_defaultCameraInputCompEntity.speed = defaultCameraInputComp_ptr->default_speed;
 
     return this_defaultCameraInputCompEntity;
 }
 
-DefaultCameraInputCompEntity DefaultCameraInputCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+CameraDefaultInputCompEntity CameraDefaultInputCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
 {
-    DefaultCameraInputCompEntity this_defaultCameraInputCompEntity(in_entity);
+    CameraDefaultInputCompEntity this_defaultCameraInputCompEntity(in_entity);
 
     // "freezed",           isfreezed               = bool      
     {
@@ -85,10 +85,10 @@ DefaultCameraInputCompEntity DefaultCameraInputCompEntity::CreateComponentEntity
     return this_defaultCameraInputCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> DefaultCameraInputCompEntity::GetComponentInitMapFields()
+std::vector<std::pair<std::string, MapType>> CameraDefaultInputCompEntity::GetComponentInitMapFields()
 {
     std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("freezed",          MapType::int_type));
+    return_pair.emplace_back(std::make_pair("freezed",          MapType::bool_type));
     return_pair.emplace_back(std::make_pair("speed",            MapType::float_type));
     return_pair.emplace_back(std::make_pair("GlobalPosition",   MapType::vec3_type));
     return_pair.emplace_back(std::make_pair("GlobalDirection",  MapType::vec3_type));
@@ -97,11 +97,11 @@ std::vector<std::pair<std::string, MapType>> DefaultCameraInputCompEntity::GetCo
     return return_pair;
 }
 
-void DefaultCameraInputCompEntity::Init()
+void CameraDefaultInputCompEntity::Init()
 {
 }
 
-void DefaultCameraInputCompEntity::Update(CameraComp* const cameraComp_ptr, const std::chrono::duration<float> durationOfLastState)
+void CameraDefaultInputCompEntity::Update(CameraComp* const cameraComp_ptr, const std::chrono::duration<float> durationOfLastState)
 {
     if (!isFreezed)
     {
@@ -114,7 +114,7 @@ void DefaultCameraInputCompEntity::Update(CameraComp* const cameraComp_ptr, cons
     }
 }
 
-void DefaultCameraInputCompEntity::AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState)
+void CameraDefaultInputCompEntity::AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState)
 {
     if (!isFreezed)
     {
@@ -169,12 +169,12 @@ void DefaultCameraInputCompEntity::AsyncInput(InputType input_type, void* struct
     }
 }
 
-void DefaultCameraInputCompEntity::Freeze()
+void CameraDefaultInputCompEntity::Freeze()
 {
     isFreezed = true;
 }
 
-void DefaultCameraInputCompEntity::Unfreeze()
+void CameraDefaultInputCompEntity::Unfreeze()
 {
     isFreezed = false;
 
@@ -186,7 +186,7 @@ void DefaultCameraInputCompEntity::Unfreeze()
     movementState.movingDown = false;
 }
 
-void DefaultCameraInputCompEntity::MoveCamera(float xRotation_rads, float yRotation_rads)
+void CameraDefaultInputCompEntity::MoveCamera(float xRotation_rads, float yRotation_rads)
 {
     glm::vec3 new_global_direction = globalDirection;
 
@@ -211,7 +211,7 @@ void DefaultCameraInputCompEntity::MoveCamera(float xRotation_rads, float yRotat
     globalDirection = glm::normalize(new_global_direction);
 }
 
-void DefaultCameraInputCompEntity::CalculateSnap(const std::chrono::duration<float> durationOfCurrentState)
+void CameraDefaultInputCompEntity::CalculateSnap(const std::chrono::duration<float> durationOfCurrentState)
 {
     glm::vec3 position_delta_vector(0.0f, 0.0f, 0.0f);
 

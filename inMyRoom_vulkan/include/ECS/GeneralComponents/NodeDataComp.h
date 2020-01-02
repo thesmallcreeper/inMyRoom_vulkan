@@ -1,18 +1,18 @@
 #pragma once
 
-#include "ECS/GeneralCompEntities/PositionCompEntity.h"
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 #include "ECS/ComponentRawBaseClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
 
 
 
-class PositionComp :
-    public ComponentRawBaseClass<PositionCompEntity>
+class NodeDataComp :
+    public ComponentRawBaseClass<NodeDataCompEntity>
 {
 public:
-    PositionComp(ECSwrapper* const in_ecs_wrapper_ptr);
-    ~PositionComp() override;
+    NodeDataComp(ECSwrapper* const in_ecs_wrapper_ptr);
+    ~NodeDataComp() override;
 
     void Update() override {};
     void FixedUpdate() override {};

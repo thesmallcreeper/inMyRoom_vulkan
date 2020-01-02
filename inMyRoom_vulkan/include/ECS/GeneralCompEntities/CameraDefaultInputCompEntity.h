@@ -9,26 +9,26 @@
 
 
 #ifndef GAME_DLL
-class DefaultCameraInputComp;
+class CameraDefaultInputComp;
 #endif
 
-class DefaultCameraInputCompEntity
+class CameraDefaultInputCompEntity
 {
 #ifndef GAME_DLL
 public:
-    DefaultCameraInputCompEntity(const Entity this_entity);
-    ~DefaultCameraInputCompEntity();
+    CameraDefaultInputCompEntity(const Entity this_entity);
+    ~CameraDefaultInputCompEntity();
 
-    static DefaultCameraInputCompEntity GetEmpty();
+    static CameraDefaultInputCompEntity GetEmpty();
 
-    /*  CreateComponentEntityByMap - DefaultCameraInputCompEntity
+    /*  CreateComponentEntityByMap - CameraDefaultInputCompEntity
     "freezed",           isfreezed               = int
     "speed",             speed                   = float         (optional-default from config)
     "GlobalPosition",    globalPosition          = vec4.xyz      (optional-default  0, 0, 0)
     "GlobalDirection",   globalDirection         = vec4.xyz      (optional-default  0, 0, 1)
     "UpDirection",       upDirection             = vec4.xyz      (optional-default  0,-1, 0)
     */
-    static DefaultCameraInputCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
+    static CameraDefaultInputCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
@@ -43,8 +43,8 @@ private:
     void CalculateSnap(const std::chrono::duration<float> durationOfLastState);
 
 private: // static_variable
-    friend class DefaultCameraInputComp;
-    static DefaultCameraInputComp* defaultCameraInputComp_ptr;
+    friend class CameraDefaultInputComp;
+    static CameraDefaultInputComp* defaultCameraInputComp_ptr;
 
 #endif
 public: //data

@@ -1,7 +1,7 @@
 #include "CompEntities/VelocityCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
-#include "ECS/GeneralCompEntities/PositionCompEntity.h"
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
 VelocityComp* VelocityCompEntity::velocityComp_ptr = nullptr;
 
@@ -49,7 +49,7 @@ std::vector<std::pair<std::string, MapType>> VelocityCompEntity::GetComponentIni
 
 void VelocityCompEntity::Update(ComponentBaseClass* positionComp_bptr, std::chrono::duration<float> deltaTime)
 {
-    PositionCompEntity* this_position_componentEntity_ptr = reinterpret_cast<PositionCompEntity*>(positionComp_bptr->GetComponentEntity(thisEntity));
+    NodeDataCompEntity* this_position_componentEntity_ptr = reinterpret_cast<NodeDataCompEntity*>(positionComp_bptr->GetComponentEntity(thisEntity));
 
     this_position_componentEntity_ptr->GlobalTranslate(deltaTime.count() * velocity);
 }

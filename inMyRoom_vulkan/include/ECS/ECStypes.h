@@ -49,7 +49,8 @@ enum class MapType
     float_type,
     int_type,
     string_type,
-    entity_type
+    entity_type,
+    bool_type
 };
 
 // used a lot in: Game Import

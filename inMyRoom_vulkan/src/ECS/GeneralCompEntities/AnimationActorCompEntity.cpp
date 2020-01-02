@@ -1,10 +1,11 @@
 #include "ECS/GeneralCompEntities/AnimationActorCompEntity.h"
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
 #include "ECS/GeneralComponents/AnimationActorComp.h"
-#include "ECS/GeneralComponents/PositionComp.h"
+#include "ECS/GeneralComponents/NodeDataComp.h"
 
 #include <cmath>
 #include <algorithm>
@@ -171,9 +172,9 @@ void AnimationActorCompEntity::Init()
 {
 }
 
-void AnimationActorCompEntity::Update(PositionComp* const positionComp_ptr, const std::chrono::duration<float> deltaTime)
+void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr, const std::chrono::duration<float> deltaTime)
 {
-    PositionCompEntity* current_position_componentEntity = reinterpret_cast<PositionCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));
+    NodeDataCompEntity* current_position_componentEntity = reinterpret_cast<NodeDataCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));
 
     if (!currentAnimationFreezed && currentAnimation_index != -1)
     {
@@ -332,7 +333,7 @@ void AnimationActorCompEntity::StartAnimation(ComponentBaseClass* const position
     currentAnimationShouldLoop = should_loop;
     currentAnimationFreezed = false;
 
-    PositionCompEntity* current_position_componentEntity = reinterpret_cast<PositionCompEntity*>(positionComp_bptr->GetComponentEntity(thisEntity));
+    NodeDataCompEntity* current_position_componentEntity = reinterpret_cast<NodeDataCompEntity*>(positionComp_bptr->GetComponentEntity(thisEntity));
     translationT0 = current_position_componentEntity->localTranslation;
     rotationT0 = current_position_componentEntity->localRotation;
     scaleT0 = current_position_componentEntity->localScale;

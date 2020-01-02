@@ -41,5 +41,6 @@ public: // data
 
     bool shouldAutoplay = false;
 
+    class ECSwrapper* ECSwrapper_ptr;
     Entity thisEntity;
 };

@@ -1,31 +1,31 @@
-#include "ECS/GeneralCompEntities/PositionCompEntity.h"
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/PositionComp.h"
+#include "ECS/GeneralComponents/NodeDataComp.h"
 
-PositionComp* PositionCompEntity::positionComp_ptr = nullptr;
+NodeDataComp* NodeDataCompEntity::positionComp_ptr = nullptr;
 
-PositionCompEntity::PositionCompEntity(const Entity this_entity)
+NodeDataCompEntity::NodeDataCompEntity(const Entity this_entity)
     :thisEntity(this_entity)
 {
 }
 
-PositionCompEntity::~PositionCompEntity()
+NodeDataCompEntity::~NodeDataCompEntity()
 {
 }
 
-PositionCompEntity PositionCompEntity::GetEmpty()
+NodeDataCompEntity NodeDataCompEntity::GetEmpty()
 {
-    PositionCompEntity this_positionCompEntity(0);
+    NodeDataCompEntity this_positionCompEntity(0);
 
     return this_positionCompEntity;
 }
 
-PositionCompEntity PositionCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+NodeDataCompEntity NodeDataCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
 {
-    PositionCompEntity this_positionCompEntity(in_entity);
+    NodeDataCompEntity this_positionCompEntity(in_entity);
 
     // "LocalScale", localScale.xyz = vec4.xyz              (optional)
     {
@@ -67,7 +67,7 @@ PositionCompEntity PositionCompEntity::CreateComponentEntityByMap(const Entity i
     return this_positionCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> PositionCompEntity::GetComponentInitMapFields()
+std::vector<std::pair<std::string, MapType>> NodeDataCompEntity::GetComponentInitMapFields()
 {
     std::vector<std::pair<std::string, MapType>> return_pair;
     return_pair.emplace_back(std::make_pair("LocalScale",        MapType::vec3_type));
@@ -78,7 +78,7 @@ std::vector<std::pair<std::string, MapType>> PositionCompEntity::GetComponentIni
     return return_pair;
 }
 
-glm::mat4x4 PositionCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_matrix)
+glm::mat4x4 NodeDataCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_matrix)
 {
     glm::mat4 S_matrix = glm::scale(glm::mat4(1.0f), localScale);
     glm::mat4 R_matrix = glm::toMat4(localRotation);
@@ -89,28 +89,28 @@ glm::mat4x4 PositionCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_
     return gTTRS_matrix_in_global_space;
 }
 
-void PositionCompEntity::Init()
+void NodeDataCompEntity::Init()
 {
 }
 
 #endif
 
-void PositionCompEntity::LocalScale(const glm::vec3 in_scale)
+void NodeDataCompEntity::LocalScale(const glm::vec3 in_scale)
 {
     localScale *= in_scale;
 }
 
-void PositionCompEntity::LocalRotate(const glm::qua<float> in_rotation)
+void NodeDataCompEntity::LocalRotate(const glm::qua<float> in_rotation)
 {
     localRotation = in_rotation * localRotation;
 }
 
-void PositionCompEntity::LocalTranslate(const glm::vec3 in_translate)
+void NodeDataCompEntity::LocalTranslate(const glm::vec3 in_translate)
 {
     localTranslation += in_translate;
 }
 
-void PositionCompEntity::GlobalTranslate(const glm::vec3 in_translate)
+void NodeDataCompEntity::GlobalTranslate(const glm::vec3 in_translate)
 {
     globalTranslation += in_translate;
 }

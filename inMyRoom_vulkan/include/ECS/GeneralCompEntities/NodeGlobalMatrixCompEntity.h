@@ -33,7 +33,7 @@ public:
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(class PositionComp* const positionComp_ptr);
+    void Update(class NodeDataComp* const positionComp_ptr);
 
 private: // static variable
     friend class NodeGlobalMatrixComp;

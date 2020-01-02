@@ -13,8 +13,8 @@
 
 struct SkinInfo
 {
-    size_t inverseBindMatrixesFirstOffset;
-    size_t inverseBindMatrixesSize;
+    size_t inverseBindMatricesFirstOffset;
+    size_t inverseBindMatricesSize;
     std::vector<size_t> glTFnodesJoints;
 };
 
@@ -33,7 +33,7 @@ public:
 
     SkinInfo GetSkin(size_t this_skin_index) const;
 
-    void StartRecordingNodesMatrixes();
+    void StartRecordingNodesMatrices();
 
     void AddNodeMatrix(glm::mat4 in_node_matrix);
     size_t GetNodesRecordSize() const;
@@ -44,15 +44,15 @@ public:
     Anvil::DescriptorSet* GetDescriptorSetPtr(size_t in_swapchain);
 
     size_t GetMaxCountOfNodesMatrices() const;
-    size_t GetMaxCountOfInverseBindMatrixes() const;
+    size_t GetMaxCountOfInverseBindMatrices() const;
 private:
     glm::mat4 GetAccessorMatrix(const size_t index,
                                 const tinygltf::Model& in_model,
                                 const tinygltf::Accessor& in_accessor);
 
-    void AddMatrixToInverseBindMatrixesBuffer(const glm::mat4 this_matrix);
+    void AddMatrixToInverseBindMatricesBuffer(const glm::mat4 this_matrix);
 
-    size_t GetCountOfInverseBindMatrixes() const;
+    size_t GetCountOfInverseBindMatrices() const;
 
     Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
                                                             Anvil::BufferUsageFlagBits in_bufferusageflag,
@@ -66,15 +66,15 @@ private: // data
     std::vector<SkinInfo> skins;
 
     const size_t swapchainSize;
-    const size_t nodesMatrixesBufferSize;
+    const size_t nodesMatricesBufferSize;
 
     bool isRecording = false;
 
-    std::vector<unsigned char> localCurrectSwapchainNodesMatrixesBuffer;
-    std::vector<Anvil::BufferUniquePtr> nodesMatrixesBuffers_uptrs;
+    std::vector<unsigned char> localCurrectSwapchainNodesMatricesBuffer;
+    std::vector<Anvil::BufferUniquePtr> nodesMatricesBuffers_uptrs;
 
-    std::vector<unsigned char> localInverseBindMatrixesBuffer;
-    Anvil::BufferUniquePtr inverseBindMatrixesBuffer_uptr;
+    std::vector<unsigned char> localInverseBindMatricesBuffer;
+    Anvil::BufferUniquePtr inverseBindMatricesBuffer_uptr;
 
     Anvil::DescriptorSetGroupUniquePtr descriptorSetGroup_uptr;
 
