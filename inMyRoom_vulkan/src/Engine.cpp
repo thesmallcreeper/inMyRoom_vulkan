@@ -3,7 +3,6 @@
 #include "InputManager.h"
 #include "configuru.hpp"
 
-#include "ECS/GeneralComponents/AnimationActorComp.h"
 #include "ECS/GeneralComponents/AnimationComposerComp.h"
 #include "ECS/GeneralComponents/NodeDataComp.h"
 #include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
@@ -21,9 +20,6 @@ Engine::Engine(configuru::Config& in_cfgFile)
 
     {   // Initializing ECS
         ECSwrapper_uptr = std::make_unique<ECSwrapper>(exportedFunctionsConstructor_uptr.get());
-
-        std::unique_ptr<AnimationActorComp> animationActor_comp_uptr = std::make_unique<AnimationActorComp>(ECSwrapper_uptr.get());
-        ECSwrapper_uptr->AddComponentAndOwnership(std::move(animationActor_comp_uptr));
 
         std::unique_ptr<AnimationComposerComp> animationComposer_comp_uptr = std::make_unique<AnimationComposerComp>(ECSwrapper_uptr.get());
         ECSwrapper_uptr->AddComponentAndOwnership(std::move(animationComposer_comp_uptr));

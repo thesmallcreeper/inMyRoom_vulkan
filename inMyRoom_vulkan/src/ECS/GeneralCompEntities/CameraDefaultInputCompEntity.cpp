@@ -27,7 +27,7 @@ CameraDefaultInputCompEntity CameraDefaultInputCompEntity::GetEmpty()
     return this_defaultCameraInputCompEntity;
 }
 
-CameraDefaultInputCompEntity CameraDefaultInputCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+CameraDefaultInputCompEntity CameraDefaultInputCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
 {
     CameraDefaultInputCompEntity this_defaultCameraInputCompEntity(in_entity);
 

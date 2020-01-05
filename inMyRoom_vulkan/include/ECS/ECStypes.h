@@ -3,8 +3,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <map>
 
+#include "glm/gtx/quaternion.hpp"
+#include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 
 typedef uint32_t Entity;
@@ -13,11 +16,11 @@ typedef void* ComponentEntityPtr;
 
 struct CompEntityInitMap
 {
-    std::map<std::string, glm::vec4> vec4Map;       // vec4_type
-    std::map<std::string, float> floatMap;          // float_type
-    std::map<std::string, int> intMap;              // int_type
-    std::map<std::string, std::string> stringMap;   // string_type
-    std::map<std::string, Entity> entityMap;        // entity_type
+    std::unordered_map<std::string, glm::vec4> vec4Map;       // vec4_type
+    std::unordered_map<std::string, float> floatMap;          // float_type
+    std::unordered_map<std::string, int> intMap;              // int_type
+    std::unordered_map<std::string, std::string> stringMap;   // string_type
+    std::unordered_map<std::string, Entity> entityMap;        // entity_type
 
     CompEntityInitMap()
     {}
@@ -37,6 +40,16 @@ enum class InterpolationType
     Linear,
     Step,
     CubicSpline
+};
+
+struct AnimationData
+{
+    std::map<float, glm::vec3> timeToScaleKey_map;
+    InterpolationType timeToScale_interpolation = InterpolationType::Linear;
+    std::map<float, glm::qua<float>> timeToRotationKey_map;
+    InterpolationType timeToRotation_interpolation = InterpolationType::Linear;
+    std::map<float, glm::vec3> timeToTranslationKey_map;
+    InterpolationType timeToTranslation_interpolation = InterpolationType::Linear;
 };
 
 // used a lot in: Materials

@@ -556,6 +556,8 @@ void Graphics::InitMeshesTree()
                                                                cmdBuffers_uptrs[0].get(),
                                                                device_ptr);
 
+    animationsDataOfNodes_uptr = std::make_unique<AnimationsDataOfNodes>();
+
     texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), mipmapsGenerator_uptr.get(), device_ptr);
 
     materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device_ptr);                                                               //needs flash
@@ -569,6 +571,11 @@ void Graphics::InitMeshesTree()
 
 void Graphics::InitGraphicsComponents()
 {
+    {
+        animationActorComp_uptr = std::make_unique<AnimationActorComp>(engine_ptr->GetECSwrapperPtr(),
+                                                                       animationsDataOfNodes_uptr.get());
+        engine_ptr->GetECSwrapperPtr()->AddComponent(animationActorComp_uptr.get());
+    }
     {
         cameraComp_uptr = std::make_unique<CameraComp>(engine_ptr->GetECSwrapperPtr(),
                                                        glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
@@ -660,6 +667,12 @@ SkinsOfMeshes* Graphics::GetSkinsOfMeshesPtr()
 {
     assert(skinsOfMeshes_uptr.get());
     return skinsOfMeshes_uptr.get();
+}
+
+AnimationsDataOfNodes* Graphics::GetAnimationsDataOfNodesPtr()
+{
+    assert(animationsDataOfNodes_uptr.get());
+    return animationsDataOfNodes_uptr.get();
 }
 
 void Graphics::ToggleCullingDebugging()

@@ -26,7 +26,7 @@ AnimationComposerCompEntity AnimationComposerCompEntity::GetEmpty()
     return this_animationComposerCompEntity;
 }
 
-AnimationComposerCompEntity AnimationComposerCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+AnimationComposerCompEntity AnimationComposerCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
 {
     AnimationComposerCompEntity this_animationComposerCompEntity(in_entity);
 

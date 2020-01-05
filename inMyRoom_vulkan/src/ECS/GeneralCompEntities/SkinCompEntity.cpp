@@ -25,7 +25,7 @@ SkinCompEntity SkinCompEntity::GetEmpty()
     return this_skinCompEntity;
 }
 
-SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
 {
     SkinCompEntity this_skinCompEntity(in_entity);
 

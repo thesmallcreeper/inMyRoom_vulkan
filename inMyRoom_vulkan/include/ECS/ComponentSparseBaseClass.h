@@ -19,10 +19,10 @@ public:
 //  void FixedUpdate() override;
 //  void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
 
-    std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() override;
+    std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const override;
 
-    void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                      // Component entity specific task
-    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;          // Component entity specific task
+    void AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity);                // Component entity specific task
+    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map) override;         // Component entity specific task
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
     void InitAdds() override;                                                                                   // Component entity memory specific task
@@ -89,22 +89,22 @@ void ComponentSparseBaseClass<ComponentEntityType>::AsyncUpdate()
 */
 
 template<typename ComponentEntityType>
-std::vector<std::pair<std::string, MapType>> ComponentSparseBaseClass<ComponentEntityType>::GetComponentInitMapFields()
+std::vector<std::pair<std::string, MapType>> ComponentSparseBaseClass<ComponentEntityType>::GetComponentInitMapFields() const
 {
     return ComponentEntityType::GetComponentInitMapFields();
 }
 
 template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity)
+void ComponentSparseBaseClass<ComponentEntityType>::AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity)
 {
     componentEntitiesToAdd.emplace_back(std::make_pair(this_entity, this_componentEntity));
 }
 
 template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map)
+void ComponentSparseBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map)
 {
-    ComponentEntityType this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
-    AddComponent(this_entity, this_componentEntity);
+    const ComponentEntityType this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
+    AddComponent(this_entity, std::move(this_componentEntity));
 }
 
 template<typename ComponentEntityType>
@@ -136,7 +136,10 @@ void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
     }
 
     {
-        for (std::pair<Entity, ComponentEntityType > this_entity_componentEntity_pair : componentEntitiesToAdd)
+        componentEntitiesSparse.reserve(componentEntitiesSparse.size() + componentEntitiesToAdd.size());
+        entityToIndexToVector_umap.reserve(componentEntitiesSparse.size() + componentEntitiesToAdd.size());
+
+        for (std::pair<Entity, ComponentEntityType>& this_entity_componentEntity_pair : componentEntitiesToAdd)
         {
             Entity& this_entity = this_entity_componentEntity_pair.first;
             ComponentEntityType& this_componentEntity = this_entity_componentEntity_pair.second;
@@ -158,12 +161,12 @@ void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
                     entityToIndexToVector_umap.find(*this_bigger_entity)->second += 1;
 
                 entity_index = search_entity_stolenIndex_pair->second;
-                componentEntitiesSparse.insert(componentEntitiesSparse.begin() + entity_index, this_componentEntity);
+                componentEntitiesSparse.insert(componentEntitiesSparse.begin() + entity_index, std::move(this_componentEntity));
             }
             else
             {
                 entity_index = componentEntitiesSparse.size();
-                componentEntitiesSparse.emplace_back(this_componentEntity);
+                componentEntitiesSparse.emplace_back(std::move(this_componentEntity));
             }
 
             entitiesOfComponent_set.emplace(this_entity);

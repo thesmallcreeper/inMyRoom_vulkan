@@ -57,6 +57,7 @@
     <ClCompile Include="src\Graphics\Meshes\MeshesOfNodes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\PrimitivesOfMeshes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\SkinsOfMeshes.cpp" />
+    <ClCompile Include="src\Graphics\Meshes\AnimationsDataOfNodes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\TexturesOfMaterials.cpp" />
     <ClCompile Include="src\Graphics\MipmapsGenerator.cpp" />
     <ClCompile Include="src\Graphics\PipelinesFactory.cpp" />
@@ -109,6 +110,7 @@
     <ClInclude Include="include\glTFenum.h" />
     <ClInclude Include="include\Graphics\Drawer.h" />
     <ClInclude Include="include\Graphics\Graphics.h" />
+    <ClInclude Include="include\Graphics\Meshes\AnimationsDataOfNodes.h" />
     <ClInclude Include="include\Graphics\Meshes\ImagesAboutOfTextures.h" />
     <ClInclude Include="include\Graphics\Meshes\MaterialsOfPrimitives.h" />
     <ClInclude Include="include\Graphics\Meshes\MeshesOfNodes.h" />

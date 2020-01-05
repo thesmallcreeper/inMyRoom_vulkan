@@ -27,7 +27,7 @@ public:
             "DisableCulling",    disableCulling          = int         (optional)
             "IsSkin",            isSkin                  = int         (optional)
     */
-    static ModelDrawCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
+    static ModelDrawCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();

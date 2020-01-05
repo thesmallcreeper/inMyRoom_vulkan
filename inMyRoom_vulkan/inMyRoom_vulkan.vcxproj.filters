@@ -207,6 +207,9 @@
     <ClCompile Include="src\ECS\GeneralCompEntities\NodeDataCompEntity.cpp">
       <Filter>Source Files\ECS\GeneralCompEntities</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\Meshes\AnimationsDataOfNodes.cpp">
+      <Filter>Source Files\Graphics\Meshes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -373,6 +376,9 @@
     </ClInclude>
     <ClInclude Include="include\ECS\GeneralComponents\NodeDataComp.h">
       <Filter>Header Files\ECS\GeneralComponents</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\Meshes\AnimationsDataOfNodes.h">
+      <Filter>Header Files\Graphics\Meshes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

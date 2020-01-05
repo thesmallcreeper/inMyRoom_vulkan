@@ -6,23 +6,10 @@
 #include <unordered_map>
 #include <string>
 
-#include "glm/vec3.hpp"
-#include "glm/gtx/quaternion.hpp"
-
-struct AnimationData
-{
-    std::map<float, glm::vec3> timeToScaleKey_map;
-    InterpolationType timeToScale_interpolation = InterpolationType::Linear;
-    std::map<float, glm::qua<float>> timeToRotationKey_map;
-    InterpolationType timeToRotation_interpolation = InterpolationType::Linear;
-    std::map<float, glm::vec3> timeToTranslationKey_map;
-    InterpolationType timeToTranslation_interpolation = InterpolationType::Linear;
-};
 
 #ifndef GAME_DLL
     class AnimationActorComp;
 #endif
-
 
     // TODO cubic interpolation
 class AnimationActorCompEntity
@@ -40,11 +27,13 @@ public:
         "ANIMATION-NAME_PATH_key_X_time"            ANIMATION-NAME_input[X].PATH.time   = float                 (time of the key)
         "ANIMATION-NAME_PATH_key_X_data"            ANIMATION-NAME_input[X].PATH.data   = vec4.????             (path_data)
     */
-    static AnimationActorCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
+    static AnimationActorCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(class NodeDataComp* const positionComp_ptr, const std::chrono::duration<float> deltaTime);
+    void Update(class NodeDataComp* const positionComp_ptr,
+                class AnimationsDataOfNodes* const animationDataOfNodes_ptr,
+                const std::chrono::duration<float> deltaTime);
 
 private: // help functions
     float GetAnimationTimeLength(const AnimationData& animation_data);
@@ -68,7 +57,6 @@ public: // public functions
 
 public: // data
     std::unordered_map<std::string, size_t> animationNameToAnimationIndex_umap;
-    std::vector<AnimationData> animationsData;
 
     bool currentAnimationFreezed = false;
     bool currentAnimationShouldLoop = false;

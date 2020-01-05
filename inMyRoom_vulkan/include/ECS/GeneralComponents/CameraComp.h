@@ -21,7 +21,7 @@ public:
 
     void ToggleCullingDebugging();
 
-public: // dll visible    
+public: // dll visible via exported functions
     void BindCameraEntity(Entity this_camera_entity);
     CameraCompEntity* GetBindedCameraEntity();
 

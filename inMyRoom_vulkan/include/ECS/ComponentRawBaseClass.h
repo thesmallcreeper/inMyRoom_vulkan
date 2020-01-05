@@ -17,10 +17,10 @@ public:
 //  void FixedUpdate() override;
 //  void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
 
-    std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() override;
+    std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const override;
     
-    void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                      // Component entity specific task
-    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map) override;          // Component entity specific task
+    void AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity);                // Component entity specific task
+    void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map) override;         // Component entity specific task
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
     void InitAdds() override;                                                                                   // Component entity memory specific task
@@ -95,7 +95,7 @@ void ComponentRawBaseClass<ComponentEntityType>::AsyncUpdate()
 */
 
 template<typename ComponentEntityType>
-std::vector<std::pair<std::string, MapType>> ComponentRawBaseClass<ComponentEntityType>::GetComponentInitMapFields()
+std::vector<std::pair<std::string, MapType>> ComponentRawBaseClass<ComponentEntityType>::GetComponentInitMapFields() const
 {
     return ComponentEntityType::GetComponentInitMapFields();
 }
@@ -107,10 +107,10 @@ void ComponentRawBaseClass<ComponentEntityType>::AddComponent(const Entity this_
 }
 
 template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap this_map)
+void ComponentRawBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map)
 {
-    ComponentEntityType this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
-    AddComponent(this_entity, this_componentEntity);
+    const ComponentEntityType this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
+    AddComponent(this_entity, std::move(this_componentEntity));
 }
 
 template<typename ComponentEntityType>
@@ -136,7 +136,10 @@ void ComponentRawBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
     }
 
     {
-        for (std::pair<Entity, ComponentEntityType> this_entity_componentEntity_pair : componentEntitiesToAdd)
+        componentEntitiesRaw.reserve(componentEntitiesRaw.size() + componentEntitiesToAdd.size());
+        isItEmptyRawVector.reserve(componentEntitiesRaw.size() + componentEntitiesToAdd.size());
+
+        for (std::pair<Entity, ComponentEntityType>& this_entity_componentEntity_pair : componentEntitiesToAdd)
         {
             Entity& this_entity = this_entity_componentEntity_pair.first;
             ComponentEntityType& this_componentEntity = this_entity_componentEntity_pair.second;
@@ -149,7 +152,7 @@ void ComponentRawBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
 
             assert(isItEmptyRawVector[this_entity]);
 
-            componentEntitiesRaw[this_entity] = this_componentEntity;
+            componentEntitiesRaw[this_entity] = std::move(this_componentEntity);
             isItEmptyRawVector[this_entity] = false;
 
             InformEntitiesHandlerAboutAddition(this_entity);

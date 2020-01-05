@@ -29,7 +29,7 @@ public:
     "MatrixColumn2",        globalMatrix[2]         = vec4          (optional)
     "MatrixColumn3",        globalMatrix[3]         = vec4          (optional)
     */
-    static NodeGlobalMatrixCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
+    static NodeGlobalMatrixCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();

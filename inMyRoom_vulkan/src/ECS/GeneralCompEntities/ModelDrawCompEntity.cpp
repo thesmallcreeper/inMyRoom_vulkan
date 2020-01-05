@@ -25,7 +25,7 @@ ModelDrawCompEntity ModelDrawCompEntity::GetEmpty()
     return this_modelDrawCompEntity;
 }
 
-ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
 {
     ModelDrawCompEntity this_modelDrawCompEntity(in_entity);
 

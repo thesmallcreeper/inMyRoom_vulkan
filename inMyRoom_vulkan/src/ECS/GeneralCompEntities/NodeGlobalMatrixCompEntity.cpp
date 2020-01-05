@@ -24,7 +24,7 @@ NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::GetEmpty()
     return this_nodeGlobalMatrixCompEntity;
 }
 
-NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+NodeGlobalMatrixCompEntity NodeGlobalMatrixCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
 {
     NodeGlobalMatrixCompEntity this_nodeGlobalMatrixCompEntity(in_entity);
 

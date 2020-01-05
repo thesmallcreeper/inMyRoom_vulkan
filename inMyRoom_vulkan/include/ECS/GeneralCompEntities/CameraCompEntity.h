@@ -30,7 +30,7 @@ public:
         "GlobalDirection",   globalDirection         = vec4.xyz      (optional-default  0, 0, 1)
         "UpDirection",       globalUp                = vec4.xyz      (optional-default  0,-1, 0)
     */
-    static CameraCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
+    static CameraCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();

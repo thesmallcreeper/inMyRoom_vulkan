@@ -10,6 +10,8 @@
 #include <cmath>
 #include <algorithm>
 
+#include "Graphics/Meshes/AnimationsDataOfNodes.h"
+
 #include "glm/ext/quaternion_common.hpp"
 
 AnimationActorComp* AnimationActorCompEntity::animationActorComp_ptr = nullptr;
@@ -30,7 +32,7 @@ AnimationActorCompEntity AnimationActorCompEntity::GetEmpty()
     return this_animationActorCompEntity;
 }
 
-AnimationActorCompEntity AnimationActorCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map)
+AnimationActorCompEntity AnimationActorCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
 {
     AnimationActorCompEntity this_animationActorCompEntity(in_entity);
     // "Animation_X",  animations_umap[X]  = string  (name/declaration of the animation)
@@ -43,116 +45,14 @@ AnimationActorCompEntity AnimationActorCompEntity::CreateComponentEntityByMap(co
             auto search = in_map.stringMap.find(map_search_string);
             std::string this_animation_name = search->second;
 
-            size_t this_animation_index = this_animationActorCompEntity.animationsData.size();
-            this_animationActorCompEntity.animationNameToAnimationIndex_umap.emplace(this_animation_name, this_animation_index);
-
             {
-                AnimationData this_animationData;
-                
-                {
-                    size_t key_index = 0;
+                auto search = in_map.intMap.find(this_animation_name + "_animationIndex");
+                assert(search != in_map.intMap.end());
 
-                    // using time as finder
-                    std::string map_translation_time_search_string = this_animation_name + "_translation_key_" + std::to_string(key_index) + "_time";
-                    while (in_map.floatMap.find(map_translation_time_search_string) != in_map.floatMap.end())
-                    {
-                        // "ANIMATION-NAME_translation_key_X_time" ANIMATION-NAME_input[X].PATH.time = float (time of the key)
-                        auto time_search = in_map.floatMap.find(map_translation_time_search_string);
-                        float this_key_time = time_search->second;
-
-                        // "ANIMATION-NAME_translation_key_X_data" ANIMATION-NAME_input[X].PATH.data = vec4.???? (path_data)                     
-                        std::string map_translation_data_search_string = this_animation_name + "_translation_key_" + std::to_string(key_index) + "_data";
-                        auto data_search = in_map.vec4Map.find(map_translation_data_search_string);
-                        assert(data_search != in_map.vec4Map.end());
-
-                        glm::vec4 this_key_data = data_search->second;
-                        glm::vec3 this_key_translation = glm::vec3(this_key_data.x, this_key_data.y, this_key_data.z);
-
-                        this_animationData.timeToTranslationKey_map.emplace(this_key_time, this_key_translation);
-
-                        map_translation_time_search_string = this_animation_name + "_translation_key_" + std::to_string(++key_index) + "_time";
-                    }
-
-                    // "ANIMATION-NAME_translation_interpolation"   ANIMATION - NAME_input[X].PATH.intep = int                   InterpolationType
-                    std::string map_translation_interpolation_search_string = this_animation_name + "_translation_interpolation";
-                    if (in_map.intMap.find(map_translation_interpolation_search_string) != in_map.intMap.end())
-                    {
-                        auto search = in_map.intMap.find(map_translation_interpolation_search_string);
-                        this_animationData.timeToTranslation_interpolation = static_cast<InterpolationType>(search->second);
-                    }
-
-                }
-
-                {
-                    size_t key_index = 0;
-
-                    // using time as finder
-                    std::string map_rotation_time_search_string = this_animation_name + "_rotation_key_" + std::to_string(key_index) + "_time";
-                    while (in_map.floatMap.find(map_rotation_time_search_string) != in_map.floatMap.end())
-                    {
-                        // "ANIMATION-NAME_rotation_key_X_time" ANIMATION-NAME_input[X].PATH.time = float (time of the key)
-                        auto time_search = in_map.floatMap.find(map_rotation_time_search_string);
-                        float this_key_time = time_search->second;
-
-                        // "ANIMATION-NAME_rotation_key_X_data" ANIMATION-NAME_input[X].PATH.data = vec4.???? (path_data)                     
-                        std::string map_rotation_data_search_string = this_animation_name + "_rotation_key_" + std::to_string(key_index) + "_data";
-                        auto data_search = in_map.vec4Map.find(map_rotation_data_search_string);
-                        assert(data_search != in_map.vec4Map.end());
-
-                        glm::vec4 this_key_data = data_search->second;
-                        glm::qua<float> this_key_rotation = glm::qua<float>(this_key_data.w, this_key_data.x, this_key_data.y, this_key_data.z);
-
-                        this_animationData.timeToRotationKey_map.emplace(this_key_time, this_key_rotation);
-
-                        map_rotation_time_search_string = this_animation_name + "_rotation_key_" + std::to_string(++key_index) + "_time";
-                    }
-
-                    // "ANIMATION-NAME_rotation_interpolation"   ANIMATION - NAME_input[X].PATH.intep = int                   InterpolationType
-                    std::string map_rotation_interpolation_search_string = this_animation_name + "_rotation_interpolation";
-                    if (in_map.intMap.find(map_rotation_interpolation_search_string) != in_map.intMap.end())
-                    {
-                        auto search = in_map.intMap.find(map_rotation_interpolation_search_string);
-                        this_animationData.timeToRotation_interpolation = static_cast<InterpolationType>(search->second);
-                    }
-
-                }
-
-                {
-                    size_t key_index = 0;
-
-                    // using time as finder
-                    std::string map_scale_time_search_string = this_animation_name + "_scale_key_" + std::to_string(key_index) + "_time";
-                    while (in_map.floatMap.find(map_scale_time_search_string) != in_map.floatMap.end())
-                    {
-                        // "ANIMATION-NAME_scale_key_X_time" ANIMATION-NAME_input[X].PATH.time = float (time of the key)
-                        auto time_search = in_map.floatMap.find(map_scale_time_search_string);
-                        float this_key_time = time_search->second;
-
-                        // "ANIMATION-NAME_scale_key_X_data" ANIMATION-NAME_input[X].PATH.data = vec4.???? (path_data)                     
-                        std::string map_scale_data_search_string = this_animation_name + "_scale_key_" + std::to_string(key_index) + "_data";
-                        auto data_search = in_map.vec4Map.find(map_scale_data_search_string);
-                        assert(data_search != in_map.vec4Map.end());
-
-                        glm::vec4 this_key_data = data_search->second;
-                        glm::vec3 this_key_rotation = glm::vec3(this_key_data.x, this_key_data.y, this_key_data.z);
-
-                        this_animationData.timeToScaleKey_map.emplace(this_key_time, this_key_rotation);
-
-                        map_scale_time_search_string = this_animation_name + "_scale_key_" + std::to_string(++key_index) + "_time";
-                    }
-
-                    // "ANIMATION-NAME_scale_interpolation"   ANIMATION - NAME_input[X].PATH.intep = int                   InterpolationType
-                    std::string map_scale_interpolation_search_string = this_animation_name + "_scale_interpolation";
-                    if (in_map.intMap.find(map_scale_interpolation_search_string) != in_map.intMap.end())
-                    {
-                        auto search = in_map.intMap.find(map_scale_interpolation_search_string);
-                        this_animationData.timeToScale_interpolation = static_cast<InterpolationType>(search->second);
-                    }
-                }
-
-                this_animationActorCompEntity.animationsData.emplace_back(this_animationData);
+                size_t this_animation_index = static_cast<size_t>(search->second);
+                this_animationActorCompEntity.animationNameToAnimationIndex_umap.emplace(this_animation_name, this_animation_index);
             }
-
+ 
             map_search_string = "Animation_" + std::to_string(++index);
         }
     }
@@ -172,19 +72,28 @@ void AnimationActorCompEntity::Init()
 {
 }
 
-void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr, const std::chrono::duration<float> deltaTime)
+void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
+                                      AnimationsDataOfNodes* const animationDataOfNodes_ptr, 
+                                      const std::chrono::duration<float> deltaTime)
 {
     NodeDataCompEntity* current_position_componentEntity = reinterpret_cast<NodeDataCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));
 
     if (!currentAnimationFreezed && currentAnimation_index != -1)
     {
         currentAnimation_time += deltaTime.count();
-        AnimationData& animation_data = animationsData[currentAnimation_index];
+        const AnimationData& animation_data = animationDataOfNodes_ptr->GetAnimationDataRef(currentAnimation_index);
 
         float animation_length = GetAnimationTimeLength(animation_data);
         if (currentAnimation_time <= animation_length || currentAnimation_time > animation_length && currentAnimationShouldLoop)
         {
-            currentAnimation_time = std::fmodf(currentAnimation_time, animation_length);
+            if (currentAnimation_time > animation_length)
+            {
+                currentAnimation_time = std::fmodf(currentAnimation_time, animation_length);
+                translationT0 = current_position_componentEntity->localTranslation;
+                rotationT0 = current_position_componentEntity->localRotation;
+                scaleT0 = current_position_componentEntity->localScale;
+            }
+            
 
             if (animation_data.timeToTranslationKey_map.size())
             {
@@ -314,11 +223,14 @@ glm::qua<float> AnimationActorCompEntity::LinearInterpolationQua(float animation
 
     float lower_gravity = std::clamp(1.f - (animation_time - timeAndTranslation_lower_pair.first) / delta_time, 0.f, 1.f);
     float upper_gravity = 1.f - lower_gravity;
-
-    glm::qua<float> return_interpolated_quat = glm::mix(timeAndTranslation_lower_pair.second,
-                                                        timeAndTranslation_upper_pair.second,
-                                                        upper_gravity);
-    return return_interpolated_quat;
+    
+    // TODO: wait debugged glm::mix
+    glm::mat4x4 lower_transform = glm::mat4_cast(timeAndTranslation_lower_pair.second);
+    glm::mat4x4 upper_transform = glm::mat4_cast(timeAndTranslation_upper_pair.second);
+                                                         
+    glm::mat4x4 interpolated_transform = lower_gravity * lower_transform  + upper_gravity * upper_transform;
+    
+    return glm::quat_cast<float>(interpolated_transform);
 }
 
 #endif

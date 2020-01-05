@@ -330,6 +330,7 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
         size_t animations_count_of_actor = 0;
         for (const tinygltf::Animation& this_animation : model.animations)
         {
+            size_t animationData_index;
             bool has_animation_init_on_actor = false;
             
             for (const tinygltf::AnimationChannel& this_channel : this_animation.channels)
@@ -338,7 +339,10 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
                 {
                     if (!has_animation_init_on_actor)
                     {
+                        animationData_index = engine_ptr->GetGraphicsPtr()->GetAnimationsDataOfNodesPtr()->RegistAnimationsDataAndGetIndex();
                         this_map.stringMap.emplace(std::make_pair("Animation_" + std::to_string(animations_count_of_actor), this_animation.name));
+                        this_map.intMap.emplace(std::make_pair(this_animation.name + "_animationIndex", static_cast<int>(animationData_index)));
+
                         has_animation_init_on_actor = true;
                     }
 
@@ -359,43 +363,52 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
                     {
                         assert(sampler_input_data.size() * 3 == sampler_output_data.size());
 
-                        this_map.intMap.emplace(std::make_pair(this_animation.name + "_translation_interpolation", static_cast<int>(this_interpolation_type)));
+                        AnimationData this_partOf_animationData;
+                        this_partOf_animationData.timeToTranslation_interpolation = this_interpolation_type;
+
                         for (size_t index = 0; index < sampler_input_data.size(); index++)
                         {
                             float input_key = sampler_input_data[index];
-                            this_map.floatMap.emplace(std::make_pair(this_animation.name + "_translation_key_" + std::to_string(index) + "_time", input_key));
+                            glm::vec3 output_key = glm::vec3(sampler_output_data[index * 3], -sampler_output_data[index * 3 + 1], -sampler_output_data[index * 3 + 2]);
 
-                            glm::vec4 output_key = glm::vec4(sampler_output_data[index * 3], -sampler_output_data[index * 3 + 1], -sampler_output_data[index * 3 + 2], 0.f);
-                            this_map.vec4Map.emplace(std::make_pair(this_animation.name + "_translation_key_" + std::to_string(index) + "_data", output_key));
+                            this_partOf_animationData.timeToTranslationKey_map.emplace(input_key, output_key);
                         }
+
+                        engine_ptr->GetGraphicsPtr()->GetAnimationsDataOfNodesPtr()->AddAnimationData(animationData_index, this_partOf_animationData);
                     }
                     if (this_channel.target_path == "rotation")
                     {
                         assert(sampler_input_data.size() * 4 == sampler_output_data.size());
 
-                        this_map.intMap.emplace(std::make_pair(this_animation.name + "_rotation_interpolation", static_cast<int>(this_interpolation_type)));
+                        AnimationData this_partOf_animationData;
+                        this_partOf_animationData.timeToRotation_interpolation = this_interpolation_type;
+
                         for (size_t index = 0; index < sampler_input_data.size(); index++)
                         {
                             float input_key = sampler_input_data[index];
-                            this_map.floatMap.emplace(std::make_pair(this_animation.name + "_rotation_key_" + std::to_string(index) + "_time", input_key));
-
-                            glm::vec4 output_key = glm::vec4(sampler_output_data[index * 4], -sampler_output_data[index * 4 + 1], -sampler_output_data[index * 4 + 2], sampler_output_data[index * 4 + 3]);
-                            this_map.vec4Map.emplace(std::make_pair(this_animation.name + "_rotation_key_" + std::to_string(index) + "_data", output_key));
+                           
+                            glm::qua<float> output_key = glm::qua<float>(sampler_output_data[index * 4 + 3], sampler_output_data[index * 4], -sampler_output_data[index * 4 + 1], -sampler_output_data[index * 4 + 2]);
+                            this_partOf_animationData.timeToRotationKey_map.emplace(input_key, output_key);
                         }
+
+                        engine_ptr->GetGraphicsPtr()->GetAnimationsDataOfNodesPtr()->AddAnimationData(animationData_index, this_partOf_animationData);
                     }
                     if (this_channel.target_path == "scale")
                     {
                         assert(sampler_input_data.size() * 3 == sampler_output_data.size());
 
-                        this_map.intMap.emplace(std::make_pair(this_animation.name + "_scale_interpolation", static_cast<int>(this_interpolation_type)));
+                        AnimationData this_partOf_animationData;
+                        this_partOf_animationData.timeToScale_interpolation = this_interpolation_type;
+
                         for (size_t index = 0; index < sampler_input_data.size(); index++)
                         {
                             float input_key = sampler_input_data[index];
-                            this_map.floatMap.emplace(std::make_pair(this_animation.name + "_scale_key_" + std::to_string(index) + "_time", input_key));
+                            glm::vec3 output_key = glm::vec3(sampler_output_data[index * 3], sampler_output_data[index * 3 + 1], sampler_output_data[index * 3 + 2]);
 
-                            glm::vec4 output_key = glm::vec4(sampler_output_data[index * 3], sampler_output_data[index * 3 + 1], sampler_output_data[index * 3 + 2], 0.f);
-                            this_map.vec4Map.emplace(std::make_pair(this_animation.name + "_scale_key_" + std::to_string(index) + "_data", output_key));
+                            this_partOf_animationData.timeToScaleKey_map.emplace(input_key, output_key);
                         }
+
+                        engine_ptr->GetGraphicsPtr()->GetAnimationsDataOfNodesPtr()->AddAnimationData(animationData_index, this_partOf_animationData);
                     }
                 }
             }

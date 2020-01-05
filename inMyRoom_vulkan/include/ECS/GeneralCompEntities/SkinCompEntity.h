@@ -25,7 +25,7 @@ public:
         "InverseBindMatricesOffset",     inverseBindMatricesOffset     = int
         "JointRelativeName_X",           jointEntities[X]              = string    (name)
     */
-    static SkinCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap in_map);
+    static SkinCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
