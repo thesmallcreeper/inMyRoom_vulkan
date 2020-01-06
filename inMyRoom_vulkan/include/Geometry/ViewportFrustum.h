@@ -31,7 +31,9 @@ public:
                           glm::vec3 in_camera_looking_direction, 
                           glm::vec3 in_camera_up);
 
+#ifndef GAME_DLL
     std::array<Plane, 6> GetWorldSpacePlanesOfFrustum() const;
+#endif
 
 //    ViewportFrustum& operator = (const ViewportFrustum& t);
 

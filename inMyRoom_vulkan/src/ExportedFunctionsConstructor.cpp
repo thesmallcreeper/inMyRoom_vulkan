@@ -27,3 +27,9 @@ Node* ExportedFunctionsConstructor::GetFabNode(std::string fab_node)
 {
     return engine_ptr->GetGameImporter()->GetFabNode(fab_node);
 }
+
+void ExportedFunctionsConstructor::BindCameraEntity(Entity this_camera_entity)
+{
+    CameraComp* cameraComp_ptr = reinterpret_cast<CameraComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::Camera)));
+    cameraComp_ptr->BindCameraEntity(this_camera_entity);
+}

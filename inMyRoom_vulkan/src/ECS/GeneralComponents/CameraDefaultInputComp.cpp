@@ -24,6 +24,7 @@ void CameraDefaultInputComp::Update()
 
     componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
     CameraComp* const cameraComp_ptr = static_cast<CameraComp*>(ecsWrapper_ptr->GetComponentByID(camera_componentID));
+
     for (CameraDefaultInputCompEntity& this_componentEntity : componentEntitiesSparse)
         this_componentEntity.Update(cameraComp_ptr, duration);
 
@@ -37,8 +38,6 @@ void CameraDefaultInputComp::AsyncInput(InputType input_type, void* struct_data)
 
     std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
 
-    componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
-    CameraComp* const cameraComp_ptr = static_cast<CameraComp*>(ecsWrapper_ptr->GetComponentByID(camera_componentID));
     for (CameraDefaultInputCompEntity& this_componentEntity : componentEntitiesSparse)
         this_componentEntity.AsyncInput(input_type, struct_data, duration);
 

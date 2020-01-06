@@ -44,6 +44,7 @@ void ViewportFrustum::UpdateViewMatrix(glm::vec3 in_camera_position,
                              in_camera_up);
 }
 
+#ifndef GAME_DLL
 std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
 {
     // Copyied and modified code from here: https://github.com/SaschaWillems/Vulkan/blob/master/base/frustum.hpp
@@ -102,6 +103,7 @@ std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
 
     return planes;
 }
+#endif
 
 //ViewportFrustum& ViewportFrustum::operator=(const ViewportFrustum& other)
 //{

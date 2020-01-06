@@ -671,11 +671,11 @@ void GameImporter::AddTweaksToNode(Node* this_node, const configuru::Config& twe
 
             std::vector<std::pair<std::string, MapType>> this_component_init_map_fields = this_component_ptr->GetComponentInitMapFields();
 
+            this_node->componentIDsToInitMaps.try_emplace(this_componentID, CompEntityInitMap());
+
             for (const std::pair<std::string, MapType> this_field : this_component_init_map_fields)
                 if (tweak_properties["components"][component_name].has_key(this_field.first))
                 {
-                    this_node->componentIDsToInitMaps.try_emplace(this_componentID, CompEntityInitMap());
-
                     switch (this_field.second)
                     {
                         case MapType::vec4_type:
@@ -725,6 +725,7 @@ void GameImporter::AddTweaksToNode(Node* this_node, const configuru::Config& twe
                             std::string this_string = tweak_properties["components"][component_name][this_field.first].as_string();
                             this_node->componentIDsToInitMaps[this_componentID].stringMap[this_field.first] = this_string;
                         }
+                        break;
                         case MapType::bool_type:
                         {
                             bool this_bool = tweak_properties["components"][component_name][this_field.first].as_bool();

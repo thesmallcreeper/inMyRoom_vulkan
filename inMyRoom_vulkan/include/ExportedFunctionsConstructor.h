@@ -16,6 +16,8 @@ public:
 
     Node*   GetFabNode(std::string fab_node) override;
 
+    void    BindCameraEntity(Entity this_camera_entity) override;
+
 private:
     Engine* const engine_ptr;
 };

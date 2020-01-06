@@ -15,5 +15,6 @@ public:
 
     virtual Node* GetFabNode(std::string fab_node) = 0;
 
+    virtual void BindCameraEntity(Entity this_camera_entity) = 0;
 };
 

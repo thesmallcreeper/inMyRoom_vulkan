@@ -137,6 +137,8 @@ void CameraCompEntity::Update(bool cull_debugging)
         cullingViewportFrustum = cameraViewportFrustum;
 }
 
+#endif
+
 void CameraCompEntity::UpdateCameraPerspectiveMatrix(float fovy, float aspect, float near, float far)
 {
     cameraViewportFrustum.UpdatePerspectiveMatrix(fovy,
@@ -151,5 +153,3 @@ void CameraCompEntity::UpdateCameraViewMatrix(glm::vec3 in_camera_position, glm:
                                            in_camera_looking_direction,
                                            in_camera_up);
 }
-
-#endif

@@ -36,6 +36,12 @@ public:
     void Init();
     void Update(bool cull_debugging);
 
+private: // static_variable
+    friend class CameraComp;
+    static CameraComp* cameraComp_ptr;
+
+#endif
+public: // public functions
     void UpdateCameraViewMatrix(glm::vec3 in_camera_position,
                                 glm::vec3 in_camera_looking_direction,
                                 glm::vec3 in_camera_up);
@@ -44,12 +50,6 @@ public:
                                        float aspect,
                                        float near,
                                        float far);
-
-private: // static_variable
-    friend class CameraComp;
-    static CameraComp* cameraComp_ptr;
-
-#endif
 public:
     ViewportFrustum cameraViewportFrustum;
     ViewportFrustum cullingViewportFrustum;

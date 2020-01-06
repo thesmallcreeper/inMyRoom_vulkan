@@ -36,8 +36,9 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h" />
     <ClInclude Include="..\..\..\include\game_dll.h" />
-    <ClInclude Include="include\CompEntities\VelocityCompEntity.h" />
-    <ClInclude Include="include\Components\VelocityComp.h" />
+    <ClInclude Include="..\..\..\include\Geometry\ViewportFrustum.h" />
+    <ClInclude Include="include\CompEntities\SnakePlayerCompEntity.h" />
+    <ClInclude Include="include\Components\SnakePlayerComp.h" />
     <ClInclude Include="include\GameSpecificComponentsVector.h" />
     <ClInclude Include="include\GameSpecificComponentsIDsEnum.inj" />
   </ItemGroup>
@@ -57,8 +58,9 @@
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\game_dll.cpp" />
-    <ClCompile Include="src\CompEntities\VelocityCompEntity.cpp" />
-    <ClCompile Include="src\Components\VelocityComp.cpp" />
+    <ClCompile Include="..\..\..\src\Geometry\ViewportFrustum.cpp" />
+    <ClCompile Include="src\CompEntities\SnakePlayerCompEntity.cpp" />
+    <ClCompile Include="src\Components\SnakePlayerComp.cpp" />
     <ClCompile Include="src\dllmain.cpp" />
   </ItemGroup>
   <ItemGroup>

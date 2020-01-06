@@ -46,6 +46,12 @@
     <Filter Include="Source Files\GameSpecific\CompEntities">
       <UniqueIdentifier>{2881f72d-e6fd-4e11-9c2e-5474b13ca2e7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Geometry">
+      <UniqueIdentifier>{4f87209d-8b06-45d3-bca2-3be703c09e62}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Geometry">
+      <UniqueIdentifier>{f7b8258b-8601-4245-b2b4-fe130fd5be6f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\game_dll.h">
@@ -90,12 +96,6 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
-    <ClInclude Include="include\CompEntities\VelocityCompEntity.h">
-      <Filter>Header Files\GameSpecific\CompEntities</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Components\VelocityComp.h">
-      <Filter>Header Files\GameSpecific\Components</Filter>
-    </ClInclude>
     <ClInclude Include="include\GameSpecificComponentsIDsEnum.inj">
       <Filter>Header Files\GameSpecific</Filter>
     </ClInclude>
@@ -110,6 +110,15 @@
     </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\NodeDataCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CompEntities\SnakePlayerCompEntity.h">
+      <Filter>Header Files\GameSpecific\CompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Components\SnakePlayerComp.h">
+      <Filter>Header Files\GameSpecific\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\Geometry\ViewportFrustum.h">
+      <Filter>Header Files\Geometry</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -146,12 +155,6 @@
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
-    <ClCompile Include="src\CompEntities\VelocityCompEntity.cpp">
-      <Filter>Source Files\GameSpecific\CompEntities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Components\VelocityComp.cpp">
-      <Filter>Source Files\GameSpecific\Components</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\ComponentRawBaseClass.cpp">
       <Filter>Source Files\General</Filter>
     </ClCompile>
@@ -166,6 +169,15 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationComposerCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CompEntities\SnakePlayerCompEntity.cpp">
+      <Filter>Source Files\GameSpecific\CompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Components\SnakePlayerComp.cpp">
+      <Filter>Source Files\GameSpecific\Components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\Geometry\ViewportFrustum.cpp">
+      <Filter>Source Files\Geometry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
