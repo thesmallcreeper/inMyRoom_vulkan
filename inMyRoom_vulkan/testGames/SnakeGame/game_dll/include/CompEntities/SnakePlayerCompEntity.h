@@ -18,8 +18,9 @@ public:
     /*  CreateComponentEntityByMap - SnakePlayerCompEntity
         "Speed",                    speed                       = float
         "RotationSpeed",            rotationSpeed               = float
-        "AnimationComposer"         animationComposer_entity    = string    (relative path)
-        "InitDirection",            globalDirection                   = vec4.xyz  (optional-default -1, 0, 0)
+        "AnimationComposer",        animationComposer_entity    = string    (relative path)
+        "CameraOffset",             cameraOffset                = vec4.xyz
+        "InitDirection",            globalDirection             = vec4.xyz  (optional-default -1, 0, 0)
         "UpDirection",              globalUp                    = vec4.xyz  (optional-default  0,-1, 0)
     */
     static SnakePlayerCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
@@ -55,6 +56,8 @@ public: //data
     float speed;
     float rotationSpeed;
     glm::vec3 upDirection = glm::vec3(0.f, -1.f, 0.f);
+
+    glm::vec3 cameraOffset;
 
     Entity animationComposerEntity;
 

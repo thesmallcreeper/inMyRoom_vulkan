@@ -26,14 +26,17 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
  ## Windows using Visual Studio 2019
  
  * Run `buildForVS2019.bat` script. This will generate project files for Anvil and Compressonator using CMake.
- * Launch solution by opening `/inMyRoom_vulkan/inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile. 
- * In order to launch scenes with `gameDLL` you should go to the scene's folder, open the `game_dll` solution and compile.
+ * Launch solution by opening `inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile. 
+ * In order to launch scenes/game with `gameDLL` you should go to the game's (over at `/inMyRoom_vulkan/testGames/` folder), open the `game_dll` solution and compile.
  * Launch `inMyRoom_vulkan.exe`.
- * Note: To run application successfully `/inMyRoom_vulkan/inMyRoom_vulkan/` should be your working folder.
+ * Note: To run application successfully `/inMyRoom_vulkan/` should be your working folder.
  * Note: If you use `gameDLL` both engine and scene should have been compiled with the same compiler and options (Release .exe -> Release .dll , Debug .exe -> Debug .dll)
  
  #### This commit has only Windows support. Linux support to come back
  
- gg ez :D (Actually.. I hope so :P )
+ # Notes / Known Issues
  
-  #### Note: When application loads a scene for first time it is gonna take some time, because mipmaps should be created, compressed and saved/cached for later reuse/relaunch.
+ * Default resolution is 1600x900. In case your screen is smaller over at `/inMyRoom_vulkan/config.cfg` you can change window resolution (`graphicsSettings/xRes-yRes`)
+ * Mipmapping is enabled by default. This means that on the first use of a model mipmaps will be created for it. Mipmapping generator use formats that are not supported from all GPUs. If application crashes then you may need to disable mipmaps over at `/inMyRoom_vulkan/config.cfg` (`graphicsSettings/useMipmaps` true->false ).
+ * Default scene/game is SnakeGame over at `/inMyRoom_vulkan/testGames/SnakeGame`. Inside this folder `gameConfig.cfg` exist. Make sure to compile the .dll and have `gameDLL/path_win` config's option point at the correct path.
+ 

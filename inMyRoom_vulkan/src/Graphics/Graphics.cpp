@@ -101,9 +101,8 @@ void Graphics::DrawFrame()
         anvil_assert(acquire_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
     }
 
-    // TODO: move waiting down
-    while(Anvil::Vulkan::vkWaitForFences(device_ptr->get_device_vk(), 1, fence_last_submit_uptr->get_fence_ptr(), VK_TRUE, 1000 * 1000) == VK_TIMEOUT);
-    fence_last_submit_uptr->reset();
+    // TODO: better waiting
+    Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());
 
     {
         ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
@@ -137,9 +136,7 @@ void Graphics::DrawFrame()
                                   1,
                                   &curr_frame_wait_semaphore_ptr,
                                   &wait_stage_mask,
-                                  false /* should_block */,
-                                  fence_last_submit_uptr.get())
-    );
+                                  false /* should_block */));
 
     {
         Anvil::SwapchainOperationErrorCode present_result = Anvil::SwapchainOperationErrorCode::DEVICE_LOST;
@@ -481,14 +478,6 @@ void Graphics::InitSemaphoresAndFences()
 
         frameSignalSemaphores_uptrs.push_back(std::move(new_signal_semaphore_ptr));
         frameWaitSemaphores_uptrs.push_back(std::move(new_wait_semaphore_ptr));
-    }
-
-    {
-        auto create_info_ptr = Anvil::FenceCreateInfo::create(device_ptr, true);
-
-        fence_last_submit_uptr = Anvil::Fence::create(std::move(create_info_ptr));
-
-        fence_last_submit_uptr->set_name("Fence of last submit");
     }
 }
 

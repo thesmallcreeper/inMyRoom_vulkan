@@ -97,7 +97,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
         {
             std::string this_mipmap_filename = path_to_mipmap_folder.string() + "//mipmap_" + std::to_string(this_mipmap_level) + ".DDS";
             {
-                CMP_Texture this_compressed_mipmap; //gotta delete at some point
+                CMP_Texture this_compressed_mipmap; // it gotta delete at some point
 
                 if (!LoadDDSFile(this_mipmap_filename.c_str(), this_compressed_mipmap))
                 {

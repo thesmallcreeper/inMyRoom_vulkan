@@ -116,8 +116,6 @@ private:
 
     Anvil::RenderPassUniquePtr                      renderpass_uptr;
 
-    Anvil::FenceUniquePtr                           fence_last_submit_uptr;
-
     uint32_t                      lastSemaphoreUsed;
 
     Anvil::SubPassID              textureSubpassID;

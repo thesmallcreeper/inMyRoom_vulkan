@@ -59,6 +59,15 @@ SnakePlayerCompEntity SnakePlayerCompEntity::CreateComponentEntityByMap(const En
                                                                                                        this_snakePlayerEntity.thisEntity);
     }
 
+    //  "CameraOffset",             cameraOffset                = vec4.xyz
+    {
+        auto search = in_map.vec4Map.find("CameraOffset");
+        assert(search != in_map.vec4Map.end());
+
+        glm::vec4 this_vec4 = search->second;
+        this_snakePlayerEntity.cameraOffset = glm::vec3(this_vec4.x, this_vec4.y, this_vec4.z);
+    }
+
     //  "InitDirection",            globalDirection                   = vec4.xyz  (optional-default -1, 0, 0)
     {
         auto search = in_map.vec4Map.find("InitDirection");
@@ -88,6 +97,7 @@ std::vector<std::pair<std::string, MapType>> SnakePlayerCompEntity::GetComponent
     return_pair.emplace_back(std::make_pair("Speed", MapType::float_type));
     return_pair.emplace_back(std::make_pair("RotationSpeed", MapType::float_type));
     return_pair.emplace_back(std::make_pair("AnimationComposer", MapType::string_type));
+    return_pair.emplace_back(std::make_pair("CameraOffset", MapType::vec3_type));
     return_pair.emplace_back(std::make_pair("InitDirection", MapType::vec3_type));
     return_pair.emplace_back(std::make_pair("UpDirection", MapType::vec3_type));
 
@@ -122,11 +132,17 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr, Compon
     }
 
     {
-        glm::vec3 camera_position = this_nodeData_compEntity_ptr->globalTranslation + globalDirection * (-2.f) + upDirection * 1.f;
-        glm::vec3 camera_direction = globalDirection;
+        glm::vec3 local_x = glm::normalize(globalDirection);
+        glm::vec3 local_z = glm::normalize(glm::cross(local_x, -upDirection));
+        glm::vec3 local_y = glm::normalize(glm::cross(local_z, local_x));
 
-        this_camera_compEntity_ptr->UpdateCameraViewMatrix(camera_position,
-                                                           camera_direction,
+        glm::mat3 local_space_mat3= glm::mat3( local_x , local_y , local_z );
+
+        glm::vec3 global_space_camera_offset = local_space_mat3 * cameraOffset;
+        glm::vec3 global_space_camera = this_nodeData_compEntity_ptr->globalTranslation + global_space_camera_offset;
+
+        this_camera_compEntity_ptr->UpdateCameraViewMatrix(global_space_camera,
+                                                           globalDirection,
                                                            upDirection);
     }
 
