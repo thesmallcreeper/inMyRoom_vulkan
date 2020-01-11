@@ -90,7 +90,7 @@ namespace std
             hash_combine(result, in_pipelineSpecs.weights0ComponentType);
             hash_combine(result, in_pipelineSpecs.viewportAndScissorSpecs.width);
             hash_combine(result, in_pipelineSpecs.viewportAndScissorSpecs.height);
-            hash_combine(result, in_pipelineSpecs.renderpass_ptr);
+        //  hash_combine(result, in_pipelineSpecs.renderpass_ptr);
             hash_combine(result, in_pipelineSpecs.subpassID);
             hash_combine(result, in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr);
             hash_combine(result, in_pipelineSpecs.pipelineShaders.geometryShaderModule_ptr);
@@ -145,7 +145,7 @@ namespace std
                             (lhs.weights0ComponentType == rhs.weights0ComponentType) &&
                             (lhs.viewportAndScissorSpecs.width == rhs.viewportAndScissorSpecs.width) &&
                             (lhs.viewportAndScissorSpecs.height == rhs.viewportAndScissorSpecs.height) &&
-                            (lhs.renderpass_ptr == rhs.renderpass_ptr) &&
+                            (lhs.renderpass_ptr->get_render_pass_create_info() == rhs.renderpass_ptr->get_render_pass_create_info()) &&
                             (lhs.subpassID == rhs.subpassID) &&
                             (lhs.pipelineShaders.fragmentShaderModule_ptr == rhs.pipelineShaders.fragmentShaderModule_ptr) &&
                             (lhs.pipelineShaders.geometryShaderModule_ptr == rhs.pipelineShaders.geometryShaderModule_ptr) &&

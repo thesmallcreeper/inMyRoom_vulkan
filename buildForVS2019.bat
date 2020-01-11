@@ -13,7 +13,7 @@ cd Compressonator
 if exist "build" rmdir /s/q build
 mkdir build
 cd build
-cmake -G "Visual Studio 16 2019" ../Make
+cmake -G "Visual Studio 16 2019" ../CMP_CompressonatorLib
 cd ..
 cd ..
 cd ..

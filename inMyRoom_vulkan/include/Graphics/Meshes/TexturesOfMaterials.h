@@ -22,6 +22,7 @@
 #include "glTFenum.h"
 #include "const_maps.h"
 
+#include "Graphics/Meshes/ImagesAboutOfTextures.h"
 #include "Graphics/MipmapsGenerator.h"
 
 
@@ -74,6 +75,7 @@ class TexturesOfMaterials
 {
 public: // functions
     TexturesOfMaterials(bool use_mipmaps,
+                        ImagesAboutOfTextures* in_imagesAboutOfTextures_ptr,
                         MipmapsGenerator* in_mipmapsGenerator_ptr,
                         Anvil::BaseDevice* const in_device_ptr);
     ~TexturesOfMaterials();
@@ -92,8 +94,10 @@ private: // functions
 private: // data
     const bool useMipmaps;
 
-    size_t imagesSoFar;
-    size_t texturesSoFar;
+    size_t imagesFlashedSoFar = 0;
+    size_t imagesglTFcountSoFar = 0;
+
+    size_t texturesSoFar = 0;
 
     std::vector<TextureInfo> texturesInfos;
 
@@ -105,8 +109,7 @@ private: // data
 
     std::unordered_map<tinygltf::Model*, size_t> modelToTextureIndexOffset_umap;
 
-    const Anvil::Format image_preferred_compressed_format = Anvil::Format::BC7_SRGB_BLOCK;
-
+    ImagesAboutOfTextures* imageAboutOfTextures_ptr;
     MipmapsGenerator* mipmapsGenerator_ptr;
 
     Anvil::BaseDevice* const device_ptr;

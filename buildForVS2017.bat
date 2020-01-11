@@ -13,7 +13,7 @@ cd Compressonator
 if exist "build" rmdir /s/q build
 mkdir build
 cd build
-cmake -G "Visual Studio 15 2017 Win64" ../Make
+cmake -G "Visual Studio 15 2017 Win64" ../CMP_CompressonatorLib
 cd ..
 cd ..
 cd ..

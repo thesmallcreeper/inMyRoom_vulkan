@@ -20,10 +20,8 @@ MipmapsGenerator::MipmapsGenerator(PipelinesFactory* in_pipelinesFactory_ptr,
                                    ImagesAboutOfTextures* in_imagesAboutOfTextures_ptr,
                                    std::string in_16bitTo8bit_shadername,
                                    std::string in_baseColor_shadername,
-                                   std::string in_metallic_shadername,
-                                   std::string in_roughness_shadername,
+                                   std::string in_occlusionMetallicRoughness_shadername,
                                    std::string in_normal_shadername,
-                                   std::string in_occlusion_shadername,
                                    std::string in_emissive_shadername,
                                    Anvil::PrimaryCommandBuffer* const in_cmd_buffer_ptr,
                                    Anvil::BaseDevice* const in_device_ptr)
@@ -36,10 +34,8 @@ MipmapsGenerator::MipmapsGenerator(PipelinesFactory* in_pipelinesFactory_ptr,
     _16bitTo8bit_shadername = in_16bitTo8bit_shadername;
 
     baseColor_shadername = in_baseColor_shadername;
-    metallic_shadername = in_metallic_shadername;
-    roughness_shadername = in_roughness_shadername;
+    occlusionMetallicRoughness_shadername = in_occlusionMetallicRoughness_shadername;
     normal_shadername = in_normal_shadername;
-    occlusion_shadername = in_occlusion_shadername;
     emissive_shadername = in_emissive_shadername;
 
     isImageLoaded = false;
@@ -60,6 +56,7 @@ void MipmapsGenerator::Reset()
     alignedDefault_8bitPerChannel_image_uptr.reset();
     alignedDefault_8bitPerChannel_imageView_uptr.reset();
 
+    shaderSetName = "";
     isImageLoaded = false;
 }
 
@@ -160,8 +157,8 @@ void MipmapsGenerator::InitComputeSampler()
                                                             Anvil::Filter::NEAREST,
                                                             Anvil::Filter::NEAREST,
                                                             Anvil::SamplerMipmapMode::NEAREST,
-                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
-                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
+                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(imageAbout.wrapS))->second,
+                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(imageAbout.wrapT))->second,
                                                             Anvil::SamplerAddressMode::REPEAT,
                                                             0.0f, /* in_lod_bias        */
                                                             1.0f, /* in_max_anisotropy  */
@@ -181,8 +178,8 @@ void MipmapsGenerator::InitRenderpassSampler()
                                                             Anvil::Filter::NEAREST,
                                                             Anvil::Filter::NEAREST,
                                                             Anvil::SamplerMipmapMode::NEAREST,
-                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapS))->second,
-                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(image_about.wrapT))->second,
+                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(imageAbout.wrapS))->second,
+                                                            glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(imageAbout.wrapT))->second,
                                                             Anvil::SamplerAddressMode::REPEAT,
                                                             0.0f, /* in_lod_bias        */
                                                             1.0f, /* in_max_anisotropy  */
@@ -196,28 +193,105 @@ void MipmapsGenerator::InitRenderpassSampler()
     imageRenderpassSampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
 }
 
-void MipmapsGenerator::BindNewImage(const tinygltf::Image& in_image, const std::string in_imagesFolder)
+void MipmapsGenerator::BindNewImage(const tinygltf::Image& image, const std::string images_folder)
 {
+    imagesFolder = images_folder;
     Reset();
 
-    imagesFolder = in_imagesFolder;
+    MipmapInfo new_image;
 
-    image_about = imagesAboutOfTextures_ptr->GetImageAbout(in_image);
+    imageAbout = imagesAboutOfTextures_ptr->GetImageAbout(image);
 
-    // Load image
-    if (!in_image.uri.empty())
+    if (imageAbout.map == ImageMap::metallicRoughness || imageAbout.map == (ImageMap::metallicRoughness | ImageMap::occlusion))
     {
-        fs::path path_to_original_image = imagesFolder + "//" + in_image.uri;
+        MipmapInfo metallicRoughness_mipmapinfo = LoadImageFileFromDisk(image, images_folder);
+
+        MipmapInfo roughness_mipmapinfo;
+        if (imageAbout.sibling_occlusion_image_ptr != nullptr)
+        {
+            roughness_mipmapinfo = LoadImageFileFromDisk(*imageAbout.sibling_occlusion_image_ptr, images_folder);
+            assert(metallicRoughness_mipmapinfo.width == roughness_mipmapinfo.width && metallicRoughness_mipmapinfo.height == roughness_mipmapinfo.height);
+        }
+        else
+        {
+            roughness_mipmapinfo.width = metallicRoughness_mipmapinfo.width;
+            roughness_mipmapinfo.height = metallicRoughness_mipmapinfo.height;
+            roughness_mipmapinfo.pitch = metallicRoughness_mipmapinfo.pitch;
+            roughness_mipmapinfo.compCount = 1;
+            roughness_mipmapinfo.size = roughness_mipmapinfo.width * roughness_mipmapinfo.height * roughness_mipmapinfo.compCount;
+            roughness_mipmapinfo.image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(roughness_mipmapinfo.compCount)->second;
+
+            roughness_mipmapinfo.data_uptr.reset(new uint8_t[roughness_mipmapinfo.size]);
+            std::memset(roughness_mipmapinfo.data_uptr.get(), 0, roughness_mipmapinfo.size);
+        }
+
+        shaderSetName = occlusionMetallicRoughness_shadername;
+        new_image = MergeOcclusionWithMetallicRoughness(roughness_mipmapinfo, metallicRoughness_mipmapinfo);
+    }
+    else if (imageAbout.map == ImageMap::occlusion)
+    {
+        assert(imageAbout.sibling_metallicRoughness_image_ptr == nullptr);
+
+        MipmapInfo roughness_mipmapinfo = LoadImageFileFromDisk(image, images_folder);
+
+        MipmapInfo metallicRoughness_mipmapinfo;
+        metallicRoughness_mipmapinfo.width = roughness_mipmapinfo.width;
+        metallicRoughness_mipmapinfo.height = roughness_mipmapinfo.height;
+        metallicRoughness_mipmapinfo.pitch = roughness_mipmapinfo.pitch;
+        metallicRoughness_mipmapinfo.compCount = 3;
+        metallicRoughness_mipmapinfo.size = metallicRoughness_mipmapinfo.width * metallicRoughness_mipmapinfo.height * metallicRoughness_mipmapinfo.compCount;
+        metallicRoughness_mipmapinfo.image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(metallicRoughness_mipmapinfo.compCount)->second;
+
+        metallicRoughness_mipmapinfo.data_uptr.reset(new uint8_t[metallicRoughness_mipmapinfo.size]);
+        std::memset(metallicRoughness_mipmapinfo.data_uptr.get(), 0, metallicRoughness_mipmapinfo.size);
+
+        shaderSetName = occlusionMetallicRoughness_shadername;
+        new_image = MergeOcclusionWithMetallicRoughness(roughness_mipmapinfo, metallicRoughness_mipmapinfo);
+    }
+    else
+    {
+        shaderSetName = baseColor_shadername;
+        new_image = LoadImageFileFromDisk(image, images_folder);
+    }
+
+    original_width = new_image.width;
+    original_height = new_image.height;
+    defaultImageCompCount = new_image.compCount;
+    vulkanDefaultFormat = new_image.image_vulkan_format;
+
+    localDefaultImage_buffer = std::move(new_image.data_uptr);
+}
+
+MipmapInfo MipmapsGenerator::LoadImageFileFromDisk(const tinygltf::Image& image, const std::string images_folder)
+{
+    MipmapInfo return_mipmapInfo;
+
+    if (!image.uri.empty())
+    {
+        fs::path path_to_original_image = images_folder + "//" + image.uri;
 
         fs::path absolute_path_to_original_image = fs::absolute(path_to_original_image);
 
-        unsigned char* stbi_data = stbi_load(absolute_path_to_original_image.generic_string().c_str(), (int*)&original_width, (int*)&original_height, (int*)&defaultImageCompCount, 0);
+        unsigned char* stbi_data = stbi_load(absolute_path_to_original_image.generic_string().c_str(),
+                                             (int*)&return_mipmapInfo.width,
+                                             (int*)&return_mipmapInfo.height,
+                                             (int*)&return_mipmapInfo.compCount,
+                                             0);
+        return_mipmapInfo.pitch = return_mipmapInfo.width * return_mipmapInfo.compCount;
+        return_mipmapInfo.size = return_mipmapInfo.width * return_mipmapInfo.height * return_mipmapInfo.compCount;
+
         assert(stbi_data);
 
-        default_image_buffer.reset(new uint8_t[original_width * original_height * defaultImageCompCount]);
-        std::memcpy(default_image_buffer.get(), stbi_data, original_width * original_height * defaultImageCompCount);
+        return_mipmapInfo.data_uptr.reset(new uint8_t[return_mipmapInfo.size]);
+        std::memcpy(return_mipmapInfo.data_uptr.get(), stbi_data, return_mipmapInfo.size);
 
-        vulkanDefaultFormat = componentsCountToVulkanFormat_map.find(defaultImageCompCount)->second;
+        if(imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::normal &&
+           imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::occlusion &&
+           imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::metallicRoughness && 
+           imagesAboutOfTextures_ptr->GetImageAbout(image).map != (ImageMap::occlusion | ImageMap::metallicRoughness))
+            return_mipmapInfo.image_vulkan_format = componentsCountToVulkanGammaFormat_map.find(return_mipmapInfo.compCount)->second;
+        else
+            return_mipmapInfo.image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(return_mipmapInfo.compCount)->second;
 
         stbi_image_free(stbi_data);
     }
@@ -225,18 +299,50 @@ void MipmapsGenerator::BindNewImage(const tinygltf::Image& in_image, const std::
     {
         assert(0);
     }
+
+    return std::move(return_mipmapInfo);
 }
 
+MipmapInfo MipmapsGenerator::MergeOcclusionWithMetallicRoughness(MipmapInfo& ref_occlusion_map, MipmapInfo& ref_metallicRoughness_map)
+{
+    assert(ref_occlusion_map.width == ref_metallicRoughness_map.width);
+    assert(ref_occlusion_map.height == ref_metallicRoughness_map.height);
+    assert(ref_occlusion_map.pitch == ref_metallicRoughness_map.pitch);
+
+    MipmapInfo return_mipmapInfo;
+    return_mipmapInfo.compCount = 3;
+    return_mipmapInfo.image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(return_mipmapInfo.compCount)->second;
+    return_mipmapInfo.width = ref_metallicRoughness_map.width;
+    return_mipmapInfo.height = ref_metallicRoughness_map.height;
+    return_mipmapInfo.pitch = return_mipmapInfo.compCount * return_mipmapInfo.width;
+    return_mipmapInfo.size = return_mipmapInfo.height * return_mipmapInfo.width * return_mipmapInfo.compCount;
+    return_mipmapInfo.data_uptr.reset(new uint8_t[return_mipmapInfo.size]);
+
+    for (size_t i = 0; i < return_mipmapInfo.size; i++)
+    {
+        if (i % 3 == 0)
+            return_mipmapInfo.data_uptr[i] = ref_occlusion_map.data_uptr[ref_occlusion_map.compCount * (i / 3)];                            // R occlusion
+        else if (i % 3 == 1)
+            return_mipmapInfo.data_uptr[i] = ref_metallicRoughness_map.data_uptr[ref_metallicRoughness_map.compCount * (i / 3) + 1];        // G roughness
+        else if (i % 3 == 2)
+            return_mipmapInfo.data_uptr[i] = ref_metallicRoughness_map.data_uptr[ref_metallicRoughness_map.compCount * (i / 3) + 2];        // B metallic
+    }
+
+    return std::move(return_mipmapInfo);
+}
 
 void MipmapsGenerator::LoadImageToGPU()
 {
     // Align image
     std::unique_ptr<uint8_t[]> aligned_image_buffer;
-    aligned_image_buffer = CopyToLocalBuffer(default_image_buffer.get(), defaultImageCompCount * original_width * original_height, (defaultImageCompCount != 3) ? false : true);
+    aligned_image_buffer = CopyToLocalBuffer(localDefaultImage_buffer.get(), defaultImageCompCount * original_width * original_height, (defaultImageCompCount != 3) ? false : true);
 
     alignedImageCompCount = (defaultImageCompCount != 3) ? defaultImageCompCount : 4;
     alignedImageSize = alignedImageCompCount * original_width * original_height;
-    vulkanOriginalFormat = componentsCountToVulkanFormat_map.find(alignedImageCompCount)->second;
+    if (componentsCountToVulkanGammaFormat_map.find(defaultImageCompCount)->second == vulkanDefaultFormat)
+        vulkanAlignedFormat = componentsCountToVulkanGammaFormat_map.find(alignedImageCompCount)->second;
+    else
+        vulkanAlignedFormat = componentsCountToVulkanLinearFormat_map.find(alignedImageCompCount)->second;
 
     InitGPUimageAndView(aligned_image_buffer.get(), alignedImageSize);
 
@@ -259,7 +365,7 @@ void MipmapsGenerator::InitGPUimageAndView(uint8_t* in_image_raw, size_t image_s
 
         auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
                                                                     Anvil::ImageType::_2D,
-                                                                    vulkanOriginalFormat,
+                                                                    vulkanAlignedFormat,
                                                                     Anvil::ImageTiling::OPTIMAL,
                                                                     Anvil::ImageUsageFlagBits::SAMPLED_BIT,
                                                                     static_cast<uint32_t>(original_width),
@@ -285,7 +391,7 @@ void MipmapsGenerator::InitGPUimageAndView(uint8_t* in_image_raw, size_t image_s
                                                                      0, /* n_base_mipmap_level */
                                                                      1, /* n_mipmaps           */
                                                                      Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                     vulkanOriginalFormat,
+                                                                     vulkanAlignedFormat,
                                                                      Anvil::ComponentSwizzle::R,
                                                                      (alignedImageCompCount >= 2)
                                                                      ? Anvil::ComponentSwizzle::G
@@ -315,7 +421,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     Anvil::ImageUniquePtr mipmap_16bitPerChannel_image_uptr;
     Anvil::ImageViewUniquePtr mipmap_16bitPerChannel_imageView_uptr;
 
-    Anvil::Format vulkan_aligned_16BitPerChannelFormat = vulkanSRGBFormatTo16BitPerChannel_map.find(vulkanOriginalFormat)->second;
+    Anvil::Format vulkan_aligned_16BitPerChannelFormat = vulkanFormatTo16BitPerChannel_map.find(vulkanAlignedFormat)->second;
     Anvil::ImageUniquePtr mipmap_8bitPerChannel_image_uptr;
     Anvil::ImageViewUniquePtr mipmap_8bitPerChannel_imageView_uptr;
 
@@ -445,8 +551,8 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     {
         auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
                                                                     Anvil::ImageType::_2D,
-                                                                    vulkanOriginalFormat,
-                                                                    Anvil::ImageTiling::LINEAR,
+                                                                    vulkanAlignedFormat,
+                                                                    Anvil::ImageTiling::OPTIMAL,
                                                                     Anvil::ImageUsageFlagBits::COLOR_ATTACHMENT_BIT | Anvil::ImageUsageFlagBits::TRANSFER_SRC_BIT,
                                                                     static_cast<uint32_t>(this_mipmap_width),
                                                                     static_cast<uint32_t>(this_mipmap_height),
@@ -456,7 +562,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                     Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                     Anvil::SharingMode::EXCLUSIVE,
                                                                     false, /* in_use_full_mipmap_chain */
-                                                                    Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT | Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT,
+                                                                    Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
                                                                     Anvil::ImageCreateFlagBits::NONE,
                                                                     Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, /* in_final_image_layout    */
                                                                     nullptr);
@@ -471,7 +577,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                      0, /* n_base_mipmap_level */
                                                                      1, /* n_mipmaps           */
                                                                      Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                     vulkanOriginalFormat,
+                                                                     vulkanAlignedFormat,
                                                                      Anvil::ComponentSwizzle::R,
                                                                      (alignedImageCompCount >= 2)
                                                                      ? Anvil::ComponentSwizzle::G
@@ -502,7 +608,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     // Create compute pipeline for filtering
     {
         ShadersSpecs this_shader_specs;
-        this_shader_specs.shadersSetFamilyName = GetShaderSetName(image_about.map);
+        this_shader_specs.shadersSetFamilyName = shaderSetName;
         if (alignedImageCompCount == 1)
             this_shader_specs.emptyDefinition.emplace_back("IS_R");
         else if (alignedImageCompCount == 2)
@@ -529,7 +635,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     {
         Anvil::RenderPassAttachmentID color_attachment_id;
 
-        renderpass_create_info_uptr->add_color_attachment(vulkanOriginalFormat,
+        renderpass_create_info_uptr->add_color_attachment(vulkanAlignedFormat,
                                                          Anvil::SampleCountFlagBits::_1_BIT,
                                                          Anvil::AttachmentLoadOp::CLEAR,
                                                          Anvil::AttachmentStoreOp::STORE,
@@ -548,7 +654,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
         renderpass_uptr = Anvil::RenderPass::create(std::move(renderpass_create_info_uptr), nullptr);
     }
 
-    // Create graphics pipeline for 16bit to 8bit RGB
+    // Create graphics pipeline for 16bit to 8bit RGBA
     {
         ShadersSpecs this_shader_specs;
         this_shader_specs.shadersSetFamilyName = _16bitTo8bit_shadername;
@@ -658,10 +764,10 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
             // Start renderpass
             {
                 VkClearValue  clear_values[1];
-                clear_values[0].color.float32[0] = 0.7f;
+                clear_values[0].color.float32[0] = 1.0f;
                 clear_values[0].color.float32[1] = 1.0f;
                 clear_values[0].color.float32[2] = 1.0f;
-                clear_values[0].color.float32[3] = 0.7f;
+                clear_values[0].color.float32[3] = 1.0f;
 
                 VkRect2D  render_area;
                 render_area.extent.width = this_mipmap_width;
@@ -745,7 +851,6 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
             Anvil::BufferImageCopy this_copy;
             this_copy.buffer_offset = 0;
             this_copy.buffer_row_length = this_mipmap_width;
-            this_copy.buffer_row_length = this_mipmap_height;
             this_copy.image_offset.x = 0;
             this_copy.image_offset.y = 0;
             this_copy.image_offset.z = 0;
@@ -791,6 +896,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     this_mipmap_info.height = this_mipmap_height;
     this_mipmap_info.pitch = this_mipmap_width * defaultImageCompCount;
     this_mipmap_info.size = this_mipmap_width * this_mipmap_height * defaultImageCompCount;
+    this_mipmap_info.compCount = defaultImageCompCount;
     this_mipmap_info.image_vulkan_format = vulkanDefaultFormat;
 
     return std::move(this_mipmap_info);
@@ -801,23 +907,25 @@ MipmapInfo MipmapsGenerator::GetOriginal()
 {
     MipmapInfo return_mipmapInfo;
     return_mipmapInfo.data_uptr.reset(new uint8_t[original_width * original_height * defaultImageCompCount]);
-     std::memcpy(return_mipmapInfo.data_uptr.get(), default_image_buffer.get(), original_width * original_height * defaultImageCompCount);
+     std::memcpy(return_mipmapInfo.data_uptr.get(), localDefaultImage_buffer.get(), original_width * original_height * defaultImageCompCount);
     return_mipmapInfo.width = original_width;
     return_mipmapInfo.height = original_height;
     return_mipmapInfo.pitch = original_width * defaultImageCompCount;
     return_mipmapInfo.size = original_width * original_height * defaultImageCompCount;
+    return_mipmapInfo.compCount = defaultImageCompCount;
     return_mipmapInfo.image_vulkan_format = vulkanDefaultFormat;
 
     return std::move(return_mipmapInfo);
 }
 
-MipmapInfo MipmapsGenerator::GetOriginalNullptr()
+MipmapInfo MipmapsGenerator::GetOriginalInfoOnly()
 {
     MipmapInfo return_mipmapNullInfo;
     return_mipmapNullInfo.width = original_width;
     return_mipmapNullInfo.height = original_height;
     return_mipmapNullInfo.pitch = original_width * defaultImageCompCount;
     return_mipmapNullInfo.size = original_width * original_height * defaultImageCompCount;
+    return_mipmapNullInfo.compCount = defaultImageCompCount;
     return_mipmapNullInfo.image_vulkan_format = vulkanDefaultFormat;
 
     return std::move(return_mipmapNullInfo);
@@ -880,28 +988,6 @@ std::unique_ptr<uint8_t[]> MipmapsGenerator::CopyToLocalBuffer(uint8_t* in_buffe
     }
 
     return std::move(return_buffer);
-}
-
-
-std::string MipmapsGenerator::GetShaderSetName(ImageMap map) const
-{
-    switch (map)
-    {
-        case ImageMap::baseColor:
-            return baseColor_shadername;
-        case ImageMap::metallic:
-            return metallic_shadername;
-        case ImageMap::roughness:
-            return roughness_shadername;
-        case ImageMap::normal:
-            return normal_shadername;
-        case ImageMap::occlusion:
-            return occlusion_shadername;
-        case ImageMap::emissive:
-            return emissive_shadername;
-        default:
-            return baseColor_shadername;
-    }
 }
 
 size_t MipmapsGenerator::GetMipmaps_levels_over_4x4()

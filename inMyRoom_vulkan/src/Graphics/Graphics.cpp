@@ -537,17 +537,15 @@ void Graphics::InitMeshesTree()
                                                                imagesAboutOfTextures_uptr.get(),
                                                                "Image 16bit To 8bit Pass",
                                                                "General Mipmap Compute Shader", /* baseColor_shadername */
-                                                               "General Mipmap Compute Shader", /* metallic_shadername */
-                                                               "General Mipmap Compute Shader", /* roughness_shadername */
+                                                               "General Mipmap Compute Shader", /* occlusionMetallicRoughness_shadername */
                                                                "General Mipmap Compute Shader", /* normal_shadername */
-                                                               "General Mipmap Compute Shader", /* occlusion_shadername */
                                                                "General Mipmap Compute Shader", /* emissive_shadername */
                                                                cmdBuffers_uptrs[0].get(),
                                                                device_ptr);
 
     animationsDataOfNodes_uptr = std::make_unique<AnimationsDataOfNodes>();
 
-    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), mipmapsGenerator_uptr.get(), device_ptr);
+    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesAboutOfTextures_uptr.get(), mipmapsGenerator_uptr.get(), device_ptr);
 
     materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device_ptr);                                                               //needs flash
 

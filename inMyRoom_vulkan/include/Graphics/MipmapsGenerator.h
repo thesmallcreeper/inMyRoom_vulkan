@@ -44,10 +44,12 @@ struct MipmapInfo
     uint32_t pitch;
     uint32_t width;
     uint32_t height;
-    unique_ptr<uint8_t[]> data_uptr;
+    uint32_t compCount;
+    std::unique_ptr<uint8_t[]> data_uptr;
 };
 
-
+// Rule 1: occlution + metallicRoughness = occlutionMetallicRoughtness
+// Rule 2: normal (X-Y) -> normal (X-Y-Z)
 class MipmapsGenerator
 {
 public:
@@ -56,10 +58,8 @@ public:
                      ImagesAboutOfTextures* in_imagesAboutOfTextures_ptr,
                      std::string in_16bitTo8bit_shadername,
                      std::string baseColor_shadername,
-                     std::string metallic_shadername,
-                     std::string roughness_shadername,
+                     std::string occlusionMetallicRoughness_shadername,
                      std::string normal_shadername,
-                     std::string occlusion_shadername,
                      std::string emissive_shadername,
                      Anvil::PrimaryCommandBuffer* const in_cmd_buffer_ptr,
                      Anvil::BaseDevice* const in_device_ptr);
@@ -69,11 +69,13 @@ public:
     void BindNewImage(const tinygltf::Image& in_image ,const std::string in_imagesFolder);
 
     MipmapInfo GetOriginal();
-    MipmapInfo GetOriginalNullptr();
+    MipmapInfo GetOriginalInfoOnly();
     MipmapInfo GetMipmap(size_t mipmap_level);
     size_t GetMipmaps_levels_over_4x4();
 
 private: //functions
+    MipmapInfo LoadImageFileFromDisk(const tinygltf::Image& image, const std::string images_folder);
+    MipmapInfo MergeOcclusionWithMetallicRoughness(MipmapInfo& occlusion_map, MipmapInfo& metallicRoughness_map);
 
     void LoadImageToGPU();
 
@@ -85,14 +87,15 @@ private: //functions
 
     void InitGPUimageAndView(uint8_t* in_image_raw, size_t image_size);
 
-    std::string GetShaderSetName(ImageMap map) const;
-
     std::unique_ptr<uint8_t[]> CopyToLocalBuffer(uint8_t* in_buffer, size_t buffer_size, bool shouldRGBtoRGBA);
 
     std::unique_ptr<uint8_t[]> CopyDeviceImageToLocalBuffer(Anvil::Buffer* in_buffer, size_t image_size, bool shouldRGBAtoRGB);
 
 private: //data
     std::string imagesFolder;
+    ImageAbout imageAbout;
+
+    std::string shaderSetName;
 
     bool isImageLoaded = false;
 
@@ -100,17 +103,15 @@ private: //data
     Anvil::BufferUniquePtr quadPositionBuffer_uptr;
     Anvil::BufferUniquePtr quadTexcoordsBuffer_uptr;
 
-    std::unique_ptr<uint8_t[]> default_image_buffer;
+    std::unique_ptr<uint8_t[]> localDefaultImage_buffer;
 
     uint32_t original_width;
     uint32_t original_height;
     uint32_t defaultImageCompCount;
     uint32_t alignedImageCompCount;
     Anvil::Format vulkanDefaultFormat;
-    Anvil::Format vulkanOriginalFormat;
+    Anvil::Format vulkanAlignedFormat;
     size_t alignedImageSize;
-
-    ImageAbout image_about;
 
     Anvil::SamplerUniquePtr imageComputeSampler_uptr;
     Anvil::SamplerUniquePtr imageRenderpassSampler_uptr;
@@ -120,10 +121,8 @@ private: //data
 
     std::string _16bitTo8bit_shadername;
     std::string baseColor_shadername;
-    std::string metallic_shadername;
-    std::string roughness_shadername;
+    std::string occlusionMetallicRoughness_shadername;
     std::string normal_shadername;
-    std::string occlusion_shadername;
     std::string emissive_shadername;
 
     PipelinesFactory* pipelinesFactory_ptr;

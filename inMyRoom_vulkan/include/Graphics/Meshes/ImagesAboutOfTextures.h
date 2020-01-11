@@ -9,27 +9,28 @@ enum class ImageMap
 {
     undefined = 0,
 
-    baseColor,
-    metallic,
-    roughness,
-    normal,
-    occlusion,
-    emissive
+    baseColor           = 1 << 0,
+    metallicRoughness   = 1 << 1,
+    normal              = 1 << 2,
+    occlusion           = 1 << 3,
+    emissive            = 1 << 4,
 };
+inline ImageMap operator|(ImageMap a, ImageMap b)
+{
+    return static_cast<ImageMap>(static_cast<int>(a) | static_cast<int>(b));
+}
 
 struct ImageAbout
 {
     ImageMap map = ImageMap::undefined;
     glTFsamplerWrap wrapS = glTFsamplerWrap::mirrored_repeat;
     glTFsamplerWrap wrapT = glTFsamplerWrap::mirrored_repeat;
-    const tinygltf::Image* sibling_baseColor_image = nullptr;
-    const tinygltf::Image* sibling_metallic_image = nullptr;
-    const tinygltf::Image* sibling_roughness_image = nullptr;
-    const tinygltf::Image* sibling_normal_image = nullptr;
-    const tinygltf::Image* sibling_occlusion_image = nullptr;
-    const tinygltf::Image* sibling_emissive_image = nullptr;
-
-
+    const tinygltf::Image* sibling_baseColor_image_ptr = nullptr;
+    const tinygltf::Image* sibling_metallicRoughness_image_ptr = nullptr;
+    const tinygltf::Image* sibling_normal_image_ptr = nullptr;
+    const tinygltf::Image* sibling_occlusion_image_ptr = nullptr;
+    const tinygltf::Image* sibling_emissive_image_ptr = nullptr;
+    const tinygltf::Material* material_example_ptr = nullptr;
 };
 
 

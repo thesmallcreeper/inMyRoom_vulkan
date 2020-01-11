@@ -202,7 +202,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator\Header;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -247,7 +247,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator\Header;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
       <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);NDEBUG;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
