@@ -39,12 +39,13 @@ namespace fs = std::filesystem;
 
 struct MipmapInfo
 {
-    Anvil::Format image_vulkan_format;
+    Anvil::Format aligned_image_vulkan_format;
     size_t size;
     uint32_t pitch;
     uint32_t width;
     uint32_t height;
-    uint32_t compCount;
+    uint32_t defaultCompCount;
+    bool gammaCorrection;
     std::unique_ptr<uint8_t[]> data_uptr;
 };
 
@@ -68,8 +69,8 @@ public:
     void Reset();
     void BindNewImage(const tinygltf::Image& in_image ,const std::string in_imagesFolder);
 
-    MipmapInfo GetOriginal();
-    MipmapInfo GetOriginalInfoOnly();
+    MipmapInfo GetAlignedOriginal();
+    MipmapInfo GetUnalignedInfo();
     MipmapInfo GetMipmap(size_t mipmap_level);
     size_t GetMipmaps_levels_over_4x4();
 
@@ -109,7 +110,7 @@ private: //data
     uint32_t original_height;
     uint32_t defaultImageCompCount;
     uint32_t alignedImageCompCount;
-    Anvil::Format vulkanDefaultFormat;
+    bool doesUseGamma;
     Anvil::Format vulkanAlignedFormat;
     size_t alignedImageSize;
 

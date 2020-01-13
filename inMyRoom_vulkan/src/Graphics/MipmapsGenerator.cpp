@@ -9,8 +9,7 @@
 #include "misc/memory_allocator.h"
 #include "misc/fence_create_info.h"
 
-#include "stb_image.h"
-#include "stb_image_write.h"
+#include "Applications/_Plugins/Common/stb_image.h"
 
 #include "glm/vec3.hpp"
 #include "glm/vec2.hpp"
@@ -217,9 +216,9 @@ void MipmapsGenerator::BindNewImage(const tinygltf::Image& image, const std::str
             roughness_mipmapinfo.width = metallicRoughness_mipmapinfo.width;
             roughness_mipmapinfo.height = metallicRoughness_mipmapinfo.height;
             roughness_mipmapinfo.pitch = metallicRoughness_mipmapinfo.pitch;
-            roughness_mipmapinfo.compCount = 1;
-            roughness_mipmapinfo.size = roughness_mipmapinfo.width * roughness_mipmapinfo.height * roughness_mipmapinfo.compCount;
-            roughness_mipmapinfo.image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(roughness_mipmapinfo.compCount)->second;
+            roughness_mipmapinfo.defaultCompCount = 1;
+            roughness_mipmapinfo.size = roughness_mipmapinfo.width * roughness_mipmapinfo.height * roughness_mipmapinfo.defaultCompCount;
+            roughness_mipmapinfo.gammaCorrection = false;
 
             roughness_mipmapinfo.data_uptr.reset(new uint8_t[roughness_mipmapinfo.size]);
             std::memset(roughness_mipmapinfo.data_uptr.get(), 0, roughness_mipmapinfo.size);
@@ -238,9 +237,9 @@ void MipmapsGenerator::BindNewImage(const tinygltf::Image& image, const std::str
         metallicRoughness_mipmapinfo.width = roughness_mipmapinfo.width;
         metallicRoughness_mipmapinfo.height = roughness_mipmapinfo.height;
         metallicRoughness_mipmapinfo.pitch = roughness_mipmapinfo.pitch;
-        metallicRoughness_mipmapinfo.compCount = 3;
-        metallicRoughness_mipmapinfo.size = metallicRoughness_mipmapinfo.width * metallicRoughness_mipmapinfo.height * metallicRoughness_mipmapinfo.compCount;
-        metallicRoughness_mipmapinfo.image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(metallicRoughness_mipmapinfo.compCount)->second;
+        metallicRoughness_mipmapinfo.defaultCompCount = 3;
+        metallicRoughness_mipmapinfo.size = metallicRoughness_mipmapinfo.width * metallicRoughness_mipmapinfo.height * metallicRoughness_mipmapinfo.defaultCompCount;
+        metallicRoughness_mipmapinfo.gammaCorrection = false;
 
         metallicRoughness_mipmapinfo.data_uptr.reset(new uint8_t[metallicRoughness_mipmapinfo.size]);
         std::memset(metallicRoughness_mipmapinfo.data_uptr.get(), 0, metallicRoughness_mipmapinfo.size);
@@ -256,8 +255,9 @@ void MipmapsGenerator::BindNewImage(const tinygltf::Image& image, const std::str
 
     original_width = new_image.width;
     original_height = new_image.height;
-    defaultImageCompCount = new_image.compCount;
-    vulkanDefaultFormat = new_image.image_vulkan_format;
+    defaultImageCompCount = new_image.defaultCompCount;
+    doesUseGamma = new_image.gammaCorrection;
+    alignedImageCompCount = 4;
 
     localDefaultImage_buffer = std::move(new_image.data_uptr);
 }
@@ -275,23 +275,23 @@ MipmapInfo MipmapsGenerator::LoadImageFileFromDisk(const tinygltf::Image& image,
         unsigned char* stbi_data = stbi_load(absolute_path_to_original_image.generic_string().c_str(),
                                              (int*)&return_mipmapInfo.width,
                                              (int*)&return_mipmapInfo.height,
-                                             (int*)&return_mipmapInfo.compCount,
+                                             (int*)&return_mipmapInfo.defaultCompCount,
                                              0);
-        return_mipmapInfo.pitch = return_mipmapInfo.width * return_mipmapInfo.compCount;
-        return_mipmapInfo.size = return_mipmapInfo.width * return_mipmapInfo.height * return_mipmapInfo.compCount;
+        return_mipmapInfo.pitch = return_mipmapInfo.width * return_mipmapInfo.defaultCompCount;
+        return_mipmapInfo.size = return_mipmapInfo.width * return_mipmapInfo.height * return_mipmapInfo.defaultCompCount;
 
         assert(stbi_data);
 
         return_mipmapInfo.data_uptr.reset(new uint8_t[return_mipmapInfo.size]);
         std::memcpy(return_mipmapInfo.data_uptr.get(), stbi_data, return_mipmapInfo.size);
 
-        if(imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::normal &&
-           imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::occlusion &&
-           imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::metallicRoughness && 
-           imagesAboutOfTextures_ptr->GetImageAbout(image).map != (ImageMap::occlusion | ImageMap::metallicRoughness))
-            return_mipmapInfo.image_vulkan_format = componentsCountToVulkanGammaFormat_map.find(return_mipmapInfo.compCount)->second;
+        if (imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::normal &&
+            imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::occlusion &&
+            imagesAboutOfTextures_ptr->GetImageAbout(image).map != ImageMap::metallicRoughness &&
+            imagesAboutOfTextures_ptr->GetImageAbout(image).map != (ImageMap::occlusion | ImageMap::metallicRoughness))
+            return_mipmapInfo.gammaCorrection = true;
         else
-            return_mipmapInfo.image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(return_mipmapInfo.compCount)->second;
+            return_mipmapInfo.gammaCorrection = false;
 
         stbi_image_free(stbi_data);
     }
@@ -310,22 +310,21 @@ MipmapInfo MipmapsGenerator::MergeOcclusionWithMetallicRoughness(MipmapInfo& ref
     assert(ref_occlusion_map.pitch == ref_metallicRoughness_map.pitch);
 
     MipmapInfo return_mipmapInfo;
-    return_mipmapInfo.compCount = 3;
-    return_mipmapInfo.image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(return_mipmapInfo.compCount)->second;
+    return_mipmapInfo.defaultCompCount = 3;
     return_mipmapInfo.width = ref_metallicRoughness_map.width;
     return_mipmapInfo.height = ref_metallicRoughness_map.height;
-    return_mipmapInfo.pitch = return_mipmapInfo.compCount * return_mipmapInfo.width;
-    return_mipmapInfo.size = return_mipmapInfo.height * return_mipmapInfo.width * return_mipmapInfo.compCount;
+    return_mipmapInfo.pitch = return_mipmapInfo.defaultCompCount * return_mipmapInfo.width;
+    return_mipmapInfo.size = return_mipmapInfo.height * return_mipmapInfo.width * return_mipmapInfo.defaultCompCount;
     return_mipmapInfo.data_uptr.reset(new uint8_t[return_mipmapInfo.size]);
 
     for (size_t i = 0; i < return_mipmapInfo.size; i++)
     {
         if (i % 3 == 0)
-            return_mipmapInfo.data_uptr[i] = ref_occlusion_map.data_uptr[ref_occlusion_map.compCount * (i / 3)];                            // R occlusion
+            return_mipmapInfo.data_uptr[i] = ref_occlusion_map.data_uptr[ref_occlusion_map.defaultCompCount * (i / 3)];                            // R occlusion
         else if (i % 3 == 1)
-            return_mipmapInfo.data_uptr[i] = ref_metallicRoughness_map.data_uptr[ref_metallicRoughness_map.compCount * (i / 3) + 1];        // G roughness
+            return_mipmapInfo.data_uptr[i] = ref_metallicRoughness_map.data_uptr[ref_metallicRoughness_map.defaultCompCount * (i / 3) + 1];        // G roughness
         else if (i % 3 == 2)
-            return_mipmapInfo.data_uptr[i] = ref_metallicRoughness_map.data_uptr[ref_metallicRoughness_map.compCount * (i / 3) + 2];        // B metallic
+            return_mipmapInfo.data_uptr[i] = ref_metallicRoughness_map.data_uptr[ref_metallicRoughness_map.defaultCompCount * (i / 3) + 2];        // B metallic
     }
 
     return std::move(return_mipmapInfo);
@@ -337,9 +336,8 @@ void MipmapsGenerator::LoadImageToGPU()
     std::unique_ptr<uint8_t[]> aligned_image_buffer;
     aligned_image_buffer = CopyToLocalBuffer(localDefaultImage_buffer.get(), defaultImageCompCount * original_width * original_height, (defaultImageCompCount != 3) ? false : true);
 
-    alignedImageCompCount = (defaultImageCompCount != 3) ? defaultImageCompCount : 4;
     alignedImageSize = alignedImageCompCount * original_width * original_height;
-    if (componentsCountToVulkanGammaFormat_map.find(defaultImageCompCount)->second == vulkanDefaultFormat)
+    if (doesUseGamma)
         vulkanAlignedFormat = componentsCountToVulkanGammaFormat_map.find(alignedImageCompCount)->second;
     else
         vulkanAlignedFormat = componentsCountToVulkanLinearFormat_map.find(alignedImageCompCount)->second;
@@ -891,42 +889,50 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     device_ptr->wait_idle();
 
     MipmapInfo this_mipmap_info;
-    this_mipmap_info.data_uptr = CopyDeviceImageToLocalBuffer(device_to_host_buffer.get(), this_mipmap_width * this_mipmap_height * alignedImageCompCount, (defaultImageCompCount != 3) ? false : true);
+    this_mipmap_info.data_uptr = CopyDeviceImageToLocalBuffer(device_to_host_buffer.get(), this_mipmap_width * this_mipmap_height * alignedImageCompCount, false);
     this_mipmap_info.width = this_mipmap_width;
     this_mipmap_info.height = this_mipmap_height;
-    this_mipmap_info.pitch = this_mipmap_width * defaultImageCompCount;
-    this_mipmap_info.size = this_mipmap_width * this_mipmap_height * defaultImageCompCount;
-    this_mipmap_info.compCount = defaultImageCompCount;
-    this_mipmap_info.image_vulkan_format = vulkanDefaultFormat;
+    this_mipmap_info.pitch = this_mipmap_width * alignedImageCompCount;
+    this_mipmap_info.size = this_mipmap_width * this_mipmap_height * alignedImageCompCount;
+    this_mipmap_info.defaultCompCount = defaultImageCompCount;
+    this_mipmap_info.gammaCorrection = doesUseGamma;
+    this_mipmap_info.aligned_image_vulkan_format = vulkanAlignedFormat;
 
     return std::move(this_mipmap_info);
 }
 
 
-MipmapInfo MipmapsGenerator::GetOriginal()
+MipmapInfo MipmapsGenerator::GetAlignedOriginal()
 {
     MipmapInfo return_mipmapInfo;
-    return_mipmapInfo.data_uptr.reset(new uint8_t[original_width * original_height * defaultImageCompCount]);
-     std::memcpy(return_mipmapInfo.data_uptr.get(), localDefaultImage_buffer.get(), original_width * original_height * defaultImageCompCount);
+    return_mipmapInfo.data_uptr = CopyToLocalBuffer(localDefaultImage_buffer.get(),
+                                                    original_width * original_height * defaultImageCompCount,
+                                                    (defaultImageCompCount != 3) ? false : true);
     return_mipmapInfo.width = original_width;
     return_mipmapInfo.height = original_height;
-    return_mipmapInfo.pitch = original_width * defaultImageCompCount;
-    return_mipmapInfo.size = original_width * original_height * defaultImageCompCount;
-    return_mipmapInfo.compCount = defaultImageCompCount;
-    return_mipmapInfo.image_vulkan_format = vulkanDefaultFormat;
+    return_mipmapInfo.pitch = original_width * alignedImageCompCount;
+    return_mipmapInfo.size = original_width * original_height * alignedImageCompCount;
+    return_mipmapInfo.defaultCompCount = defaultImageCompCount;
+    if (doesUseGamma)
+        return_mipmapInfo.aligned_image_vulkan_format = componentsCountToVulkanGammaFormat_map.find(alignedImageCompCount)->second;
+    else
+        return_mipmapInfo.aligned_image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(alignedImageCompCount)->second;
 
     return std::move(return_mipmapInfo);
 }
 
-MipmapInfo MipmapsGenerator::GetOriginalInfoOnly()
+MipmapInfo MipmapsGenerator::GetUnalignedInfo()
 {
     MipmapInfo return_mipmapNullInfo;
     return_mipmapNullInfo.width = original_width;
     return_mipmapNullInfo.height = original_height;
     return_mipmapNullInfo.pitch = original_width * defaultImageCompCount;
     return_mipmapNullInfo.size = original_width * original_height * defaultImageCompCount;
-    return_mipmapNullInfo.compCount = defaultImageCompCount;
-    return_mipmapNullInfo.image_vulkan_format = vulkanDefaultFormat;
+    return_mipmapNullInfo.defaultCompCount = defaultImageCompCount;
+    if (doesUseGamma)
+        return_mipmapNullInfo.aligned_image_vulkan_format = componentsCountToVulkanGammaFormat_map.find(alignedImageCompCount)->second;
+    else
+        return_mipmapNullInfo.aligned_image_vulkan_format = componentsCountToVulkanLinearFormat_map.find(alignedImageCompCount)->second;
 
     return std::move(return_mipmapNullInfo);
 }

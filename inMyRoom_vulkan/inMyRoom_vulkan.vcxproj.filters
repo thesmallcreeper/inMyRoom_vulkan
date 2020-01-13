@@ -227,9 +227,6 @@
     <ClInclude Include="..\tinygltf\tiny_gltf.h">
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
-    <ClInclude Include="..\tinygltf\stb_image.h">
-      <Filter>Header Files\_etc</Filter>
-    </ClInclude>
     <ClInclude Include="include\hash_combine.h">
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
@@ -379,6 +376,9 @@
     </ClInclude>
     <ClInclude Include="include\Graphics\Meshes\AnimationsDataOfNodes.h">
       <Filter>Header Files\Graphics\Meshes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Compressonator\Compressonator\Applications\_Plugins\Common\stb_image.h">
+      <Filter>Header Files\_etc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

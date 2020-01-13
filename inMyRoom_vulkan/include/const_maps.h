@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include "glTFenum.h"
-#include "CMP_CompressonatorLib/Compressonator.h"
+#include "CMP_Framework/CMP_Framework.h"
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
 #include "misc/sampler_create_info.h"

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -69,9 +69,9 @@
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Compressonator\Compressonator\Applications\_Plugins\Common\stb_image.h" />
     <ClInclude Include="..\Configuru\configuru.hpp" />
     <ClInclude Include="..\DiTO\dito.h" />
-    <ClInclude Include="..\tinygltf\stb_image.h" />
     <ClInclude Include="..\tinygltf\tiny_gltf.h" />
     <ClInclude Include="include\ECS\ComponentBaseClass.h" />
     <ClInclude Include="include\ECS\ComponentRawBaseClass.h" />
@@ -208,7 +208,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
@@ -216,7 +216,7 @@
       <AdditionalLibraryDirectories>..\Compressonator\Compressonator\build;..\Anvil\build;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>Debug\Compressonator.lib;Debug\Anvil.lib;deps\glslang\SPIRV\Debug\SPIRVd.lib;deps\glslang\glslang\Debug\glslangd.lib;deps\glslang\OGLCompilersDLL\Debug\OGLCompilerd.lib;deps\glslang\glslang\OSDependent\Windows\Debug\OSDependentd.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Debug\CMP_Framework.lib;Debug\Anvil.lib;deps\glslang\SPIRV\Debug\SPIRVd.lib;deps\glslang\glslang\Debug\glslangd.lib;deps\glslang\OGLCompilersDLL\Debug\OGLCompilerd.lib;deps\glslang\glslang\OSDependent\Windows\Debug\OSDependentd.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
@@ -249,7 +249,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
-      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);NDEBUG;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;NDEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -264,7 +264,7 @@
       <AdditionalLibraryDirectories>..\Compressonator\Compressonator\build;..\Anvil\build;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <AdditionalDependencies>Release\Compressonator.lib;Release\Anvil.lib;deps\glslang\SPIRV\Release\SPIRV.lib;deps\glslang\glslang\Release\glslang.lib;deps\glslang\OGLCompilersDLL\Release\OGLCompiler.lib;deps\glslang\glslang\OSDependent\Windows\Release\OSDependent.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Release\CMP_Framework.lib;Release\Anvil.lib;deps\glslang\SPIRV\Release\SPIRV.lib;deps\glslang\glslang\Release\glslang.lib;deps\glslang\OGLCompilersDLL\Release\OGLCompiler.lib;deps\glslang\glslang\OSDependent\Windows\Release\OSDependent.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <Profile>true</Profile>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>

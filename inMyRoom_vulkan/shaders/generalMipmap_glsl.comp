@@ -21,37 +21,12 @@ void main()
     
     float ratio = inTextureSize.x / outImageSize.x;
     
-    vec2 position_center_normalized = vec2((float(gl_GlobalInvocationID.x) + 0.5f) / float(outImageSize.x),
-										   (float(gl_GlobalInvocationID.y) + 0.5f) / float(outImageSize.y));
-										   
-	float x_delta = 0.5f / inTextureSize.x;
-    float y_delta = 0.5f / inTextureSize.y;
+    vec2 position_normalized = vec2(float(gl_GlobalInvocationID.x) / float(gl_NumWorkGroups.x * gl_WorkGroupSize.x),
+                                    float(gl_GlobalInvocationID.y) / float(gl_NumWorkGroups.y * gl_WorkGroupSize.y));
                                     
-    vec4 ru_sample = texture( inTexture, position_center_normalized + vec2( x_delta,  y_delta)).rgba;
-	vec4 lu_sample = texture( inTexture, position_center_normalized + vec2(-x_delta,  y_delta)).rgba;
-   	vec4 rd_sample = texture( inTexture, position_center_normalized + vec2( x_delta, -y_delta)).rgba;
-	vec4 ld_sample = texture( inTexture, position_center_normalized + vec2(-x_delta, -y_delta)).rgba;
-	
-	float gravity_sum = ru_sample.a + lu_sample.a + rd_sample.a + ld_sample.a;
-	
-	vec4 final_texel_color = vec4(0.f, 0.f, 0.f, 0.f);
-	if(gravity_sum > 0.00001f)
-	{
-		final_texel_color += ru_sample * ru_sample.a;
-		final_texel_color += lu_sample * lu_sample.a;
-		final_texel_color += rd_sample * rd_sample.a;
-		final_texel_color += ld_sample * ld_sample.a;
-		final_texel_color /= gravity_sum;
-	}
-	else
-	{
-		final_texel_color += ru_sample;
-		final_texel_color += lu_sample;
-		final_texel_color += rd_sample;
-		final_texel_color += ld_sample;
-		final_texel_color /= 4.f;
-	}
-	
-    imageStore( outImage, ivec2(gl_GlobalInvocationID.xy), final_texel_color);
+                                    
+    vec4 this_sample = texture( inTexture, position_normalized).rgba;
+    
+    imageStore( outImage, ivec2(gl_GlobalInvocationID.xy), this_sample);
     
 }

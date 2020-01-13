@@ -9,9 +9,6 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
-#include "CMP_CompressonatorLib/DDS_Helpers.h"
-#include "CMP_CompressonatorLib/Compressonator.h"
-
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
 #include "misc/sampler_create_info.h"
@@ -87,7 +84,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
             }
 
             mipmapsGenerator_ptr->BindNewImage(this_image, in_imagesFolder);
-            MipmapInfo original_info = mipmapsGenerator_ptr->GetOriginalInfoOnly();
+            MipmapInfo original_info = mipmapsGenerator_ptr->GetUnalignedInfo();
 
             size_t mipmaps_levels_over_4x4;
             if (useMipmaps)
@@ -106,9 +103,10 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
             {
                 std::string this_mipmap_filename = path_to_mipmap_folder.string() + "//mipmap_" + std::to_string(this_mipmap_level) + ".DDS";
                 {
-                    CMP_Texture this_compressed_mipmap; // it gotta delete at some point
+                    CMP_MipSet this_compressed_mipmap; // it gotta delete at some point
+                    memset(&this_compressed_mipmap, 0, sizeof(CMP_MipSet));
 
-                    if (!LoadDDSFile(this_mipmap_filename.c_str(), this_compressed_mipmap))
+                    if (CMP_LoadTexture(this_mipmap_filename.c_str(), &this_compressed_mipmap) != CMP_OK)
                     {
                         std::cout << "---" << this_image.uri << " , creating mipmap level: " << this_mipmap_level
                             << " ,width= " << (original_info.width >> this_mipmap_level)
@@ -119,44 +117,53 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                         MipmapInfo this_mipmap;
 
                         if (this_mipmap_level == 0)
-                            this_mipmap = mipmapsGenerator_ptr->GetOriginal();
+                            this_mipmap = mipmapsGenerator_ptr->GetAlignedOriginal();
                         else
                             this_mipmap = mipmapsGenerator_ptr->GetMipmap(this_mipmap_level);
 
                         std::cout << "----Compressing mipmap\n";
 
-                        CMP_Texture srcTexture;
+                        KernelOptions   kernel_options;
+                        memset(&kernel_options, 0, sizeof(KernelOptions));
 
-                        srcTexture.dwSize = sizeof(srcTexture);
-                        srcTexture.dwWidth = this_mipmap.width;
-                        srcTexture.dwHeight = this_mipmap.height;
-                        srcTexture.dwPitch = this_mipmap.pitch;
-                        srcTexture.format = vulkanFormatToCompressonatorFormat_map.find(this_mipmap.image_vulkan_format)->second;
-                        srcTexture.pData = this_mipmap.data_uptr.get();
-                        srcTexture.dwDataSize = static_cast<CMP_DWORD>(this_mipmap.size);
+                        kernel_options.encodeWith = CMP_HPC;
+                         Anvil::Format texture_target_compressed_format = vulkanFormatToCompressedFormat_map.find(this_mipmap.aligned_image_vulkan_format)->second;
+                        kernel_options.format = vulkanFormatToCompressonatorFormat_map.find(texture_target_compressed_format)->second;
+                        kernel_options.fquality = 0.1f;
+                        kernel_options.threads = 0;
 
-                        CMP_Texture dstTexture;
+                        CMP_MipSet srcTexture;
+                        CMP_MipLevel srcMipLevel;
+                        memset(&srcTexture, 0, sizeof(CMP_MipSet));
+                        memset(&srcMipLevel, 0, sizeof(CMP_MipLevel));
 
-                        dstTexture.dwSize = sizeof(dstTexture);
-                        dstTexture.dwWidth = this_mipmap.width;
-                        dstTexture.dwHeight = this_mipmap.height;
-                        dstTexture.dwPitch = 0;
-                        dstTexture.format = CMP_FORMAT_BC7;
-                        dstTexture.dwDataSize = CMP_CalculateBufferSize(&dstTexture);
-                        dstTexture.pData = (CMP_BYTE*)malloc(dstTexture.dwDataSize);
+                        CMP_MipSet dstTexture;
+                        memset(&dstTexture, 0, sizeof(CMP_MipSet));
 
-                        CMP_CompressOptions options = { 0 };
-                        options.dwSize = sizeof(options);
-                        options.fquality = 0.08f;
-                        options.dwnumThreads = 8;
+                        srcTexture.m_nWidth = this_mipmap.width;
+                        srcTexture.m_nHeight = this_mipmap.height;
+                        srcTexture.m_nDepth = 1;
+                        srcTexture.m_format = vulkanFormatToCompressonatorFormat_map.find(this_mipmap.aligned_image_vulkan_format)->second;
+                        srcTexture.m_ChannelFormat = CF_8bit;
+                        srcTexture.m_TextureDataType = this_mipmap.defaultCompCount == 3 ? TDT_XRGB : TDT_ARGB;
+                        srcTexture.m_TextureType = TT_2D;
+                        srcTexture.m_nMaxMipLevels = 1;
+                        srcTexture.m_nMipLevels = 1;
 
-                        CMP_ERROR cmp_status;
-                        cmp_status = CMP_ConvertTexture(&srcTexture, &dstTexture, &options, nullptr);
+                         CMP_MipLevelTable srcMipLevel_ptr = &srcMipLevel;
+                        srcTexture.m_pMipLevelTable = &srcMipLevel_ptr;
+                        srcMipLevel.m_nWidth = this_mipmap.width; 
+                        srcMipLevel.m_nHeight = this_mipmap.height;
+                        srcMipLevel.m_dwLinearSize = this_mipmap.pitch;
+                        srcMipLevel.m_pbData = this_mipmap.data_uptr.get();
 
-                        if (cmp_status != CMP_OK)
-                            assert(0);
+                        {
+                            CMP_ERROR cmp_status;
+                            cmp_status = CMP_ProcessTexture(&srcTexture, &dstTexture, kernel_options, nullptr);
+                            assert(cmp_status == CMP_OK);
+                        }
 
-                        SaveDDSFile(this_mipmap_filename.c_str(), dstTexture);
+                        CMP_SaveTexture(this_mipmap_filename.c_str(), &dstTexture);
 
                         this_compressed_mipmap = dstTexture;
                     }
@@ -174,11 +181,12 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
             Anvil::ImageUniquePtr image_ptr;
             Anvil::ImageViewUniquePtr image_view_ptr;
 
-            Anvil::Format vulkan_compressed_format = vulkanFormatToCompressedFormat_map.find(original_info.image_vulkan_format)->second;
+            Anvil::Format texture_target_compressed_format = vulkanFormatToCompressedFormat_map.find(original_info.aligned_image_vulkan_format)->second;
+
             {
                 auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
                                                                             Anvil::ImageType::_2D,
-                                                                            vulkan_compressed_format,
+                                                                            texture_target_compressed_format,
                                                                             Anvil::ImageTiling::OPTIMAL,
                                                                             Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT | Anvil::ImageUsageFlagBits::SAMPLED_BIT,
                                                                             static_cast<uint32_t>(original_info.width),
@@ -207,18 +215,15 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                                                                              0,                                                /* n_base_mipmap_level */
                                                                              static_cast<uint32_t>(mipmaps_levels_over_4x4),   /* n_mipmaps           */
                                                                              Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                             vulkan_compressed_format,
+                                                                             texture_target_compressed_format,
                                                                              Anvil::ComponentSwizzle::R,
-                                                                             (original_info.image_vulkan_format == Anvil::Format::R8G8_SRGB ||
-                                                                              original_info.image_vulkan_format == Anvil::Format::R8G8B8_SRGB ||
-                                                                              original_info.image_vulkan_format == Anvil::Format::R8G8B8A8_SRGB)
+                                                                             (original_info.defaultCompCount >= 2)
                                                                              ? Anvil::ComponentSwizzle::G
                                                                              : Anvil::ComponentSwizzle::ZERO,
-                                                                             (original_info.image_vulkan_format == Anvil::Format::R8G8B8_SRGB ||
-                                                                              original_info.image_vulkan_format == Anvil::Format::R8G8B8A8_SRGB)
+                                                                             (original_info.defaultCompCount >= 3)
                                                                              ? Anvil::ComponentSwizzle::B
                                                                              : Anvil::ComponentSwizzle::ZERO,
-                                                                             (original_info.image_vulkan_format == Anvil::Format::R8G8B8A8_SRGB)
+                                                                             (original_info.defaultCompCount >= 4)
                                                                              ? Anvil::ComponentSwizzle::A
                                                                              : Anvil::ComponentSwizzle::ONE);
 
