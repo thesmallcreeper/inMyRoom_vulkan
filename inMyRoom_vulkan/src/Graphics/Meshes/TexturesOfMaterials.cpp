@@ -147,14 +147,13 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                         srcTexture.m_ChannelFormat = CF_8bit;
                         srcTexture.m_TextureDataType = this_mipmap.defaultCompCount == 3 ? TDT_XRGB : TDT_ARGB;
                         srcTexture.m_TextureType = TT_2D;
-                        srcTexture.m_nMaxMipLevels = 1;
                         srcTexture.m_nMipLevels = 1;
 
                          CMP_MipLevelTable srcMipLevel_ptr = &srcMipLevel;
                         srcTexture.m_pMipLevelTable = &srcMipLevel_ptr;
                         srcMipLevel.m_nWidth = this_mipmap.width; 
                         srcMipLevel.m_nHeight = this_mipmap.height;
-                        srcMipLevel.m_dwLinearSize = this_mipmap.pitch;
+                        srcMipLevel.m_dwLinearSize = this_mipmap.size;
                         srcMipLevel.m_pbData = this_mipmap.data_uptr.get();
 
                         {
@@ -168,13 +167,13 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                         this_compressed_mipmap = dstTexture;
                     }
 
-                    garbage_collector.emplace_back(this_compressed_mipmap.pData);
+                    garbage_collector.emplace_back((*this_compressed_mipmap.m_pMipLevelTable)->m_pbData);
 
                     compressed_mipmaps_raw_data.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
                                                                                                             static_cast<uint32_t>(this_mipmap_level),
-                                                                                                            this_compressed_mipmap.pData,
-                                                                                                            this_compressed_mipmap.dwDataSize,
-                                                                                                            this_compressed_mipmap.dwDataSize / this_compressed_mipmap.dwHeight));
+                                                                                                            (*this_compressed_mipmap.m_pMipLevelTable)->m_pbData,
+                                                                                                            (*this_compressed_mipmap.m_pMipLevelTable)->m_dwLinearSize,
+                                                                                                            (*this_compressed_mipmap.m_pMipLevelTable)->m_dwLinearSize / (*this_compressed_mipmap.m_pMipLevelTable)->m_nHeight));
                 }
             }
 
