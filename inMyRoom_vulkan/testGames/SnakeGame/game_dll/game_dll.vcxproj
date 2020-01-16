@@ -71,7 +71,7 @@
     <ProjectGuid>{C8A65F2E-5B6D-4D8F-B4C8-0F54DC73C446}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>gamedll</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -157,7 +157,7 @@
       <PreprocessorDefinitions>_MBCS;_DEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\Header;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
@@ -200,7 +200,7 @@
       <PreprocessorDefinitions>_MBCS;NDEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\Header;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>

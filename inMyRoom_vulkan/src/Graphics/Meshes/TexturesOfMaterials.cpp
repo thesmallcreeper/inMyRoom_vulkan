@@ -129,7 +129,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                         kernel_options.encodeWith = CMP_HPC;
                          Anvil::Format texture_target_compressed_format = vulkanFormatToCompressedFormat_map.find(this_mipmap.aligned_image_vulkan_format)->second;
                         kernel_options.format = vulkanFormatToCompressonatorFormat_map.find(texture_target_compressed_format)->second;
-                        kernel_options.fquality = 0.1f;
+                        kernel_options.fquality = 0.8f;
                         kernel_options.threads = 0;
 
                         CMP_MipSet srcTexture;
