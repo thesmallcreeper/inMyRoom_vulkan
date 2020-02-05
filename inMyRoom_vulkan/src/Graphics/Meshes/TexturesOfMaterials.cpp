@@ -153,7 +153,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                         srcTexture.m_pMipLevelTable = &srcMipLevel_ptr;
                         srcMipLevel.m_nWidth = this_mipmap.width; 
                         srcMipLevel.m_nHeight = this_mipmap.height;
-                        srcMipLevel.m_dwLinearSize = this_mipmap.size;
+                        srcMipLevel.m_dwLinearSize = static_cast<CMP_DWORD>(this_mipmap.size);
                         srcMipLevel.m_pbData = this_mipmap.data_uptr.get();
 
                         {

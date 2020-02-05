@@ -97,14 +97,14 @@ std::vector<std::pair<std::string, MapType>> ComponentSparseBaseClass<ComponentE
 template<typename ComponentEntityType>
 void ComponentSparseBaseClass<ComponentEntityType>::AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity)
 {
-    componentEntitiesToAdd.emplace_back(std::make_pair(this_entity, this_componentEntity));
+    componentEntitiesToAdd.emplace_back(std::make_pair(this_entity, std::move(this_componentEntity)));
 }
 
 template<typename ComponentEntityType>
 void ComponentSparseBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map)
 {
-    const ComponentEntityType this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
-    AddComponent(this_entity, std::move(this_componentEntity));
+    ComponentEntityType&& this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
+    AddComponent(this_entity, this_componentEntity);
 }
 
 template<typename ComponentEntityType>

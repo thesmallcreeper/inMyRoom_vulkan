@@ -114,8 +114,8 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
                 }
                 else if (search_not_less_key == animation_data.timeToTranslationKey_map.end())
                 {
-                    timeAndTranslation_lower_pair = *search_not_less_key;
-                    timeAndTranslation_upper_pair = *search_not_less_key;
+                    timeAndTranslation_lower_pair = *(--search_not_less_key);
+                    timeAndTranslation_upper_pair = std::make_pair(0.f, translationT0);
                 }
 
                 current_position_componentEntity->localTranslation = LinearInterpolationVec3(currentAnimation_time,
@@ -142,8 +142,8 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
                 }
                 else if (search_not_less_key == animation_data.timeToRotationKey_map.end())
                 {
-                    timeAndRotation_lower_pair = *search_not_less_key;
-                    timeAndRotation_upper_pair = *search_not_less_key;
+                    timeAndRotation_lower_pair = *(--search_not_less_key);
+                    timeAndRotation_upper_pair = std::make_pair(0.f, rotationT0);
                 }
 
                 current_position_componentEntity->localRotation = LinearInterpolationQua(currentAnimation_time,
@@ -170,8 +170,8 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
                 }
                 else if (search_not_less_key == animation_data.timeToScaleKey_map.end())
                 {
-                    timeAndScale_lower_pair = *search_not_less_key;
-                    timeAndScale_upper_pair = *search_not_less_key;
+                    timeAndScale_lower_pair = *(--search_not_less_key);
+                    timeAndScale_upper_pair = std::make_pair(0.f, scaleT0);
                 }
 
                 current_position_componentEntity->localScale = LinearInterpolationVec3(currentAnimation_time,

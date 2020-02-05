@@ -13,15 +13,8 @@
 int main()
 {
     configuru::Config cfgFile;
-    try
-    {
-        cfgFile = configuru::parse_file("config.cfg", configuru::CFG);
-    }
-    catch (...)
-    {
-        printf("Couldn't open \"config.cfg\"\nClosing...\n");
-        return -1;
-    }
+
+    cfgFile = configuru::parse_file("config.cfg", configuru::CFG);
 
     std::unique_ptr<Engine> mainEngine_uptr = std::make_unique<Engine>(cfgFile);
     mainEngine_uptr->Run();
