@@ -20,6 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\DiTO\dito.cpp" />
+    <ClCompile Include="src\CollisionDetection\CollisionDetection.cpp" />
+    <ClCompile Include="src\CollisionDetection\OBBtreesCollision.cpp" />
+    <ClCompile Include="src\CollisionDetection\RayDistance.cpp" />
+    <ClCompile Include="src\CollisionDetection\SweepAndPrune.cpp" />
+    <ClCompile Include="src\CollisionDetection\TrianglesVsTriangles.cpp" />
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp" />
     <ClCompile Include="src\ECS\ComponentRawBaseClass.cpp" />
     <ClCompile Include="src\ECS\ComponentSparseBaseClass.cpp" />
@@ -31,6 +36,7 @@
     <ClCompile Include="src\ECS\GeneralCompEntities\CameraCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.cpp" />
+    <ClCompile Include="src\ECS\GeneralCompEntities\ModelCollisionCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\NodeDataCompEntity.cpp" />
@@ -40,6 +46,7 @@
     <ClCompile Include="src\ECS\GeneralComponents\CameraComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\CameraDefaultInputComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\LateNodeGlobalMatrixComp.cpp" />
+    <ClCompile Include="src\ECS\GeneralComponents\ModelCollisionComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\ModelDrawComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\EarlyNodeGlobalMatrixComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\NodeDataComp.cpp" />
@@ -78,6 +85,11 @@
     <ClInclude Include="..\Configuru\configuru.hpp" />
     <ClInclude Include="..\DiTO\dito.h" />
     <ClInclude Include="..\tinygltf\tiny_gltf.h" />
+    <ClInclude Include="include\CollisionDetection\CollisionDetection.h" />
+    <ClInclude Include="include\CollisionDetection\OBBtreesCollision.h" />
+    <ClInclude Include="include\CollisionDetection\RayDistance.h" />
+    <ClInclude Include="include\CollisionDetection\SweepAndPrune.h" />
+    <ClInclude Include="include\CollisionDetection\TrianglesVsTriangles.h" />
     <ClInclude Include="include\ECS\ComponentBaseClass.h" />
     <ClInclude Include="include\ECS\ComponentRawBaseClass.h" />
     <ClInclude Include="include\ECS\ComponentsIDsEnum.h" />
@@ -91,6 +103,7 @@
     <ClInclude Include="include\ECS\GeneralCompEntities\CameraCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.h" />
+    <ClInclude Include="include\ECS\GeneralCompEntities\ModelCollisionCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelDrawCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\NodeDataCompEntity.h" />
@@ -100,6 +113,7 @@
     <ClInclude Include="include\ECS\GeneralComponents\CameraComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\CameraDefaultInputComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\LateNodeGlobalMatrixComp.h" />
+    <ClInclude Include="include\ECS\GeneralComponents\ModelCollisionComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\ModelDrawComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\EarlyNodeGlobalMatrixComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\NodeDataComp.h" />
@@ -209,7 +223,8 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>false</SDLCheck>
+      <SDLCheck>
+      </SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
@@ -254,7 +269,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>false</SDLCheck>
+      <SDLCheck>
+      </SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>

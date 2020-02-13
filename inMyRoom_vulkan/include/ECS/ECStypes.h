@@ -53,7 +53,6 @@ struct AnimationData
 };
 
 // used a lot in: Materials
-
 enum class MapType
 {
     vec4_type,
@@ -67,7 +66,6 @@ enum class MapType
 };
 
 // used a lot in: Game Import
-
 struct Node
 {
     std::map<componentID, CompEntityInitMap> componentIDsToInitMaps;
@@ -98,7 +96,6 @@ struct Node
 };
 
 // used a lot in: InputManager
-
 enum class InputType
 {
     MouseMove,
@@ -122,4 +119,15 @@ struct InputMouse
 {
     float x_axis;
     float y_axis;
+};
+
+// used a lot in: CollisionDetection
+struct CollisionDetectionEntry
+{
+    glm::mat4x4 currentGlobalMatrix;
+    glm::mat4x4 previousGlobalMatrix;
+    const void* OBBtree_ptr;
+    bool shouldCallback;
+
+    Entity entity;
 };

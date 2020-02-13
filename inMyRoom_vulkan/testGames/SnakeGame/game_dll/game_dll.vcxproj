@@ -33,6 +33,7 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.h" />
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelCollisionCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelDrawCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\NodeDataCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h" />
@@ -56,6 +57,7 @@
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.cpp" />
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelCollisionCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\NodeDataCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp" />
@@ -155,7 +157,8 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>false</SDLCheck>
+      <SDLCheck>
+      </SDLCheck>
       <PreprocessorDefinitions>_MBCS;_DEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
@@ -198,7 +201,8 @@
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>false</SDLCheck>
+      <SDLCheck>
+      </SDLCheck>
       <PreprocessorDefinitions>_MBCS;NDEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>

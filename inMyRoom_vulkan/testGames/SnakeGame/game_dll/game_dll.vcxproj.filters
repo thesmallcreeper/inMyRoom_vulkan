@@ -123,6 +123,9 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelCollisionCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\game_dll.cpp">
@@ -183,6 +186,9 @@
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelCollisionCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
   </ItemGroup>

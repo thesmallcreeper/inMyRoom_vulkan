@@ -50,28 +50,30 @@ void OBBtree::SplitOBBandCreateChildren()
     std::vector<Triangle> left_child_triangles;
     std::vector<Triangle> right_child_triangles;
 
-    size_t chosen_pair = 0;
-    do
     {
-        left_child_triangles.clear();
-        right_child_triangles.clear();
-
-        glm::vec4 axis = halfLength_and_OBB_axis_pairs[chosen_pair].second;
-        float projection_of_center_of_OBB_to_axis = glm::dot(OBBvolume.GetCenter(), axis);
-
-        for (const Triangle& this_triangle : triangles)
+        size_t chosen_pair = 0;
+        do
         {
-            std::pair<float, float> this_triangle_min_max_projection = this_triangle.GetMinMaxProjectionToAxis(axis);
+            left_child_triangles.clear();
+            right_child_triangles.clear();
 
-            float projection_mean = (this_triangle_min_max_projection.first + this_triangle_min_max_projection.second) / 2.f;
-            if (projection_mean <= projection_of_center_of_OBB_to_axis)
-                left_child_triangles.emplace_back(this_triangle);
-            else
-                right_child_triangles.emplace_back(this_triangle);
-        }
+            glm::vec4 axis = halfLength_and_OBB_axis_pairs[chosen_pair].second;
+            float projection_of_center_of_OBB_to_axis = glm::dot(OBBvolume.GetCenter(), axis);
 
-        chosen_pair++;
-    } while ((left_child_triangles.empty() || right_child_triangles.empty()) && chosen_pair < halfLength_and_OBB_axis_pairs.size());
+            for (const Triangle& this_triangle : triangles)
+            {
+                std::pair<float, float> this_triangle_min_max_projection = this_triangle.GetMinMaxProjectionToAxis(axis);
+
+                float projection_mean = (this_triangle_min_max_projection.first + this_triangle_min_max_projection.second) / 2.f;
+                if (projection_mean <= projection_of_center_of_OBB_to_axis)
+                    left_child_triangles.emplace_back(this_triangle);
+                else
+                    right_child_triangles.emplace_back(this_triangle);
+            }
+
+            chosen_pair++;
+        } while ((left_child_triangles.empty() || right_child_triangles.empty()) && chosen_pair < halfLength_and_OBB_axis_pairs.size());
+    }
 
     if (left_child_triangles.empty() || right_child_triangles.empty())
     {

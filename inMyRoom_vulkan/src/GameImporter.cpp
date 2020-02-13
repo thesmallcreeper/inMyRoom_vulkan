@@ -306,6 +306,15 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
         this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::ModelDraw), this_map);
     }
 
+    // Model collision component
+    if (this_gltf_node.mesh != -1 && this_gltf_node.skin == -1)
+    {
+        CompEntityInitMap this_map;
+        this_map.intMap["MeshIndex"] = this_gltf_node.mesh + static_cast<int>(engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(model));
+
+        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::ModelCollision), this_map);
+    }
+
     // Skin component
     if (this_gltf_node.skin != -1)
     {

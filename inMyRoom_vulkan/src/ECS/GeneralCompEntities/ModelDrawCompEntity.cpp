@@ -72,7 +72,7 @@ std::vector<std::pair<std::string, MapType>> ModelDrawCompEntity::GetComponentIn
 {
     std::vector<std::pair<std::string, MapType>> return_pair;
     return_pair.emplace_back(std::make_pair("MeshIndex", MapType::int_type));
-    return_pair.emplace_back(std::make_pair("ShouldDraw", MapType::int_type));
+    return_pair.emplace_back(std::make_pair("ShouldDraw", MapType::bool_type));
     return_pair.emplace_back(std::make_pair("DisableCulling", MapType::bool_type));
     return_pair.emplace_back(std::make_pair("IsSkin", MapType::bool_type));
 

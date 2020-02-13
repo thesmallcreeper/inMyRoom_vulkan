@@ -6,6 +6,7 @@
 #include "ECS/GeneralComponents/AnimationComposerComp.h"
 #include "ECS/GeneralComponents/NodeDataComp.h"
 #include "ECS/GeneralComponents/EarlyNodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/ModelCollisionComp.h"
 #include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/CameraDefaultInputComp.h"
 
@@ -42,6 +43,13 @@ Engine::Engine(configuru::Config& in_cfgFile)
     {   // Initializing graphics which add some specific components to ECS
         graphics_uptr = std::make_unique<Graphics>(this, cfgFile, device_uptr.get(), swapchain_uptr.get(),
                                                    windowWidth, windowHeight, swapchainImagesCount);
+    }
+
+    {   // Initializing collision detection
+        collisionDetection_uptr = std::make_unique<CollisionDetection>(ECSwrapper_uptr.get());
+
+        std::unique_ptr<ModelCollisionComp> modelCollision_comp_uptr = std::make_unique<ModelCollisionComp>(ECSwrapper_uptr.get(), collisionDetection_uptr.get(), graphics_uptr->GetMeshesOfNodesPtr());
+        ECSwrapper_uptr->AddComponentAndOwnership(std::move(modelCollision_comp_uptr));
     }
 
     {   // Game importing
@@ -104,6 +112,7 @@ Engine::~Engine()
     ECSwrapper_uptr.reset();
     gameImporter_uptr.reset();
     graphics_uptr.reset();
+    collisionDetection_uptr.reset();
     exportedFunctionsConstructor_uptr.reset();
 }
 
