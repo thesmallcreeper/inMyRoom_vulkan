@@ -90,9 +90,6 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelDrawCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h">
-      <Filter>Header Files\General\GeneralCompEntities</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
@@ -119,6 +116,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\include\Geometry\ViewportFrustum.h">
       <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -149,9 +152,6 @@
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp">
-      <Filter>Source Files\General\GeneralCompEntities</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
@@ -178,6 +178,12 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\Geometry\ViewportFrustum.cpp">
       <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

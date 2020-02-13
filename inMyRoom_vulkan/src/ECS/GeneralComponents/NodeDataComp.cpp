@@ -12,3 +12,10 @@ NodeDataComp::~NodeDataComp()
 {
     NodeDataCompEntity::positionComp_ptr = nullptr;
 }
+
+void NodeDataComp::Update()
+{
+    for (size_t index = 0; index < componentEntitiesRaw.size(); index++)
+        if (!isItEmptyRawVector[index])
+            componentEntitiesRaw[index].Update();
+}

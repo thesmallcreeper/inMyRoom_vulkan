@@ -34,11 +34,14 @@ public:
 
     void Init();
 
+    void Update();
+
 private: // static_variable
     friend class NodeDataComp;
     static NodeDataComp* positionComp_ptr;
 
 #endif
+
 public: // dll visible
     void LocalScale(const glm::vec3 in_scale);
     void LocalRotate(const glm::qua<float> in_rotation);
@@ -46,11 +49,14 @@ public: // dll visible
     void GlobalTranslate(const glm::vec3 in_translate);
 
 public: // data
+    glm::vec3 localScale_old = glm::vec3(1.f, 1.f, 1.f);;
+    glm::qua<float> localRotation_old = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
+    glm::vec3 localTranslation_old = glm::vec3(0.f, 0.f, 0.f);
+    glm::vec3 globalTranslation_old = glm::vec3(0.f, 0.f, 0.f);
+
     glm::vec3 localScale = glm::vec3(1.f, 1.f, 1.f);;
-
     glm::qua<float> localRotation = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
-
-    glm::vec3 localTranslation = glm::vec3(0.f, 0.f, 0.f);;
+    glm::vec3 localTranslation = glm::vec3(0.f, 0.f, 0.f);
     glm::vec3 globalTranslation = glm::vec3(0.f, 0.f, 0.f);
 
     Entity thisEntity;

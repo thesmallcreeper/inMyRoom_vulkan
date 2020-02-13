@@ -5,7 +5,7 @@
 
 #include "Geometry/Cuboid.h"
 
-enum IntersectResult
+enum PlaneIntersectResult
 {
     OUTSIDE,
     INSIDE,
@@ -18,7 +18,7 @@ public:
     static Plane CreatePlane(const glm::vec3 in_normal, const float in_d);
 
 public:
-    IntersectResult IntersectCuboid(const Cuboid in_cuboid) const;
+    PlaneIntersectResult IntersectCuboid(const Cuboid in_cuboid) const;
 
 private:
     glm::vec4 normal;

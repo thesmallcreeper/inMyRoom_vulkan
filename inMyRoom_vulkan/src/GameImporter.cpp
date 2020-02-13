@@ -298,6 +298,10 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
             this_map.intMap["IsSkin"] = static_cast<int>(true);
             this_map.intMap["DisableCulling"] = static_cast<int>(true);
         }
+        if (this_node->nodeName.find("_collision") != std::string::npos)
+        {
+            this_map.intMap["ShouldDraw"] = static_cast<int>(false);
+        }
 
         this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::ModelDraw), this_map);
     }
@@ -803,14 +807,20 @@ void GameImporter::AddNodeComponentsToECS(Entity parent_entity, Node* this_node)
         engine_ptr->GetECSwrapperPtr()->GetComponentByID(this_component_initMap_pair.first)->AddComponentEntityByMap(this_entity, this_component_initMap_pair.second);
     }
 
-    // Add NodeGlobalMatrixCompEntity
+    // Add EarlyNodeGlobalMatrixCompEntity
     if(this_node->shouldAddNodeGlobalMatrixCompEntity)
     {
-        NodeGlobalMatrixCompEntity this_node_global_matrix_entity(this_entity);
-        this_node_global_matrix_entity.parentEntity = parent_entity;
+        EarlyNodeGlobalMatrixCompEntity this_node_early_global_matrix_entity(this_entity);
+        this_node_early_global_matrix_entity.parentEntity = parent_entity;
 
-        NodeGlobalMatrixComp* node_global_matrix_comp_ptr = static_cast<NodeGlobalMatrixComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::NodeGlobalMatrix)));
-        node_global_matrix_comp_ptr->AddComponent(this_entity, this_node_global_matrix_entity);
+        EarlyNodeGlobalMatrixComp* early_node_global_matrix_comp_ptr = static_cast<EarlyNodeGlobalMatrixComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::EarlyNodeGlobalMatrix)));
+        early_node_global_matrix_comp_ptr->AddComponent(this_entity, this_node_early_global_matrix_entity);
+
+        LateNodeGlobalMatrixCompEntity this_node_late_global_matrix_entity(this_entity);
+        this_node_late_global_matrix_entity.parentEntity = parent_entity;
+
+        LateNodeGlobalMatrixComp* late_node_global_matrix_comp_ptr = static_cast<LateNodeGlobalMatrixComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix)));
+        late_node_global_matrix_comp_ptr->AddComponent(this_entity, this_node_late_global_matrix_entity);
     }
 
     for (size_t index = 0; index < this_node->children.size(); index++)

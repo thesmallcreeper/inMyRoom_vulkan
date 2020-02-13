@@ -7,7 +7,8 @@
 #include "ECS/ECStypes.h"
 #include "ECS/GeneralComponents/AnimationActorComp.h"
 #include "ECS/GeneralComponents/NodeDataComp.h"
-#include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/EarlyNodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
 #include "ECS/GeneralComponents/SkinComp.h"
 

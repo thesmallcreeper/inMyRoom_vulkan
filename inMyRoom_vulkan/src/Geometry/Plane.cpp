@@ -14,7 +14,7 @@ Plane Plane::CreatePlane(const glm::vec3 in_normal, const float in_d)
     return return_plane;
 }
 
-IntersectResult Plane::IntersectCuboid(const Cuboid in_cuboid) const
+PlaneIntersectResult Plane::IntersectCuboid(const Cuboid in_cuboid) const
 {
     glm::vec3 cuboid_halfLengths = in_cuboid.GetHalfLengths();
 
@@ -25,7 +25,7 @@ IntersectResult Plane::IntersectCuboid(const Cuboid in_cuboid) const
 
     float s = glm::dot(in_cuboid.GetCenter(), this->normal) + this->d;
 
-    if (s - e > 0) return IntersectResult::OUTSIDE;
-    if (s + e < 0) return IntersectResult::INSIDE;
-    return IntersectResult::INTERSECTING;
+    if (s - e > 0) return PlaneIntersectResult::OUTSIDE;
+    if (s + e < 0) return PlaneIntersectResult::INSIDE;
+    return PlaneIntersectResult::INTERSECTING;
 }

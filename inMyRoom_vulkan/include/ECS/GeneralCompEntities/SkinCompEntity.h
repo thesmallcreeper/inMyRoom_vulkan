@@ -29,7 +29,7 @@ public:
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(class NodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr, SkinsOfMeshes* skinsOfMeshes_ptr);
+    void Update(class LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr, SkinsOfMeshes* skinsOfMeshes_ptr);
 
 private: // static_variable
     friend class SkinComp;

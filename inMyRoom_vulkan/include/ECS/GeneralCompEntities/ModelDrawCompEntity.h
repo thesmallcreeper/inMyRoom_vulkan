@@ -32,7 +32,7 @@ public:
 
     void Init();
 
-    void DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
+    void DrawUsingFrustumCull(class LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
                               class SkinComp* skin_ptr,
                               MeshesOfNodes* meshesOfNodes_ptr,
                               PrimitivesOfMeshes* primitivesOfMeshes_ptr,

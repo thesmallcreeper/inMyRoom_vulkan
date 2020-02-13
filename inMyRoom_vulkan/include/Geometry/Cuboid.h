@@ -1,6 +1,8 @@
 #pragma once
 
-#include <vector>
+#include <utility>
+
+#include "Geometry/Ray.h"
 
 #include "glm/mat4x4.hpp"
 #include "glm/vec3.hpp"
@@ -11,7 +13,14 @@ class Cuboid
 public:
     static Cuboid MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Cuboid& rhs);
 
+    static bool IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs);
+    static std::pair<bool, float> IntersectCuboidWithRayBooleanDistance(const Cuboid& cuboid, const Ray& ray);
+
+    std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec4& in_axis) const;
+
 public:
+    float GetSurface() const;
+
     glm::vec4 GetCenter() const;
 
     glm::vec4 GetSideDirectionU() const;
@@ -19,6 +28,10 @@ public:
     glm::vec4 GetSideDirectionW() const;
 
     glm::vec3 GetHalfLengths() const;
+
+private:
+    float GetCenterProjectionToAxis(const glm::vec4& in_axis) const;
+    static bool DoMinMaxProjectionsToAxisIntersept(const std::pair<float, float>& lhs, const std::pair<float, float>& rhs);
 
 protected:
     glm::vec4 center;

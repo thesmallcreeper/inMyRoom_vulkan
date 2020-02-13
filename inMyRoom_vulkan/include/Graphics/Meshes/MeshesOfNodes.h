@@ -16,7 +16,7 @@ struct MeshInfo
 {
     size_t primitiveFirstOffset;
     size_t primitiveRangeSize;
-    OBB boundBox;
+    OBBtree boundBoxTree;
 };
 
 
@@ -30,7 +30,7 @@ public: // functions
 
     size_t GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model) const;
 
-    MeshInfo GetMesh(size_t this_mesh_index) const;
+    const MeshInfo* GetMeshInfoPtr(size_t this_mesh_index) const;
 
 private: // data
     size_t meshesSoFar = 0;

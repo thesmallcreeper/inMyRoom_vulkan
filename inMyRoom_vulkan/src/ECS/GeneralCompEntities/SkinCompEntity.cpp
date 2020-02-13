@@ -4,7 +4,7 @@
 
 #ifndef GAME_DLL
 #include "ECS/GeneralComponents/SkinComp.h"
-#include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 
 
 SkinComp* SkinCompEntity::skinComp_ptr = nullptr;
@@ -73,13 +73,13 @@ void SkinCompEntity::Init()
 {
 }
 
-void SkinCompEntity::Update(NodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr, SkinsOfMeshes* skinsOfMeshes_ptr)
+void SkinCompEntity::Update(LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr, SkinsOfMeshes* skinsOfMeshes_ptr)
 {
     lastNodesMatricesOffset = static_cast<uint32_t>(skinsOfMeshes_ptr->GetNodesRecordSize());
 
     for (const Entity this_jointEntity : jointEntities)
     {
-        NodeGlobalMatrixCompEntity* this_nodeGlobalMatrixCompEntity_ptr = reinterpret_cast<NodeGlobalMatrixCompEntity*>(nodeGlobalMatrixComp_ptr->GetComponentEntity(this_jointEntity));
+        LateNodeGlobalMatrixCompEntity* this_nodeGlobalMatrixCompEntity_ptr = reinterpret_cast<LateNodeGlobalMatrixCompEntity*>(nodeGlobalMatrixComp_ptr->GetComponentEntity(this_jointEntity));
         glm::mat4 joint_global_matrix = this_nodeGlobalMatrixCompEntity_ptr->globalMatrix;
             
         skinsOfMeshes_ptr->AddNodeMatrix(joint_global_matrix);

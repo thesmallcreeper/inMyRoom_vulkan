@@ -91,6 +91,18 @@ glm::mat4x4 NodeDataCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_
 
 void NodeDataCompEntity::Init()
 {
+    localScale_old = localScale;
+    localRotation_old = localRotation;
+    localTranslation_old = localTranslation;
+    globalTranslation_old = globalTranslation;
+}
+
+void NodeDataCompEntity::Update()
+{
+    localScale_old = localScale;
+    localRotation_old = localRotation;
+    localTranslation_old = localTranslation;
+    globalTranslation_old = globalTranslation;
 }
 
 #endif

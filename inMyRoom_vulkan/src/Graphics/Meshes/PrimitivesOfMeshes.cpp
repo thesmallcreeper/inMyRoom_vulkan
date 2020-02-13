@@ -40,6 +40,7 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
     assert(hasBeenFlashed == false);
 
     PrimitiveGeneralInfo this_primitiveInitInfo;
+    PrimitiveCPUdata this_primitiveCPUdata;
 
     {
         const tinygltf::Accessor& this_accessor = in_model.accessors[in_primitive.indices];
@@ -57,6 +58,29 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
         this_primitiveInitInfo.commonGraphicsPipelineSpecs.indexComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
 
         AddAccessorDataToLocalBuffer(localIndexBuffer, false, false, sizeof(uint32_t), in_model, this_accessor);
+
+        if (recordingOBBtree)
+        {
+            size_t begin_index_byte = this_primitiveInitInfo.indexBufferOffset;
+            size_t end_index_byte = localIndexBuffer.size();
+
+            if (this_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short))
+            {
+                unsigned short* begin_index = reinterpret_cast<unsigned short*>(localIndexBuffer.data() + begin_index_byte);
+                unsigned short* end_index = reinterpret_cast<unsigned short*>(localIndexBuffer.data() + end_index_byte);
+
+                for (unsigned short* this_ptr = begin_index; this_ptr != end_index; this_ptr++)
+                    this_primitiveCPUdata.indices.emplace_back(static_cast<uint32_t>(*this_ptr));
+            }
+            else if (this_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_int))
+            {
+                uint32_t* begin_index = reinterpret_cast<uint32_t*>(localIndexBuffer.data() + begin_index_byte);
+                uint32_t* end_index = reinterpret_cast<uint32_t*>(localIndexBuffer.data() + end_index_byte);
+
+                for (uint32_t* this_ptr = begin_index; this_ptr != end_index; this_ptr++)
+                    this_primitiveCPUdata.indices.emplace_back(static_cast<uint32_t>(*this_ptr));
+            }
+        }
     }
 
     {
@@ -71,7 +95,7 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
 
             AddAccessorDataToLocalBuffer(localPositionBuffer, true, false, sizeof(float), in_model, this_accessor);
 
-            if (recordingOBB)
+            if (recordingOBBtree)
             {
                 size_t begin_index_byte = this_primitiveInitInfo.positionBufferOffset;
                 size_t end_index_byte = localPositionBuffer.size();
@@ -80,7 +104,7 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
                 float* end_index = reinterpret_cast<float*>(localPositionBuffer.data() + end_index_byte);
 
                 for (float* this_ptr = begin_index; this_ptr != end_index; this_ptr += 3)
-                    pointsOfRecordingOBB.emplace_back(glm::vec3(this_ptr[0], this_ptr[1], this_ptr[2]));
+                    this_primitiveCPUdata.points.emplace_back(glm::vec3(this_ptr[0], this_ptr[1], this_ptr[2]));
             }
         }
     }
@@ -180,10 +204,22 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
             this_primitiveInitInfo.commonGraphicsPipelineSpecs.weights0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
 
             AddAccessorDataToLocalBuffer(localWeights0Buffer, false, false, sizeof(float), in_model, this_accessor);
+
+            if (recordingOBBtree)
+            {
+                this_primitiveCPUdata.isSkin = true;
+            }
         }
     }
 
-    this_primitiveInitInfo.commonGraphicsPipelineSpecs.drawMode = static_cast<glTFmode>(in_primitive.mode);
+    {
+        this_primitiveInitInfo.commonGraphicsPipelineSpecs.drawMode = static_cast<glTFmode>(in_primitive.mode);
+
+        if (recordingOBBtree)
+        {
+            this_primitiveCPUdata.drawMode = static_cast<glTFmode>(in_primitive.mode);
+        }
+    }
 
     if(in_primitive.material != -1)
     {
@@ -209,6 +245,11 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
 
     primitivesGeneralInfos.emplace_back(this_primitiveInitInfo);
     primitivesTransparencyFlags.emplace_back(isTransparent);
+
+    if (recordingOBBtree)
+    {
+        recorderPrimitivesCPUdatas.emplace_back(this_primitiveCPUdata);
+    }
 }
 
 void PrimitivesOfMeshes::FlashDevice()
@@ -450,19 +491,36 @@ void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_
     primitivesSetsNameToVector_umap.emplace(in_primitives_set_specs.primitivesSetName, std::move(this_set_primitiveSpecificSetInfo));
 }
 
-void PrimitivesOfMeshes::StartRecordOBB()
+void PrimitivesOfMeshes::StartRecordOBBtree()
 {
-    recordingOBB = true;
+    recordingOBBtree = true;
 }
 
-OBB PrimitivesOfMeshes::GetOBBandReset()
+OBBtree PrimitivesOfMeshes::GetOBBtreeAndReset()
 {
-    OBB return_OBB = OBB::CreateOBB(pointsOfRecordingOBB);
-    pointsOfRecordingOBB.clear();
+    std::vector<Triangle> triangles;
 
-    recordingOBB = false;
+    for (PrimitiveCPUdata& this_primitiveCPUdata : recorderPrimitivesCPUdatas)
+    {
+        if (this_primitiveCPUdata.isSkin == false)
+        {
+            std::vector<Triangle> this_triangles_list = Triangle::CreateTriangleList(this_primitiveCPUdata.points, this_primitiveCPUdata.indices, this_primitiveCPUdata.drawMode);
 
-    return return_OBB;
+            std::copy(this_triangles_list.begin(),
+                      this_triangles_list.end(),
+                      std::back_inserter(triangles));
+        }
+    }
+
+    OBBtree return_OBBtree;
+
+    if(triangles.size())
+        return_OBBtree = OBBtree::OBBtree(std::move(triangles));
+
+    recorderPrimitivesCPUdatas.clear();
+    recordingOBBtree = false;
+
+    return return_OBBtree;
 }
 
 const std::vector<PrimitiveSpecificSetInfo>& PrimitivesOfMeshes::GetPrimitivesSetInfos(std::string in_primitives_set_name) const

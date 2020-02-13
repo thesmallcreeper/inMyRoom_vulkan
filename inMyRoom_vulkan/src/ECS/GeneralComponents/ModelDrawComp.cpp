@@ -1,5 +1,5 @@
 #include "ECS/GeneralComponents/ModelDrawComp.h"
-#include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/SkinComp.h"
 
 #include "ECS/ECSwrapper.h"
@@ -19,8 +19,8 @@ DrawRequestsBatch ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNod
                                                       PrimitivesOfMeshes* primitivesOfMeshes_ptr,                 
                                                       FrustumCulling* frustemCulling_ptr) const
 {
-    componentID nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::NodeGlobalMatrix);
-    NodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr = static_cast<NodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
+    componentID nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);
+    LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr = static_cast<LateNodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
 
     componentID skin_componentID = static_cast<componentID>(componentIDenum::Skin);
     SkinComp* const skinComp_ptr = static_cast<SkinComp*>(ecsWrapper_ptr->GetComponentByID(skin_componentID));

@@ -15,7 +15,7 @@ void MeshesOfNodes::AddMeshesOfModel(const tinygltf::Model& in_model)
     {
         MeshInfo this_mesh_range;
 
-        primitivesOfMeshes_ptr->StartRecordOBB();
+        primitivesOfMeshes_ptr->StartRecordOBBtree();
 
         this_mesh_range.primitiveFirstOffset = primitivesOfMeshes_ptr->GetPrimitivesCount();
         this_mesh_range.primitiveRangeSize = this_mesh.primitives.size();
@@ -23,10 +23,10 @@ void MeshesOfNodes::AddMeshesOfModel(const tinygltf::Model& in_model)
         for (tinygltf::Primitive this_primitive : this_mesh.primitives)
             primitivesOfMeshes_ptr->AddPrimitive(in_model, this_primitive);
 
-        this_mesh_range.boundBox = primitivesOfMeshes_ptr->GetOBBandReset();
+        this_mesh_range.boundBoxTree = primitivesOfMeshes_ptr->GetOBBtreeAndReset();
 
         meshes.emplace_back(this_mesh_range);
-    }
+    }   
 
     modelToMeshIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), meshesSoFar);
 
@@ -42,7 +42,7 @@ size_t MeshesOfNodes::GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model)
     return search->second;
 }
 
-MeshInfo MeshesOfNodes::GetMesh(size_t this_mesh_index) const
+const MeshInfo* MeshesOfNodes::GetMeshInfoPtr(size_t this_mesh_index) const
 {
-    return meshes[this_mesh_index];
+    return &meshes[this_mesh_index];
 }

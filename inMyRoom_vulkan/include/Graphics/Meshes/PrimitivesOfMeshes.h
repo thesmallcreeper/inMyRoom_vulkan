@@ -5,7 +5,8 @@
 
 #include "tiny_gltf.h"
 
-#include "Geometry/OBB.h"
+#include "Geometry/OBBtree.h"
+#include "Geometry/Triangle.h"
 
 #include "Graphics/PipelinesFactory.h"
 #include "Graphics/ShadersSetsFamiliesCache.h"
@@ -30,6 +31,14 @@ struct PrimitiveGeneralInfo
 
     uint32_t materialIndex = -1;
     MaterialMapsIndexes materialMaps;
+};
+
+struct PrimitiveCPUdata
+{
+    std::vector<glm::vec3> points;
+    std::vector<uint32_t> indices;
+    glTFmode drawMode;
+    bool isSkin = false;
 };
 
 struct PrimitiveSpecificSetInfo
@@ -99,9 +108,9 @@ public: // functions
     size_t GetPrimitivesCount();
     bool IsPrimitiveTransparent(size_t primitive_index);
 
-    void StartRecordOBB();
+    void StartRecordOBBtree();
 
-    OBB  GetOBBandReset();
+    OBBtree  GetOBBtreeAndReset();
 
     const std::vector<PrimitiveSpecificSetInfo>& GetPrimitivesSetInfos(std::string in_primitives_set_name) const;
     const std::vector<PrimitiveGeneralInfo>& GetPrimitivesGeneralInfos() const;
@@ -148,8 +157,8 @@ private: // data
     std::vector<unsigned char> localJoints0Buffer;
     std::vector<unsigned char> localWeights0Buffer;
 
-    std::vector<glm::vec3> pointsOfRecordingOBB;
-    bool recordingOBB = false;
+    std::vector<PrimitiveCPUdata> recorderPrimitivesCPUdatas;
+    bool recordingOBBtree = false;
 
     std::unordered_map<std::string, std::vector<PrimitiveSpecificSetInfo>> primitivesSetsNameToVector_umap;
     std::vector<PrimitiveGeneralInfo> primitivesGeneralInfos;

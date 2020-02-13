@@ -4,7 +4,7 @@
 
 #ifndef GAME_DLL
 #include "ECS/GeneralComponents/ModelDrawComp.h"
-#include "ECS/GeneralComponents/NodeGlobalMatrixComp.h"
+#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/SkinComp.h"
 
 ModelDrawComp* ModelDrawCompEntity::modelDrawComp_ptr = nullptr;
@@ -79,7 +79,7 @@ std::vector<std::pair<std::string, MapType>> ModelDrawCompEntity::GetComponentIn
     return return_pair;
 }
 
-void ModelDrawCompEntity::DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
+void ModelDrawCompEntity::DrawUsingFrustumCull(class LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
                                                class SkinComp* skin_ptr,
                                                MeshesOfNodes* meshesOfNodes_ptr,
                                                PrimitivesOfMeshes* primitivesOfMeshes_ptr,
@@ -89,18 +89,17 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeG
 {
     if (shouldDraw)
     {
-        NodeGlobalMatrixCompEntity* this_meshGlobalMatrix_ptr = reinterpret_cast<NodeGlobalMatrixCompEntity*>(nodeGlobalMatrixComp_ptr->GetComponentEntity(thisEntity));
+        LateNodeGlobalMatrixCompEntity* this_meshGlobalMatrix_ptr = reinterpret_cast<LateNodeGlobalMatrixCompEntity*>(nodeGlobalMatrixComp_ptr->GetComponentEntity(thisEntity));
         const glm::mat4x4 this_global_matrix = this_meshGlobalMatrix_ptr->globalMatrix;
 
-        MeshInfo this_mesh_info = meshesOfNodes_ptr->GetMesh(meshIndex);
+        const MeshInfo* this_mesh_info_ptr = meshesOfNodes_ptr->GetMeshInfoPtr(meshIndex);
 
         if(!disableCulling)
         {
-            const OBB& this_OBB = this_mesh_info.boundBox;
-            Cuboid this_cuboid = this_global_matrix * this_OBB;
+            Cuboid this_cuboid = this_global_matrix * this_mesh_info_ptr->boundBoxTree.GetOBB();
 
             if (frustumCulling_ptr->IsCuboidInsideFrustum(this_cuboid)) // per mesh-object OBB culling
-                for (size_t primitive_index = this_mesh_info.primitiveFirstOffset; primitive_index < this_mesh_info.primitiveFirstOffset + this_mesh_info.primitiveRangeSize; primitive_index++)
+                for (size_t primitive_index = this_mesh_info_ptr->primitiveFirstOffset; primitive_index < this_mesh_info_ptr->primitiveFirstOffset + this_mesh_info_ptr->primitiveRangeSize; primitive_index++)
                 {
                     DrawRequest this_draw_request;
                     this_draw_request.primitiveIndex = primitive_index;
@@ -128,7 +127,7 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(class NodeGlobalMatrixComp* nodeG
         }
         else
         {
-            for (size_t primitive_index = this_mesh_info.primitiveFirstOffset; primitive_index < this_mesh_info.primitiveFirstOffset + this_mesh_info.primitiveRangeSize; primitive_index++)
+            for (size_t primitive_index = this_mesh_info_ptr->primitiveFirstOffset; primitive_index < this_mesh_info_ptr->primitiveFirstOffset + this_mesh_info_ptr->primitiveRangeSize; primitive_index++)
             {
                 DrawRequest this_draw_request;
                 this_draw_request.primitiveIndex = primitive_index;

@@ -28,7 +28,7 @@ enum class glTFmode
 {
     points = 0,
     line = 1,
-    loop = 2,
+    line_loop = 2,
     line_strip = 3,
     triangles = 4,
     triangle_strip = 5,

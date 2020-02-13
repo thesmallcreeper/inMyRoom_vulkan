@@ -30,16 +30,18 @@
     <ClCompile Include="src\ECS\GeneralCompEntities\AnimationComposerCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\CameraCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.cpp" />
+    <ClCompile Include="src\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp" />
-    <ClCompile Include="src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp" />
+    <ClCompile Include="src\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\NodeDataCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\SkinCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\AnimationActorComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\AnimationComposerComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\CameraComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\CameraDefaultInputComp.cpp" />
+    <ClCompile Include="src\ECS\GeneralComponents\LateNodeGlobalMatrixComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\ModelDrawComp.cpp" />
-    <ClCompile Include="src\ECS\GeneralComponents\NodeGlobalMatrixComp.cpp" />
+    <ClCompile Include="src\ECS\GeneralComponents\EarlyNodeGlobalMatrixComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\NodeDataComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\SkinComp.cpp" />
     <ClCompile Include="src\ExportedFunctionsConstructor.cpp" />
@@ -48,7 +50,10 @@
     <ClCompile Include="src\Geometry\Cuboid.cpp" />
     <ClCompile Include="src\Geometry\FrustumCulling.cpp" />
     <ClCompile Include="src\Geometry\OBB.cpp" />
+    <ClCompile Include="src\Geometry\OBBtree.cpp" />
     <ClCompile Include="src\Geometry\Plane.cpp" />
+    <ClCompile Include="src\Geometry\Ray.cpp" />
+    <ClCompile Include="src\Geometry\Triangle.cpp" />
     <ClCompile Include="src\Geometry\ViewportFrustum.cpp" />
     <ClCompile Include="src\Graphics\Drawer.cpp" />
     <ClCompile Include="src\Graphics\Graphics.cpp" />
@@ -85,16 +90,18 @@
     <ClInclude Include="include\ECS\GeneralCompEntities\AnimationComposerCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\CameraCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.h" />
+    <ClInclude Include="include\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelDrawCompEntity.h" />
-    <ClInclude Include="include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h" />
+    <ClInclude Include="include\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\NodeDataCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\SkinCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralComponents\AnimationActorComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\AnimationComposerComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\CameraComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\CameraDefaultInputComp.h" />
+    <ClInclude Include="include\ECS\GeneralComponents\LateNodeGlobalMatrixComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\ModelDrawComp.h" />
-    <ClInclude Include="include\ECS\GeneralComponents\NodeGlobalMatrixComp.h" />
+    <ClInclude Include="include\ECS\GeneralComponents\EarlyNodeGlobalMatrixComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\NodeDataComp.h" />
     <ClInclude Include="include\const_maps.h" />
     <ClInclude Include="include\ECS\GeneralComponents\SkinComp.h" />
@@ -105,7 +112,9 @@
     <ClInclude Include="include\Geometry\Cuboid.h" />
     <ClInclude Include="include\Geometry\FrustumCulling.h" />
     <ClInclude Include="include\Geometry\OBB.h" />
+    <ClInclude Include="include\Geometry\OBBtree.h" />
     <ClInclude Include="include\Geometry\Plane.h" />
+    <ClInclude Include="include\Geometry\Ray.h" />
     <ClInclude Include="include\Geometry\ViewportFrustum.h" />
     <ClInclude Include="include\glTFenum.h" />
     <ClInclude Include="include\Graphics\Drawer.h" />
@@ -138,7 +147,7 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{A083354F-720F-4FBE-A55F-3BDA1C509136}</ProjectGuid>
     <RootNamespace>inMyRoomvulkan</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

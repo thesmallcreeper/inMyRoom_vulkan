@@ -96,13 +96,7 @@
     <ClCompile Include="src\ECS\GeneralComponents\ModelDrawComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
-    <ClCompile Include="src\ECS\GeneralComponents\NodeGlobalMatrixComp.cpp">
-      <Filter>Source Files\ECS\GeneralComponents</Filter>
-    </ClCompile>
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp">
-      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.cpp">
       <Filter>Source Files\ECS\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="src\Geometry\Cuboid.cpp">
@@ -210,6 +204,30 @@
     <ClCompile Include="src\Graphics\Meshes\AnimationsDataOfNodes.cpp">
       <Filter>Source Files\Graphics\Meshes</Filter>
     </ClCompile>
+    <ClCompile Include="src\Geometry\Ray.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="include\Geometry\Triangle.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\Triangle.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\OBBtree.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.cpp">
+      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralComponents\EarlyNodeGlobalMatrixComp.cpp">
+      <Filter>Source Files\ECS\GeneralComponents</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.cpp">
+      <Filter>Source Files\ECS\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ECS\GeneralComponents\LateNodeGlobalMatrixComp.cpp">
+      <Filter>Source Files\ECS\GeneralComponents</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -260,13 +278,7 @@
     <ClInclude Include="include\ECS\GeneralComponents\ModelDrawComp.h">
       <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
-    <ClInclude Include="include\ECS\GeneralComponents\NodeGlobalMatrixComp.h">
-      <Filter>Header Files\ECS\GeneralComponents</Filter>
-    </ClInclude>
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelDrawCompEntity.h">
-      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ECS\GeneralCompEntities\NodeGlobalMatrixCompEntity.h">
       <Filter>Header Files\ECS\GeneralCompEntities</Filter>
     </ClInclude>
     <ClInclude Include="include\Geometry\Cuboid.h">
@@ -379,6 +391,24 @@
     </ClInclude>
     <ClInclude Include="..\Compressonator\Compressonator\Applications\_Plugins\Common\stb_image.h">
       <Filter>Header Files\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Geometry\Ray.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Geometry\OBBtree.h">
+      <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralComponents\EarlyNodeGlobalMatrixComp.h">
+      <Filter>Header Files\ECS\GeneralComponents</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.h">
+      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.h">
+      <Filter>Header Files\ECS\GeneralCompEntities</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\GeneralComponents\LateNodeGlobalMatrixComp.h">
+      <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
