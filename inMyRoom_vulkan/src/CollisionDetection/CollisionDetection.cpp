@@ -10,6 +10,9 @@ CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
 
         broadPhaseCollision_uptr = std::make_unique<SweepAndPrune>(U_axis, V_axis, W_axis);
     }
+    {
+        midPhaseCollision_uptr = std::make_unique<OBBtreesCollision>();
+    }
 }
 
 void CollisionDetection::Reset()
@@ -26,7 +29,10 @@ void CollisionDetection::ExecuteCollisionDetection()
 {
     if (collisionDetectionEntries.size() < 2) return;
 
+    // Broad phase collision
     // at least one of the entries should have callback
     std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> broadPhaseResults = broadPhaseCollision_uptr->ExecuteSweepAndPrune(collisionDetectionEntries);
 
+    // Mid phase collision
+    std::vector<CSentriesPairTrianglesPairs> midPhaseResults = midPhaseCollision_uptr->ExecuteOBBtreesCollision(broadPhaseResults);
 }

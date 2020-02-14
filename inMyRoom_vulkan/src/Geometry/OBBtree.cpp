@@ -58,7 +58,7 @@ void OBBtree::SplitOBBandCreateChildren()
             right_child_triangles.clear();
 
             glm::vec4 axis = halfLength_and_OBB_axis_pairs[chosen_pair].second;
-            float projection_of_center_of_OBB_to_axis = glm::dot(OBBvolume.GetCenter(), axis);
+            float projection_of_center_of_OBB_to_axis = OBBvolume.GetCenterProjectionToAxis(axis);
 
             for (const Triangle& this_triangle : triangles)
             {

@@ -154,10 +154,7 @@ std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> SweepAn
     {
         if (it.second == 3)
         {
-            if (Cuboid::IntersectCuboidsBoolean(cuboidsCache[it.first.first], cuboidsCache[it.first.second]))
-            {
-                return_vector.emplace_back(collisionDetectionEntries[it.first.first], collisionDetectionEntries[it.first.second]);
-            }        
+            return_vector.emplace_back(collisionDetectionEntries[it.first.first], collisionDetectionEntries[it.first.second]);     
         }
     }
 

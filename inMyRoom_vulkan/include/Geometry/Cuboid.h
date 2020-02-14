@@ -17,6 +17,7 @@ public:
     static std::pair<bool, float> IntersectCuboidWithRayBooleanDistance(const Cuboid& cuboid, const Ray& ray);
 
     std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec4& in_axis) const;
+    float GetCenterProjectionToAxis(const glm::vec4& in_axis) const;
 
 public:
     float GetSurface() const;
@@ -30,7 +31,6 @@ public:
     glm::vec3 GetHalfLengths() const;
 
 private:
-    float GetCenterProjectionToAxis(const glm::vec4& in_axis) const;
     static bool DoMinMaxProjectionsToAxisIntersept(const std::pair<float, float>& lhs, const std::pair<float, float>& rhs);
 
 protected:

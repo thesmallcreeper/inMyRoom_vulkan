@@ -34,31 +34,43 @@ std::vector<Triangle> Triangle::CreateTriangleList(const std::vector<glm::vec3>&
         {
             for (size_t i = 0; i < indices.size(); i++)
                 return_vector.emplace_back(CreateTriangle(points[indices[i]], points[indices[i]], points[indices[i]]));
+
+            break;
         }
         case glTFmode::line:
         {
             for (size_t i = 0; i < indices.size() / 2; i++)
                 return_vector.emplace_back(CreateTriangle(points[indices[2 * i]], points[indices[2 * i]], points[indices[2 * i + 1]]));
+            
+            break;
         }
         case glTFmode::line_strip:
         {
             for (size_t i = 0; i < indices.size() - 1; i++)
                 return_vector.emplace_back(CreateTriangle(points[indices[i]], points[indices[i]], points[indices[i + 1]]));
+
+            break;
         }
         case glTFmode::triangles:
         {
             for (size_t i = 0; i < indices.size() / 3; i++)
                 return_vector.emplace_back(CreateTriangle(points[indices[3 * i]], points[indices[3 * i + 1]], points[indices[3 * i + 2]]));
+
+            break;
         }
         case glTFmode::triangle_strip:
         {
             for (size_t i = 0; i < indices.size() - 2; i++)
                 return_vector.emplace_back(CreateTriangle(points[indices[i]], points[indices[i + (1 + i % 2)]], points[indices[i + (2 - i % 2)]]));
+
+            break;
         }
         case glTFmode::triangle_fan:
         {
             for (size_t i = 0; i < indices.size() - 2; i++)
                 return_vector.emplace_back(CreateTriangle(points[indices[i + 1]], points[indices[i + 2]], points[indices[0]]));
+
+            break;
         }
     }
 

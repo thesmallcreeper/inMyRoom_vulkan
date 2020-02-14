@@ -7,12 +7,17 @@ Cuboid Cuboid::MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Cuboid& r
 
     return_cuboid.center = in_matrix * rhs.center;
 
-    return_cuboid.sideDirections.u = glm::normalize(in_matrix * rhs.sideDirections.u * rhs.halfLengths.x);
-    return_cuboid.halfLengths.x = glm::length(in_matrix * rhs.sideDirections.u * rhs.halfLengths.x);
-    return_cuboid.sideDirections.v = glm::normalize(in_matrix * rhs.sideDirections.v * rhs.halfLengths.y);
-    return_cuboid.halfLengths.y = glm::length(in_matrix * rhs.sideDirections.v * rhs.halfLengths.y);
-    return_cuboid.sideDirections.w = glm::normalize(in_matrix * rhs.sideDirections.w * rhs.halfLengths.z);
-    return_cuboid.halfLengths.z = glm::length(in_matrix * rhs.sideDirections.w * rhs.halfLengths.z);
+    return_cuboid.sideDirections.u = in_matrix * rhs.sideDirections.u * rhs.halfLengths.x;
+    return_cuboid.halfLengths.x = glm::length(return_cuboid.sideDirections.u);
+    return_cuboid.sideDirections.u = return_cuboid.sideDirections.u / return_cuboid.halfLengths.x;
+
+    return_cuboid.sideDirections.v = in_matrix * rhs.sideDirections.v * rhs.halfLengths.y;
+    return_cuboid.halfLengths.y = glm::length(return_cuboid.sideDirections.v);
+    return_cuboid.sideDirections.v = return_cuboid.sideDirections.v / return_cuboid.halfLengths.y;
+
+    return_cuboid.sideDirections.w = in_matrix * rhs.sideDirections.w * rhs.halfLengths.z;
+    return_cuboid.halfLengths.z = glm::length(return_cuboid.sideDirections.w);
+    return_cuboid.sideDirections.w = return_cuboid.sideDirections.w / return_cuboid.halfLengths.z;
 
     return return_cuboid;
 }
@@ -96,7 +101,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
     // cross product based tests
     {   // 7. UxU
         glm::vec4 cross_product_u_u = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.u), glm::vec3(rhs.sideDirections.u)), 0.f);
-        if (cross_product_u_u != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_u_u) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_u_u);
 
@@ -110,7 +115,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
 
     {   // 8. UxV
         glm::vec4 cross_product_u_v = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.u), glm::vec3(rhs.sideDirections.v)), 0.f);
-        if (cross_product_u_v != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_u_v) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_u_v);
 
@@ -124,7 +129,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
 
     {   // 9. UxW
         glm::vec4 cross_product_u_w = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.u), glm::vec3(rhs.sideDirections.w)), 0.f);
-        if (cross_product_u_w != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_u_w) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_u_w);
 
@@ -138,7 +143,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
 
     {   // 10. VxU
         glm::vec4 cross_product_v_u = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.v), glm::vec3(rhs.sideDirections.u)), 0.f);
-        if (cross_product_v_u != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_v_u) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_v_u);
 
@@ -152,7 +157,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
 
     {   // 11. VxV
         glm::vec4 cross_product_v_v = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.v), glm::vec3(rhs.sideDirections.v)), 0.f);
-        if (cross_product_v_v != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_v_v) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_v_v);
 
@@ -166,7 +171,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
 
     {   // 12. VxW
         glm::vec4 cross_product_v_w = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.v), glm::vec3(rhs.sideDirections.w)), 0.f);
-        if (cross_product_v_w != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_v_w) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_v_w);
 
@@ -180,7 +185,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
 
     {   // 13. WxU
         glm::vec4 cross_product_w_u = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.w), glm::vec3(rhs.sideDirections.u)), 0.f);
-        if (cross_product_w_u != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_w_u) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_w_u);
 
@@ -194,7 +199,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
 
     {   // 14. WxV
         glm::vec4 cross_product_w_v = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.w), glm::vec3(rhs.sideDirections.v)), 0.f);
-        if (cross_product_w_v != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_w_v) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_w_v);
 
@@ -208,7 +213,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
 
     {   // 15. WxW
         glm::vec4 cross_product_w_w = glm::vec4(glm::cross(glm::vec3(lhs.sideDirections.w), glm::vec3(rhs.sideDirections.w)), 0.f);
-        if (cross_product_w_w != glm::vec4(0.f, 0.f, 0.f, 0.f))
+        if (glm::length(cross_product_w_w) > 0.f)
         {
             glm::vec4 axis = glm::normalize(cross_product_w_w);
 
