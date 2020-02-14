@@ -1,5 +1,8 @@
 #include "CollisionDetection/CollisionDetection.h"
 
+#include <iostream>
+#include <algorithm>
+
 CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
     :ECSwrapper_ptr(in_ECSwrapper_ptr)
 {
@@ -12,6 +15,9 @@ CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
     }
     {
         midPhaseCollision_uptr = std::make_unique<OBBtreesCollision>();
+    }
+    {
+        narrowPhaseCollision_uptr = std::make_unique<TrianglesVsTriangles>();
     }
 }
 
@@ -35,4 +41,19 @@ void CollisionDetection::ExecuteCollisionDetection()
 
     // Mid phase collision
     std::vector<CSentriesPairTrianglesPairs> midPhaseResults = midPhaseCollision_uptr->ExecuteOBBtreesCollision(broadPhaseResults);
+
+    // Narrow phase collision
+    std::vector<CSentriesPairCollisionCenter> narrowPhaseResults = narrowPhaseCollision_uptr->ExecuteTrianglesVsTriangles(midPhaseResults);
+
+    for (const CSentriesPairCollisionCenter& this_narrowPhaseResult : narrowPhaseResults)
+    {
+        std::string first_name = ECSwrapper_ptr->GetEntitiesHandler()->GetEntityName(std::min<Entity>(this_narrowPhaseResult.firstEntry.entity, this_narrowPhaseResult.secondEntry.entity));
+        std::string second_name = ECSwrapper_ptr->GetEntitiesHandler()->GetEntityName(std::max<Entity>(this_narrowPhaseResult.firstEntry.entity, this_narrowPhaseResult.secondEntry.entity));
+
+        std::cout << first_name << "\n";
+        std::cout << second_name << "\n";
+        std::cout << "x= " << this_narrowPhaseResult.collisionPoint.x << " y= " << this_narrowPhaseResult.collisionPoint.y << " z= " << this_narrowPhaseResult.collisionPoint.z << "\n\n";
+    }
+
+    std::cout << "---\n\n";
 }

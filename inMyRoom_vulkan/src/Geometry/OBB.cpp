@@ -4,6 +4,7 @@
 
 OBB OBB::CreateOBBfromPoints(const std::vector<glm::vec3>& in_points)
 {
+    /*
     DiTO::OBB<float> dito_OBB;
     const DiTO::Vector<float>* dito_points = reinterpret_cast<const DiTO::Vector<float>*>(in_points.data());
 
@@ -24,6 +25,10 @@ OBB OBB::CreateOBBfromPoints(const std::vector<glm::vec3>& in_points)
         return_OBB = CreateAABBfromPoints(in_points);
     }
     return return_OBB;
+
+    */
+
+    return CreateAABBfromPoints(in_points);
 }
 
 OBB OBB::CreateOBBfromTriangles(const std::vector<Triangle>& in_triangles)

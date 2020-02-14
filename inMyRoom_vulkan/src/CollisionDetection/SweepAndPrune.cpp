@@ -18,8 +18,6 @@ std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> SweepAn
     std::vector<SweepAndPruneEntry> V_axis_entries;
     std::vector<SweepAndPruneEntry> W_axis_entries;
 
-    std::vector<Cuboid> cuboidsCache;
-
     for (size_t index = 0; index < collisionDetectionEntries.size(); index++)
     {
         Cuboid this_cuboid = collisionDetectionEntries[index].currentGlobalMatrix * reinterpret_cast<const OBBtree*>(collisionDetectionEntries[index].OBBtree_ptr)->GetOBB();
@@ -45,8 +43,6 @@ std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> SweepAn
             this_entry.minMaxProjection = this_cuboid.GetMinMaxProjectionToAxis(W_axis);
             W_axis_entries.emplace_back(this_entry);
         }     
-
-        cuboidsCache.emplace_back(this_cuboid);
     }
 
     std::sort(U_axis_entries.begin(), U_axis_entries.end(), 
