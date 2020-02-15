@@ -30,7 +30,9 @@ public:
     void Update(class ComponentBaseClass* nodeDataComp_bptr,
                 class ComponentBaseClass* cameraComp_bptr,
                 class ComponentBaseClass* animationComposerComp_bptr,
-                const std::chrono::duration<float> durationOfLastState);
+                const std::chrono::duration<float> update_deltaTime,
+                const std::chrono::duration<float> async_durationOfLastState);
+
     void AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState);
 
     void CollisionUpdate(class ComponentBaseClass* nodeDataComp_bptr,
@@ -51,10 +53,11 @@ public: //data
         bool movingForward = false;
         bool movingRight = false;
         bool movingLeft = false;
+        bool shouldJump = false;
     } movementState;
 
-    glm::vec3 delta_position = glm::vec3(0.f, 0.f, 0.f);
-    glm::qua<float> delta_rotation = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
+    glm::vec3 delta_position_input = glm::vec3(0.f, 0.f, 0.f);
+    glm::qua<float> delta_rotation_input = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
 
     glm::vec3 globalDirection = glm::vec3(0.f, 0.f, -1.f);
 
@@ -63,6 +66,9 @@ public: //data
     glm::vec3 upDirection = glm::vec3(0.f, -1.f, 0.f);
 
     glm::vec3 cameraOffset;
+
+    float gravitySpeed = 0.f;
+    float gravityAcceleration = 3.f;
 
     Entity animationComposerEntity;
 

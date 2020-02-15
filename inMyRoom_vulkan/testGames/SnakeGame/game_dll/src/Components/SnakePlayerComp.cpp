@@ -7,6 +7,7 @@ SnakePlayerComp::SnakePlayerComp(ECSwrapper* const in_ecs_wrapper_ptr)
     :ComponentSparseBaseClass<SnakePlayerCompEntity>(static_cast<componentID>(componentIDenum::SnakePlayer), "SnakePlayer", in_ecs_wrapper_ptr)
 {
     SnakePlayerCompEntity::snakePlayerComp_ptr = this;
+    lastSnapTimePoint = std::chrono::steady_clock::now();
 }
 
 SnakePlayerComp::~SnakePlayerComp()
@@ -19,7 +20,7 @@ void SnakePlayerComp::Update()
     auto previous_snap_timePoint = lastSnapTimePoint;
     auto next_snap_timePoint = std::chrono::steady_clock::now();
 
-    std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
+    std::chrono::duration<float> async_duration = next_snap_timePoint - previous_snap_timePoint;
 
     componentID nodeData_componentID = static_cast<componentID>(componentIDenum::NodeData);
     ComponentBaseClass* const nodeDataComp_bptr = ecsWrapper_ptr->GetComponentByID(nodeData_componentID);
@@ -31,7 +32,11 @@ void SnakePlayerComp::Update()
     ComponentBaseClass* const animationComposerComp_bptr = ecsWrapper_ptr->GetComponentByID(animationComposer_componentID);
 
     for (SnakePlayerCompEntity& this_componentEntity : componentEntitiesSparse)
-        this_componentEntity.Update(nodeDataComp_bptr, cameraComp_bptr, animationComposerComp_bptr, duration);
+        this_componentEntity.Update(nodeDataComp_bptr,
+                                    cameraComp_bptr,
+                                    animationComposerComp_bptr,
+                                    ecsWrapper_ptr->GetUpdateDeltaTime(),
+                                    async_duration);
 
     lastSnapTimePoint = next_snap_timePoint;
 }

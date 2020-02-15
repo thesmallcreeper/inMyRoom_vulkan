@@ -20,6 +20,7 @@ public:
 
     bool IsLeaf() const;
     std::vector<Triangle> GetTriangles() const;
+    const std::vector<Triangle>& GetTrianglesRef() const;
     const OBBtree* GetLeftChildPtr() const;
     const OBBtree* GetRightChildPtr() const;
 

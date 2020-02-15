@@ -63,7 +63,7 @@ OBB OBB::CreateAABBfromPoints(const std::vector<glm::vec3>& in_points)
             if (this_projection > max) max = this_projection;
         }
 
-        float delta = max - min;
+        float delta = (max - min) + 2.f * std::numeric_limits<float>::epsilon();
         float center_on_this_axis = (max + min) / 2.f;
 
         return_OBB.halfLengths.x = delta / 2.f;
@@ -80,7 +80,7 @@ OBB OBB::CreateAABBfromPoints(const std::vector<glm::vec3>& in_points)
             if (this_projection > max) max = this_projection;
         }
 
-        float delta = max - min;
+        float delta = (max - min) + 2.f * std::numeric_limits<float>::epsilon();
         float center_on_this_axis = (max + min) / 2.f;
 
         return_OBB.halfLengths.y = delta / 2.f;
@@ -97,7 +97,7 @@ OBB OBB::CreateAABBfromPoints(const std::vector<glm::vec3>& in_points)
             if (this_projection > max) max = this_projection;
         }
 
-        float delta = max - min;
+        float delta = (max - min) + 2.f * std::numeric_limits<float>::epsilon();
         float center_on_this_axis = (max + min) / 2.f;
 
         return_OBB.halfLengths.z = delta / 2.f;

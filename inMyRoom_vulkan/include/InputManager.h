@@ -86,6 +86,10 @@ private:
             "MoveRight",
             std::make_pair(std::bind(&InputManager::MoveRight, this), std::bind(&InputManager::StopMovingRight, this))
         },
+        {
+            "MoveUp",
+            std::make_pair(std::bind(&InputManager::MoveUp, this), std::bind(&InputManager::StopMovingUp, this))
+        },
         {"Exit", std::make_pair(std::bind(&InputManager::AddToQueue, this, eventInputIDenums::SHOULD_CLOSE), nullptr)},
         {"CullingDebug", std::make_pair(std::bind(&InputManager::AddToQueue, this, eventInputIDenums::TOGGLE_CULLING_DEBUG), nullptr)}
     };

@@ -116,19 +116,49 @@ void SnakePlayerCompEntity::Init()
     snake_animationComposer_compEntity_ptr->StartAnimation(true, 0.f);
 }
 
-void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr, ComponentBaseClass* cameraComp_bptr, ComponentBaseClass* animationComposerComp_bptr, const std::chrono::duration<float> durationOfLastState)
+void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
+                                   ComponentBaseClass* cameraComp_bptr,
+                                   ComponentBaseClass* animationComposerComp_bptr,
+                                   const std::chrono::duration<float> update_deltaTime,
+                                   const std::chrono::duration<float> async_durationOfLastState)
 {
-    CalculateSnap(durationOfLastState);
+    CalculateSnap(async_durationOfLastState);
 
     NodeDataCompEntity* this_nodeData_compEntity_ptr = reinterpret_cast<NodeDataCompEntity*>(nodeDataComp_bptr->GetComponentEntity(thisEntity));
     CameraCompEntity* this_camera_compEntity_ptr = reinterpret_cast<CameraCompEntity*>(cameraComp_bptr->GetComponentEntity(thisEntity));
     AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
 
     {
-        this_nodeData_compEntity_ptr->GlobalTranslate(delta_position);
-        delta_position = glm::vec3(0.f, 0.f, 0.f);
-        this_nodeData_compEntity_ptr->LocalRotate(delta_rotation);
-        delta_rotation = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
+        this_nodeData_compEntity_ptr->GlobalTranslate(delta_position_input);
+        delta_position_input = glm::vec3(0.f, 0.f, 0.f);
+        this_nodeData_compEntity_ptr->LocalRotate(delta_rotation_input);
+        delta_rotation_input = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
+    }
+
+    {
+        if (movementState.movingForward)
+            snake_animationComposer_compEntity_ptr->UnfreezeAnimation();
+        else
+            snake_animationComposer_compEntity_ptr->FreezeAnimation();
+    }
+
+    {
+        if (movementState.shouldJump)
+        {
+            if (gravitySpeed == 0.f)
+            {
+                gravitySpeed = -5.f;
+            }
+
+            movementState.shouldJump = false;
+        }
+
+        glm::vec3 gravity_distance = (gravitySpeed * update_deltaTime.count() + 0.5f * gravityAcceleration * update_deltaTime.count() * update_deltaTime.count()) * glm::vec3(0.f, 1.f, 0.f);
+        this_nodeData_compEntity_ptr->GlobalTranslate(gravity_distance);
+
+        gravitySpeed += gravityAcceleration * update_deltaTime.count();
+        if (gravitySpeed > 1.f)
+            gravitySpeed = 1.f;
     }
 
     {
@@ -145,14 +175,6 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr, Compon
                                                            globalDirection,
                                                            upDirection);
     }
-
-    {
-        if (movementState.movingForward)
-            snake_animationComposer_compEntity_ptr->UnfreezeAnimation();
-        else
-            snake_animationComposer_compEntity_ptr->FreezeAnimation();
-    }
-
 }
 
 void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bptr,
@@ -165,8 +187,13 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
     AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
 
     {
-        this_nodeData_compEntity_ptr->GlobalTranslate(this_collisionCallbackData.deltaVector * 1.4f);
-        delta_position = glm::vec3(0.f, 0.f, 0.f);
+        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 2.f;
+        if (glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f)) > 0.f)
+        {
+            delta_vector -= glm::vec3(0.f, 1.f, 0.f) * glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f));
+        }
+
+        this_nodeData_compEntity_ptr->GlobalTranslate(delta_vector);
     }
 
     {
@@ -182,6 +209,11 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
         this_camera_compEntity_ptr->UpdateCameraViewMatrix(global_space_camera,
                                                            globalDirection,
                                                            upDirection);
+    }
+
+    if (glm::dot(glm::normalize(this_collisionCallbackData.deltaVector), glm::vec3(0.f, -1.f, 0.f)) > 0.866f)
+    {
+        gravitySpeed = 0.f;
     }
 }
 
@@ -209,6 +241,9 @@ void SnakePlayerCompEntity::AsyncInput(InputType input_type, void* struct_data, 
         case InputType::StopMovingLeft:
             movementState.movingLeft = false;
             break;
+        case InputType::MoveUp:
+            movementState.shouldJump = true;
+            break;
         default:
             break;
     }
@@ -223,7 +258,7 @@ void SnakePlayerCompEntity::CalculateSnap(const std::chrono::duration<float> dur
          if (movementState.movingForward)
             position_delta_vector = durationOfLastState.count() * speed * globalDirection;
 
-        delta_position += position_delta_vector;
+        delta_position_input += position_delta_vector;
     }
 
     {
@@ -239,7 +274,7 @@ void SnakePlayerCompEntity::CalculateSnap(const std::chrono::duration<float> dur
         glm::vec4 globalDirection_vec4 = glm::mat4_cast<float>(rotation_quat) * glm::vec4(globalDirection, 0.f);
         globalDirection = glm::vec3(globalDirection_vec4.x, globalDirection_vec4.y, globalDirection_vec4.z);
 
-        delta_rotation = rotation_quat * delta_rotation;
+        delta_rotation_input = rotation_quat * delta_rotation_input;
     }
 
 }

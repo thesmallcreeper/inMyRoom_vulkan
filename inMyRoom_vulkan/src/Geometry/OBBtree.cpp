@@ -112,6 +112,11 @@ std::vector<Triangle> OBBtree::GetTriangles() const
     return triangles;
 }
 
+const std::vector<Triangle>& OBBtree::GetTrianglesRef() const
+{
+    return triangles;
+}
+
 const OBBtree* OBBtree::GetLeftChildPtr() const
 {
     return leftChild_uptr.get();
