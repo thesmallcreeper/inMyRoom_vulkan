@@ -155,6 +155,36 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr, Compon
 
 }
 
+void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bptr,
+                                            ComponentBaseClass* cameraComp_bptr,
+                                            ComponentBaseClass* animationComposerComp_bptr,
+                                            const CollisionCallbackData& this_collisionCallbackData)
+{
+    NodeDataCompEntity* this_nodeData_compEntity_ptr = reinterpret_cast<NodeDataCompEntity*>(nodeDataComp_bptr->GetComponentEntity(thisEntity));
+    CameraCompEntity* this_camera_compEntity_ptr = reinterpret_cast<CameraCompEntity*>(cameraComp_bptr->GetComponentEntity(thisEntity));
+    AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
+
+    {
+        this_nodeData_compEntity_ptr->GlobalTranslate(this_collisionCallbackData.deltaVector * 1.4f);
+        delta_position = glm::vec3(0.f, 0.f, 0.f);
+    }
+
+    {
+        glm::vec3 local_x = glm::normalize(globalDirection);
+        glm::vec3 local_z = glm::normalize(glm::cross(local_x, -upDirection));
+        glm::vec3 local_y = glm::normalize(glm::cross(local_z, local_x));
+
+        glm::mat3 local_space_mat3 = glm::mat3(local_x, local_y, local_z);
+
+        glm::vec3 global_space_camera_offset = local_space_mat3 * cameraOffset;
+        glm::vec3 global_space_camera = this_nodeData_compEntity_ptr->globalTranslation + global_space_camera_offset;
+
+        this_camera_compEntity_ptr->UpdateCameraViewMatrix(global_space_camera,
+                                                           globalDirection,
+                                                           upDirection);
+    }
+}
+
 void SnakePlayerCompEntity::AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState)
 {
     CalculateSnap(durationOfLastState);

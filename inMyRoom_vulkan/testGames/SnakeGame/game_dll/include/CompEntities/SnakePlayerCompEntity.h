@@ -33,6 +33,11 @@ public:
                 const std::chrono::duration<float> durationOfLastState);
     void AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState);
 
+    void CollisionUpdate(class ComponentBaseClass* nodeDataComp_bptr,
+                         class ComponentBaseClass* cameraComp_bptr,
+                         class ComponentBaseClass* animationComposerComp_bptr,
+                         const CollisionCallbackData& this_collisionCallbackData);
+
 private:
     void CalculateSnap(const std::chrono::duration<float> durationOfLastState);
 

@@ -106,10 +106,9 @@ TriangleRayInterseptionInfo Triangle::InterseptTriangleWithRayInfo(const Triangl
     glm::vec3 origin = glm::vec3(ray.GetOrigin());
     glm::vec3 direction = glm::vec3(ray.GetDirection());
 
-    glm::vec3 inter_position;
+    glm::vec2 bary_position;
 
-    return_info.doIntersept = glm::intersectLineTriangle(origin, direction, _p0, _p1, _p2, inter_position);
-    return_info.distanceFromOrigin = glm::dot(direction, inter_position - origin);
+    return_info.doIntersept = glm::intersectRayTriangle(origin, direction, _p0, _p1, _p2, bary_position, return_info.distanceFromOrigin);
 
     return return_info;
 }

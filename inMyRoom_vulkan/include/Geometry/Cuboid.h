@@ -14,7 +14,7 @@ public:
     static Cuboid MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Cuboid& rhs);
 
     static bool IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs);
-    static std::pair<bool, float> IntersectCuboidWithRayBooleanDistance(const Cuboid& cuboid, const Ray& ray);
+    static std::pair<bool, std::pair<float, float>> IntersectCuboidWithRayBooleanMinMax(const Cuboid& cuboid, const Ray& ray);
 
     std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec4& in_axis) const;
     float GetCenterProjectionToAxis(const glm::vec4& in_axis) const;

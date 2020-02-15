@@ -23,6 +23,7 @@ public:
 
     std::vector<componentID> GetComponentsOfEntity(Entity this_entity);
     std::vector<Entity> GetChildrenOfEntity(Entity this_entity);
+    Entity GetParentOfEntity(Entity this_entity);
 
     // Callbacks
     void EntityAttachedTo(Entity this_entity, componentID at_component);

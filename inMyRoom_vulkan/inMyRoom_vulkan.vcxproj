@@ -22,7 +22,7 @@
     <ClCompile Include="..\DiTO\dito.cpp" />
     <ClCompile Include="src\CollisionDetection\CollisionDetection.cpp" />
     <ClCompile Include="src\CollisionDetection\OBBtreesCollision.cpp" />
-    <ClCompile Include="src\CollisionDetection\RayDistance.cpp" />
+    <ClCompile Include="src\CollisionDetection\RayDeltaUncollide.cpp" />
     <ClCompile Include="src\CollisionDetection\SweepAndPrune.cpp" />
     <ClCompile Include="src\CollisionDetection\TrianglesVsTriangles.cpp" />
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp" />
@@ -87,7 +87,7 @@
     <ClInclude Include="..\tinygltf\tiny_gltf.h" />
     <ClInclude Include="include\CollisionDetection\CollisionDetection.h" />
     <ClInclude Include="include\CollisionDetection\OBBtreesCollision.h" />
-    <ClInclude Include="include\CollisionDetection\RayDistance.h" />
+    <ClInclude Include="include\CollisionDetection\RayDeltaUncollide.h" />
     <ClInclude Include="include\CollisionDetection\SweepAndPrune.h" />
     <ClInclude Include="include\CollisionDetection\TrianglesVsTriangles.h" />
     <ClInclude Include="include\ECS\ComponentBaseClass.h" />
@@ -129,6 +129,7 @@
     <ClInclude Include="include\Geometry\OBBtree.h" />
     <ClInclude Include="include\Geometry\Plane.h" />
     <ClInclude Include="include\Geometry\Ray.h" />
+    <ClInclude Include="include\Geometry\Triangle.h" />
     <ClInclude Include="include\Geometry\ViewportFrustum.h" />
     <ClInclude Include="include\glTFenum.h" />
     <ClInclude Include="include\Graphics\Drawer.h" />

@@ -1,6 +1,5 @@
 #include "CollisionDetection/CollisionDetection.h"
 
-#include <iostream>
 #include <algorithm>
 
 CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
@@ -18,6 +17,9 @@ CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
     }
     {
         narrowPhaseCollision_uptr = std::make_unique<TrianglesVsTriangles>();
+    }
+    {
+        rayDeltaUncollide_uptr = std::make_unique<RayDeltaUncollide>(5.f);
     }
 }
 
@@ -45,15 +47,59 @@ void CollisionDetection::ExecuteCollisionDetection()
     // Narrow phase collision
     std::vector<CSentriesPairCollisionCenter> narrowPhaseResults = narrowPhaseCollision_uptr->ExecuteTrianglesVsTriangles(midPhaseResults);
 
-    for (const CSentriesPairCollisionCenter& this_narrowPhaseResult : narrowPhaseResults)
+    for (CSentriesPairCollisionCenter& this_narrowPhaseResult : narrowPhaseResults)
     {
-        std::string first_name = ECSwrapper_ptr->GetEntitiesHandler()->GetEntityName(std::min<Entity>(this_narrowPhaseResult.firstEntry.entity, this_narrowPhaseResult.secondEntry.entity));
-        std::string second_name = ECSwrapper_ptr->GetEntitiesHandler()->GetEntityName(std::max<Entity>(this_narrowPhaseResult.firstEntry.entity, this_narrowPhaseResult.secondEntry.entity));
+        if (this_narrowPhaseResult.firstEntry.entity > this_narrowPhaseResult.secondEntry.entity)
+        {
+            std::swap(this_narrowPhaseResult.firstEntry, this_narrowPhaseResult.secondEntry);
+        }
 
-        std::cout << first_name << "\n";
-        std::cout << second_name << "\n";
-        std::cout << "x= " << this_narrowPhaseResult.collisionPoint.x << " y= " << this_narrowPhaseResult.collisionPoint.y << " z= " << this_narrowPhaseResult.collisionPoint.z << "\n\n";
+        CollisionCallbackData first_collisionCallbackData;
+        first_collisionCallbackData.familyEntity = this_narrowPhaseResult.firstEntry.entity;
+        first_collisionCallbackData.collideWithEntity = this_narrowPhaseResult.secondEntry.entity;
+
+        CollisionCallbackData second_collisionCallbackData;
+        second_collisionCallbackData.familyEntity = this_narrowPhaseResult.secondEntry.entity;
+        second_collisionCallbackData.collideWithEntity = this_narrowPhaseResult.firstEntry.entity;
+
+        if(this_narrowPhaseResult.firstEntry.currentGlobalMatrix != this_narrowPhaseResult.firstEntry.previousGlobalMatrix ||
+           this_narrowPhaseResult.secondEntry.currentGlobalMatrix != this_narrowPhaseResult.secondEntry.previousGlobalMatrix)
+        {
+            std::pair<glm::vec3, glm::vec3> delta = rayDeltaUncollide_uptr->ExecuteRayDeltaUncollide(this_narrowPhaseResult);
+
+            first_collisionCallbackData.deltaVector = delta.first;
+            second_collisionCallbackData.deltaVector = delta.second;
+        }
+
+        Entity first_entity_ancestor = first_collisionCallbackData.familyEntity;
+        Entity second_entity_ancestor = second_collisionCallbackData.familyEntity;
+        while (first_entity_ancestor != second_entity_ancestor)
+        {
+            while (second_entity_ancestor > first_entity_ancestor)
+            {
+                if(this_narrowPhaseResult.secondEntry.shouldCallback)
+                    CallbackEntity(second_entity_ancestor, second_collisionCallbackData);
+
+                second_entity_ancestor = ECSwrapper_ptr->GetEntitiesHandler()->GetParentOfEntity(second_entity_ancestor);
+            }
+
+            if (first_entity_ancestor != second_entity_ancestor)
+            {
+                if (this_narrowPhaseResult.firstEntry.shouldCallback)
+                    CallbackEntity(first_entity_ancestor, first_collisionCallbackData);
+
+                first_entity_ancestor = ECSwrapper_ptr->GetEntitiesHandler()->GetParentOfEntity(first_entity_ancestor);
+            }
+        }
     }
+}
 
-    std::cout << "---\n\n";
+void CollisionDetection::CallbackEntity(Entity this_entity, const CollisionCallbackData& collision_callback_data)
+{
+    std::vector<componentID> components_of_entity = ECSwrapper_ptr->GetEntitiesHandler()->GetComponentsOfEntity(this_entity);
+    for (const componentID this_component_of_entity_ID : components_of_entity)
+    {
+        ComponentBaseClass* this_component_of_entity_ptr = ECSwrapper_ptr->GetComponentByID(this_component_of_entity_ID);
+        this_component_of_entity_ptr->CollisionCallback(collision_callback_data);
+    }
 }

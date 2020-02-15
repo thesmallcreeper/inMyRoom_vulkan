@@ -228,7 +228,7 @@ bool Cuboid::IntersectCuboidsBoolean(const Cuboid& lhs, const Cuboid& rhs)
     return true;
 }
 
-std::pair<bool, float> Cuboid::IntersectCuboidWithRayBooleanDistance(const Cuboid& cuboid, const Ray& ray)
+std::pair<bool, std::pair<float, float>> Cuboid::IntersectCuboidWithRayBooleanMinMax(const Cuboid& cuboid, const Ray& ray)
 {
     // Code based on Realtime Rendering (RTR) 4th edition p. 960
     static const float epsilon = 1.0E-16;
@@ -252,10 +252,10 @@ std::pair<bool, float> Cuboid::IntersectCuboidWithRayBooleanDistance(const Cuboi
             if (t2 < max_distance) max_distance = t2;
 
             if(min_distance > max_distance || max_distance < 0.f)
-                return std::make_pair(false, 0.f);
+                return std::make_pair(false, std::make_pair(0.f, 0.f));
         }
         else if (-e - cuboid.halfLengths.x > 0.f || -e + cuboid.halfLengths.x < 0.f)
-            return std::make_pair(false, 0.f);
+            return std::make_pair(false, std::make_pair(0.f, 0.f));
     }
 
     {  // 2. V test
@@ -272,10 +272,10 @@ std::pair<bool, float> Cuboid::IntersectCuboidWithRayBooleanDistance(const Cuboi
             if (t2 < max_distance) max_distance = t2;
 
             if (min_distance > max_distance || max_distance < 0.f)
-                return std::make_pair(false, 0.f);
+                return std::make_pair(false, std::make_pair(0.f, 0.f));
         }
         else if (-e - cuboid.halfLengths.y > 0.f || -e + cuboid.halfLengths.y < 0.f)
-            return std::make_pair(false, 0.f);
+            return std::make_pair(false, std::make_pair(0.f, 0.f));
     }
 
     {  // 3. W test
@@ -292,16 +292,13 @@ std::pair<bool, float> Cuboid::IntersectCuboidWithRayBooleanDistance(const Cuboi
             if (t2 < max_distance) max_distance = t2;
 
             if (min_distance > max_distance || max_distance < 0.f)
-                return std::make_pair(false, 0.f);
+                return std::make_pair(false, std::make_pair(0.f, 0.f));
         }
         else if (-e - cuboid.halfLengths.z > 0.f || -e + cuboid.halfLengths.z < 0.f)
-            return std::make_pair(false, 0.f);
+            return std::make_pair(false, std::make_pair(0.f, 0.f));
     }
 
-    if (min_distance > 0.f)
-        return std::make_pair(true, min_distance);
-    else
-        return std::make_pair(true, max_distance);
+    return std::make_pair(true, std::make_pair(min_distance, max_distance));
 }
 
 std::pair<float, float> Cuboid::GetMinMaxProjectionToAxis(const glm::vec4& in_axis) const

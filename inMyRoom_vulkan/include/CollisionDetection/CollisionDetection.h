@@ -6,7 +6,7 @@
 #include "CollisionDetection/SweepAndPrune.h"
 #include "CollisionDetection/OBBtreesCollision.h"
 #include "CollisionDetection/TrianglesVsTriangles.h"
-#include "CollisionDetection/RayDistance.h"
+#include "CollisionDetection/RayDeltaUncollide.h"
 
 class CollisionDetection
 {
@@ -19,12 +19,15 @@ public:
     void ExecuteCollisionDetection();
 
 private:
+    void CallbackEntity(Entity this_entity, const CollisionCallbackData& collision_callback_data);
+
+private:
     std::vector<CollisionDetectionEntry> collisionDetectionEntries;
 
     std::unique_ptr<SweepAndPrune> broadPhaseCollision_uptr;
     std::unique_ptr<OBBtreesCollision> midPhaseCollision_uptr;
     std::unique_ptr<TrianglesVsTriangles> narrowPhaseCollision_uptr;
-    std::unique_ptr<RayDistance> rayDistance_uptr;
+    std::unique_ptr<RayDeltaUncollide> rayDeltaUncollide_uptr;
 
     ECSwrapper* const ECSwrapper_ptr;
 };

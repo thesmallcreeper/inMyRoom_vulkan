@@ -186,6 +186,14 @@ std::vector<Entity> EntitiesHandler::GetChildrenOfEntity(Entity this_entity)
     return return_vector;
 }
 
+Entity EntitiesHandler::GetParentOfEntity(Entity this_entity)
+{
+    assert(this_entity < componentsOfEachEntity.size());
+    assert(parentOfEachEntity[this_entity] != -1 && this_entity != 0);
+
+    return parentOfEachEntity[this_entity];
+}
+
 void EntitiesHandler::EntityAttachedTo(Entity this_entity, componentID at_component)
 {
     assert(this_entity < componentsOfEachEntity.size());

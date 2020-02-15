@@ -49,4 +49,19 @@ void SnakePlayerComp::AsyncInput(InputType input_type, void* struct_data)
     lastSnapTimePoint = next_snap_timePoint;
 }
 
+void SnakePlayerComp::CollisionCallback(const CollisionCallbackData& this_collisionCallbackData)
+{
+    componentID nodeData_componentID = static_cast<componentID>(componentIDenum::NodeData);
+    ComponentBaseClass* const nodeDataComp_bptr = ecsWrapper_ptr->GetComponentByID(nodeData_componentID);
+
+    componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
+    ComponentBaseClass* const cameraComp_bptr = ecsWrapper_ptr->GetComponentByID(camera_componentID);
+
+    componentID animationComposer_componentID = static_cast<componentID>(componentIDenum::AnimationComposer);
+    ComponentBaseClass* const animationComposerComp_bptr = ecsWrapper_ptr->GetComponentByID(animationComposer_componentID);
+
+    for (SnakePlayerCompEntity& this_componentEntity : componentEntitiesSparse)
+        this_componentEntity.CollisionUpdate(nodeDataComp_bptr, cameraComp_bptr, animationComposerComp_bptr, this_collisionCallbackData);
+}
+
 

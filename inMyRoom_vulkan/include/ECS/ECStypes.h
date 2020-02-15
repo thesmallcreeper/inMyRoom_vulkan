@@ -131,3 +131,10 @@ struct CollisionDetectionEntry
 
     Entity entity;
 };
+
+struct CollisionCallbackData
+{
+    Entity familyEntity;
+    Entity collideWithEntity;
+    glm::vec3 deltaVector = glm::vec3(0.f, 0.f, 0.f);
+};
