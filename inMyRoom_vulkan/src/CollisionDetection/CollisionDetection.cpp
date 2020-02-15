@@ -19,7 +19,7 @@ CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
         narrowPhaseCollision_uptr = std::make_unique<TrianglesVsTriangles>();
     }
     {
-        rayDeltaUncollide_uptr = std::make_unique<RayDeltaUncollide>(10.f);
+        rayDeltaUncollide_uptr = std::make_unique<RayDeltaUncollide>(25.f);
     }
 }
 

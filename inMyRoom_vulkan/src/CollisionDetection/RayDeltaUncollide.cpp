@@ -49,10 +49,8 @@ std::pair<glm::vec3, glm::vec3> RayDeltaUncollide::ExecuteRayDeltaUncollide(cons
     }
     else
     {
-        best_intersept_distance_first_to_second = distance_collision_previousFrame * 0.6f;
+        best_intersept_distance_first_to_second = ray_distance_bias * 0.9f;
         first_to_second_normal_found = second_to_first_previousFrame_direction;
-
-        std::cout << "Hey!\n";
     }
 
     Ray second_to_first_ray = Ray::CreateRay(glm::vec3(collision_point_worldspace) - ray_distance_bias * second_to_first_previousFrame_direction,
@@ -80,10 +78,8 @@ std::pair<glm::vec3, glm::vec3> RayDeltaUncollide::ExecuteRayDeltaUncollide(cons
     }
     else
     {
-        best_intersept_distance_second_to_first = distance_collision_previousFrame * 0.6f;
+        best_intersept_distance_second_to_first = ray_distance_bias * 0.9f;
         second_to_first_normal_found = first_to_second_previousFrame_direction;
-
-        std::cout << "Hey!\n";
     }
 
     float delta = ((2 * ray_distance_bias - best_intersept_distance_first_to_second) + (2 * ray_distance_bias - best_intersept_distance_second_to_first)) - 2 * ray_distance_bias;

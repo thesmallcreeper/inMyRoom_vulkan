@@ -147,7 +147,7 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
         {
             if (gravitySpeed == 0.f)
             {
-                gravitySpeed = -5.f;
+                gravitySpeed = -10.f;
             }
 
             movementState.shouldJump = false;
@@ -157,8 +157,8 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
         this_nodeData_compEntity_ptr->GlobalTranslate(gravity_distance);
 
         gravitySpeed += gravityAcceleration * update_deltaTime.count();
-        if (gravitySpeed > 1.f)
-            gravitySpeed = 1.f;
+        if (gravitySpeed > 2.5f)
+            gravitySpeed = 2.5f;
     }
 
     {
@@ -187,7 +187,7 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
     AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
 
     {
-        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 2.f;
+        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 1.3f;
         if (glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f)) > 0.f)
         {
             delta_vector -= glm::vec3(0.f, 1.f, 0.f) * glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f));

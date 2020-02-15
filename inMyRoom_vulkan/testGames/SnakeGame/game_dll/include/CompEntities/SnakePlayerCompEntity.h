@@ -68,7 +68,7 @@ public: //data
     glm::vec3 cameraOffset;
 
     float gravitySpeed = 0.f;
-    float gravityAcceleration = 3.f;
+    float gravityAcceleration = 7.f;
 
     Entity animationComposerEntity;
 
