@@ -72,6 +72,7 @@ public: //data
     float gravityAcceleration = 7.f;
 
     bool isHumanPlayer = false;
+    bool isGoingToDelete = false;
 
     Entity animationComposerEntity;
 

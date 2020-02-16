@@ -215,12 +215,6 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
             movementState.shouldJump = true;
         }
     }
-
-    Entity default_camera_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->FindEntityByName("_defaultCamera");
-    snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(default_camera_entity);
-
-    Entity parent_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(thisEntity);
-    snakePlayerComp_ptr->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(parent_entity);
 }
 
 void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bptr,
@@ -233,7 +227,7 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
     AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
 
     {
-        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 1.4f;
+        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 1.1f;
         if (glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f)) > 0.f)
         {
             delta_vector -= glm::vec3(0.f, 1.f, 0.f) * glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f));
@@ -262,35 +256,58 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
         gravitySpeed = 0.f;
     }
 
-    if (isHumanPlayer)
+    if (isHumanPlayer && !isGoingToDelete)
     {
-        std::string collided_with_name = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetEntityName(this_collisionCallbackData.collideWithEntity);
-        auto search = collided_with_name.find("snake");
-        if (search != std::string::npos)
         {
-            Entity default_camera_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->FindEntityByName("_defaultCamera");
-            CameraDefaultInputCompEntity* default_camera_input = reinterpret_cast<CameraDefaultInputCompEntity*>(snakePlayerComp_ptr->
-                                                                                                                 GetECSwrapper()->
-                                                                                                                 GetComponentByID(static_cast<componentID>(componentIDenum::CameraDefaultInput))->
-                                                                                                                 GetComponentEntity(default_camera_entity));
+            std::string collided_with_name = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetEntityName(this_collisionCallbackData.collideWithEntity);
+            auto search = collided_with_name.find("snake");
+            if (search != std::string::npos)
             {
-                glm::vec3 local_x = glm::normalize(globalDirection);
-                glm::vec3 local_z = glm::normalize(glm::cross(local_x, -upDirection));
-                glm::vec3 local_y = glm::normalize(glm::cross(local_z, local_x));
+                Entity default_camera_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->FindEntityByName("_defaultCamera");
+                CameraDefaultInputCompEntity* default_camera_input = reinterpret_cast<CameraDefaultInputCompEntity*>(snakePlayerComp_ptr->
+                                                                                                                     GetECSwrapper()->
+                                                                                                                     GetComponentByID(static_cast<componentID>(componentIDenum::CameraDefaultInput))->
+                                                                                                                     GetComponentEntity(default_camera_entity));
+                {
+                    glm::vec3 local_x = glm::normalize(globalDirection);
+                    glm::vec3 local_z = glm::normalize(glm::cross(local_x, -upDirection));
+                    glm::vec3 local_y = glm::normalize(glm::cross(local_z, local_x));
 
-                glm::mat3 local_space_mat3 = glm::mat3(local_x, local_y, local_z);
+                    glm::mat3 local_space_mat3 = glm::mat3(local_x, local_y, local_z);
 
-                glm::vec3 global_space_camera_offset = local_space_mat3 * cameraOffset;
-                glm::vec3 global_space_camera = this_nodeData_compEntity_ptr->globalTranslation + global_space_camera_offset;
+                    glm::vec3 global_space_camera_offset = local_space_mat3 * cameraOffset;
+                    glm::vec3 global_space_camera = this_nodeData_compEntity_ptr->globalTranslation + global_space_camera_offset;
 
-                default_camera_input->globalPosition = global_space_camera;
-                default_camera_input->globalDirection = globalDirection;
+                    default_camera_input->globalPosition = global_space_camera;
+                    default_camera_input->globalDirection = globalDirection;
+                }
+
+                snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(default_camera_entity);
+
+                Entity parent_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(thisEntity);
+                snakePlayerComp_ptr->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(parent_entity);
+
+                isGoingToDelete = true;
             }
+        }
+        {
+            std::string collided_with_name = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetEntityName(this_collisionCallbackData.collideWithEntity);
+            auto search = collided_with_name.find("apple");
+            if (search != std::string::npos)
+            {
+                this_nodeData_compEntity_ptr->LocalScale(glm::vec3(1.5f, 1.5f, 1.5f));
 
-            snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(default_camera_entity);
+                Entity apple_main_entity = this_collisionCallbackData.collideWithEntity;
+                while (true)
+                {
+                    Entity temp = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(apple_main_entity);
+                    if (temp != 0)
+                        apple_main_entity = temp;
+                    else break;
+                }
 
-            Entity parent_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(thisEntity);
-            snakePlayerComp_ptr->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(parent_entity);
+                snakePlayerComp_ptr->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(apple_main_entity);
+            }
         }
     }
 }

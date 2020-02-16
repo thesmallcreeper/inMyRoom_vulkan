@@ -156,6 +156,8 @@ void ECSwrapper::CompleteAddsAndRemovesUnsafe()
 
     for (auto& this_entity : entitesThatGoingToGetEmptyToRemove)
         entitiesHandler_uptr->DeleteEmptyEntity(this_entity);
+
+    entitesThatGoingToGetEmptyToRemove.clear();
 }
 
 ExportedFunctions* ECSwrapper::GetEnginesExportedFunctions()

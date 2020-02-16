@@ -19,6 +19,8 @@ public:
     void FixedUpdate() override {};
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
 
+    void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override {};
+
 private:
     AnimationsDataOfNodes* animationsDataOfNodes_ptr;
 };

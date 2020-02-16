@@ -181,7 +181,8 @@ std::vector<Entity> EntitiesHandler::GetChildrenOfEntity(Entity this_entity)
     assert(parentOfEachEntity[this_entity] != -1 || this_entity == 0);
 
     std::vector<Entity> return_vector;
-    return_vector.assign(childrenOfEachEntity[this_entity].begin(), childrenOfEachEntity[this_entity].end());
+    for (Entity this_entity : childrenOfEachEntity[this_entity])
+        return_vector.emplace_back(this_entity);
 
     return return_vector;
 }
