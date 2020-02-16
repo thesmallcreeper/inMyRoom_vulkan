@@ -2,9 +2,11 @@
 #include "Components/SnakePlayerComp.h"
 
 #include "ECS/ECSwrapper.h"
+#include "ECS/ComponentsIDsEnum.h"
 #include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 #include "ECS/GeneralCompEntities/CameraCompEntity.h"
 #include "ECS/GeneralCompEntities/AnimationComposerCompEntity.h"
+#include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
 
 #include <cassert>
 
@@ -88,6 +90,16 @@ SnakePlayerCompEntity SnakePlayerCompEntity::CreateComponentEntityByMap(const En
         }
     }
 
+    // "IsHumanPlayer",             isHumanPlayer               = bool    (optional - default false)
+    {
+        auto search = in_map.intMap.find("IsHumanPlayer");
+        if (search != in_map.intMap.end())
+        {
+            int this_int = search->second;
+            this_snakePlayerEntity.isHumanPlayer = static_cast<bool>(this_int);
+        }
+    }
+
     return this_snakePlayerEntity;
 }
 
@@ -100,14 +112,23 @@ std::vector<std::pair<std::string, MapType>> SnakePlayerCompEntity::GetComponent
     return_pair.emplace_back(std::make_pair("CameraOffset", MapType::vec3_type));
     return_pair.emplace_back(std::make_pair("InitDirection", MapType::vec3_type));
     return_pair.emplace_back(std::make_pair("UpDirection", MapType::vec3_type));
+    return_pair.emplace_back(std::make_pair("IsHumanPlayer", MapType::bool_type));
 
     return return_pair;
 }
 
 void SnakePlayerCompEntity::Init()
 {
-    // bind snake's camera
-    snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(thisEntity);
+    if (isHumanPlayer)
+    {
+        // bind snake's camera
+        snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(thisEntity);
+    }
+    else
+    {
+        movementState.movingLeft = false;
+        movementState.movingRight = true;
+    }
 
     // start animation
     ComponentBaseClass* animationComposerComp_bptr = snakePlayerComp_ptr->GetECSwrapper()->GetComponentByID(static_cast<componentID>(componentIDenum::AnimationComposer));
@@ -122,7 +143,10 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
                                    const std::chrono::duration<float> update_deltaTime,
                                    const std::chrono::duration<float> async_durationOfLastState)
 {
-    CalculateSnap(async_durationOfLastState);
+    if (isHumanPlayer)
+        CalculateSnap(async_durationOfLastState);
+    else
+        CalculateSnap(update_deltaTime);
 
     NodeDataCompEntity* this_nodeData_compEntity_ptr = reinterpret_cast<NodeDataCompEntity*>(nodeDataComp_bptr->GetComponentEntity(thisEntity));
     CameraCompEntity* this_camera_compEntity_ptr = reinterpret_cast<CameraCompEntity*>(cameraComp_bptr->GetComponentEntity(thisEntity));
@@ -157,8 +181,8 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
         this_nodeData_compEntity_ptr->GlobalTranslate(gravity_distance);
 
         gravitySpeed += gravityAcceleration * update_deltaTime.count();
-        if (gravitySpeed > 2.5f)
-            gravitySpeed = 2.5f;
+        if (gravitySpeed > 7.5f)
+            gravitySpeed = 7.5f;
     }
 
     {
@@ -175,6 +199,28 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
                                                            globalDirection,
                                                            upDirection);
     }
+
+    if (!isHumanPlayer)
+    {
+        movementState.movingForward = true;
+
+        if (static_cast<float>(std::rand() % 100000) < 30000.f * update_deltaTime.count())
+        {
+            movementState.movingLeft = !movementState.movingLeft;
+            movementState.movingRight = !movementState.movingRight;
+        }
+
+        if (static_cast<float>(std::rand() % 100000) < 5000.f * update_deltaTime.count())
+        {
+            movementState.shouldJump = true;
+        }
+    }
+
+    Entity default_camera_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->FindEntityByName("_defaultCamera");
+    snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(default_camera_entity);
+
+    Entity parent_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(thisEntity);
+    snakePlayerComp_ptr->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(parent_entity);
 }
 
 void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bptr,
@@ -187,7 +233,7 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
     AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
 
     {
-        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 1.3f;
+        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 1.4f;
         if (glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f)) > 0.f)
         {
             delta_vector -= glm::vec3(0.f, 1.f, 0.f) * glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f));
@@ -215,10 +261,44 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
     {
         gravitySpeed = 0.f;
     }
+
+    if (isHumanPlayer)
+    {
+        std::string collided_with_name = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetEntityName(this_collisionCallbackData.collideWithEntity);
+        auto search = collided_with_name.find("snake");
+        if (search != std::string::npos)
+        {
+            Entity default_camera_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->FindEntityByName("_defaultCamera");
+            CameraDefaultInputCompEntity* default_camera_input = reinterpret_cast<CameraDefaultInputCompEntity*>(snakePlayerComp_ptr->
+                                                                                                                 GetECSwrapper()->
+                                                                                                                 GetComponentByID(static_cast<componentID>(componentIDenum::CameraDefaultInput))->
+                                                                                                                 GetComponentEntity(default_camera_entity));
+            {
+                glm::vec3 local_x = glm::normalize(globalDirection);
+                glm::vec3 local_z = glm::normalize(glm::cross(local_x, -upDirection));
+                glm::vec3 local_y = glm::normalize(glm::cross(local_z, local_x));
+
+                glm::mat3 local_space_mat3 = glm::mat3(local_x, local_y, local_z);
+
+                glm::vec3 global_space_camera_offset = local_space_mat3 * cameraOffset;
+                glm::vec3 global_space_camera = this_nodeData_compEntity_ptr->globalTranslation + global_space_camera_offset;
+
+                default_camera_input->globalPosition = global_space_camera;
+                default_camera_input->globalDirection = globalDirection;
+            }
+
+            snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(default_camera_entity);
+
+            Entity parent_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(thisEntity);
+            snakePlayerComp_ptr->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(parent_entity);
+        }
+    }
 }
 
 void SnakePlayerCompEntity::AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState)
 {
+    if (!isHumanPlayer) return;
+
     CalculateSnap(durationOfLastState);
 
     switch (input_type)

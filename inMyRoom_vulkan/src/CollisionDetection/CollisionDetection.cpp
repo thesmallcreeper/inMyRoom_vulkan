@@ -19,7 +19,7 @@ CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
         narrowPhaseCollision_uptr = std::make_unique<TrianglesVsTriangles>();
     }
     {
-        rayDeltaUncollide_uptr = std::make_unique<RayDeltaUncollide>(25.f);
+        rayDeltaUncollide_uptr = std::make_unique<RayDeltaUncollide>(30.f);
     }
 }
 
@@ -100,6 +100,6 @@ void CollisionDetection::CallbackEntity(Entity this_entity, const CollisionCallb
     for (const componentID this_component_of_entity_ID : components_of_entity)
     {
         ComponentBaseClass* this_component_of_entity_ptr = ECSwrapper_ptr->GetComponentByID(this_component_of_entity_ID);
-        this_component_of_entity_ptr->CollisionCallback(collision_callback_data);
+        this_component_of_entity_ptr->CollisionCallback(this_entity, collision_callback_data);
     }
 }

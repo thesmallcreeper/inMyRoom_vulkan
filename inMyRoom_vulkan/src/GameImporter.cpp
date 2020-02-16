@@ -668,7 +668,7 @@ void GameImporter::InitializeGame()
 
 void GameImporter::InitOneDefaultCameraAndBindIt()
 {
-    Entity default_camera_entity = AddFabAndGetRoot("_defaultCamera", 0, "");
+    Entity default_camera_entity = AddFabAndGetRoot("_defaultCamera", 0, "_defaultCamera");
     CameraComp* camera_comp_ptr = reinterpret_cast<CameraComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::Camera)));
     camera_comp_ptr->BindCameraEntity(default_camera_entity);
 }

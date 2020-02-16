@@ -22,6 +22,7 @@ public:
         "CameraOffset",             cameraOffset                = vec4.xyz
         "InitDirection",            globalDirection             = vec4.xyz  (optional-default -1, 0, 0)
         "UpDirection",              globalUp                    = vec4.xyz  (optional-default  0,-1, 0)
+        "IsHumanPlayer",            isHumanPlayer               = bool      (optional-default false)
     */
     static SnakePlayerCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
@@ -69,6 +70,8 @@ public: //data
 
     float gravitySpeed = 0.f;
     float gravityAcceleration = 7.f;
+
+    bool isHumanPlayer = false;
 
     Entity animationComposerEntity;
 
