@@ -4,15 +4,13 @@
 #include "ECS/ECSwrapper.h"
 
 CameraDefaultInputComp::CameraDefaultInputComp(ECSwrapper* const in_ecs_wrapper_ptr, float default_speed)
-    :ComponentSparseBaseClass<CameraDefaultInputCompEntity>(static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput", in_ecs_wrapper_ptr),
+    :ComponentSparseBaseClass<CameraDefaultInputCompEntity, static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput">(in_ecs_wrapper_ptr),
      default_speed(default_speed)
 {
-    CameraDefaultInputCompEntity::defaultCameraInputComp_ptr= this;
 }
 
 CameraDefaultInputComp::~CameraDefaultInputComp()
 {
-    CameraDefaultInputCompEntity::defaultCameraInputComp_ptr = nullptr;
 }
 
 void CameraDefaultInputComp::Update()

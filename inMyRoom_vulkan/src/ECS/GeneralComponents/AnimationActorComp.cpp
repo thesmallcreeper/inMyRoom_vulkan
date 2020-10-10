@@ -4,15 +4,13 @@
 #include "ECS/ECSwrapper.h"
 
 AnimationActorComp::AnimationActorComp(ECSwrapper* const in_ecs_wrapper_ptr, AnimationsDataOfNodes* in_animationsDataOfNodes_ptr)
-    :ComponentSparseBaseClass<AnimationActorCompEntity>(static_cast<componentID>(componentIDenum::AnimationActor), "AnimationActor", in_ecs_wrapper_ptr),
+    :ComponentSparseBaseClass<AnimationActorCompEntity, static_cast<componentID>(componentIDenum::AnimationActor), "AnimationActor">(in_ecs_wrapper_ptr),
      animationsDataOfNodes_ptr(in_animationsDataOfNodes_ptr)
 {
-    AnimationActorCompEntity::animationActorComp_ptr = this;
 }
 
 AnimationActorComp::~AnimationActorComp()
 {
-    AnimationActorCompEntity::animationActorComp_ptr = nullptr;
 }
 
 void AnimationActorComp::Update() //ComponentSparseBaseClass

@@ -1,23 +1,24 @@
 #pragma once
 
-#include "ECS/ECStypes.h"
+#include "ECS/CompEntityBase.h"
 
 #include "Geometry/ViewportFrustum.h"
 
 
-
-
-
-#ifndef GAME_DLL
+#ifdef GAME_DLL
+class CameraCompEntity;
+class CameraComp
+    :public ComponentBaseWrappedClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera"> {};
+#else
 class CameraComp;
 #endif
 
-class CameraCompEntity
+class CameraCompEntity :
+    public CompEntityBase<CameraComp>
 {
 #ifndef GAME_DLL
 public:
-    CameraCompEntity(const Entity this_entity);
-    ~CameraCompEntity();
+    CameraCompEntity(Entity this_entity);
 
     static CameraCompEntity GetEmpty();
 
@@ -30,15 +31,11 @@ public:
         "GlobalDirection",   globalDirection         = vec4.xyz      (optional-default  0, 0, 1)
         "UpDirection",       globalUp                = vec4.xyz      (optional-default  0,-1, 0)
     */
-    static CameraCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
+    static CameraCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
     void Update(bool cull_debugging);
-
-private: // static_variable
-    friend class CameraComp;
-    static CameraComp* cameraComp_ptr;
 
 #endif
 public: // public functions
@@ -53,6 +50,4 @@ public: // public functions
 public:
     ViewportFrustum cameraViewportFrustum;
     ViewportFrustum cullingViewportFrustum;
-
-    Entity thisEntity;
 };

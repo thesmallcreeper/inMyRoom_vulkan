@@ -5,16 +5,12 @@
 #ifndef GAME_DLL
 #include "ECS/GeneralComponents/EarlyNodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
-#include "Graphics/Meshes/MeshesOfNodes.h"
 
-ModelCollisionComp* ModelCollisionCompEntity::modelCollisionComp_ptr = nullptr;
+#include "Graphics/Meshes/MeshesOfNodes.h"
+#include "CollisionDetection/CollisionDetection.h"
 
 ModelCollisionCompEntity::ModelCollisionCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-ModelCollisionCompEntity::~ModelCollisionCompEntity()
+    :CompEntityBase<ModelCollisionComp>(this_entity)
 {
 }
 
@@ -79,11 +75,11 @@ void ModelCollisionCompEntity::AddCollisionDetectionEntryToVector(EarlyNodeGloba
 {
     if (!disableCollision)
     {
-        EarlyNodeGlobalMatrixCompEntity* this_thisFrameNodeGlobalMatrix_ptr = reinterpret_cast<EarlyNodeGlobalMatrixCompEntity*>(thisFrameNodeGlobalMatrix_ptr->GetComponentEntity(thisEntity));
-        const glm::mat4x4 this_frame_global_matrix = this_thisFrameNodeGlobalMatrix_ptr->globalMatrix;
+        EarlyNodeGlobalMatrixCompEntity& this_thisFrameNodeGlobalMatrix_ptr = thisFrameNodeGlobalMatrix_ptr->GetComponentEntity(thisEntity);
+        const glm::mat4x4 this_frame_global_matrix = this_thisFrameNodeGlobalMatrix_ptr.globalMatrix;
 
-        LateNodeGlobalMatrixCompEntity* this_previousFrameNodeGlobalMatrix_ptr = reinterpret_cast<LateNodeGlobalMatrixCompEntity*>(previousFrameNodeGlobalMatrix_ptr->GetComponentEntity(thisEntity));
-        const glm::mat4x4 previous_frame_global_matrix = this_previousFrameNodeGlobalMatrix_ptr->globalMatrix;
+        LateNodeGlobalMatrixCompEntity& this_previousFrameNodeGlobalMatrix_ptr = previousFrameNodeGlobalMatrix_ptr->GetComponentEntity(thisEntity);
+        const glm::mat4x4 previous_frame_global_matrix = this_previousFrameNodeGlobalMatrix_ptr.globalMatrix;
 
         CollisionDetectionEntry this_collisionDetectionEntry;
         this_collisionDetectionEntry.currentGlobalMatrix = this_frame_global_matrix;

@@ -4,15 +4,13 @@
 #include "ECS/ECSwrapper.h"
 
 SkinComp::SkinComp(ECSwrapper* const in_ecs_wrapper_ptr, SkinsOfMeshes* in_skinsOfMeshes_ptr)
-    :ComponentSparseBaseClass<SkinCompEntity>(static_cast<componentID>(componentIDenum::Skin), "Skin", in_ecs_wrapper_ptr),
+    :ComponentSparseBaseClass<SkinCompEntity, static_cast<componentID>(componentIDenum::Skin), "Skin">(in_ecs_wrapper_ptr),
      skinsOfMeshes_ptr(in_skinsOfMeshes_ptr)
 {
-    SkinCompEntity::skinComp_ptr = this;
 }
 
 SkinComp::~SkinComp()
 {
-    SkinCompEntity::skinComp_ptr = nullptr;
 }
 
 void SkinComp::Update() //ComponentSparseBaseClass

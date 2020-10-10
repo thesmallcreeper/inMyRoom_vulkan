@@ -1,39 +1,42 @@
 #pragma once
 
-#include "ECS/ECStypes.h"
+#include "ECS/CompEntityBase.h"
+
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
 #include <chrono>
 #include <unordered_map>
 #include <string>
 
 
-#ifndef GAME_DLL
-    class AnimationActorComp;
+#ifdef GAME_DLL
+class AnimationActorCompEntity;
+class AnimationActorComp :
+    public ComponentBaseWrappedClass<AnimationActorCompEntity, static_cast<componentID>(componentIDenum::AnimationActor), "AnimationActor"> {};
+#else
+class AnimationActorComp;
 #endif
 
-    // TODO cubic interpolation
-class AnimationActorCompEntity
+// TODO cubic interpolation
+class AnimationActorCompEntity :
+    public CompEntityBase<AnimationActorComp>
 {
 #ifndef GAME_DLL
 public:
-    AnimationActorCompEntity(const Entity this_entity);
-    ~AnimationActorCompEntity();
+    AnimationActorCompEntity(Entity this_entity);
 
     static AnimationActorCompEntity GetEmpty();
 
     /*  CreateComponentEntityByMap - AnimationActorCompEntity
-        "Animation_X",                              animations_umap[X]                  = string                (name/declaration of the animation)
-        "ANIMATION-NAME_PATH_key_X_interpolation"   ANIMATION-NAME_input[X].PATH.intep  = int                   InterpolationType     
-        "ANIMATION-NAME_PATH_key_X_time"            ANIMATION-NAME_input[X].PATH.time   = float                 (time of the key)
-        "ANIMATION-NAME_PATH_key_X_data"            ANIMATION-NAME_input[X].PATH.data   = vec4.????             (path_data)
+        "Animation_X",  animations_umap[X]  = string  (name/declaration of the animation)
     */
-    static AnimationActorCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
+    static AnimationActorCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(class NodeDataComp* const positionComp_ptr,
-                class AnimationsDataOfNodes* const animationDataOfNodes_ptr,
-                const std::chrono::duration<float> deltaTime);
+    void Update(NodeDataComp* positionComp_ptr,
+                class AnimationsDataOfNodes* animationDataOfNodes_ptr,
+                std::chrono::duration<float> deltaTime);
 
 private: // help functions
     float GetAnimationTimeLength(const AnimationData& animation_data);
@@ -45,13 +48,10 @@ private: // help functions
                                            std::pair<float, glm::qua<float>> timeAndTranslation_lower_pair,
                                            std::pair<float, glm::qua<float>> timeAndTranslation_upper_pair);
 
-private: // static variable
-    friend class AnimationActorComp;
-    static AnimationActorComp* animationActorComp_ptr;
 #endif
 
 public: // public functions
-    void StartAnimation(class ComponentBaseClass* const positionComp_bptr, std::string animation_name, bool should_loop, float time_offset);
+    void StartAnimation(NodeDataComp* positionComp_ptr, std::string animation_name, bool should_loop, float time_offset);
     void FreezeAnimation();
     void UnfreezeAnimation();
 
@@ -66,7 +66,4 @@ public: // data
     glm::vec3 translationT0;
     glm::qua<float> rotationT0;
     glm::vec3 scaleT0;
-
-    Entity thisEntity;
-
 };

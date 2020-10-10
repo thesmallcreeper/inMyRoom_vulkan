@@ -1,23 +1,26 @@
 #pragma once
 
-#include "ECS/ECStypes.h"
+#include "ECS/CompEntityBase.h"
 
 #include "glm/vec3.hpp"
 #include "glm/mat4x4.hpp"
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
-
-#ifndef GAME_DLL
+#ifdef GAME_DLL
+class NodeDataCompEntity;
+class NodeDataComp :
+    public ComponentBaseWrappedClass<NodeDataCompEntity, static_cast<componentID>(componentIDenum::NodeData), "NodeData"> {};
+#else
 class NodeDataComp;
 #endif
 
-class NodeDataCompEntity
+class NodeDataCompEntity :
+    public CompEntityBase<NodeDataComp>
 {
 #ifndef GAME_DLL
 public:
-    NodeDataCompEntity(const Entity this_entity);
-    ~NodeDataCompEntity();
+    NodeDataCompEntity(Entity this_entity);
 
     static NodeDataCompEntity GetEmpty();
 
@@ -27,26 +30,22 @@ public:
         "LocalTranslation",     localTranslation.xyz    = vec4.xyz      (optional)
         "GlobalTranslation",    globalTranslation.xyz   = vec4.xyz      (optional)
     */
-    static NodeDataCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
+    static NodeDataCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
-    glm::mat4x4 GetGlobalMatrix(const glm::mat4x4 parent_global_matrix);
+    glm::mat4x4 GetGlobalMatrix(glm::mat4x4 parent_global_matrix);
 
     void Init();
 
     void Update();
 
-private: // static_variable
-    friend class NodeDataComp;
-    static NodeDataComp* positionComp_ptr;
-
 #endif
 
 public: // dll visible
-    void LocalScale(const glm::vec3 in_scale);
-    void LocalRotate(const glm::qua<float> in_rotation);
-    void LocalTranslate(const glm::vec3 in_translate);
-    void GlobalTranslate(const glm::vec3 in_translate);
+    void LocalScale(glm::vec3 in_scale);
+    void LocalRotate(glm::qua<float> in_rotation);
+    void LocalTranslate(glm::vec3 in_translate);
+    void GlobalTranslate(glm::vec3 in_translate);
 
 public: // data
     glm::vec3 localScale_old = glm::vec3(1.f, 1.f, 1.f);;
@@ -58,7 +57,5 @@ public: // data
     glm::qua<float> localRotation = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
     glm::vec3 localTranslation = glm::vec3(0.f, 0.f, 0.f);
     glm::vec3 globalTranslation = glm::vec3(0.f, 0.f, 0.f);
-
-    Entity thisEntity;
 };
 

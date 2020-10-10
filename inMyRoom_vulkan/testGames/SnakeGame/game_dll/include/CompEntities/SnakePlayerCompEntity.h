@@ -1,17 +1,21 @@
 #pragma once
 
-#include "ECS/ECStypes.h"
+#include "ECS/CompEntityBase.h"
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
+#include "ECS/GeneralCompEntities/CameraCompEntity.h"
+#include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
+#include "ECS/GeneralCompEntities/AnimationComposerCompEntity.h"
 
 #include <chrono>
 
 
 class SnakePlayerComp;
 
-class SnakePlayerCompEntity
+class SnakePlayerCompEntity :
+    public CompEntityBase<SnakePlayerComp>
 {
 public:
     SnakePlayerCompEntity(const Entity this_entity);
-    ~SnakePlayerCompEntity();
 
     static SnakePlayerCompEntity GetEmpty();
 
@@ -28,25 +32,22 @@ public:
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(class ComponentBaseClass* nodeDataComp_bptr,
-                class ComponentBaseClass* cameraComp_bptr,
-                class ComponentBaseClass* animationComposerComp_bptr,
+    void Update(NodeDataComp* nodeDataComp_ptr,
+                CameraComp* cameraComp_ptr,
+                AnimationComposerComp* animationComposerComp_ptr,
                 const std::chrono::duration<float> update_deltaTime,
                 const std::chrono::duration<float> async_durationOfLastState);
 
     void AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState);
 
-    void CollisionUpdate(class ComponentBaseClass* nodeDataComp_bptr,
-                         class ComponentBaseClass* cameraComp_bptr,
-                         class ComponentBaseClass* animationComposerComp_bptr,
+    void CollisionUpdate(NodeDataComp* nodeDataComp_ptr,
+                         CameraComp* cameraComp_ptr,
+                         CameraDefaultInputComp* cameraDefaultInputComp_ptr,
+                         AnimationComposerComp* animationComposerComp_ptr,
                          const CollisionCallbackData& this_collisionCallbackData);
 
 private:
     void CalculateSnap(const std::chrono::duration<float> durationOfLastState);
-
-private: // static_variable
-    friend class SnakePlayerComp;
-    static SnakePlayerComp* snakePlayerComp_ptr;
 
 public: //data
     struct
@@ -75,6 +76,4 @@ public: //data
     bool isGoingToDelete = false;
 
     Entity animationComposerEntity;
-
-    Entity thisEntity;
 };

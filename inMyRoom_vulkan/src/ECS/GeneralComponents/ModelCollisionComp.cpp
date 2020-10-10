@@ -6,16 +6,14 @@
 ModelCollisionComp::ModelCollisionComp(ECSwrapper* const in_ecs_wrapper_ptr,
                                        CollisionDetection* in_collisionDetection_ptr,
                                        MeshesOfNodes* in_meshesOfNodes_ptr)
-    :ComponentSparseBaseClass<ModelCollisionCompEntity>(static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision", in_ecs_wrapper_ptr),
+    :ComponentSparseBaseClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision">(in_ecs_wrapper_ptr),
      collisionDetection_ptr(in_collisionDetection_ptr),
      meshesOfNodes_ptr(in_meshesOfNodes_ptr)
 {
-    ModelCollisionCompEntity::modelCollisionComp_ptr = this;
 }
 
 ModelCollisionComp::~ModelCollisionComp()
 {
-    ModelCollisionCompEntity::modelCollisionComp_ptr = nullptr;
 }
 
 void ModelCollisionComp::Update()

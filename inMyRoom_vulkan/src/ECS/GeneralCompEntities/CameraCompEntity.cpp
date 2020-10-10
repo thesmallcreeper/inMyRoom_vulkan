@@ -5,14 +5,8 @@
 #ifndef GAME_DLL
 #include "ECS/GeneralComponents/CameraComp.h"
 
-CameraComp* CameraCompEntity::cameraComp_ptr = nullptr;
-
 CameraCompEntity::CameraCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-CameraCompEntity::~CameraCompEntity()
+    :CompEntityBase<CameraComp>(this_entity)
 {
 }
 
@@ -20,10 +14,10 @@ CameraCompEntity CameraCompEntity::GetEmpty()
 {
     CameraCompEntity this_cameraCompEntity(0);
 
-    this_cameraCompEntity.UpdateCameraPerspectiveMatrix(cameraComp_ptr->default_fovy,
-                                                        cameraComp_ptr->default_aspect,
-                                                        cameraComp_ptr->default_near,
-                                                        cameraComp_ptr->default_far);
+    this_cameraCompEntity.UpdateCameraPerspectiveMatrix(GetComponentPtr()->default_fovy,
+                                                        GetComponentPtr()->default_aspect,
+                                                        GetComponentPtr()->default_near,
+                                                        GetComponentPtr()->default_far);
 
     this_cameraCompEntity.UpdateCameraViewMatrix(glm::vec3(0.f, 0.f, 0.f),
                                                  glm::vec3(0.f, 0.f, 1.f),
@@ -40,7 +34,7 @@ CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_en
 
     {
         // "FOVy",              fovy                    = float         (optional-default from config)
-        float fovy = cameraComp_ptr->default_fovy;
+        float fovy = GetComponentPtr()->default_fovy;
         {
             auto search = in_map.floatMap.find("FOVy");
             if (search != in_map.floatMap.end())
@@ -48,7 +42,7 @@ CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_en
         }
 
         // "aspect",            aspect                  = float         (optional-default from config)  
-        float aspect = cameraComp_ptr->default_aspect;
+        float aspect = GetComponentPtr()->default_aspect;
         {
             auto search = in_map.floatMap.find("aspect");
             if (search != in_map.floatMap.end())
@@ -56,7 +50,7 @@ CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_en
         }
 
         // "nearPlane",         near                    = float         (optional-default from config)
-        float near  = cameraComp_ptr->default_near;
+        float near  = GetComponentPtr()->default_near;
         {
             auto search = in_map.floatMap.find("nearPlane");
             if (search != in_map.floatMap.end())
@@ -64,7 +58,7 @@ CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_en
         }
 
         // "farPlane",          far                     = float         (optional-default from config)
-        float far = cameraComp_ptr->default_far;
+        float far = GetComponentPtr()->default_far;
         {
             auto search = in_map.floatMap.find("farPlane");
             if (search != in_map.floatMap.end())

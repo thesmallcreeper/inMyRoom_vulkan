@@ -26,10 +26,7 @@
     <ClCompile Include="src\CollisionDetection\SweepAndPrune.cpp" />
     <ClCompile Include="src\CollisionDetection\TrianglesVsTriangles.cpp" />
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp" />
-    <ClCompile Include="src\ECS\ComponentRawBaseClass.cpp" />
-    <ClCompile Include="src\ECS\ComponentSparseBaseClass.cpp" />
     <ClCompile Include="src\ECS\ECSwrapper.cpp" />
-    <ClCompile Include="src\ECS\ExportedFunctions.cpp" />
     <ClCompile Include="src\ECS\EntitiesHandler.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\AnimationComposerCompEntity.cpp" />
@@ -75,6 +72,7 @@
     <ClCompile Include="src\Graphics\PipelinesFactory.cpp" />
     <ClCompile Include="src\Graphics\ShadersSetsFamiliesCache.cpp" />
     <ClCompile Include="src\Graphics\VulkanInit.cpp" />
+    <ClCompile Include="src\implementations.cpp" />
     <ClCompile Include="src\InputManager.cpp" />
     <ClCompile Include="src\WindowWithAsyncInput.cpp" />
     <ClCompile Include="src\Engine.cpp" />
@@ -90,7 +88,9 @@
     <ClInclude Include="include\CollisionDetection\RayDeltaUncollide.h" />
     <ClInclude Include="include\CollisionDetection\SweepAndPrune.h" />
     <ClInclude Include="include\CollisionDetection\TrianglesVsTriangles.h" />
+    <ClInclude Include="include\ECS\CompEntityBase.h" />
     <ClInclude Include="include\ECS\ComponentBaseClass.h" />
+    <ClInclude Include="include\ECS\ComponentBaseWrappedClass.h" />
     <ClInclude Include="include\ECS\ComponentRawBaseClass.h" />
     <ClInclude Include="include\ECS\ComponentsIDsEnum.h" />
     <ClInclude Include="include\ECS\ComponentSparseBaseClass.h" />
@@ -119,7 +119,9 @@
     <ClInclude Include="include\ECS\GeneralComponents\NodeDataComp.h" />
     <ClInclude Include="include\const_maps.h" />
     <ClInclude Include="include\ECS\GeneralComponents\SkinComp.h" />
+    <ClInclude Include="include\ECS\TemplateHelpers.h" />
     <ClInclude Include="include\ExportedFunctionsConstructor.h" />
+    <ClInclude Include="include\FixedString.h" />
     <ClInclude Include="include\GameDLLimporter.h" />
     <ClInclude Include="include\GameImporter.h" />
     <ClInclude Include="include\game_dll.h" />
@@ -146,6 +148,7 @@
     <ClInclude Include="include\Graphics\ShadersSetsFamiliesCache.h" />
     <ClInclude Include="include\Graphics\VulkanInit.h" />
     <ClInclude Include="include\hash_combine.h" />
+    <ClInclude Include="include\is_template_base_of.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\InputManager.h" />
@@ -232,7 +235,7 @@
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointExceptions>false</FloatingPointExceptions>
@@ -279,7 +282,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>

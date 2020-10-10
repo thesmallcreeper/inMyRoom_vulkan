@@ -7,14 +7,11 @@
 #include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/SkinComp.h"
 
-ModelDrawComp* ModelDrawCompEntity::modelDrawComp_ptr = nullptr;
+#include "Geometry/FrustumCulling.h"
+#include "Graphics/Meshes/MeshesOfNodes.h"
 
 ModelDrawCompEntity::ModelDrawCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-ModelDrawCompEntity::~ModelDrawCompEntity()
+    :CompEntityBase<ModelDrawComp>(this_entity)
 {
 }
 
@@ -79,8 +76,8 @@ std::vector<std::pair<std::string, MapType>> ModelDrawCompEntity::GetComponentIn
     return return_pair;
 }
 
-void ModelDrawCompEntity::DrawUsingFrustumCull(class LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
-                                               class SkinComp* skin_ptr,
+void ModelDrawCompEntity::DrawUsingFrustumCull(LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
+                                               SkinComp* skin_ptr,
                                                MeshesOfNodes* meshesOfNodes_ptr,
                                                PrimitivesOfMeshes* primitivesOfMeshes_ptr,
                                                FrustumCulling* frustumCulling_ptr,
@@ -89,8 +86,8 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(class LateNodeGlobalMatrixComp* n
 {
     if (shouldDraw)
     {
-        LateNodeGlobalMatrixCompEntity* this_meshGlobalMatrix_ptr = reinterpret_cast<LateNodeGlobalMatrixCompEntity*>(nodeGlobalMatrixComp_ptr->GetComponentEntity(thisEntity));
-        const glm::mat4x4 this_global_matrix = this_meshGlobalMatrix_ptr->globalMatrix;
+        LateNodeGlobalMatrixCompEntity& this_meshGlobalMatrix_ptr = nodeGlobalMatrixComp_ptr->GetComponentEntity(thisEntity);
+        const glm::mat4x4 this_global_matrix = this_meshGlobalMatrix_ptr.globalMatrix;
 
         const MeshInfo* this_mesh_info_ptr = meshesOfNodes_ptr->GetMeshInfoPtr(meshIndex);
 
@@ -112,9 +109,9 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(class LateNodeGlobalMatrixComp* n
                     }                       
                     else
                     {
-                        SkinCompEntity* this_skin_ptr = reinterpret_cast<SkinCompEntity*>(skin_ptr->GetComponentEntity(thisEntity));
-                        this_draw_request.vertexData.inverseBindMatricesOffset = this_skin_ptr->inverseBindMatricesOffset;
-                        this_draw_request.vertexData.nodesMatricesOffset = this_skin_ptr->lastNodesMatricesOffset;
+                        SkinCompEntity& this_skin_ptr = skin_ptr->GetComponentEntity(thisEntity);
+                        this_draw_request.vertexData.inverseBindMatricesOffset = this_skin_ptr.inverseBindMatricesOffset;
+                        this_draw_request.vertexData.nodesMatricesOffset = this_skin_ptr.lastNodesMatricesOffset;
 
                         this_draw_request.isSkin = true;
                     }
@@ -140,9 +137,9 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(class LateNodeGlobalMatrixComp* n
                 }
                 else
                 {
-                    SkinCompEntity* this_skin_ptr = reinterpret_cast<SkinCompEntity*>(skin_ptr->GetComponentEntity(thisEntity));
-                    this_draw_request.vertexData.inverseBindMatricesOffset = this_skin_ptr->inverseBindMatricesOffset;
-                    this_draw_request.vertexData.nodesMatricesOffset = this_skin_ptr->lastNodesMatricesOffset;
+                    SkinCompEntity& this_skin_ptr = skin_ptr->GetComponentEntity(thisEntity);
+                    this_draw_request.vertexData.inverseBindMatricesOffset = this_skin_ptr.inverseBindMatricesOffset;
+                    this_draw_request.vertexData.nodesMatricesOffset = this_skin_ptr.lastNodesMatricesOffset;
 
                     this_draw_request.isSkin = true;
                 }

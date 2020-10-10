@@ -1,6 +1,7 @@
 #include "Graphics/Meshes/SkinsOfMeshes.h"
 
 #include <cassert>
+#include <iterator>
 
 #include "misc/memory_allocator.h"
 #include "misc/buffer_create_info.h"

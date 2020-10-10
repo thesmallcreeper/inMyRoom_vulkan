@@ -120,15 +120,6 @@ void ECSwrapper::Update(bool complete_adds_and_removes)
         CompleteAddsAndRemovesUnsafe();
 }
 
-void ECSwrapper::FixedUpdate()
-{
-    std::lock_guard<std::mutex> lock(controlMutex);
-
-    for (auto& this_component : componentIDtoComponentBaseClass_map)
-        if (this_component.second != nullptr)
-            this_component.second->FixedUpdate();
-}
-
 void ECSwrapper::AsyncInput(InputType input_type, void* struct_data)
 {
     std::lock_guard<std::mutex> lock(controlMutex);

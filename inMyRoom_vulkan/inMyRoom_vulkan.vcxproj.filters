@@ -90,12 +90,6 @@
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp">
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
-    <ClCompile Include="src\ECS\ComponentRawBaseClass.cpp">
-      <Filter>Source Files\ECS</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ECS\ComponentSparseBaseClass.cpp">
-      <Filter>Source Files\ECS</Filter>
-    </ClCompile>
     <ClCompile Include="src\ECS\ECSwrapper.cpp">
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
@@ -121,9 +115,6 @@
       <Filter>Source Files\Geometry</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\EntitiesHandler.cpp">
-      <Filter>Source Files\ECS</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ECS\ExportedFunctions.cpp">
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
     <ClCompile Include="src\ExportedFunctionsConstructor.cpp">
@@ -251,6 +242,9 @@
     </ClCompile>
     <ClCompile Include="src\CollisionDetection\RayDeltaUncollide.cpp">
       <Filter>Source Files\CollisionDetection</Filter>
+    </ClCompile>
+    <ClCompile Include="src\implementations.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -457,6 +451,21 @@
     </ClInclude>
     <ClInclude Include="include\Geometry\Triangle.h">
       <Filter>Header Files\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\ComponentBaseWrappedClass.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\FixedString.h">
+      <Filter>Header Files\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\CompEntityBase.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\TemplateHelpers.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\is_template_base_of.h">
+      <Filter>Header Files\_etc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

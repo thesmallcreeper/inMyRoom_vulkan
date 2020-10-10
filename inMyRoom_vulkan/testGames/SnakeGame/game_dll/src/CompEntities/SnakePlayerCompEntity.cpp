@@ -10,14 +10,8 @@
 
 #include <cassert>
 
-SnakePlayerComp* SnakePlayerCompEntity::snakePlayerComp_ptr = nullptr;
-
 SnakePlayerCompEntity::SnakePlayerCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-SnakePlayerCompEntity::~SnakePlayerCompEntity()
+    :CompEntityBase<SnakePlayerComp>(this_entity)
 {
 }
 
@@ -56,9 +50,9 @@ SnakePlayerCompEntity SnakePlayerCompEntity::CreateComponentEntityByMap(const En
         assert(search != in_map.stringMap.end());
 
         std::string this_relative_node_name = search->second;
-        this_snakePlayerEntity.animationComposerEntity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()
-                                                                            ->FindEntityByRelativeName(this_relative_node_name,
-                                                                                                       this_snakePlayerEntity.thisEntity);
+        this_snakePlayerEntity.animationComposerEntity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()
+                                                                          ->FindEntityByRelativeName(this_relative_node_name,
+                                                                                                     this_snakePlayerEntity.thisEntity);
     }
 
     //  "CameraOffset",             cameraOffset                = vec4.xyz
@@ -122,7 +116,7 @@ void SnakePlayerCompEntity::Init()
     if (isHumanPlayer)
     {
         // bind snake's camera
-        snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(thisEntity);
+        GetComponentPtr()->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(thisEntity);
     }
     else
     {
@@ -131,15 +125,15 @@ void SnakePlayerCompEntity::Init()
     }
 
     // start animation
-    ComponentBaseClass* animationComposerComp_bptr = snakePlayerComp_ptr->GetECSwrapper()->GetComponentByID(static_cast<componentID>(componentIDenum::AnimationComposer));
-    AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
+    AnimationComposerComp* animationComposerComp_ptr = static_cast<AnimationComposerComp*>(GetComponentPtr()->GetECSwrapper()->GetComponentByID(static_cast<componentID>(componentIDenum::AnimationComposer)));
+    AnimationComposerCompEntity& snake_animationComposer_compEntity_ptr = animationComposerComp_ptr->GetComponentEntity(animationComposerEntity);
 
-    snake_animationComposer_compEntity_ptr->StartAnimation(true, 0.f);
+    snake_animationComposer_compEntity_ptr.StartAnimation(true, 0.f);
 }
 
-void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
-                                   ComponentBaseClass* cameraComp_bptr,
-                                   ComponentBaseClass* animationComposerComp_bptr,
+void SnakePlayerCompEntity::Update(NodeDataComp* nodeDataComp_ptr,
+                                   CameraComp* cameraComp_ptr,
+                                   AnimationComposerComp* animationComposerComp_ptr,
                                    const std::chrono::duration<float> update_deltaTime,
                                    const std::chrono::duration<float> async_durationOfLastState)
 {
@@ -148,22 +142,22 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
     else
         CalculateSnap(update_deltaTime);
 
-    NodeDataCompEntity* this_nodeData_compEntity_ptr = reinterpret_cast<NodeDataCompEntity*>(nodeDataComp_bptr->GetComponentEntity(thisEntity));
-    CameraCompEntity* this_camera_compEntity_ptr = reinterpret_cast<CameraCompEntity*>(cameraComp_bptr->GetComponentEntity(thisEntity));
-    AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
+    NodeDataCompEntity& this_nodeData_compEntity = nodeDataComp_ptr->GetComponentEntity(thisEntity);
+    CameraCompEntity& this_camera_compEntity = cameraComp_ptr->GetComponentEntity(thisEntity);
+    AnimationComposerCompEntity& snake_animationComposer_compEntity = animationComposerComp_ptr->GetComponentEntity(animationComposerEntity);
 
     {
-        this_nodeData_compEntity_ptr->GlobalTranslate(delta_position_input);
+        this_nodeData_compEntity.GlobalTranslate(delta_position_input);
         delta_position_input = glm::vec3(0.f, 0.f, 0.f);
-        this_nodeData_compEntity_ptr->LocalRotate(delta_rotation_input);
+        this_nodeData_compEntity.LocalRotate(delta_rotation_input);
         delta_rotation_input = glm::qua<float>(1.f, 0.f, 0.f, 0.f);
     }
 
     {
         if (movementState.movingForward)
-            snake_animationComposer_compEntity_ptr->UnfreezeAnimation();
+            snake_animationComposer_compEntity.UnfreezeAnimation();
         else
-            snake_animationComposer_compEntity_ptr->FreezeAnimation();
+            snake_animationComposer_compEntity.FreezeAnimation();
     }
 
     {
@@ -178,7 +172,7 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
         }
 
         glm::vec3 gravity_distance = (gravitySpeed * update_deltaTime.count() + 0.5f * gravityAcceleration * update_deltaTime.count() * update_deltaTime.count()) * glm::vec3(0.f, 1.f, 0.f);
-        this_nodeData_compEntity_ptr->GlobalTranslate(gravity_distance);
+        this_nodeData_compEntity.GlobalTranslate(gravity_distance);
 
         gravitySpeed += gravityAcceleration * update_deltaTime.count();
         if (gravitySpeed > 7.5f)
@@ -193,9 +187,9 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
         glm::mat3 local_space_mat3= glm::mat3( local_x , local_y , local_z );
 
         glm::vec3 global_space_camera_offset = local_space_mat3 * cameraOffset;
-        glm::vec3 global_space_camera = this_nodeData_compEntity_ptr->globalTranslation + global_space_camera_offset;
+        glm::vec3 global_space_camera = this_nodeData_compEntity.globalTranslation + global_space_camera_offset;
 
-        this_camera_compEntity_ptr->UpdateCameraViewMatrix(global_space_camera,
+        this_camera_compEntity.UpdateCameraViewMatrix(global_space_camera,
                                                            globalDirection,
                                                            upDirection);
     }
@@ -217,14 +211,15 @@ void SnakePlayerCompEntity::Update(ComponentBaseClass* nodeDataComp_bptr,
     }
 }
 
-void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bptr,
-                                            ComponentBaseClass* cameraComp_bptr,
-                                            ComponentBaseClass* animationComposerComp_bptr,
+void SnakePlayerCompEntity::CollisionUpdate(NodeDataComp* nodeDataComp_ptr,
+                                            CameraComp* cameraComp_ptr,
+                                            CameraDefaultInputComp* cameraDefaultInputComp_ptr,
+                                            AnimationComposerComp* animationComposerComp_ptr,
                                             const CollisionCallbackData& this_collisionCallbackData)
 {
-    NodeDataCompEntity* this_nodeData_compEntity_ptr = reinterpret_cast<NodeDataCompEntity*>(nodeDataComp_bptr->GetComponentEntity(thisEntity));
-    CameraCompEntity* this_camera_compEntity_ptr = reinterpret_cast<CameraCompEntity*>(cameraComp_bptr->GetComponentEntity(thisEntity));
-    AnimationComposerCompEntity* snake_animationComposer_compEntity_ptr = reinterpret_cast<AnimationComposerCompEntity*>(animationComposerComp_bptr->GetComponentEntity(animationComposerEntity));
+    NodeDataCompEntity& this_nodeData_compEntity_ptr = nodeDataComp_ptr->GetComponentEntity(thisEntity);
+    CameraCompEntity& this_camera_compEntity_ptr = cameraComp_ptr->GetComponentEntity(thisEntity);
+    AnimationComposerCompEntity& snake_animationComposer_compEntity_ptr = animationComposerComp_ptr->GetComponentEntity(animationComposerEntity);
 
     {
         glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 1.1f;
@@ -233,7 +228,7 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
             delta_vector -= glm::vec3(0.f, 1.f, 0.f) * glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f));
         }
 
-        this_nodeData_compEntity_ptr->GlobalTranslate(delta_vector);
+        this_nodeData_compEntity_ptr.GlobalTranslate(delta_vector);
     }
 
     {
@@ -244,9 +239,9 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
         glm::mat3 local_space_mat3 = glm::mat3(local_x, local_y, local_z);
 
         glm::vec3 global_space_camera_offset = local_space_mat3 * cameraOffset;
-        glm::vec3 global_space_camera = this_nodeData_compEntity_ptr->globalTranslation + global_space_camera_offset;
+        glm::vec3 global_space_camera = this_nodeData_compEntity_ptr.globalTranslation + global_space_camera_offset;
 
-        this_camera_compEntity_ptr->UpdateCameraViewMatrix(global_space_camera,
+        this_camera_compEntity_ptr.UpdateCameraViewMatrix(global_space_camera,
                                                            globalDirection,
                                                            upDirection);
     }
@@ -259,15 +254,12 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
     if (isHumanPlayer && !isGoingToDelete)
     {
         {
-            std::string collided_with_name = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetEntityName(this_collisionCallbackData.collideWithEntity);
+            std::string collided_with_name = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->GetEntityName(this_collisionCallbackData.collideWithEntity);
             auto search = collided_with_name.find("snake");
             if (search != std::string::npos)
             {
-                Entity default_camera_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->FindEntityByName("_defaultCamera");
-                CameraDefaultInputCompEntity* default_camera_input = reinterpret_cast<CameraDefaultInputCompEntity*>(snakePlayerComp_ptr->
-                                                                                                                     GetECSwrapper()->
-                                                                                                                     GetComponentByID(static_cast<componentID>(componentIDenum::CameraDefaultInput))->
-                                                                                                                     GetComponentEntity(default_camera_entity));
+                Entity default_camera_entity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->FindEntityByName("_defaultCamera");
+                CameraDefaultInputCompEntity& default_camera_input = cameraDefaultInputComp_ptr->GetComponentEntity(default_camera_entity);
                 {
                     glm::vec3 local_x = glm::normalize(globalDirection);
                     glm::vec3 local_z = glm::normalize(glm::cross(local_x, -upDirection));
@@ -276,37 +268,37 @@ void SnakePlayerCompEntity::CollisionUpdate(ComponentBaseClass* nodeDataComp_bpt
                     glm::mat3 local_space_mat3 = glm::mat3(local_x, local_y, local_z);
 
                     glm::vec3 global_space_camera_offset = local_space_mat3 * cameraOffset;
-                    glm::vec3 global_space_camera = this_nodeData_compEntity_ptr->globalTranslation + global_space_camera_offset;
+                    glm::vec3 global_space_camera = this_nodeData_compEntity_ptr.globalTranslation + global_space_camera_offset;
 
-                    default_camera_input->globalPosition = global_space_camera;
-                    default_camera_input->globalDirection = globalDirection;
+                    default_camera_input.globalPosition = global_space_camera;
+                    default_camera_input.globalDirection = globalDirection;
                 }
 
-                snakePlayerComp_ptr->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(default_camera_entity);
+                GetComponentPtr()->GetECSwrapper()->GetEnginesExportedFunctions()->BindCameraEntity(default_camera_entity);
 
-                Entity parent_entity = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(thisEntity);
-                snakePlayerComp_ptr->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(parent_entity);
+                Entity parent_entity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(thisEntity);
+                GetComponentPtr()->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(parent_entity);
 
                 isGoingToDelete = true;
             }
         }
         {
-            std::string collided_with_name = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetEntityName(this_collisionCallbackData.collideWithEntity);
+            std::string collided_with_name = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->GetEntityName(this_collisionCallbackData.collideWithEntity);
             auto search = collided_with_name.find("apple");
             if (search != std::string::npos)
             {
-                this_nodeData_compEntity_ptr->LocalScale(glm::vec3(1.5f, 1.5f, 1.5f));
+                this_nodeData_compEntity_ptr.LocalScale(glm::vec3(1.5f, 1.5f, 1.5f));
 
                 Entity apple_main_entity = this_collisionCallbackData.collideWithEntity;
                 while (true)
                 {
-                    Entity temp = snakePlayerComp_ptr->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(apple_main_entity);
+                    Entity temp = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->GetParentOfEntity(apple_main_entity);
                     if (temp != 0)
                         apple_main_entity = temp;
                     else break;
                 }
 
-                snakePlayerComp_ptr->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(apple_main_entity);
+                GetComponentPtr()->GetECSwrapper()->RemoveEntityAndChildrenFromAllComponentsAndDelete(apple_main_entity);
             }
         }
     }

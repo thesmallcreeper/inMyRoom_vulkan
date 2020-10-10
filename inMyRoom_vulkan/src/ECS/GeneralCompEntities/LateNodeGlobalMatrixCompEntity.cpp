@@ -6,14 +6,8 @@
 #include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 #include "ECS/GeneralComponents/NodeDataComp.h"
 
-LateNodeGlobalMatrixComp* LateNodeGlobalMatrixCompEntity::lateNodeGlobalMatrixComp_ptr = nullptr;
-
 LateNodeGlobalMatrixCompEntity::LateNodeGlobalMatrixCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-LateNodeGlobalMatrixCompEntity::~LateNodeGlobalMatrixCompEntity()
+    :CompEntityBase<LateNodeGlobalMatrixComp>(this_entity)
 {
 }
 
@@ -42,7 +36,7 @@ LateNodeGlobalMatrixCompEntity LateNodeGlobalMatrixCompEntity::CreateComponentEn
             auto search = in_map.stringMap.find("ParentName");
             if (search != in_map.stringMap.end())
             {
-                Entity this_entity = lateNodeGlobalMatrixComp_ptr->GetECSwrapper()->GetEntitiesHandler()->FindEntityByRelativeName(search->second, in_entity);
+                Entity this_entity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->FindEntityByRelativeName(search->second, in_entity);
                 this_lateNodeGlobalMatrixCompEntity.parentEntity = this_entity;
             }
         }
@@ -100,17 +94,18 @@ std::vector<std::pair<std::string, MapType>> LateNodeGlobalMatrixCompEntity::Get
     return return_pair;
 }
 
-void LateNodeGlobalMatrixCompEntity::Update(NodeDataComp* const positionComp_ptr)
+void LateNodeGlobalMatrixCompEntity::Update(NodeDataComp* const positionComp_ptr,
+                                            LateNodeGlobalMatrixComp* const lateNodeGlobalMatrixComp_ptr)
 {
-    NodeDataCompEntity* current_position_componentEntity = reinterpret_cast<NodeDataCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));
+    NodeDataCompEntity& current_position_componentEntity = positionComp_ptr->GetComponentEntity(thisEntity);
 
     if (parentEntity != 0)
     {
-        LateNodeGlobalMatrixCompEntity* parent_nodeGlobalMatrix_componentEntity = reinterpret_cast<LateNodeGlobalMatrixCompEntity*>(lateNodeGlobalMatrixComp_ptr->GetComponentEntity(parentEntity));
-        globalMatrix = current_position_componentEntity->GetGlobalMatrix(parent_nodeGlobalMatrix_componentEntity->globalMatrix);
+        LateNodeGlobalMatrixCompEntity& parent_nodeGlobalMatrix_componentEntity = lateNodeGlobalMatrixComp_ptr->GetComponentEntity(parentEntity);
+        globalMatrix = current_position_componentEntity.GetGlobalMatrix(parent_nodeGlobalMatrix_componentEntity.globalMatrix);
     }
     else
-        globalMatrix = current_position_componentEntity->GetGlobalMatrix(glm::mat4(1.f));
+        globalMatrix = current_position_componentEntity.GetGlobalMatrix(glm::mat4(1.f));
 
 }
 

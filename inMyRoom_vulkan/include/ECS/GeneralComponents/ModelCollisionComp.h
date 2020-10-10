@@ -9,7 +9,7 @@
 #include "Graphics/Meshes/MeshesOfNodes.h"
 
 class ModelCollisionComp
-    :public ComponentSparseBaseClass<ModelCollisionCompEntity>
+    :public ComponentSparseBaseClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision">
 {
 public:
     ModelCollisionComp(ECSwrapper* const in_ecs_wrapper_ptr,
@@ -18,7 +18,6 @@ public:
     ~ModelCollisionComp() override;
 
     void Update() override;
-    void FixedUpdate() override {};
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
 
     void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override {};

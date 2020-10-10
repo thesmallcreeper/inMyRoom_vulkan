@@ -5,14 +5,8 @@
 #ifndef GAME_DLL
 #include "ECS/GeneralComponents/NodeDataComp.h"
 
-NodeDataComp* NodeDataCompEntity::positionComp_ptr = nullptr;
-
 NodeDataCompEntity::NodeDataCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-NodeDataCompEntity::~NodeDataCompEntity()
+    :CompEntityBase<NodeDataComp>(this_entity)
 {
 }
 

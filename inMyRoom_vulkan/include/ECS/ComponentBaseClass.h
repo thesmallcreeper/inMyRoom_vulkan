@@ -15,14 +15,13 @@ class ECSwrapper;       // Forward declaration
 class ComponentBaseClass
 {
 public:
-    ComponentBaseClass(const componentID this_ID, const std::string this_name, ECSwrapper* const in_ecs_wrapper_ptr);
+    ComponentBaseClass(ECSwrapper* const in_ecs_wrapper_ptr);
     virtual ~ComponentBaseClass();
     virtual void Deinit() = 0;
 
     virtual std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const = 0;
 
     virtual void Update() = 0;
-    virtual void FixedUpdate() = 0;
     virtual void AsyncInput(InputType input_type, void* struct_data = nullptr) = 0;
 
     virtual void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) = 0;
@@ -32,10 +31,13 @@ public:
     virtual void RemoveComponentEntity(const Entity this_entity) = 0;                                              // Component entity memory specific task
     virtual void CompleteAddsAndRemoves() = 0;                                                                     // Component entity memory specific task
     virtual void InitAdds() = 0;                                                                                   // Component entity memory specific task
-    virtual ComponentEntityPtr GetComponentEntity(const Entity this_entity) = 0;                                   // Component entity memory specific task
+protected:
+    virtual ComponentEntityPtr GetComponentEntityVoidPtr(const Entity this_entity) = 0;                            // Component entity memory specific task
 
-    componentID GetComponentID() const;
-    std::string GetComponentName() const;
+public:
+    virtual componentID GetComponentID() const = 0;
+    virtual std::string GetComponentName() const = 0;
+
     ECSwrapper* GetECSwrapper() const;
 
 public:  // Only component entities should call that
@@ -46,7 +48,5 @@ protected:
     std::vector<std::pair<std::string, MapType>> componentInitMapFields;
 
     ECSwrapper* const ecsWrapper_ptr;
-    const componentID thisComponentID;
-    const std::string thisComponentName; 
 };
 

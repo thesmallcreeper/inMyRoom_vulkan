@@ -4,15 +4,13 @@
 
 
 SnakePlayerComp::SnakePlayerComp(ECSwrapper* const in_ecs_wrapper_ptr)
-    :ComponentSparseBaseClass<SnakePlayerCompEntity>(static_cast<componentID>(componentIDenum::SnakePlayer), "SnakePlayer", in_ecs_wrapper_ptr)
+    :ComponentSparseBaseClass<SnakePlayerCompEntity, static_cast<componentID>(componentIDenum::SnakePlayer), "SnakePlayer">(in_ecs_wrapper_ptr)
 {
-    SnakePlayerCompEntity::snakePlayerComp_ptr = this;
     lastSnapTimePoint = std::chrono::steady_clock::now();
 }
 
 SnakePlayerComp::~SnakePlayerComp()
 {
-    SnakePlayerCompEntity::snakePlayerComp_ptr = nullptr;
 }
 
 void SnakePlayerComp::Update()
@@ -23,18 +21,18 @@ void SnakePlayerComp::Update()
     std::chrono::duration<float> async_duration = next_snap_timePoint - previous_snap_timePoint;
 
     componentID nodeData_componentID = static_cast<componentID>(componentIDenum::NodeData);
-    ComponentBaseClass* const nodeDataComp_bptr = ecsWrapper_ptr->GetComponentByID(nodeData_componentID);
+    NodeDataComp* const nodeDataComp_ptr = static_cast<NodeDataComp*>(ecsWrapper_ptr->GetComponentByID(nodeData_componentID));
 
     componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
-    ComponentBaseClass* const cameraComp_bptr = ecsWrapper_ptr->GetComponentByID(camera_componentID);
+    CameraComp* const cameraComp_ptr = static_cast<CameraComp*>(ecsWrapper_ptr->GetComponentByID(camera_componentID));
 
     componentID animationComposer_componentID = static_cast<componentID>(componentIDenum::AnimationComposer);
-    ComponentBaseClass* const animationComposerComp_bptr = ecsWrapper_ptr->GetComponentByID(animationComposer_componentID);
+    AnimationComposerComp* const animationComposerComp_ptr = static_cast<AnimationComposerComp*>(ecsWrapper_ptr->GetComponentByID(animationComposer_componentID));
 
     for (SnakePlayerCompEntity& this_componentEntity : componentEntitiesSparse)
-        this_componentEntity.Update(nodeDataComp_bptr,
-                                    cameraComp_bptr,
-                                    animationComposerComp_bptr,
+        this_componentEntity.Update(nodeDataComp_ptr,
+                                    cameraComp_ptr,
+                                    animationComposerComp_ptr,
                                     ecsWrapper_ptr->GetUpdateDeltaTime(),
                                     async_duration);
 
@@ -57,16 +55,18 @@ void SnakePlayerComp::AsyncInput(InputType input_type, void* struct_data)
 void SnakePlayerComp::CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData)
 {
     componentID nodeData_componentID = static_cast<componentID>(componentIDenum::NodeData);
-    ComponentBaseClass* const nodeDataComp_bptr = ecsWrapper_ptr->GetComponentByID(nodeData_componentID);
+    NodeDataComp* const nodeDataComp_ptr = static_cast<NodeDataComp*>(ecsWrapper_ptr->GetComponentByID(nodeData_componentID));
 
     componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
-    ComponentBaseClass* const cameraComp_bptr = ecsWrapper_ptr->GetComponentByID(camera_componentID);
+    CameraComp* const cameraComp_ptr = static_cast<CameraComp*>(ecsWrapper_ptr->GetComponentByID(camera_componentID));
+
+    componentID cameraDefaultInput_componentID = static_cast<componentID>(componentIDenum::CameraDefaultInput);
+    CameraDefaultInputComp* const cameraDefaultInput_ptr = static_cast<CameraDefaultInputComp*>(ecsWrapper_ptr->GetComponentByID(cameraDefaultInput_componentID));
 
     componentID animationComposer_componentID = static_cast<componentID>(componentIDenum::AnimationComposer);
-    ComponentBaseClass* const animationComposerComp_bptr = ecsWrapper_ptr->GetComponentByID(animationComposer_componentID);
+    AnimationComposerComp* const animationComposerComp_ptr = static_cast<AnimationComposerComp*>(ecsWrapper_ptr->GetComponentByID(animationComposer_componentID));
 
-    reinterpret_cast<SnakePlayerCompEntity*>(GetComponentEntity(this_entity))->
-        CollisionUpdate(nodeDataComp_bptr, cameraComp_bptr, animationComposerComp_bptr, this_collisionCallbackData);
+    GetComponentEntity(this_entity).CollisionUpdate(nodeDataComp_ptr, cameraComp_ptr, cameraDefaultInput_ptr, animationComposerComp_ptr, this_collisionCallbackData);
 }
 
 

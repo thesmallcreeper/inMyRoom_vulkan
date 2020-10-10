@@ -1,20 +1,24 @@
 #pragma once
 
-#include "ECS/ECStypes.h"
+#include "ECS/CompEntityBase.h"
 
-#include "Graphics/Meshes/MeshesOfNodes.h"
-#include "CollisionDetection/CollisionDetection.h"
+#include "ECS/GeneralCompEntities/EarlyNodeGlobalMatrixCompEntity.h"
+#include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
 
-#ifndef GAME_DLL
+#ifdef GAME_DLL
+class ModelCollisionCompEntity;
+class ModelCollisionComp
+    :public ComponentBaseWrappedClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision"> {};
+#else
 class ModelCollisionComp;
 #endif
 
-class ModelCollisionCompEntity
+class ModelCollisionCompEntity :
+    public CompEntityBase<ModelCollisionComp>
 {
 #ifndef GAME_DLL
 public:
     ModelCollisionCompEntity(const Entity this_entity);
-    ~ModelCollisionCompEntity();
 
     static ModelCollisionCompEntity GetEmpty();
 
@@ -23,24 +27,19 @@ public:
             "DisableCollision",  disableCollision        = int         (optional)
             "ShouldCallback",    shouldCallback          = int         (optional)
     */
-    static ModelCollisionCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
+    static ModelCollisionCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
 
-    void AddCollisionDetectionEntryToVector(class EarlyNodeGlobalMatrixComp* thisFrameNodeGlobalMatrix_ptr,
-                                            class LateNodeGlobalMatrixComp* previousFrameNodeGlobalMatrix_ptr,
-                                            MeshesOfNodes* meshesOfNodes_ptr,
-                                            CollisionDetection* collisionDetection_ptr) const;
+    void AddCollisionDetectionEntryToVector(EarlyNodeGlobalMatrixComp* thisFrameNodeGlobalMatrix_ptr,
+                                            LateNodeGlobalMatrixComp* previousFrameNodeGlobalMatrix_ptr,
+                                            class MeshesOfNodes* meshesOfNodes_ptr,
+                                            class CollisionDetection* collisionDetection_ptr) const;
 
-private: // static variable
-    friend class ModelCollisionComp;
-    static ModelCollisionComp* modelCollisionComp_ptr;
 #endif
 public:
     uint32_t meshIndex;
     bool disableCollision = false;
     bool shouldCallback = false;
-
-    Entity thisEntity;
 };

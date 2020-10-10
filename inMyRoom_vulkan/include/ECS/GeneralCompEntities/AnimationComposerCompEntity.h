@@ -1,17 +1,21 @@
 #pragma once
 
-#include "ECS/ECStypes.h"
+#include "ECS/CompEntityBase.h"
 
-#ifndef GAME_DLL
+#ifdef GAME_DLL
+class AnimationComposerCompEntity;
+class AnimationComposerComp :
+    public ComponentBaseWrappedClass<AnimationComposerCompEntity, static_cast<componentID>(componentIDenum::AnimationComposer), "AnimationComposer"> {};
+#else
 class AnimationComposerComp;
 #endif
 
-class AnimationComposerCompEntity
+class AnimationComposerCompEntity :
+    public CompEntityBase<AnimationComposerComp>
 {
 #ifndef GAME_DLL
 public:
     AnimationComposerCompEntity(const Entity this_entity);
-    ~AnimationComposerCompEntity();
 
     static AnimationComposerCompEntity GetEmpty();
 
@@ -20,14 +24,10 @@ public:
         "NodesRelativeName_X",           nodesEntities[X]              = string    (name)
         "ShouldAutoplay",                shouldAutoplay                = int
     */
-    static AnimationComposerCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
+    static AnimationComposerCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-
-private: // static_variable
-    friend class AnimationComposerComp;
-    static AnimationComposerComp* animationComposerComp_ptr;
 
 #endif
 public: // public functions
@@ -42,5 +42,4 @@ public: // data
     bool shouldAutoplay = false;
 
     class ECSwrapper* ECSwrapper_ptr;
-    Entity thisEntity;
 };

@@ -81,11 +81,19 @@ TrianglesInterseptionInfo Triangle::InterseptTrianglesInfo(const Triangle& lhs, 
 {
     TrianglesInterseptionInfo return_info;
 
+    glm::vec4 lhs_p0 = lhs.GetP0();
+    glm::vec4 lhs_p1 = lhs.GetP1();
+    glm::vec4 lhs_p2 = lhs.GetP2();
+
+    glm::vec4 rhs_p0 = rhs.GetP0();
+    glm::vec4 rhs_p1 = rhs.GetP1();
+    glm::vec4 rhs_p2 = rhs.GetP2();
+
     int _doIntersept_int = 0;
     int _areCoplanar_int = 0;
 
-    _doIntersept_int = tri_tri_intersect_with_isectline(reinterpret_cast<float*>(&lhs.GetP0()), reinterpret_cast<float*>(&lhs.GetP1()), reinterpret_cast<float*>(&lhs.GetP2()),
-                                                        reinterpret_cast<float*>(&rhs.GetP0()), reinterpret_cast<float*>(&rhs.GetP1()), reinterpret_cast<float*>(&rhs.GetP2()),
+    _doIntersept_int = tri_tri_intersect_with_isectline(reinterpret_cast<float*>(&lhs_p0), reinterpret_cast<float*>(&lhs_p1), reinterpret_cast<float*>(&lhs_p2),
+                                                        reinterpret_cast<float*>(&rhs_p0), reinterpret_cast<float*>(&rhs_p1), reinterpret_cast<float*>(&rhs_p2),
                                                         &_areCoplanar_int,
                                                         reinterpret_cast<float*>(&return_info.source),
                                                         reinterpret_cast<float*>(&return_info.target));

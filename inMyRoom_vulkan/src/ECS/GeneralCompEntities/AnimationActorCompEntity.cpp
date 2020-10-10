@@ -14,14 +14,8 @@
 
 #include "glm/ext/quaternion_common.hpp"
 
-AnimationActorComp* AnimationActorCompEntity::animationActorComp_ptr = nullptr;
-
 AnimationActorCompEntity::AnimationActorCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-AnimationActorCompEntity::~AnimationActorCompEntity()
+    :CompEntityBase<AnimationActorComp>(this_entity)
 {
 }
 
@@ -76,7 +70,7 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
                                       AnimationsDataOfNodes* const animationDataOfNodes_ptr, 
                                       const std::chrono::duration<float> deltaTime)
 {
-    NodeDataCompEntity* current_position_componentEntity = reinterpret_cast<NodeDataCompEntity*>(positionComp_ptr->GetComponentEntity(thisEntity));
+    NodeDataCompEntity& current_position_componentEntity = positionComp_ptr->GetComponentEntity(thisEntity);
 
     if (!currentAnimationFreezed && currentAnimation_index != -1)
     {
@@ -89,9 +83,9 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
             if (currentAnimation_time > animation_length)
             {
                 currentAnimation_time = std::fmodf(currentAnimation_time, animation_length);
-                translationT0 = current_position_componentEntity->localTranslation;
-                rotationT0 = current_position_componentEntity->localRotation;
-                scaleT0 = current_position_componentEntity->localScale;
+                translationT0 = current_position_componentEntity.localTranslation;
+                rotationT0 = current_position_componentEntity.localRotation;
+                scaleT0 = current_position_componentEntity.localScale;
             }
             
 
@@ -118,9 +112,9 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
                     timeAndTranslation_upper_pair = std::make_pair(0.f, translationT0);
                 }
 
-                current_position_componentEntity->localTranslation = LinearInterpolationVec3(currentAnimation_time,
-                                                                                             timeAndTranslation_lower_pair,
-                                                                                             timeAndTranslation_upper_pair);
+                current_position_componentEntity.localTranslation = LinearInterpolationVec3(currentAnimation_time,
+                                                                                            timeAndTranslation_lower_pair,
+                                                                                            timeAndTranslation_upper_pair);
             }
 
             if (animation_data.timeToRotationKey_map.size())
@@ -146,9 +140,9 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
                     timeAndRotation_upper_pair = std::make_pair(0.f, rotationT0);
                 }
 
-                current_position_componentEntity->localRotation = LinearInterpolationQua(currentAnimation_time,
-                                                                                         timeAndRotation_lower_pair,
-                                                                                         timeAndRotation_upper_pair);
+                current_position_componentEntity.localRotation = LinearInterpolationQua(currentAnimation_time,
+                                                                                        timeAndRotation_lower_pair,
+                                                                                        timeAndRotation_upper_pair);
             }
 
             if (animation_data.timeToScaleKey_map.size())
@@ -174,9 +168,9 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
                     timeAndScale_upper_pair = std::make_pair(0.f, scaleT0);
                 }
 
-                current_position_componentEntity->localScale = LinearInterpolationVec3(currentAnimation_time,
-                                                                                       timeAndScale_lower_pair, 
-                                                                                       timeAndScale_upper_pair);
+                current_position_componentEntity.localScale = LinearInterpolationVec3(currentAnimation_time,
+                                                                                      timeAndScale_lower_pair, 
+                                                                                      timeAndScale_upper_pair);
             }
         }
         else
@@ -235,7 +229,7 @@ glm::qua<float> AnimationActorCompEntity::LinearInterpolationQua(float animation
 
 #endif
 
-void AnimationActorCompEntity::StartAnimation(ComponentBaseClass* const positionComp_bptr, std::string animation_name, bool should_loop, float time_offset)
+void AnimationActorCompEntity::StartAnimation(NodeDataComp* const positionComp_ptr, std::string animation_name, bool should_loop, float time_offset)
 {
     auto search = animationNameToAnimationIndex_umap.find(animation_name);
     assert(search != animationNameToAnimationIndex_umap.end());
@@ -245,10 +239,10 @@ void AnimationActorCompEntity::StartAnimation(ComponentBaseClass* const position
     currentAnimationShouldLoop = should_loop;
     currentAnimationFreezed = false;
 
-    NodeDataCompEntity* current_position_componentEntity = reinterpret_cast<NodeDataCompEntity*>(positionComp_bptr->GetComponentEntity(thisEntity));
-    translationT0 = current_position_componentEntity->localTranslation;
-    rotationT0 = current_position_componentEntity->localRotation;
-    scaleT0 = current_position_componentEntity->localScale;
+    NodeDataCompEntity& current_position_componentEntity = positionComp_ptr->GetComponentEntity(thisEntity);
+    translationT0 = current_position_componentEntity.localTranslation;
+    rotationT0 = current_position_componentEntity.localRotation;
+    scaleT0 = current_position_componentEntity.localScale;
 }
 
 void AnimationActorCompEntity::FreezeAnimation()

@@ -8,21 +8,15 @@
 #include "ECS/GeneralComponents/CameraDefaultInputComp.h"
 #include "ECS/GeneralComponents/CameraComp.h"
 
-CameraDefaultInputComp* CameraDefaultInputCompEntity::defaultCameraInputComp_ptr = nullptr;
-
 CameraDefaultInputCompEntity::CameraDefaultInputCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-CameraDefaultInputCompEntity::~CameraDefaultInputCompEntity()
+    :CompEntityBase<CameraDefaultInputComp>(this_entity)
 {
 }
 
 CameraDefaultInputCompEntity CameraDefaultInputCompEntity::GetEmpty()
 {
     CameraDefaultInputCompEntity this_defaultCameraInputCompEntity(0);
-    this_defaultCameraInputCompEntity.speed = defaultCameraInputComp_ptr->default_speed;
+    this_defaultCameraInputCompEntity.speed = GetComponentPtr()->default_speed;
 
     return this_defaultCameraInputCompEntity;
 }
@@ -49,7 +43,7 @@ CameraDefaultInputCompEntity CameraDefaultInputCompEntity::CreateComponentEntity
             this_defaultCameraInputCompEntity.speed = speed;
         }
         else
-            this_defaultCameraInputCompEntity.speed = defaultCameraInputComp_ptr->default_speed;
+            this_defaultCameraInputCompEntity.speed = GetComponentPtr()->default_speed;
     }
 
     // "GlobalPosition",    globalPosition          = vec4.xyz      (optional-default  0, 0, 0)
@@ -101,20 +95,23 @@ void CameraDefaultInputCompEntity::Init()
 {
 }
 
-void CameraDefaultInputCompEntity::Update(CameraComp* const cameraComp_ptr, const std::chrono::duration<float> durationOfLastState)
+void CameraDefaultInputCompEntity::Update(CameraComp* const cameraComp_ptr,
+                                          const std::chrono::duration<float> durationOfLastState)
 {
     if (!isFreezed)
     {
         CalculateSnap(durationOfLastState);
-        CameraCompEntity* this_cameraCompEntity = reinterpret_cast<CameraCompEntity*>(cameraComp_ptr->GetComponentEntity(thisEntity));
+        CameraCompEntity& this_cameraCompEntity = cameraComp_ptr->GetComponentEntity(thisEntity);
 
-        this_cameraCompEntity->UpdateCameraViewMatrix(globalPosition,
-                                                      globalDirection,
-                                                      upDirection);
+        this_cameraCompEntity.UpdateCameraViewMatrix(globalPosition,
+                                                     globalDirection,
+                                                     upDirection);
     }
 }
 
-void CameraDefaultInputCompEntity::AsyncInput(InputType input_type, void* struct_data, const std::chrono::duration<float> durationOfLastState)
+void CameraDefaultInputCompEntity::AsyncInput(InputType input_type,
+                                              void* struct_data,
+                                              const std::chrono::duration<float> durationOfLastState)
 {
     if (!isFreezed)
     {

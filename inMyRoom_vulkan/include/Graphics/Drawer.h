@@ -12,21 +12,7 @@
 
 #include "Graphics/Meshes/PrimitivesOfMeshes.h"
 
-struct DrawRequest
-{
-    bool isSkin;
-    uint32_t objectID;
-    size_t primitiveIndex;
-    union
-    {
-        glm::mat4x4 TRSmatrix;
-        struct
-        {
-            uint32_t inverseBindMatricesOffset;
-            uint32_t nodesMatricesOffset;
-        };
-    } vertexData;
-};
+#include "ECS/ECStypes.h"
 
 struct DescriptorSetsPtrsCollection
 {

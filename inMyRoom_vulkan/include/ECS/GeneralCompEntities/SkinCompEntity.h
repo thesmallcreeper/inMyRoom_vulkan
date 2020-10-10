@@ -1,23 +1,23 @@
 #pragma once
 
-#include "ECS/ECStypes.h"
+#include "ECS/CompEntityBase.h"
 
-#include "Graphics/Meshes/SkinsOfMeshes.h"
+#include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
 
-
-
-
-
-#ifndef GAME_DLL
+#ifdef GAME_DLL
+class SkinCompEntity;
+class SkinComp 
+    :public ComponentBaseWrappedClass<SkinCompEntity, static_cast<componentID>(componentIDenum::Skin), "Skin"> {};
+#else
 class SkinComp;
 #endif
 
-class SkinCompEntity
+class SkinCompEntity :
+    public CompEntityBase<SkinComp>
 {
 #ifndef GAME_DLL
 public:
-    SkinCompEntity(const Entity this_entity);
-    ~SkinCompEntity();
+    SkinCompEntity(Entity this_entity);
 
     static SkinCompEntity GetEmpty();
 
@@ -25,15 +25,12 @@ public:
         "InverseBindMatricesOffset",     inverseBindMatricesOffset     = int
         "JointRelativeName_X",           jointEntities[X]              = string    (name)
     */
-    static SkinCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
+    static SkinCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(class LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr, SkinsOfMeshes* skinsOfMeshes_ptr);
-
-private: // static_variable
-    friend class SkinComp;
-    static SkinComp* skinComp_ptr;
+    void Update(LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
+                class SkinsOfMeshes* skinsOfMeshes_ptr);
 
 #endif
 public: // data
@@ -41,7 +38,4 @@ public: // data
 
     uint32_t inverseBindMatricesOffset;
     uint32_t lastNodesMatricesOffset;
-
-    Entity thisEntity;
-
 };

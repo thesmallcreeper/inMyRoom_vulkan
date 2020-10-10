@@ -12,14 +12,13 @@ struct DrawRequestsBatch
 };
 
 class ModelDrawComp
-    :public ComponentSparseBaseClass<ModelDrawCompEntity>
+    :public ComponentSparseBaseClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw">
 {
 public:
     ModelDrawComp(ECSwrapper* const in_ecs_wrapper_ptr);
     ~ModelDrawComp() override;
 
     void Update() override {};
-    void FixedUpdate() override {};
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
 
     void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override {};

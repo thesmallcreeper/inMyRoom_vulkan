@@ -6,15 +6,8 @@
 #include "ECS/GeneralComponents/SkinComp.h"
 #include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 
-
-SkinComp* SkinCompEntity::skinComp_ptr = nullptr;
-
 SkinCompEntity::SkinCompEntity(const Entity this_entity)
-    :thisEntity(this_entity)
-{
-}
-
-SkinCompEntity::~SkinCompEntity()
+    :CompEntityBase<SkinComp>(this_entity)
 {
 }
 
@@ -48,9 +41,9 @@ SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity
             auto search = in_map.stringMap.find(map_search_string);
             std::string this_relative_node_name = search->second;
 
-            Entity this_joint_entity = skinComp_ptr->GetECSwrapper()->GetEntitiesHandler()
-                                                   ->FindEntityByRelativeName(this_relative_node_name,
-                                                                              this_skinCompEntity.thisEntity);
+            Entity this_joint_entity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()
+                                                        ->FindEntityByRelativeName(this_relative_node_name,
+                                                                                   this_skinCompEntity.thisEntity);
 
             this_skinCompEntity.jointEntities.emplace_back(this_joint_entity);
 
@@ -79,8 +72,8 @@ void SkinCompEntity::Update(LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp
 
     for (const Entity this_jointEntity : jointEntities)
     {
-        LateNodeGlobalMatrixCompEntity* this_nodeGlobalMatrixCompEntity_ptr = reinterpret_cast<LateNodeGlobalMatrixCompEntity*>(nodeGlobalMatrixComp_ptr->GetComponentEntity(this_jointEntity));
-        glm::mat4 joint_global_matrix = this_nodeGlobalMatrixCompEntity_ptr->globalMatrix;
+        LateNodeGlobalMatrixCompEntity& this_nodeGlobalMatrixCompEntity_ptr = nodeGlobalMatrixComp_ptr->GetComponentEntity(this_jointEntity);
+        glm::mat4 joint_global_matrix = this_nodeGlobalMatrixCompEntity_ptr.globalMatrix;
             
         skinsOfMeshes_ptr->AddNodeMatrix(joint_global_matrix);
     }

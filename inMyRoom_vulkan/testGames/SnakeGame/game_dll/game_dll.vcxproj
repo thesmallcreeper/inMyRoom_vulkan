@@ -19,7 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\include\ECS\CompEntityBase.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentBaseClass.h" />
+    <ClInclude Include="..\..\..\include\ECS\ComponentBaseWrappedClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentRawBaseClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentsIDsEnum.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentSparseBaseClass.h" />
@@ -46,11 +48,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\ECS\ComponentBaseClass.cpp" />
-    <ClCompile Include="..\..\..\src\ECS\ComponentRawBaseClass.cpp" />
-    <ClCompile Include="..\..\..\src\ECS\ComponentSparseBaseClass.cpp" />
     <ClCompile Include="..\..\..\src\ECS\ECSwrapper.cpp" />
     <ClCompile Include="..\..\..\src\ECS\EntitiesHandler.cpp" />
-    <ClCompile Include="..\..\..\src\ECS\ExportedFunctions.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationComposerCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraCompEntity.cpp" />
@@ -146,6 +145,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;GAMEDLL_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -163,7 +163,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
@@ -186,6 +186,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;GAMEDLL_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -207,7 +208,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>

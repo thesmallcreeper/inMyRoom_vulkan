@@ -1,16 +1,16 @@
 #pragma once
 
-#include "ECS/ComponentBaseClass.h"
+#include "ECS/ComponentBaseWrappedClass.h"
 
 #include <utility>
 
-template<typename ComponentEntityType>
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
 class ComponentRawBaseClass :
-    public ComponentBaseClass
+    public ComponentBaseWrappedClass<ComponentEntityType, component_ID, component_name>
 {
 public:
-    ComponentRawBaseClass(const componentID this_ID, const std::string this_name, ECSwrapper* const in_ecs_wrapper_ptr);
-    virtual ~ComponentRawBaseClass() override;
+    ComponentRawBaseClass(ECSwrapper* const in_ecs_wrapper_ptr);
+    ~ComponentRawBaseClass() override;
     void Deinit() override;
 
 //  void Update() override;
@@ -24,7 +24,7 @@ public:
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
     void InitAdds() override;                                                                                   // Component entity memory specific task
-    ComponentEntityPtr GetComponentEntity(const Entity this_entity) override;                                   // Component entity memory specific task
+    ComponentEntityPtr GetComponentEntityVoidPtr(const Entity this_entity) override;                                   // Component entity memory specific task
 
 protected:
     std::vector<ComponentEntityType> componentEntitiesRaw;
@@ -41,22 +41,22 @@ private:
 
 // -----SOURCE-----
 
-template<typename ComponentEntityType>
-inline ComponentRawBaseClass<ComponentEntityType>::ComponentRawBaseClass(const componentID this_ID, const std::string this_name, ECSwrapper* const in_ecs_wrapper_ptr)
-    :ComponentBaseClass::ComponentBaseClass(this_ID, this_name, in_ecs_wrapper_ptr)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::ComponentRawBaseClass(ECSwrapper* const in_ecs_wrapper_ptr)
+    :ComponentBaseWrappedClass<ComponentEntityType, component_ID, component_name>::ComponentBaseWrappedClass(in_ecs_wrapper_ptr)
 {
     componentEntitiesRaw.emplace_back(ComponentEntityType::GetEmpty());
     isItEmptyRawVector.emplace_back(true);
 }
 
-template<typename ComponentEntityType>
-ComponentRawBaseClass<ComponentEntityType>::~ComponentRawBaseClass()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::~ComponentRawBaseClass()
 {
     Deinit();
 }
 
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::Deinit()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::Deinit()
 {
     componentEntitiesToRemove.clear();
     componentEntitiesToAdd.clear();
@@ -94,33 +94,33 @@ void ComponentRawBaseClass<ComponentEntityType>::AsyncUpdate()
 }
 */
 
-template<typename ComponentEntityType>
-std::vector<std::pair<std::string, MapType>> ComponentRawBaseClass<ComponentEntityType>::GetComponentInitMapFields() const
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline std::vector<std::pair<std::string, MapType>> ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::GetComponentInitMapFields() const
 {
     return ComponentEntityType::GetComponentInitMapFields();
 }
 
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity)
 {
     componentEntitiesToAdd.emplace_back(std::make_pair(this_entity, std::move(this_componentEntity)));
 }
 
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map)
 {
     ComponentEntityType&& this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
     AddComponent(this_entity, this_componentEntity);
 }
 
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::RemoveComponentEntity(const Entity this_entity)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::RemoveComponentEntity(const Entity this_entity)
 {
     componentEntitiesToRemove.emplace_back(this_entity);
 }
 
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::CompleteAddsAndRemoves()
 {
     {
         for (Entity this_entity : componentEntitiesToRemove)
@@ -129,7 +129,7 @@ void ComponentRawBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
             componentEntitiesRaw[this_entity] = ComponentEntityType::GetEmpty();
             isItEmptyRawVector[this_entity] = true;
 
-            InformEntitiesHandlerAboutRemoval(this_entity);
+            ComponentBaseClass::InformEntitiesHandlerAboutRemoval(this_entity);
         }
 
         componentEntitiesToRemove.clear();
@@ -155,7 +155,7 @@ void ComponentRawBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
             componentEntitiesRaw[this_entity] = std::move(this_componentEntity);
             isItEmptyRawVector[this_entity] = false;
 
-            InformEntitiesHandlerAboutAddition(this_entity);
+            ComponentBaseClass::InformEntitiesHandlerAboutAddition(this_entity);
 
             componentEntitiesToInit.emplace_back(this_entity);
         }
@@ -164,8 +164,8 @@ void ComponentRawBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
     }
 }
 
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::InitAdds()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::InitAdds()
 {
     for (Entity this_entity : componentEntitiesToInit)
     {
@@ -176,8 +176,8 @@ void ComponentRawBaseClass<ComponentEntityType>::InitAdds()
 }
 
 
-template<typename ComponentEntityType>
-ComponentEntityPtr ComponentRawBaseClass<ComponentEntityType>::GetComponentEntity(const Entity this_entity)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline ComponentEntityPtr ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::GetComponentEntityVoidPtr(const Entity this_entity)
 {
     assert(componentEntitiesRaw.size() > this_entity);
     assert(!isItEmptyRawVector[this_entity]);

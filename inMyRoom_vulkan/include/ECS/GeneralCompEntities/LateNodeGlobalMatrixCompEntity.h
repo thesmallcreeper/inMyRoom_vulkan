@@ -1,23 +1,23 @@
 #pragma once
 
-#include "ECS/ECStypes.h"
+#include "ECS/CompEntityBase.h"
 
-#include "glm/mat4x4.hpp"
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
-
-
-
-
-#ifndef GAME_DLL
+#ifdef GAME_DLL
+class LateNodeGlobalMatrixCompEntity;
+class LateNodeGlobalMatrixComp :
+    public ComponentBaseWrappedClass<LateNodeGlobalMatrixCompEntity, static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix), "LateNodeGlobalMatrix"> {};
+#else
 class LateNodeGlobalMatrixComp;
 #endif
 
-class LateNodeGlobalMatrixCompEntity
+class LateNodeGlobalMatrixCompEntity :
+    public CompEntityBase<LateNodeGlobalMatrixComp>
 {
 #ifndef GAME_DLL
 public:
     LateNodeGlobalMatrixCompEntity(const Entity this_entity);
-    ~LateNodeGlobalMatrixCompEntity();
 
     static LateNodeGlobalMatrixCompEntity GetEmpty();
 
@@ -29,20 +29,17 @@ public:
     "MatrixColumn2",        globalMatrix[2]         = vec4          (optional)
     "MatrixColumn3",        globalMatrix[3]         = vec4          (optional)
     */
-    static LateNodeGlobalMatrixCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
+    static LateNodeGlobalMatrixCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(class NodeDataComp* const positionComp_ptr);
+    void Update(NodeDataComp* positionComp_ptr,
+                LateNodeGlobalMatrixComp* lateNodeGlobalMatrixComp_ptr);
 
-private: // static variable
-    friend class LateNodeGlobalMatrixComp;
-    static LateNodeGlobalMatrixComp* lateNodeGlobalMatrixComp_ptr;
 #endif
 public: // data
     glm::mat4x4 globalMatrix = glm::mat4x4(1.f);
 
     Entity parentEntity = 0;
-    Entity thisEntity;
 };
 

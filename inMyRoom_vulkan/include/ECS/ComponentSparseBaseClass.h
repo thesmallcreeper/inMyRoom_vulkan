@@ -1,22 +1,21 @@
 #pragma once
 
-#include "ECS/ComponentBaseClass.h"
+#include "ECS/ComponentBaseWrappedClass.h"
 
 #include <unordered_map>
 #include <set>
 #include <utility>
 
-template<typename ComponentEntityType>
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
 class ComponentSparseBaseClass :
-    public ComponentBaseClass
+    public ComponentBaseWrappedClass<ComponentEntityType, component_ID, component_name>
 {
 public:
-    ComponentSparseBaseClass(const componentID this_ID, std::string this_name, ECSwrapper* const in_ecs_wrapper_ptr);
-    virtual ~ComponentSparseBaseClass() override;
+    ComponentSparseBaseClass(ECSwrapper* const in_ecs_wrapper_ptr);
+    ~ComponentSparseBaseClass() override;
     void Deinit() override;
 
 //  void Update() override;
-//  void FixedUpdate() override;
 //  void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
 
     std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const override;
@@ -26,7 +25,7 @@ public:
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
     void InitAdds() override;                                                                                   // Component entity memory specific task
-    ComponentEntityPtr GetComponentEntity(const Entity this_entity) override;                                   // Component entity memory specific task
+    ComponentEntityPtr GetComponentEntityVoidPtr(const Entity this_entity) override;                                   // Component entity memory specific task
 
 protected:
     std::set<Entity> entitiesOfComponent_set;
@@ -42,19 +41,19 @@ private:
 
 // -----SOURCE-----
 
-template<typename ComponentEntityType>
-inline ComponentSparseBaseClass<ComponentEntityType>::ComponentSparseBaseClass(const componentID this_ID, const std::string this_name, ECSwrapper* const in_ecs_wrapper_ptr)
-    :ComponentBaseClass::ComponentBaseClass(this_ID, this_name, in_ecs_wrapper_ptr)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::ComponentSparseBaseClass(ECSwrapper* const in_ecs_wrapper_ptr)
+    :ComponentBaseWrappedClass<ComponentEntityType, component_ID, component_name>::ComponentBaseWrappedClass(in_ecs_wrapper_ptr)
 {}
 
-template<typename ComponentEntityType>
-ComponentSparseBaseClass<ComponentEntityType>::~ComponentSparseBaseClass()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::~ComponentSparseBaseClass()
 {
     Deinit();
 }
 
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::Deinit()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::Deinit()
 {
     componentEntitiesToRemove.clear();
     componentEntitiesToAdd.clear();
@@ -88,33 +87,33 @@ void ComponentSparseBaseClass<ComponentEntityType>::AsyncUpdate()
 }
 */
 
-template<typename ComponentEntityType>
-std::vector<std::pair<std::string, MapType>> ComponentSparseBaseClass<ComponentEntityType>::GetComponentInitMapFields() const
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline std::vector<std::pair<std::string, MapType>> ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::GetComponentInitMapFields() const
 {
     return ComponentEntityType::GetComponentInitMapFields();
 }
 
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity)
 {
     componentEntitiesToAdd.emplace_back(std::make_pair(this_entity, std::move(this_componentEntity)));
 }
 
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map)
 {
     ComponentEntityType&& this_componentEntity = ComponentEntityType::CreateComponentEntityByMap(this_entity, this_map);
     AddComponent(this_entity, this_componentEntity);
 }
 
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::RemoveComponentEntity(const Entity this_entity)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::RemoveComponentEntity(const Entity this_entity)
 {
     componentEntitiesToRemove.emplace_back(this_entity);
 }
 
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::CompleteAddsAndRemoves()
 {
     {
         for (Entity this_entity : componentEntitiesToRemove)
@@ -129,7 +128,7 @@ void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
             entitiesOfComponent_set.erase(this_entity);
             entityToIndexToVector_umap.erase(this_entity);
 
-            InformEntitiesHandlerAboutRemoval(this_entity);
+            ComponentBaseClass::InformEntitiesHandlerAboutRemoval(this_entity);
         }
 
         componentEntitiesToRemove.clear();
@@ -172,7 +171,7 @@ void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
             entitiesOfComponent_set.emplace(this_entity);
             entityToIndexToVector_umap.emplace(this_entity, entity_index);
 
-            InformEntitiesHandlerAboutAddition(this_entity);
+            ComponentBaseClass::InformEntitiesHandlerAboutAddition(this_entity);
 
             componentEntitiesToInit.emplace_back(this_entity);
         }
@@ -181,8 +180,8 @@ void ComponentSparseBaseClass<ComponentEntityType>::CompleteAddsAndRemoves()
     }
 }
 
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::InitAdds()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::InitAdds()
 {
     for (Entity this_entity : componentEntitiesToInit)
     {
@@ -193,8 +192,8 @@ void ComponentSparseBaseClass<ComponentEntityType>::InitAdds()
     componentEntitiesToInit.clear();
 }
 
-template<typename ComponentEntityType>
-ComponentEntityPtr ComponentSparseBaseClass<ComponentEntityType>::GetComponentEntity(const Entity this_entity)
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline ComponentEntityPtr ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::GetComponentEntityVoidPtr(const Entity this_entity)
 {
     const auto search = entityToIndexToVector_umap.find(this_entity);
     assert(search != entityToIndexToVector_umap.end());

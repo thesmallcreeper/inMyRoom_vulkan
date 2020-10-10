@@ -5,14 +5,12 @@
 #include "ECS/ECSwrapper.h"
 
 ModelDrawComp::ModelDrawComp(ECSwrapper* const in_ecs_wrapper_ptr)
-    :ComponentSparseBaseClass<ModelDrawCompEntity>(static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw", in_ecs_wrapper_ptr)
+    :ComponentSparseBaseClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw">(in_ecs_wrapper_ptr)
 {
-    ModelDrawCompEntity::modelDrawComp_ptr = this;
 }
 
 ModelDrawComp::~ModelDrawComp()
 {
-    ModelDrawCompEntity::modelDrawComp_ptr = nullptr;
 }
 
 DrawRequestsBatch ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,

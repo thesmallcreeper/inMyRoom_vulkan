@@ -8,14 +8,13 @@
 
 
 class AnimationComposerComp
-    :public ComponentSparseBaseClass<AnimationComposerCompEntity>
+    :public ComponentSparseBaseClass<AnimationComposerCompEntity, static_cast<componentID>(componentIDenum::AnimationComposer), "AnimationComposer">
 {
 public:
     AnimationComposerComp(ECSwrapper* const in_ecs_wrapper_ptr);
-    ~AnimationComposerComp();
+    ~AnimationComposerComp() override;
 
     void Update() override {};
-    void FixedUpdate() override {};
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
 
     void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override {};

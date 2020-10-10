@@ -9,14 +9,13 @@
 
 
 class AnimationActorComp
-    :public ComponentSparseBaseClass<AnimationActorCompEntity>
+    :public ComponentSparseBaseClass<AnimationActorCompEntity, static_cast<componentID>(componentIDenum::AnimationActor), "AnimationActor">
 {
 public:
     AnimationActorComp(ECSwrapper* const in_ecs_wrapper_ptr, AnimationsDataOfNodes* in_animationsDataOfNodes_ptr);
-    ~AnimationActorComp();
+    ~AnimationActorComp() override;
 
     void Update() override;
-    void FixedUpdate() override {};
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
 
     void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override {};

@@ -126,6 +126,12 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelCollisionCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\ComponentBaseWrappedClass.h">
+      <Filter>Header Files\General</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\CompEntityBase.h">
+      <Filter>Header Files\General</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\game_dll.cpp">
@@ -137,16 +143,10 @@
     <ClCompile Include="..\..\..\src\ECS\ComponentBaseClass.cpp">
       <Filter>Source Files\General</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\ECS\ComponentSparseBaseClass.cpp">
-      <Filter>Source Files\General</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\ECSwrapper.cpp">
       <Filter>Source Files\General</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\EntitiesHandler.cpp">
-      <Filter>Source Files\General</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\ECS\ExportedFunctions.cpp">
       <Filter>Source Files\General</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraCompEntity.cpp">
@@ -157,9 +157,6 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\ECS\ComponentRawBaseClass.cpp">
-      <Filter>Source Files\General</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
