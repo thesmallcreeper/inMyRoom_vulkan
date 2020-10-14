@@ -458,14 +458,14 @@
     <ClInclude Include="include\FixedString.h">
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
-    <ClInclude Include="include\ECS\CompEntityBase.h">
-      <Filter>Header Files\ECS</Filter>
-    </ClInclude>
     <ClInclude Include="include\ECS\TemplateHelpers.h">
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
-    <ClInclude Include="include\is_template_base_of.h">
-      <Filter>Header Files\_etc</Filter>
+    <ClInclude Include="include\ECS\CompEntityBaseWrappedClass.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\CompEntityBaseClass.h">
+      <Filter>Header Files\ECS</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

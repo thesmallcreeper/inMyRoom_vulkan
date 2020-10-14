@@ -1,5 +1,4 @@
 #include "ECS/GeneralComponents/CameraDefaultInputComp.h"
-#include "ECS/GeneralComponents/CameraComp.h"
 
 #include "ECS/ECSwrapper.h"
 

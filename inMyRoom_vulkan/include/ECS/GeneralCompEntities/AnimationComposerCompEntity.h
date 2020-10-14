@@ -1,17 +1,20 @@
 #pragma once
 
-#include "ECS/CompEntityBase.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
 
-#ifdef GAME_DLL
+class AnimationComposerComp;
 class AnimationComposerCompEntity;
+#ifdef GAME_DLL
 class AnimationComposerComp :
     public ComponentBaseWrappedClass<AnimationComposerCompEntity, static_cast<componentID>(componentIDenum::AnimationComposer), "AnimationComposer"> {};
 #else
-class AnimationComposerComp;
+#include "ECS/GeneralComponents/AnimationComposerComp.h"
 #endif
 
+#include "ECS/GeneralCompEntities/AnimationActorCompEntity.h"
+
 class AnimationComposerCompEntity :
-    public CompEntityBase<AnimationComposerComp>
+    public CompEntityBaseWrappedClass<AnimationComposerComp>
 {
 #ifndef GAME_DLL
 public:

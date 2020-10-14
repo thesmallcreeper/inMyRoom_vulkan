@@ -21,10 +21,10 @@ public:
 
     virtual std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const = 0;
 
-    virtual void Update() = 0;
-    virtual void AsyncInput(InputType input_type, void* struct_data = nullptr) = 0;
+    virtual void Update() {}
+    virtual void AsyncInput(InputType input_type, void* struct_data = nullptr) {}
 
-    virtual void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) = 0;
+    virtual void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) {}
      
 //  ------- void AddComponent(const Entity this_entity, ComponentEntityType this_componentEntity);                 // Component entity specific task
     virtual void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map) = 0;         // Component entity specific task

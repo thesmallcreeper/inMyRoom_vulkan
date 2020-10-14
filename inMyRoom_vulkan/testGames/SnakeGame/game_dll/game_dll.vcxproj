@@ -19,7 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\ECS\CompEntityBase.h" />
+    <ClInclude Include="..\..\..\include\ECS\CompEntityBaseClass.h" />
+    <ClInclude Include="..\..\..\include\ECS\CompEntityBaseWrappedClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentBaseClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentBaseWrappedClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentRawBaseClass.h" />

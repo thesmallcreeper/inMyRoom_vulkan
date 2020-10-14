@@ -11,7 +11,7 @@
 #include <cassert>
 
 SnakePlayerCompEntity::SnakePlayerCompEntity(const Entity this_entity)
-    :CompEntityBase<SnakePlayerComp>(this_entity)
+    :CompEntityBaseWrappedClass<SnakePlayerComp>(this_entity)
 {
 }
 

@@ -3,15 +3,11 @@
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/ModelDrawComp.h"
-#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
-#include "ECS/GeneralComponents/SkinComp.h"
 
 #include "Geometry/FrustumCulling.h"
-#include "Graphics/Meshes/MeshesOfNodes.h"
 
 ModelDrawCompEntity::ModelDrawCompEntity(const Entity this_entity)
-    :CompEntityBase<ModelDrawComp>(this_entity)
+    :CompEntityBaseWrappedClass<ModelDrawComp>(this_entity)
 {
 }
 

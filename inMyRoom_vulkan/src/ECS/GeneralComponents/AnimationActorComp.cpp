@@ -1,5 +1,4 @@
 #include "ECS/GeneralComponents/AnimationActorComp.h"
-#include "ECS/GeneralComponents/NodeDataComp.h"
 
 #include "ECS/ECSwrapper.h"
 

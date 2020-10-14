@@ -1,22 +1,23 @@
 #pragma once
 
-#include "ECS/CompEntityBase.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
 
 #include "glm/vec3.hpp"
 #include "glm/mat4x4.hpp"
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
-#ifdef GAME_DLL
+class NodeDataComp;
 class NodeDataCompEntity;
+#ifdef GAME_DLL
 class NodeDataComp :
     public ComponentBaseWrappedClass<NodeDataCompEntity, static_cast<componentID>(componentIDenum::NodeData), "NodeData"> {};
 #else
-class NodeDataComp;
+#include "ECS/GeneralComponents/NodeDataComp.h"
 #endif
 
 class NodeDataCompEntity :
-    public CompEntityBase<NodeDataComp>
+    public CompEntityBaseWrappedClass<NodeDataComp>
 {
 #ifndef GAME_DLL
 public:
@@ -33,7 +34,7 @@ public:
     static NodeDataCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
-    glm::mat4x4 GetGlobalMatrix(glm::mat4x4 parent_global_matrix);
+    glm::mat4x4 GetGlobalMatrix(glm::mat4x4 parent_global_matrix) const;
 
     void Init();
 

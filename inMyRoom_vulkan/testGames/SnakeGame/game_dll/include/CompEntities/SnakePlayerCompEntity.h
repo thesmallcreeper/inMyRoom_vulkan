@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ECS/CompEntityBase.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
 #include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 #include "ECS/GeneralCompEntities/CameraCompEntity.h"
 #include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
@@ -8,11 +8,12 @@
 
 #include <chrono>
 
-
 class SnakePlayerComp;
+class SnakePlayerCompEntity;
+#include "Components/SnakePlayerComp.h"
 
-class SnakePlayerCompEntity :
-    public CompEntityBase<SnakePlayerComp>
+class SnakePlayerCompEntity final:
+    public CompEntityBaseWrappedClass<SnakePlayerComp>
 {
 public:
     SnakePlayerCompEntity(const Entity this_entity);

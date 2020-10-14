@@ -1,6 +1,4 @@
 #include "ECS/GeneralComponents/ModelDrawComp.h"
-#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
-#include "ECS/GeneralComponents/SkinComp.h"
 
 #include "ECS/ECSwrapper.h"
 

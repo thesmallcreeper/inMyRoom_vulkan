@@ -1,17 +1,11 @@
 #include "ECS/GeneralCompEntities/AnimationComposerCompEntity.h"
-#include "ECS/GeneralCompEntities/AnimationActorCompEntity.h"
-#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/AnimationComposerComp.h"
-#include "ECS/GeneralComponents/AnimationActorComp.h"
-#include "ECS/GeneralComponents/NodeDataComp.h"
-
 
 AnimationComposerCompEntity::AnimationComposerCompEntity(const Entity this_entity)
-    :CompEntityBase<AnimationComposerComp>(this_entity)
+    :CompEntityBaseWrappedClass<AnimationComposerComp>(this_entity)
 {
     ECSwrapper_ptr = GetComponentPtr()->GetECSwrapper();
 }

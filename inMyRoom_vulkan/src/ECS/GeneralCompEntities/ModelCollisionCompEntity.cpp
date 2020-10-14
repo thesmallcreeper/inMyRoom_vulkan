@@ -3,14 +3,12 @@
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/EarlyNodeGlobalMatrixComp.h"
-#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 
 #include "Graphics/Meshes/MeshesOfNodes.h"
 #include "CollisionDetection/CollisionDetection.h"
 
 ModelCollisionCompEntity::ModelCollisionCompEntity(const Entity this_entity)
-    :CompEntityBase<ModelCollisionComp>(this_entity)
+    :CompEntityBaseWrappedClass<ModelCollisionComp>(this_entity)
 {
 }
 

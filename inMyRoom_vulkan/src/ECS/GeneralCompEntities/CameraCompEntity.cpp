@@ -3,10 +3,9 @@
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/CameraComp.h"
 
 CameraCompEntity::CameraCompEntity(const Entity this_entity)
-    :CompEntityBase<CameraComp>(this_entity)
+    :CompEntityBaseWrappedClass<CameraComp>(this_entity)
 {
 }
 

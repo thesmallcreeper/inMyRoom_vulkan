@@ -88,7 +88,8 @@
     <ClInclude Include="include\CollisionDetection\RayDeltaUncollide.h" />
     <ClInclude Include="include\CollisionDetection\SweepAndPrune.h" />
     <ClInclude Include="include\CollisionDetection\TrianglesVsTriangles.h" />
-    <ClInclude Include="include\ECS\CompEntityBase.h" />
+    <ClInclude Include="include\ECS\CompEntityBaseClass.h" />
+    <ClInclude Include="include\ECS\CompEntityBaseWrappedClass.h" />
     <ClInclude Include="include\ECS\ComponentBaseClass.h" />
     <ClInclude Include="include\ECS\ComponentBaseWrappedClass.h" />
     <ClInclude Include="include\ECS\ComponentRawBaseClass.h" />
@@ -148,7 +149,6 @@
     <ClInclude Include="include\Graphics\ShadersSetsFamiliesCache.h" />
     <ClInclude Include="include\Graphics\VulkanInit.h" />
     <ClInclude Include="include\hash_combine.h" />
-    <ClInclude Include="include\is_template_base_of.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\InputManager.h" />

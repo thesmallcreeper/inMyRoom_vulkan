@@ -1,25 +1,25 @@
 #pragma once
 
-#include "ECS/CompEntityBase.h"
-
-#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
 
 #include <chrono>
 #include <unordered_map>
 #include <string>
 
-
-#ifdef GAME_DLL
+class AnimationActorComp;
 class AnimationActorCompEntity;
+#ifdef GAME_DLL
 class AnimationActorComp :
     public ComponentBaseWrappedClass<AnimationActorCompEntity, static_cast<componentID>(componentIDenum::AnimationActor), "AnimationActor"> {};
 #else
-class AnimationActorComp;
+#include "ECS/GeneralComponents/AnimationActorComp.h"
 #endif
+
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
 // TODO cubic interpolation
 class AnimationActorCompEntity :
-    public CompEntityBase<AnimationActorComp>
+    public CompEntityBaseWrappedClass<AnimationActorComp>
 {
 #ifndef GAME_DLL
 public:

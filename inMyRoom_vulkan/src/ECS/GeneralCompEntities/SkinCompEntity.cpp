@@ -3,11 +3,9 @@
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/SkinComp.h"
-#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 
 SkinCompEntity::SkinCompEntity(const Entity this_entity)
-    :CompEntityBase<SkinComp>(this_entity)
+    :CompEntityBaseWrappedClass<SkinComp>(this_entity)
 {
 }
 

@@ -7,7 +7,7 @@
 
 
 
-class CameraComp
+class CameraComp final
     :public ComponentSparseBaseClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera">
 {
 public:
@@ -16,9 +16,6 @@ public:
     ~CameraComp() override;
 
     void Update() override;
-    void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
-
-    void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override {};
 
     void ToggleCullingDebugging();
 

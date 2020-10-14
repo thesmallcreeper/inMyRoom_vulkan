@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ECS/ComponentBaseWrappedClass.h"
+#include "ECS/TemplateHelpers.h"
 
 #include <utility>
 
@@ -13,9 +14,7 @@ public:
     ~ComponentRawBaseClass() override;
     void Deinit() override;
 
-//  void Update() override;
-//  void FixedUpdate() override;
-//  void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
+    void Update() override;
 
     std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const override;
     
@@ -24,7 +23,11 @@ public:
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
     void InitAdds() override;                                                                                   // Component entity memory specific task
-    ComponentEntityPtr GetComponentEntityVoidPtr(const Entity this_entity) override;                                   // Component entity memory specific task
+    ComponentEntityPtr GetComponentEntityVoidPtr(const Entity this_entity) override;                            // Component entity memory specific task
+
+private:
+    void Update_impl() requires TrivialUpdatable<ComponentEntityType>;
+    void Update_impl() {}
 
 protected:
     std::vector<ComponentEntityType> componentEntitiesRaw;
@@ -36,6 +39,8 @@ private:
 
     std::vector<std::pair<Entity, ComponentEntityType>> componentEntitiesToAdd;
     std::vector<Entity> componentEntitiesToInit;
+
+    template <typename T> void Hi();
 
 };
 
@@ -68,31 +73,27 @@ inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_n
     CompleteAddsAndRemoves();
 }
 
-/*
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::Update()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::Update()
 {
-    for (size_t index = 0; index < componentEntitiesRaw.size(); index++)
-        if (!isItEmptyRawVector[index])
-            componentEntitiesRaw[index].Update();
+    Update_impl();
 }
 
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::FixedUpdate()
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
+inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::Update_impl() requires TrivialUpdatable<ComponentEntityType>
 {
-    for (size_t index = 0; index < componentEntitiesRaw.size(); index++)
-        if (!isItEmptyRawVector[index])
-            componentEntitiesRaw[index].FixedUpdate();
-}
+    auto component_ptrs = GetComponentPtrsOfArguments(ComponentBaseClass::ecsWrapper_ptr, &ComponentEntityType::Update);
 
-template<typename ComponentEntityType>
-void ComponentRawBaseClass<ComponentEntityType>::AsyncUpdate()
-{
     for (size_t index = 0; index < componentEntitiesRaw.size(); index++)
+    {
         if (!isItEmptyRawVector[index])
-            componentEntitiesRaw[index].AsyncUpdate();
+        {
+            auto arguments = TranslateComponentPtrsIntoArguments(static_cast<Entity>(index), component_ptrs);
+
+            std::apply(&ComponentEntityType::Update, std::tuple_cat(std::tie(componentEntitiesRaw[index]), arguments));
+        }
+    }
 }
-*/
 
 template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
 inline std::vector<std::pair<std::string, MapType>> ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::GetComponentInitMapFields() const

@@ -5,11 +5,9 @@
 #include <glm/gtx/rotate_vector.hpp>
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/CameraDefaultInputComp.h"
-#include "ECS/GeneralComponents/CameraComp.h"
 
 CameraDefaultInputCompEntity::CameraDefaultInputCompEntity(const Entity this_entity)
-    :CompEntityBase<CameraDefaultInputComp>(this_entity)
+    :CompEntityBaseWrappedClass<CameraDefaultInputComp>(this_entity)
 {
 }
 

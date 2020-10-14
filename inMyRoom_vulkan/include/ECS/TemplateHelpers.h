@@ -3,70 +3,165 @@
 #include <concepts>
 #include <type_traits>
 
-
 #include "ECSwrapper.h"
-#include "is_template_base_of.h"
 
 #include "ECS/ComponentBaseWrappedClass.h"
-#include "ECS/CompEntityBase.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
 
+
+// CONCEPTS OF TYPES
 //
-// CONCEPTS
 template <class T>
-concept Component = is_template_base_of<ComponentBaseWrappedClass, T>::value;
+concept Component = std::is_base_of<ComponentBaseClass, T>::value;
 
 template <class T>
-concept CompEntity = is_template_base_of<CompEntityBase, T>::value;
+concept CompEntity = std::is_base_of<CompEntityBaseClass, T>::value;
 
-//
+template <class T>
+concept TrivialUpdateParameter = Component<typename std::remove_pointer<T>::type> || CompEntity<typename std::remove_reference<T>::type>;
+
+
 // GET COMPONENT POINTER
+//
 template <Component T>
-auto GetComponentPtr(ECSwrapper* ECSwrapper_ptr)
+auto GetComponentPtr(const ECSwrapper* ECSwrapper_ptr)
 {
     componentID this_component_ID = T::component_ID;
     ComponentBaseClass* this_component_base_class = ECSwrapper_ptr->GetComponentByID(this_component_ID);
 
     if constexpr (std::is_const<T>::value)
-        return static_cast<const T *>(this_component_base_class);
+        return std::pair(std::false_type(), static_cast<const T *>(this_component_base_class));
     else
-        return static_cast<T *>(this_component_base_class);
+        return std::pair(std::false_type(), static_cast<T *>(this_component_base_class));
 }
 
 template <CompEntity T>
-auto GetComponentPtr(ECSwrapper* ECSwrapper_ptr)
+auto GetComponentPtr(const ECSwrapper* ECSwrapper_ptr)
 {
+    componentID this_component_ID = decltype(T::GetComponentType())::component_ID;
+    ComponentBaseClass* this_component_base_class = ECSwrapper_ptr->GetComponentByID(this_component_ID);
+
     if constexpr (std::is_const<T>::value)
-        return GetComponentPtr<const decltype(T::GetComponentType())>(ECSwrapper_ptr);
+        return std::pair(std::true_type(), static_cast<const decltype(T::GetComponentType()) *>(this_component_base_class));
     else
-        return GetComponentPtr<decltype(T::GetComponentType())>(ECSwrapper_ptr);   
+        return std::pair(std::true_type(), static_cast<decltype(T::GetComponentType()) *>(this_component_base_class));
+}
+
+
+// GET TUPLE OF PARAMETERS
+//
+template <typename front_Arg, typename ...Args>
+auto GetComponentPtrsOfArgumentsRecursion(const ECSwrapper* ECSwrapper_ptr)
+{
+    typedef typename std::remove_pointer<front_Arg>::type front_Arg_no_ptr;
+    typedef typename std::remove_reference<front_Arg_no_ptr>::type front_Arg_no_ptr_no_ref;
+    auto this_argument = GetComponentPtr<front_Arg_no_ptr_no_ref>(ECSwrapper_ptr);
+
+    if constexpr (sizeof...(Args) > 0)
+    {
+        auto recursion_result = GetComponentPtrsOfArgumentsRecursion<Args...>(ECSwrapper_ptr);
+
+        return std::tuple_cat(std::make_tuple(this_argument), recursion_result);
+    }
+    else
+    {
+        return std::make_tuple(this_argument);
+    }
+}
+
+template <typename Ret, typename Class, typename ...Args>
+auto GetComponentPtrsOfArguments(const ECSwrapper* ECSwrapper_ptr, Ret(Class::* mf)(Args...))
+{
+    if constexpr (sizeof...(Args) > 0)
+    {
+        return GetComponentPtrsOfArgumentsRecursion<Args...>(ECSwrapper_ptr);
+    }
+    else
+    {
+        return std::tuple<>();
+    }    
+}
+
+
+// TRANSLATE COMPONENT PTRS INTO ARGUMENTS
+//
+template <typename BOOL, typename T>
+constexpr auto TranslateComponentPtrToCompEntityRef(const Entity entity, const std::pair<BOOL,T>& pair)
+{
+    if constexpr (BOOL::value == true)
+    {
+        return std::ref(pair.second->GetComponentEntity(entity));
+    }
+    else
+    {
+        return pair.second;
+    }
+}
+
+template <unsigned i, typename Tuple>
+constexpr auto TranslateComponentPtrsIntoArgumentsRecursion(const Entity entity, const Tuple& tuple)
+{
+    if constexpr (i < std::tuple_size<Tuple>::value)
+    {
+        auto recursion_result = TranslateComponentPtrsIntoArgumentsRecursion<i + 1>(entity, tuple);
+        auto this_translation = TranslateComponentPtrToCompEntityRef(entity, std::get<i>(tuple));
+
+        return std::tuple_cat(std::make_tuple(this_translation), recursion_result);
+    }
+    else
+    {
+        return std::tuple<>();
+    }
+}
+
+template <typename Tuple>
+auto TranslateComponentPtrsIntoArguments(const Entity entity, const Tuple& tuple)
+{
+    return TranslateComponentPtrsIntoArgumentsRecursion<0>(entity, tuple);
+}
+
+
+// CONCEPT TRIVIAL UPDATE
+//
+template <typename T>
+concept Updateable = requires() {&T::Update;} && CompEntity<T>;
+
+template <typename front_Arg, typename ...Args>
+constexpr bool AreArgumentsTrivial()
+{
+    if constexpr (not TrivialUpdateParameter<front_Arg>)
+    {
+        return false;
+    }
+    else if constexpr (sizeof...(Args) > 0)
+    {
+        return AreArgumentsTrivial<Args...>();
+    }
+    else
+    {
+        return true;
+    }
+} 
+
+template <typename Ret, typename Class, typename ...Args>
+constexpr bool IsMethodTrivialUpdateable(Ret(Class::* mf)(Args...))
+{
+    if constexpr (sizeof...(Args) > 0)
+    {
+        return AreArgumentsTrivial<Args...>();
+    }
+    else
+    {
+        return true;
+    }
 }
 
 template <typename T>
-auto GetComponentPtr(ECSwrapper* ECSwrapper_ptr)
-{
-    typedef typename std::remove_pointer<T>::type T_no_ptr;
-    typedef typename std::remove_reference<T_no_ptr>::type T_no_ptr_no_ref;
-    return GetComponentPtr<T_no_ptr_no_ref>(ECSwrapper_ptr);
-}
+concept TrivialUpdatable = Updateable<T> && IsMethodTrivialUpdateable(&T::Update);
 
-//
-// GET TUPLE OF PARAMETERS
-inline auto GetTupleOfParametersRecursion(ECSwrapper* ECSwrapper_ptr)
-{
-    return std::tuple<>();
-}
 
-template <typename Dest, typename front_Arg, typename ...Args>
-auto GetTupleOfParametersRecursion(ECSwrapper* ECSwrapper_ptr)
-{
-    auto recursion_result = GetTupleOfParametersRecursion<Dest, Args...>(ECSwrapper_ptr);
 
-    auto this_parameter = GetComponentPtr<front_Arg>(ECSwrapper_ptr);
-    return std::tuple_cat(std::tie(this_parameter), recursion_result);
-}
 
-template <typename Dest, typename Ret, typename Class, typename ...Args>
-auto GetTupleOfParameters(ECSwrapper* ECSwrapper_ptr, Ret(Class::* mf)(Args...))
-{
-    return GetTupleOfParametersRecursion<Dest, Args...>(ECSwrapper_ptr);
-}
+
+
+

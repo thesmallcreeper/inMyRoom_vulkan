@@ -3,10 +3,9 @@
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/NodeDataComp.h"
 
 NodeDataCompEntity::NodeDataCompEntity(const Entity this_entity)
-    :CompEntityBase<NodeDataComp>(this_entity)
+    :CompEntityBaseWrappedClass<NodeDataComp>(this_entity)
 {
 }
 
@@ -72,7 +71,7 @@ std::vector<std::pair<std::string, MapType>> NodeDataCompEntity::GetComponentIni
     return return_pair;
 }
 
-glm::mat4x4 NodeDataCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_matrix)
+glm::mat4x4 NodeDataCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_matrix) const
 {
     glm::mat4 S_matrix = glm::scale(glm::mat4(1.0f), localScale);
     glm::mat4 R_matrix = glm::toMat4(localRotation);

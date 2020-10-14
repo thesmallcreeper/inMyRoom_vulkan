@@ -20,8 +20,8 @@ public:
     ~ECSwrapper();
 
     EntitiesHandler*    GetEntitiesHandler();
-    ComponentBaseClass* GetComponentByID(componentID component_id);
-    componentID         GetComponentIDbyName(std::string component_name);
+    ComponentBaseClass* GetComponentByID(componentID component_id) const;
+    componentID         GetComponentIDbyName(std::string component_name) const;
 
     std::chrono::duration<float> GetUpdateDeltaTime();
     void RefreshUpdateDeltaTime();

@@ -1,20 +1,20 @@
 #pragma once
 
-#include "ECS/CompEntityBase.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
 
 #include "Geometry/ViewportFrustum.h"
 
-
-#ifdef GAME_DLL
+class CameraComp;
 class CameraCompEntity;
+#ifdef GAME_DLL
 class CameraComp
     :public ComponentBaseWrappedClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera"> {};
 #else
-class CameraComp;
+#include "ECS/GeneralComponents/CameraComp.h"
 #endif
 
 class CameraCompEntity :
-    public CompEntityBase<CameraComp>
+    public CompEntityBaseWrappedClass<CameraComp>
 {
 #ifndef GAME_DLL
 public:

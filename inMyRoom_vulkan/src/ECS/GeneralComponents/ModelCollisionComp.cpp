@@ -1,8 +1,5 @@
 #include "ECS/GeneralComponents/ModelCollisionComp.h"
 
-#include "ECS/GeneralComponents/EarlyNodeGlobalMatrixComp.h"
-#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
-
 ModelCollisionComp::ModelCollisionComp(ECSwrapper* const in_ecs_wrapper_ptr,
                                        CollisionDetection* in_collisionDetection_ptr,
                                        MeshesOfNodes* in_meshesOfNodes_ptr)

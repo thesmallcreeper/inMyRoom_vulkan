@@ -5,23 +5,22 @@
 
 #include "ECS/ComponentsIDsEnum.h"
 
+#include "Graphics/Meshes/MeshesOfNodes.h"
+#include "Graphics/Meshes/PrimitivesOfMeshes.h"
+#include "Geometry/FrustumCulling.h"
+
 struct DrawRequestsBatch
 {
     std::vector<DrawRequest> opaqueDrawRequests;
     std::vector<DrawRequest> transparentDrawRequests;
 };
 
-class ModelDrawComp
-    :public ComponentSparseBaseClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw">
+class ModelDrawComp final
+    : public ComponentSparseBaseClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw">
 {
 public:
     ModelDrawComp(ECSwrapper* const in_ecs_wrapper_ptr);
     ~ModelDrawComp() override;
-
-    void Update() override {};
-    void AsyncInput(InputType input_type, void* struct_data = nullptr) override {};
-
-    void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override {};
 
     DrawRequestsBatch DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,
                                            PrimitivesOfMeshes* primitivesOfMeshes_ptr,

@@ -6,7 +6,7 @@
 #include "ECS/ComponentsIDsEnum.h"
 
 
-class CameraDefaultInputComp
+class CameraDefaultInputComp final
     :public ComponentSparseBaseClass<CameraDefaultInputCompEntity, static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput">
 {
 public:
@@ -15,8 +15,6 @@ public:
 
     void Update() override;
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
-
-    void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override {};
 
 public: // data
     const float default_speed;

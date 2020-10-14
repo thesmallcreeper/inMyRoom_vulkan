@@ -1,21 +1,22 @@
 #pragma once
 
-#include "ECS/CompEntityBase.h"
-
-#include "ECS/GeneralCompEntities/CameraCompEntity.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
 
 #include <chrono>
 
-#ifdef GAME_DLL
+class CameraDefaultInputComp;
 class CameraDefaultInputCompEntity;
+#ifdef GAME_DLL
 class CameraDefaultInputComp
     :public ComponentBaseWrappedClass<CameraDefaultInputCompEntity, static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput"> {};
 #else
-class CameraDefaultInputComp;
+#include "ECS/GeneralComponents/CameraDefaultInputComp.h"
 #endif
 
+#include "ECS/GeneralCompEntities/CameraCompEntity.h"
+
 class CameraDefaultInputCompEntity :
-    public CompEntityBase<CameraDefaultInputComp>
+    public CompEntityBaseWrappedClass<CameraDefaultInputComp>
 {
 #ifndef GAME_DLL
 public:

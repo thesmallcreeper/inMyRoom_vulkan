@@ -3,11 +3,9 @@
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
-#include "ECS/GeneralComponents/NodeDataComp.h"
 
 LateNodeGlobalMatrixCompEntity::LateNodeGlobalMatrixCompEntity(const Entity this_entity)
-    :CompEntityBase<LateNodeGlobalMatrixComp>(this_entity)
+    :CompEntityBaseWrappedClass<LateNodeGlobalMatrixComp>(this_entity)
 {
 }
 
@@ -94,18 +92,16 @@ std::vector<std::pair<std::string, MapType>> LateNodeGlobalMatrixCompEntity::Get
     return return_pair;
 }
 
-void LateNodeGlobalMatrixCompEntity::Update(NodeDataComp* const positionComp_ptr,
+void LateNodeGlobalMatrixCompEntity::Update(const NodeDataCompEntity& this_nodeData,
                                             LateNodeGlobalMatrixComp* const lateNodeGlobalMatrixComp_ptr)
 {
-    NodeDataCompEntity& current_position_componentEntity = positionComp_ptr->GetComponentEntity(thisEntity);
-
     if (parentEntity != 0)
     {
         LateNodeGlobalMatrixCompEntity& parent_nodeGlobalMatrix_componentEntity = lateNodeGlobalMatrixComp_ptr->GetComponentEntity(parentEntity);
-        globalMatrix = current_position_componentEntity.GetGlobalMatrix(parent_nodeGlobalMatrix_componentEntity.globalMatrix);
+        globalMatrix = this_nodeData.GetGlobalMatrix(parent_nodeGlobalMatrix_componentEntity.globalMatrix);
     }
     else
-        globalMatrix = current_position_componentEntity.GetGlobalMatrix(glm::mat4(1.f));
+        globalMatrix = this_nodeData.GetGlobalMatrix(glm::mat4(1.f));
 
 }
 

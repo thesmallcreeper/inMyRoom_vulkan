@@ -1,5 +1,4 @@
 #include "ECS/GeneralComponents/EarlyNodeGlobalMatrixComp.h"
-#include "ECS/GeneralComponents/NodeDataComp.h"
 
 #include "ECS/ECSwrapper.h"
 
@@ -10,18 +9,4 @@ EarlyNodeGlobalMatrixComp::EarlyNodeGlobalMatrixComp(ECSwrapper* const in_ecs_wr
 
 EarlyNodeGlobalMatrixComp::~EarlyNodeGlobalMatrixComp()
 {
-}
-
-void EarlyNodeGlobalMatrixComp::Update() //ComponentRawBaseClass
-{
-    componentID position_componentID = static_cast<componentID>(componentIDenum::NodeData);
-    NodeDataComp* const positionComp_ptr = static_cast<NodeDataComp*>(ecsWrapper_ptr->GetComponentByID(position_componentID));
-
-    componentID earlyNodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::EarlyNodeGlobalMatrix);
-    EarlyNodeGlobalMatrixComp* const earlyNodeGlobalMatrix_ptr = static_cast<EarlyNodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(earlyNodeGlobalMatrix_componentID));
-
-    for (size_t index = 0; index < componentEntitiesRaw.size(); index++)
-        if (!isItEmptyRawVector[index])
-            componentEntitiesRaw[index].Update(positionComp_ptr,
-                                               earlyNodeGlobalMatrix_ptr);
 }

@@ -27,17 +27,17 @@ EntitiesHandler* ECSwrapper::GetEntitiesHandler()
     return entitiesHandler_uptr.get();
 }
 
-ComponentBaseClass* ECSwrapper::GetComponentByID(componentID component_id)
+ComponentBaseClass* ECSwrapper::GetComponentByID(componentID component_id) const
 {
-    auto search = componentIDtoComponentBaseClass_map.find(component_id);
+    const auto search = componentIDtoComponentBaseClass_map.find(component_id);
     assert(search != componentIDtoComponentBaseClass_map.end());
 
     return search->second;
 }
 
-componentID ECSwrapper::GetComponentIDbyName(std::string component_name)
+componentID ECSwrapper::GetComponentIDbyName(std::string component_name) const
 {
-    auto search = componentNameToComponentID_umap.find(component_name);
+    const auto search = componentNameToComponentID_umap.find(component_name);
     assert(search != componentNameToComponentID_umap.end());
 
     return search->second;

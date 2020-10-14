@@ -1,12 +1,8 @@
 #include "ECS/GeneralCompEntities/AnimationActorCompEntity.h"
-#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
-#include "ECS/GeneralComponents/AnimationActorComp.h"
-#include "ECS/GeneralComponents/NodeDataComp.h"
-
 #include <cmath>
 #include <algorithm>
 
@@ -15,7 +11,7 @@
 #include "glm/ext/quaternion_common.hpp"
 
 AnimationActorCompEntity::AnimationActorCompEntity(const Entity this_entity)
-    :CompEntityBase<AnimationActorComp>(this_entity)
+    :CompEntityBaseWrappedClass<AnimationActorComp>(this_entity)
 {
 }
 

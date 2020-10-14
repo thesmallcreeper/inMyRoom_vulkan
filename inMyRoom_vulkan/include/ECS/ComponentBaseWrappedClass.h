@@ -47,7 +47,7 @@ ComponentEntityType& ComponentBaseWrappedClass<ComponentEntityType, _component_I
 template <typename ComponentEntityType, componentID _component_ID, FixedString _component_name>
 const ComponentEntityType& ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name>::GetComponentEntity(const Entity this_entity) const
 {
-    return *reinterpret_cast<const ComponentEntityType*>(const_cast< std::remove_const<decltype(this)> >(this)->GetComponentEntityVoidPtr(this_entity));
+    return *reinterpret_cast<const ComponentEntityType*>(const_cast<ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name>*>(this)->GetComponentEntityVoidPtr(this_entity));
 }
 
 template<typename ComponentEntityType, componentID _component_ID, FixedString _component_name>

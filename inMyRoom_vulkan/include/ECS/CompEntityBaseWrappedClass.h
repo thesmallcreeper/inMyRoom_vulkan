@@ -1,19 +1,19 @@
 #pragma once
 
+#include "ECS/CompEntityBaseClass.h"
+
 #include "ECS/ComponentBaseWrappedClass.h"
 
 template<typename ComponentType>
-class CompEntityBase
+class CompEntityBaseWrappedClass : public CompEntityBaseClass
 {
 public:
-    CompEntityBase(const Entity this_entity)
-        :thisEntity(this_entity)
+    CompEntityBaseWrappedClass(const Entity this_entity)
+        :CompEntityBaseClass(this_entity)
     {
     }
 
     static constexpr ComponentType GetComponentType();
-
-    Entity thisEntity;
 
 protected:
     static ComponentType* GetComponentPtr()

@@ -1,20 +1,21 @@
 #pragma once
 
-#include "ECS/CompEntityBase.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
+
+class ModelCollisionComp;
+class ModelCollisionCompEntity;
+#ifdef GAME_DLL
+class ModelCollisionComp
+    :public ComponentBaseWrappedClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision"> {};
+#else
+#include "ECS/GeneralComponents/ModelCollisionComp.h"
+#endif
 
 #include "ECS/GeneralCompEntities/EarlyNodeGlobalMatrixCompEntity.h"
 #include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
 
-#ifdef GAME_DLL
-class ModelCollisionCompEntity;
-class ModelCollisionComp
-    :public ComponentBaseWrappedClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision"> {};
-#else
-class ModelCollisionComp;
-#endif
-
 class ModelCollisionCompEntity :
-    public CompEntityBase<ModelCollisionComp>
+    public CompEntityBaseWrappedClass<ModelCollisionComp>
 {
 #ifndef GAME_DLL
 public:

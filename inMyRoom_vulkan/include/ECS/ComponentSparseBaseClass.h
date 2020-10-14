@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ECS/ComponentBaseWrappedClass.h"
+#include "ECS/TemplateHelpers.h"
 
 #include <unordered_map>
 #include <set>
@@ -15,8 +16,7 @@ public:
     ~ComponentSparseBaseClass() override;
     void Deinit() override;
 
-//  void Update() override;
-//  void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
+    void Update() override;
 
     std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const override;
 
@@ -25,7 +25,11 @@ public:
     void RemoveComponentEntity(const Entity this_entity) override;                                              // Component entity memory specific task
     void CompleteAddsAndRemoves() override;                                                                     // Component entity memory specific task
     void InitAdds() override;                                                                                   // Component entity memory specific task
-    ComponentEntityPtr GetComponentEntityVoidPtr(const Entity this_entity) override;                                   // Component entity memory specific task
+    ComponentEntityPtr GetComponentEntityVoidPtr(const Entity this_entity) override;                            // Component entity memory specific task
+
+private:
+    void Update_impl() requires TrivialUpdatable<ComponentEntityType>;
+    void Update_impl() {}
 
 protected:
     std::set<Entity> entitiesOfComponent_set;
@@ -64,28 +68,24 @@ inline void ComponentSparseBaseClass<ComponentEntityType, component_ID, componen
     CompleteAddsAndRemoves();
 }
 
-/*
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::Update()
+template <typename ComponentEntityType, componentID component_ID, FixedString component_name>
+void ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::Update()
 {
-    for (ComponentEntityType& this_componentEntity : this_componentEntitiesSparse)
-        this_componentEntity.Update();
+    Update_impl();
 }
 
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::FixedUpdate()
+template <typename ComponentEntityType, componentID component_ID, FixedString component_name>
+void ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::Update_impl() requires TrivialUpdatable<ComponentEntityType>
 {
-    for (ComponentEntityType& this_componentEntity : this_componentEntitiesSparse)
-        this_componentEntity.FixedUpdate();
-}
+    auto component_ptrs = GetComponentPtrsOfArguments(ComponentBaseClass::ecsWrapper_ptr, &ComponentEntityType::Update);
 
-template<typename ComponentEntityType>
-void ComponentSparseBaseClass<ComponentEntityType>::AsyncUpdate()
-{
-    for (ComponentEntityType& this_componentEntity : this_componentEntitiesSparse)
-        this_componentEntity.AsyncUpdate();
+    for (size_t index = 0; index < componentEntitiesSparse.size(); index++)
+    {
+        auto arguments = TranslateComponentPtrsIntoArguments(static_cast<Entity>(componentEntitiesSparse[index].thisEntity), component_ptrs);
+
+        std::apply(&ComponentEntityType::Update, std::tuple_cat(std::tie(componentEntitiesSparse[index]), arguments));
+    }
 }
-*/
 
 template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
 inline std::vector<std::pair<std::string, MapType>> ComponentSparseBaseClass<ComponentEntityType, component_ID, component_name>::GetComponentInitMapFields() const

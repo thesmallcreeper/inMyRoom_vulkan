@@ -1,19 +1,20 @@
 #pragma once
 
-#include "ECS/CompEntityBase.h"
+#include "ECS/CompEntityBaseWrappedClass.h"
 
-#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
-
-#ifdef GAME_DLL
+class LateNodeGlobalMatrixComp;
 class LateNodeGlobalMatrixCompEntity;
+#ifdef GAME_DLL
 class LateNodeGlobalMatrixComp :
     public ComponentBaseWrappedClass<LateNodeGlobalMatrixCompEntity, static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix), "LateNodeGlobalMatrix"> {};
 #else
-class LateNodeGlobalMatrixComp;
+#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
 #endif
 
+#include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
+
 class LateNodeGlobalMatrixCompEntity :
-    public CompEntityBase<LateNodeGlobalMatrixComp>
+    public CompEntityBaseWrappedClass<LateNodeGlobalMatrixComp>
 {
 #ifndef GAME_DLL
 public:
@@ -33,7 +34,7 @@ public:
     static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
-    void Update(NodeDataComp* positionComp_ptr,
+    void Update(const NodeDataCompEntity& this_nodeData,
                 LateNodeGlobalMatrixComp* lateNodeGlobalMatrixComp_ptr);
 
 #endif
