@@ -19,7 +19,7 @@ class ModelCollisionCompEntity :
 {
 #ifndef GAME_DLL
 public:
-    ModelCollisionCompEntity(const Entity this_entity);
+    ModelCollisionCompEntity(Entity this_entity);
 
     static ModelCollisionCompEntity GetEmpty();
 
@@ -29,7 +29,6 @@ public:
             "ShouldCallback",    shouldCallback          = int         (optional)
     */
     static ModelCollisionCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
-    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
 

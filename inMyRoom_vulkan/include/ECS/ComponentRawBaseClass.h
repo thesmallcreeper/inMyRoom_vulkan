@@ -15,8 +15,6 @@ public:
     void Deinit() override;
 
     void Update() override;
-
-    std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const override;
     
     void AddComponent(const Entity this_entity, const ComponentEntityType this_componentEntity);                // Component entity specific task
     void AddComponentEntityByMap(const Entity this_entity, const CompEntityInitMap& this_map) override;         // Component entity specific task
@@ -43,6 +41,7 @@ private:
     template <typename T> void Hi();
 
 };
+
 
 // -----SOURCE-----
 
@@ -93,12 +92,6 @@ inline void ComponentRawBaseClass<ComponentEntityType, component_ID, component_n
             std::apply(&ComponentEntityType::Update, std::tuple_cat(std::tie(componentEntitiesRaw[index]), arguments));
         }
     }
-}
-
-template<typename ComponentEntityType, componentID component_ID, FixedString component_name>
-inline std::vector<std::pair<std::string, MapType>> ComponentRawBaseClass<ComponentEntityType, component_ID, component_name>::GetComponentInitMapFields() const
-{
-    return ComponentEntityType::GetComponentInitMapFields();
 }
 
 template<typename ComponentEntityType, componentID component_ID, FixedString component_name>

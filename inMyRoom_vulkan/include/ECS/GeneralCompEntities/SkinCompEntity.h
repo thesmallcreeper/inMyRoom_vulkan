@@ -27,7 +27,6 @@ public:
         "JointRelativeName_X",           jointEntities[X]              = string    (name)
     */
     static SkinCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
-    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
     void Update(LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,

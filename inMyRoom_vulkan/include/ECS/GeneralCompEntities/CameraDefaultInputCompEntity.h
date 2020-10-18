@@ -32,7 +32,6 @@ public:
     "UpDirection",       upDirection             = vec4.xyz      (optional-default  0,-1, 0)
     */
     static CameraDefaultInputCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
-    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
     void Update(CameraComp* cameraComp_ptr,

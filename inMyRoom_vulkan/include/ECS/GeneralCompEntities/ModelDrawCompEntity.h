@@ -30,7 +30,6 @@ public:
             "IsSkin",            isSkin                  = int         (optional)
     */
     static ModelDrawCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
-    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
 

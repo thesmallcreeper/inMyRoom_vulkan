@@ -18,7 +18,7 @@ class LateNodeGlobalMatrixCompEntity :
 {
 #ifndef GAME_DLL
 public:
-    LateNodeGlobalMatrixCompEntity(const Entity this_entity);
+    LateNodeGlobalMatrixCompEntity(Entity this_entity);
 
     static LateNodeGlobalMatrixCompEntity GetEmpty();
 
@@ -31,7 +31,6 @@ public:
     "MatrixColumn3",        globalMatrix[3]         = vec4          (optional)
     */
     static LateNodeGlobalMatrixCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
-    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
     void Update(const NodeDataCompEntity& this_nodeData,

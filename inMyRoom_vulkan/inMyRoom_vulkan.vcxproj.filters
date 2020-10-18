@@ -467,6 +467,12 @@
     <ClInclude Include="include\ECS\CompEntityBaseClass.h">
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
+    <ClInclude Include="include\sparse_set.h">
+      <Filter>Header Files\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dense_set.h">
+      <Filter>Header Files\_etc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="config.cfg">

@@ -53,16 +53,6 @@ ModelCollisionCompEntity ModelCollisionCompEntity::CreateComponentEntityByMap(co
     return this_modelCollisionCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> ModelCollisionCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("MeshIndex", MapType::int_type));
-    return_pair.emplace_back(std::make_pair("DisableCollision", MapType::bool_type));
-    return_pair.emplace_back(std::make_pair("ShouldCallback", MapType::bool_type));
-
-    return return_pair;
-}
-
 void ModelCollisionCompEntity::Init()
 {}
 

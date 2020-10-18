@@ -19,8 +19,6 @@ public:
     virtual ~ComponentBaseClass();
     virtual void Deinit() = 0;
 
-    virtual std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields() const = 0;
-
     virtual void Update() {}
     virtual void AsyncInput(InputType input_type, void* struct_data = nullptr) {}
 
@@ -45,8 +43,6 @@ public:  // Only component entities should call that
     void InformEntitiesHandlerAboutRemoval(const Entity this_entity) const;
 
 protected:
-    std::vector<std::pair<std::string, MapType>> componentInitMapFields;
-
     ECSwrapper* const ecsWrapper_ptr;
 };
 

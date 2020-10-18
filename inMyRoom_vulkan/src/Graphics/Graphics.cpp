@@ -47,7 +47,7 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::
     InitShadersSetsFamiliesCache();
     printf("Initializing meshes tree\n");
     InitMeshesTree();
-    printf("Initializing graphics oriented components\n");\
+    printf("Initializing graphics oriented components\n");
     InitGraphicsComponents();
 }
 

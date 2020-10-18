@@ -23,10 +23,10 @@ EarlyNodeGlobalMatrixCompEntity EarlyNodeGlobalMatrixCompEntity::CreateComponent
     // "ParentEntity", localScale.xyz = vec4.xyz    (optional)
     {
         {
-            auto search = in_map.entityMap.find("ParentEntity");
-            if (search != in_map.entityMap.end())
+            auto search = in_map.intMap.find("ParentEntity");
+            if (search != in_map.intMap.end())
             {
-                Entity this_parent_entity = search->second;
+                Entity this_parent_entity = static_cast<Entity>(search->second);
                 this_earlyNodeGlobalMatrixCompEntity.parentEntity = this_parent_entity;
             }
         }
@@ -77,19 +77,6 @@ EarlyNodeGlobalMatrixCompEntity EarlyNodeGlobalMatrixCompEntity::CreateComponent
     }
 
     return this_earlyNodeGlobalMatrixCompEntity;
-}
-
-std::vector<std::pair<std::string, MapType>> EarlyNodeGlobalMatrixCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("ParentEntity",     MapType::entity_type));
-    return_pair.emplace_back(std::make_pair("ParentName",       MapType::string_type));
-    return_pair.emplace_back(std::make_pair("MatrixColumn0",    MapType::vec4_type));
-    return_pair.emplace_back(std::make_pair("MatrixColumn1",    MapType::vec4_type));
-    return_pair.emplace_back(std::make_pair("MatrixColumn2",    MapType::vec4_type));
-    return_pair.emplace_back(std::make_pair("MatrixColumn3",    MapType::vec4_type));
-
-    return return_pair;
 }
 
 void EarlyNodeGlobalMatrixCompEntity::Update(const NodeDataCompEntity& this_nodeData,

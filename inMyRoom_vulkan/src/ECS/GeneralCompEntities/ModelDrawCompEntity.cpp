@@ -61,17 +61,6 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
     return this_modelDrawCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> ModelDrawCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("MeshIndex", MapType::int_type));
-    return_pair.emplace_back(std::make_pair("ShouldDraw", MapType::bool_type));
-    return_pair.emplace_back(std::make_pair("DisableCulling", MapType::bool_type));
-    return_pair.emplace_back(std::make_pair("IsSkin", MapType::bool_type));
-
-    return return_pair;
-}
-
 void ModelDrawCompEntity::DrawUsingFrustumCull(LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
                                                SkinComp* skin_ptr,
                                                MeshesOfNodes* meshesOfNodes_ptr,

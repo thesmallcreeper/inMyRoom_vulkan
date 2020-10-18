@@ -25,6 +25,9 @@ public:
     static constexpr ComponentEntityType GetComponentEntityType();
 };
 
+
+// -----SOURCE-----
+
 template<typename ComponentEntityType, componentID _component_ID, FixedString _component_name>
 inline ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name>::ComponentBaseWrappedClass(ECSwrapper* const in_ecs_wrapper_ptr)
     :ComponentBaseClass::ComponentBaseClass(in_ecs_wrapper_ptr)

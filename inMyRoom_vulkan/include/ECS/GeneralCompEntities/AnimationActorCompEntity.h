@@ -31,7 +31,6 @@ public:
         "Animation_X",  animations_umap[X]  = string  (name/declaration of the animation)
     */
     static AnimationActorCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
-    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
     void Update(NodeDataComp* positionComp_ptr,

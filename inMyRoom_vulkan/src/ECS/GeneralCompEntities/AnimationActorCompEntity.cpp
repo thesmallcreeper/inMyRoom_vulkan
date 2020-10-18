@@ -50,14 +50,6 @@ AnimationActorCompEntity AnimationActorCompEntity::CreateComponentEntityByMap(co
     return this_animationActorCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> AnimationActorCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    // NULL
-
-    return return_pair;
-}
-
 void AnimationActorCompEntity::Init()
 {
 }

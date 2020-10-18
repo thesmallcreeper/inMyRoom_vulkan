@@ -32,7 +32,6 @@ public:
         "GlobalTranslation",    globalTranslation.xyz   = vec4.xyz      (optional)
     */
     static NodeDataCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
-    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     glm::mat4x4 GetGlobalMatrix(glm::mat4x4 parent_global_matrix) const;
 

@@ -52,14 +52,6 @@ SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity
     return this_skinCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> SkinCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    // NULL
-
-    return return_pair;
-}
-
 void SkinCompEntity::Init()
 {
 }

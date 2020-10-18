@@ -64,12 +64,12 @@ void GameImporter::AddImports()
     std::vector<std::string> models_name;
     std::vector<std::string> models_folder;
 
-    for (const configuru::Config& arrayIterator : gameConfig["imports"]["toImport"].as_array())
+    for (const auto& this_iterator : gameConfig["imports"].as_object())
     {
-        std::string this_file_to_import = folderName + "/" + gameConfig["imports"][arrayIterator.as_string()].as_string();
+        std::string this_file_to_import = folderName + "/" + this_iterator.value().as_string();
 
         models.emplace_back(LoadglTFmodel(this_file_to_import));
-        models_name.emplace_back(arrayIterator.as_string());
+        models_name.emplace_back(this_iterator.key());
         models_folder.emplace_back(GetFilePathFolder(this_file_to_import));
     }
 
@@ -115,10 +115,10 @@ void GameImporter::AddDefaultCameraFab()
 
 void GameImporter::AddFabs()
 {
-    for (const configuru::Config& array_iterator : gameConfig["fabs"]["toFab"].as_array())
+    for (const auto& this_iterator : gameConfig["fabs"].as_object())
     {
-        std::string this_fab_name = array_iterator.as_string();
-        std::string this_fab_import_path = gameConfig["fabs"][this_fab_name]["basedOn"].as_string();
+        std::string this_fab_name = this_iterator.key();
+        std::string this_fab_import_path = this_iterator.value()["basedOn"].as_string();
 
         auto search = imports_umap.find(this_fab_import_path.substr(0, this_fab_import_path.find_first_of("/")));
         assert(search != imports_umap.end());
@@ -137,14 +137,14 @@ void GameImporter::AddFabs()
         this_fab->nodeName = this_fab_name;
 
         // Tweaks
-        if (gameConfig["fabs"][this_fab_name].has_key("tweak"))
+        if (this_iterator.value().has_key("tweak"))
         {
-            for (const configuru::Config& array_iterator : gameConfig["fabs"][this_fab_name]["tweak"]["toTweak"].as_array())
+            for (const auto& this_tweak_iterator : this_iterator.value()["tweak"].as_object())
             {
-                std::string this_tweak_name = array_iterator.as_string();
-                const configuru::Config& tweak_properties = gameConfig["fabs"][this_fab_name]["tweak"][this_tweak_name];
+                const std::string node_name = this_tweak_iterator.key();
+                const configuru::Config& tweak_properties = this_tweak_iterator.value();
 
-                Node* this_tweaked_node = FindNodeInTree(this_fab.get(), tweak_properties["nodeName"].as_string());
+                Node* this_tweaked_node = FindNodeInTree(this_fab.get(), node_name);
 
                 AddTweaksToNode(this_tweaked_node, tweak_properties);
             }
@@ -677,77 +677,59 @@ void GameImporter::AddTweaksToNode(Node* this_node, const configuru::Config& twe
 {
 
     for (const std::string component_name : engine_ptr->GetECSwrapperPtr()->GetComponentsNames())
-        if (tweak_properties["components"].has_key(component_name))
+    {
+        if (tweak_properties.has_key(component_name))
         {
             componentID this_componentID = engine_ptr->GetECSwrapperPtr()->GetComponentIDbyName(component_name);
-            ComponentBaseClass* this_component_ptr = engine_ptr->GetECSwrapperPtr()->GetComponentByID(this_componentID);
-
-            std::vector<std::pair<std::string, MapType>> this_component_init_map_fields = this_component_ptr->GetComponentInitMapFields();
 
             this_node->componentIDsToInitMaps.try_emplace(this_componentID, CompEntityInitMap());
 
-            for (const std::pair<std::string, MapType> this_field : this_component_init_map_fields)
-                if (tweak_properties["components"][component_name].has_key(this_field.first))
+            for(const auto& this_iterator: tweak_properties[component_name].as_object())
+            {
+                std::string init_map_key = this_iterator.key();
+
+                if(this_iterator.value().is_array())
                 {
-                    switch (this_field.second)
+                    const configuru::Config& this_array = this_iterator.value().as_array();
+                    if(this_array.array_size() == 4)
                     {
-                        case MapType::vec4_type:
-                        {
-                            const configuru::Config& this_array = tweak_properties["components"][component_name][this_field.first].as_array();
                             glm::vec4 this_vec4 = glm::vec4(this_array[0].as_float(), this_array[1].as_float(), this_array[2].as_float(), this_array[3].as_float());
-
-                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[this_field.first] = this_vec4;
-                        }
-                        break;
-                        case MapType::vec3_type:
-                        {
-                            const configuru::Config& this_array = tweak_properties["components"][component_name][this_field.first].as_array();
+                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[init_map_key] = this_vec4;
+                    }
+                    else if(this_array.array_size() == 3)
+                    {
                             glm::vec4 this_vec4 = glm::vec4(this_array[0].as_float(), this_array[1].as_float(), this_array[2].as_float(), 0.f);
-
-                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[this_field.first] = this_vec4;
-                        }
-                        break;
-                        case MapType::vec2_type:
-                        {
-                            const configuru::Config& this_array = tweak_properties["components"][component_name][this_field.first].as_array();
+                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[init_map_key] = this_vec4;
+                    }
+                    else if(this_array.array_size() == 2)
+                    {
                             glm::vec4 this_vec4 = glm::vec4(this_array[0].as_float(), this_array[1].as_float(), 0.f, 0.f);
-
-                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[this_field.first] = this_vec4;
-                        }
-                        break;
-                        case MapType::float_type:
-                        {
-                            float this_float = tweak_properties["components"][component_name][this_field.first].as_float();
-                            this_node->componentIDsToInitMaps[this_componentID].floatMap[this_field.first] = this_float;
-                        }
-                        break;
-                        case MapType::int_type:
-                        {
-                            int this_int = tweak_properties["components"][component_name][this_field.first].as_integer<int>();
-                            this_node->componentIDsToInitMaps[this_componentID].intMap[this_field.first] = this_int;
-                        }
-                        break;
-                        case MapType::entity_type:
-                        {
-                            Entity this_entity = tweak_properties["components"][component_name][this_field.first].as_integer<Entity>();
-                            this_node->componentIDsToInitMaps[this_componentID].entityMap[this_field.first] = this_entity;
-                        }
-                        break;
-                        case MapType::string_type:
-                        {
-                            std::string this_string = tweak_properties["components"][component_name][this_field.first].as_string();
-                            this_node->componentIDsToInitMaps[this_componentID].stringMap[this_field.first] = this_string;
-                        }
-                        break;
-                        case MapType::bool_type:
-                        {
-                            bool this_bool = tweak_properties["components"][component_name][this_field.first].as_bool();
-                            this_node->componentIDsToInitMaps[this_componentID].intMap[this_field.first] = static_cast<int>(this_bool);
-                        }
-                        break;
+                            this_node->componentIDsToInitMaps[this_componentID].vec4Map[init_map_key] = this_vec4;
                     }
                 }
+                else if(this_iterator.value().is_float())
+                {
+                    float this_float = this_iterator.value().as_float();
+                    this_node->componentIDsToInitMaps[this_componentID].floatMap[init_map_key] = this_float;
+                }
+                else if(this_iterator.value().is_int())
+                {
+                    int this_int = this_iterator.value().as_integer<int>();
+                    this_node->componentIDsToInitMaps[this_componentID].intMap[init_map_key] = this_int;
+                }
+                else if(this_iterator.value().is_bool())
+                {
+                    bool this_bool = this_iterator.value().as_bool();
+                    this_node->componentIDsToInitMaps[this_componentID].intMap[init_map_key] = static_cast<int>(this_bool);
+                }
+                else if(this_iterator.value().is_string())
+                {
+                    std::string this_string = this_iterator.value().as_string();
+                    this_node->componentIDsToInitMaps[this_componentID].stringMap[init_map_key] = this_string;
+                }
+            }
         }
+    }
 }
 
 Entity GameImporter::AddFabAndGetRoot(std::string fab_name, std::string parent_path, std::string preferred_name)

@@ -97,20 +97,6 @@ SnakePlayerCompEntity SnakePlayerCompEntity::CreateComponentEntityByMap(const En
     return this_snakePlayerEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> SnakePlayerCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("Speed", MapType::float_type));
-    return_pair.emplace_back(std::make_pair("RotationSpeed", MapType::float_type));
-    return_pair.emplace_back(std::make_pair("AnimationComposer", MapType::string_type));
-    return_pair.emplace_back(std::make_pair("CameraOffset", MapType::vec3_type));
-    return_pair.emplace_back(std::make_pair("InitDirection", MapType::vec3_type));
-    return_pair.emplace_back(std::make_pair("UpDirection", MapType::vec3_type));
-    return_pair.emplace_back(std::make_pair("IsHumanPlayer", MapType::bool_type));
-
-    return return_pair;
-}
-
 void SnakePlayerCompEntity::Init()
 {
     if (isHumanPlayer)

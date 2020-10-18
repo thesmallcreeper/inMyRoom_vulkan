@@ -20,7 +20,6 @@ struct CompEntityInitMap
     std::unordered_map<std::string, float> floatMap;          // float_type
     std::unordered_map<std::string, int> intMap;              // int_type
     std::unordered_map<std::string, std::string> stringMap;   // string_type
-    std::unordered_map<std::string, Entity> entityMap;        // entity_type
 
     CompEntityInitMap()
     {}
@@ -30,7 +29,6 @@ struct CompEntityInitMap
         floatMap = other.floatMap;
         intMap = other.intMap;
         stringMap = other.stringMap;
-        entityMap = other.entityMap;
     }
 };
 

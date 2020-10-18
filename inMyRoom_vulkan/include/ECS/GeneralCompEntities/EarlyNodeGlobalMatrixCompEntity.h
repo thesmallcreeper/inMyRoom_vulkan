@@ -31,7 +31,6 @@ public:
     "MatrixColumn3",        globalMatrix[3]         = vec4          (optional)
     */
     static EarlyNodeGlobalMatrixCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
-    static std::vector<std::pair<std::string, MapType>> GetComponentInitMapFields();
 
     void Init();
     void Update(const NodeDataCompEntity& this_nodeData,

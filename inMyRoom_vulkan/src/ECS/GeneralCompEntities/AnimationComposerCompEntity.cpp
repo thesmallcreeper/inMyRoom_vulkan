@@ -63,14 +63,6 @@ AnimationComposerCompEntity AnimationComposerCompEntity::CreateComponentEntityBy
     return this_animationComposerCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> AnimationComposerCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("ShouldAutoplay", MapType::bool_type));   // TODO add bool
-
-    return return_pair;
-}
-
 void AnimationComposerCompEntity::Init()
 {
     if (shouldAutoplay)

@@ -60,17 +60,6 @@ NodeDataCompEntity NodeDataCompEntity::CreateComponentEntityByMap(const Entity i
     return this_positionCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> NodeDataCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("LocalScale",        MapType::vec3_type));
-    return_pair.emplace_back(std::make_pair("LocalRotation",     MapType::vec4_type));
-    return_pair.emplace_back(std::make_pair("LocalTranslation",  MapType::vec3_type));
-    return_pair.emplace_back(std::make_pair("GlobalTranslation", MapType::vec3_type));
-
-    return return_pair;
-}
-
 glm::mat4x4 NodeDataCompEntity::GetGlobalMatrix(const glm::mat4x4 parent_global_matrix) const
 {
     glm::mat4 S_matrix = glm::scale(glm::mat4(1.0f), localScale);

@@ -106,20 +106,6 @@ CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_en
     return this_cameraCompEntity;
 }
 
-std::vector<std::pair<std::string, MapType>> CameraCompEntity::GetComponentInitMapFields()
-{
-    std::vector<std::pair<std::string, MapType>> return_pair;
-    return_pair.emplace_back(std::make_pair("FOVy",              MapType::float_type));
-    return_pair.emplace_back(std::make_pair("aspect",            MapType::float_type));
-    return_pair.emplace_back(std::make_pair("nearPlane",         MapType::float_type));
-    return_pair.emplace_back(std::make_pair("farPlane",          MapType::float_type));
-    return_pair.emplace_back(std::make_pair("GlobalPosition",    MapType::vec3_type));
-    return_pair.emplace_back(std::make_pair("GlobalDirection",   MapType::vec3_type));
-    return_pair.emplace_back(std::make_pair("UpDirection",       MapType::vec3_type));
-
-    return return_pair;
-}
-
 void CameraCompEntity::Init()
 {
 }
