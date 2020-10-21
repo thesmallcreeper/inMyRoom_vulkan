@@ -97,6 +97,11 @@ public:
         return const_cast<dense_set>(this)->operator[](index);
     }
 
+    bool does_exist(index_T index) const
+    {
+        return array[index - array_offset].*dense_T_index_ptr != -1;
+    }
+
     [[nodiscard]] size_t size() const
     {
         return array.size();

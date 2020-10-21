@@ -74,6 +74,14 @@ public:
         return const_cast<dense_set>(this)->operator[](index);
     }
 
+    bool does_exist(index_T index) const
+    {
+        index_T dense_index = sparse_array[index - sparse_array_offset];
+        assert(dense_array[dense_index].*dense_T_index_ptr == index);
+
+        return  dense_index != -1;
+    }
+
     [[nodiscard]] size_t size() const
     {
         return dense_array.size();

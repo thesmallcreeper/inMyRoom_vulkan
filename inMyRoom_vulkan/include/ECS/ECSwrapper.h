@@ -34,7 +34,6 @@ public:
     void RemoveEntityAndChildrenFromAllComponentsAndDelete(Entity this_entity);
 
     void Update(bool complete_adds_and_removes);
-    void FixedUpdate();                                                                         // Forbidden to add or remove anything
     void AsyncInput(InputType input_type, void* struct_data = nullptr);                         // Forbidden to add or remove anything
 
     void CompleteAddsAndRemoves();

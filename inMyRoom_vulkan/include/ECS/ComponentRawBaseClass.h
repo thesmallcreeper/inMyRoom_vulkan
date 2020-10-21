@@ -37,9 +37,6 @@ private:
 
     std::vector<std::pair<Entity, ComponentEntityType>> componentEntitiesToAdd;
     std::vector<Entity> componentEntitiesToInit;
-
-    template <typename T> void Hi();
-
 };
 
 

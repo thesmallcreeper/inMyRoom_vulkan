@@ -655,10 +655,10 @@ void GameImporter::InitializeGame()
 {
     InitOneDefaultCameraAndBindIt();
 
-    for (const configuru::Config& arrayIterator : gameConfig["init"]["toInit"].as_array())
+    for (const auto& this_iterator : gameConfig["init"].as_object())
     {
-        std::string this_init_name = arrayIterator.as_string();
-        std::string this_init_fab_using = gameConfig["init"][this_init_name].as_string();
+        std::string this_init_name = this_iterator.key();
+        std::string this_init_fab_using = this_iterator.value().as_string();
 
         AddFabAndGetRoot(this_init_fab_using, 0, this_init_name);
 
