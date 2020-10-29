@@ -1,14 +1,14 @@
 #pragma once
 
 #include "ECS/GeneralCompEntities/CameraCompEntity.h"
-#include "ECS/ComponentSparseBaseClass.h"
+#include "ECS/ComponentDataClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
 
 
 
 class CameraComp final
-    :public ComponentSparseBaseClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera">
+    :public ComponentDataClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera", sparse_set>
 {
 public:
     CameraComp(ECSwrapper* const in_ecs_wrapper_ptr,

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ECS/GeneralCompEntities/ModelDrawCompEntity.h"
-#include "ECS/ComponentSparseBaseClass.h"
+#include "ECS/ComponentDataClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
 
@@ -16,7 +16,7 @@ struct DrawRequestsBatch
 };
 
 class ModelDrawComp final
-    : public ComponentSparseBaseClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw">
+    : public ComponentDataClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw", sparse_set>
 {
 public:
     ModelDrawComp(ECSwrapper* const in_ecs_wrapper_ptr);

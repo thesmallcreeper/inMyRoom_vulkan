@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ECS/GeneralCompEntities/ModelCollisionCompEntity.h"
-#include "ECS/ComponentSparseBaseClass.h"
+#include "ECS/ComponentDataClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
 
@@ -9,7 +9,7 @@
 #include "Graphics/Meshes/MeshesOfNodes.h"
 
 class ModelCollisionComp final
-    : public ComponentSparseBaseClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision">
+    : public ComponentDataClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision", sparse_set>
 {
 public:
     ModelCollisionComp(ECSwrapper* const in_ecs_wrapper_ptr,

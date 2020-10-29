@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\include\dense_set.h" />
     <ClInclude Include="..\..\..\include\ECS\CompEntityBaseClass.h" />
     <ClInclude Include="..\..\..\include\ECS\CompEntityBaseWrappedClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentBaseClass.h" />
@@ -42,6 +43,7 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h" />
     <ClInclude Include="..\..\..\include\game_dll.h" />
     <ClInclude Include="..\..\..\include\Geometry\ViewportFrustum.h" />
+    <ClInclude Include="..\..\..\include\sparse_set.h" />
     <ClInclude Include="include\CompEntities\SnakePlayerCompEntity.h" />
     <ClInclude Include="include\Components\SnakePlayerComp.h" />
     <ClInclude Include="include\GameSpecificComponentsVector.h" />
@@ -160,7 +162,7 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>_MBCS;_DEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_MBCS;_DEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -205,7 +207,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>_MBCS;NDEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_MBCS;NDEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -229,7 +231,7 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>

@@ -7,13 +7,6 @@
 #include <string>
 
 class AnimationActorComp;
-class AnimationActorCompEntity;
-#ifdef GAME_DLL
-class AnimationActorComp :
-    public ComponentBaseWrappedClass<AnimationActorCompEntity, static_cast<componentID>(componentIDenum::AnimationActor), "AnimationActor"> {};
-#else
-#include "ECS/GeneralComponents/AnimationActorComp.h"
-#endif
 
 #include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
@@ -30,7 +23,7 @@ public:
     /*  CreateComponentEntityByMap - AnimationActorCompEntity
         "Animation_X",  animations_umap[X]  = string  (name/declaration of the animation)
     */
-    static AnimationActorCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
+    static AnimationActorCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void Init();
     void Update(NodeDataComp* positionComp_ptr,
@@ -66,3 +59,10 @@ public: // data
     glm::qua<float> rotationT0;
     glm::vec3 scaleT0;
 };
+
+#ifdef GAME_DLL
+class AnimationActorComp :
+    public ComponentBaseWrappedClass<AnimationActorCompEntity, static_cast<componentID>(componentIDenum::AnimationActor), "AnimationActor", sparse_set> {};
+#else
+#include "ECS/GeneralComponents/AnimationActorComp.h"
+#endif

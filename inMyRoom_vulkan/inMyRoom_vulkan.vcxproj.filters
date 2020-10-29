@@ -275,12 +275,6 @@
     <ClInclude Include="include\ECS\ComponentBaseClass.h">
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
-    <ClInclude Include="include\ECS\ComponentRawBaseClass.h">
-      <Filter>Header Files\ECS</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ECS\ComponentSparseBaseClass.h">
-      <Filter>Header Files\ECS</Filter>
-    </ClInclude>
     <ClInclude Include="include\ECS\ECSwrapper.h">
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
@@ -472,6 +466,12 @@
     </ClInclude>
     <ClInclude Include="include\dense_set.h">
       <Filter>Header Files\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\ComponentDataClass.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ECS\ConceptHelpers.h">
+      <Filter>Header Files\ECS</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -47,6 +47,7 @@ void CollisionDetection::ExecuteCollisionDetection()
     // Narrow phase collision
     std::vector<CSentriesPairCollisionCenter> narrowPhaseResults = narrowPhaseCollision_uptr->ExecuteTrianglesVsTriangles(midPhaseResults);
 
+    std::vector<std::pair<Entity, CollisionCallbackData>> callbacks_to_be_made;
     for (CSentriesPairCollisionCenter& this_narrowPhaseResult : narrowPhaseResults)
     {
         if (this_narrowPhaseResult.firstEntry.entity > this_narrowPhaseResult.secondEntry.entity)
@@ -71,35 +72,36 @@ void CollisionDetection::ExecuteCollisionDetection()
             second_collisionCallbackData.deltaVector = delta.second;
         }
 
-        Entity first_entity_ancestor = first_collisionCallbackData.familyEntity;
-        Entity second_entity_ancestor = second_collisionCallbackData.familyEntity;
-        while (first_entity_ancestor != second_entity_ancestor)
+        std::vector<Entity> first_ancestors = ECSwrapper_ptr->GetEntitiesHandler()->GetEntityAncestors(first_collisionCallbackData.familyEntity);
+        std::vector<Entity> second_ancestors = ECSwrapper_ptr->GetEntitiesHandler()->GetEntityAncestors(second_collisionCallbackData.familyEntity);
+
+        for(size_t index = 0; index != first_ancestors.size(); ++index)
         {
-            while (second_entity_ancestor > first_entity_ancestor)
+            if(index >= second_ancestors.size() ||
+               first_ancestors[index] != second_ancestors[index])
             {
-                if(this_narrowPhaseResult.secondEntry.shouldCallback)
-                    CallbackEntity(second_entity_ancestor, second_collisionCallbackData);
-
-                second_entity_ancestor = ECSwrapper_ptr->GetEntitiesHandler()->GetParentOfEntity(second_entity_ancestor);
+                callbacks_to_be_made.emplace_back(first_ancestors[index], first_collisionCallbackData);
             }
+        }
 
-            if (first_entity_ancestor != second_entity_ancestor)
+        for(size_t index = 0; index != second_ancestors.size(); ++index)
+        {
+            if(index >= first_ancestors.size() ||
+               first_ancestors[index] != second_ancestors[index])
             {
-                if (this_narrowPhaseResult.firstEntry.shouldCallback)
-                    CallbackEntity(first_entity_ancestor, first_collisionCallbackData);
-
-                first_entity_ancestor = ECSwrapper_ptr->GetEntitiesHandler()->GetParentOfEntity(first_entity_ancestor);
+                callbacks_to_be_made.emplace_back(second_ancestors[index], second_collisionCallbackData);
             }
         }
     }
+
+    MakeCallbacks(callbacks_to_be_made);
 }
 
-void CollisionDetection::CallbackEntity(Entity this_entity, const CollisionCallbackData& collision_callback_data)
+void CollisionDetection::MakeCallbacks(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs) const
 {
-    std::vector<componentID> components_of_entity = ECSwrapper_ptr->GetEntitiesHandler()->GetComponentsOfEntity(this_entity);
-    for (const componentID this_component_of_entity_ID : components_of_entity)
+    for(const auto& this_compID_component_ptr_pair: ECSwrapper_ptr->GetComponentIDtoComponentBaseClassMap())
     {
-        ComponentBaseClass* this_component_of_entity_ptr = ECSwrapper_ptr->GetComponentByID(this_component_of_entity_ID);
-        this_component_of_entity_ptr->CollisionCallback(this_entity, collision_callback_data);
+        if(this_compID_component_ptr_pair.second != nullptr)
+            this_compID_component_ptr_pair.second->CollisionCallback(callback_entity_data_pairs);
     }
 }

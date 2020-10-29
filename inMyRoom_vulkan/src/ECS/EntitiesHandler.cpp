@@ -5,220 +5,270 @@
 
 EntitiesHandler::EntitiesHandler()
 {
-    // entityID is null;
-    parentOfEachEntity.emplace_back(-1);
-    childrenOfEachEntity.emplace_back(std::set<Entity>());
-    componentsOfEachEntity.emplace_back(std::vector<componentID>());
-    nameToEntity_umap.emplace("", 0);
-    entityToName_umap.emplace(0, "");
+    InstanceInfo* root_instance_ptr = new InstanceInfo();
+    root_instance_ptr->instanceName = "_default";
+    root_instance_ptr->size = 1;
+
+    parentOfEachEntity.emplace_back(0);
+    instancePtrOfEachEntity.emplace_back(root_instance_ptr);
+    nameToInstancePtr_umap.emplace(root_instance_ptr->instanceName, root_instance_ptr);
+
+    availableRanges.emplace(size_t(-1) - 1, std::pair<Entity, Entity>(1, -1));
 }
 
 EntitiesHandler::~EntitiesHandler()
 {
-    for (size_t index = 0; index < componentsOfEachEntity.size(); index++)
+    for(auto& _this_pair: nameToInstancePtr_umap)
     {
-        assert(componentsOfEachEntity[index].empty());
-        assert(childrenOfEachEntity[index].empty());
-        assert(parentOfEachEntity[index] == -1);
+        delete _this_pair.second;
     }
 }
 
-Entity EntitiesHandler::CreateEntity()
+InstanceInfo* EntitiesHandler::AddInstanceEntities(const FabInfo* fab_info_ptr,
+                                                   Entity parent)
 {
-    return CreateEntityWithParent(0);
+    std::string instance_name = fab_info_ptr->fabName + "_" + std::to_string(noNameInstancesSoFar++);
+    return AddInstanceEntities(fab_info_ptr, std::move(instance_name), parent);
 }
 
-Entity EntitiesHandler::CreateEntityWithParent(Entity parent_entity)
+InstanceInfo* EntitiesHandler::AddInstanceEntities(const FabInfo* fab_info_ptr,
+                                                   const std::string& instance_name,
+                                                   Entity parent)
 {
-    Entity return_entity = 0;
-    if (entitiesRecycleBin.size())
-    {
-        for(size_t index = 0; index < entitiesRecycleBin.size(); index++)
-            if (entitiesRecycleBin[index] > parent_entity)
-            {
-                return_entity = entitiesRecycleBin[index];
-                entitiesRecycleBin.erase(entitiesRecycleBin.begin() + index);
+    assert(instancePtrOfEachEntity[parent] != nullptr);
+    assert(nameToInstancePtr_umap.find(instance_name) == nameToInstancePtr_umap.end());
 
-                break;
-            }
+    InstanceInfo* const instance_info_ptr = new InstanceInfo();
+
+    instance_info_ptr->fabInfo = fab_info_ptr;
+    instance_info_ptr->instanceName = instance_name;
+    instance_info_ptr->size = instance_info_ptr->fabInfo->size;
+
+    const std::pair<Entity, Entity> range = GetRange(instance_info_ptr->size);
+
+    instance_info_ptr->entityOffset = range.first;
+
+    ExtentVectors(range.second);
+
+    InstanceInfo* const parent_instance_info_ptr = instancePtrOfEachEntity[parent];
+    parent_instance_info_ptr->instanceChildren.emplace(instance_info_ptr);
+    instance_info_ptr->parent_instance = parent_instance_info_ptr;
+
+    parentOfEachEntity[range.first] = parent;
+    for(size_t index = 1; index != instance_info_ptr->size; index++)
+    {
+        parentOfEachEntity[index + range.first] = instance_info_ptr->fabInfo->entitiesParents[index] + range.first;
     }
 
-    if (return_entity == 0)
+    for(size_t index = 0; index != instance_info_ptr->size; index++)
     {
-        return_entity = static_cast<Entity>(componentsOfEachEntity.size());
-        parentOfEachEntity.emplace_back(-1);
-        childrenOfEachEntity.emplace_back(std::set<Entity>());
-        componentsOfEachEntity.emplace_back(std::vector<componentID>());
+        instancePtrOfEachEntity[index + range.first] = instance_info_ptr;
     }
 
-    
-    assert(return_entity > parent_entity);
-    assert(componentsOfEachEntity[return_entity].empty());
-    assert(childrenOfEachEntity[return_entity].empty());
-    assert(childrenOfEachEntity[parent_entity].find(return_entity) == childrenOfEachEntity[parent_entity].end());
+    nameToInstancePtr_umap.emplace(instance_name, instance_info_ptr);
 
-    parentOfEachEntity[return_entity] = parent_entity;
-    childrenOfEachEntity[parent_entity].emplace(return_entity);
-
-    return return_entity;
+    return instance_info_ptr;
 }
 
-void EntitiesHandler::DeleteEmptyEntity(Entity this_entity)
+InstanceInfo* EntitiesHandler::GetInstanceInfo(Entity entity)
 {
-    assert(this_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[this_entity] != -1 || this_entity == 0);
-    assert(componentsOfEachEntity[this_entity].empty());
-    assert(childrenOfEachEntity[this_entity].empty());
+    InstanceInfo* instance_ptr = instancePtrOfEachEntity[entity];
+    assert(instance_ptr != nullptr);
 
-    if (this_entity == 0)   // If it is default entity then don't do futher shits
+    return instance_ptr;
+}
+
+InstanceInfo* EntitiesHandler::GetInstanceInfo(const std::string& name)
+{
+    auto search = nameToInstancePtr_umap.find(name);
+    assert(search != nameToInstancePtr_umap.end());
+
+    return search->second;
+}
+
+void EntitiesHandler::RemoveInstancesEntities(const std::set<InstanceInfo*>& instance_to_remove_ptrs_set)
+{
+    if(instance_to_remove_ptrs_set.empty())
         return;
 
-    auto search = entityToName_umap.find(this_entity);
-    if (search != entityToName_umap.end())
+    std::vector<std::pair<Entity, Entity>> ranges_to_become_available;
+    ranges_to_become_available.reserve(instance_to_remove_ptrs_set.size());
+
+    for(const auto& this_instance_ptr: instance_to_remove_ptrs_set)
     {
-        nameToEntity_umap.erase(search->second);
-        entityToName_umap.erase(search->first);
-    }
+        InstanceInfo* parent_instance_info_ptr = this_instance_ptr->parent_instance;
 
-    Entity parent_entity = parentOfEachEntity[this_entity];
-
-    assert(childrenOfEachEntity[parent_entity].find(this_entity) != childrenOfEachEntity[parent_entity].end());
-    childrenOfEachEntity[parent_entity].erase(this_entity);
-
-    parentOfEachEntity[this_entity] = -1;
-
-    entitiesRecycleBin.emplace_back(this_entity);
-}
-
-void EntitiesHandler::AddEntityName(Entity this_entity, std::string name)
-{
-    assert(this_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[this_entity] != -1);
-    assert(nameToEntity_umap.find(name) == nameToEntity_umap.end());
-
-    nameToEntity_umap.emplace(name, this_entity);
-    entityToName_umap.emplace(this_entity, name);
-}
-
-Entity EntitiesHandler::FindEntityByName(std::string name)
-{
-    assert(nameToEntity_umap.find(name) != nameToEntity_umap.end());
-
-    auto search = nameToEntity_umap.find(name);
-    Entity return_entity = search->second;
-
-    assert(return_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[return_entity] != -1);
-
-    return return_entity;
-}
-
-Entity EntitiesHandler::FindEntityByRelativeName(std::string relative_name, Entity relative_entity)
-{
-    assert(relative_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[relative_entity] != -1);
-
-    std::string name;
-
-    if (relative_name.substr(0, relative_name.find_first_of("/")) != "_root")
-    {
-        std::string name_of_relative_entity = GetEntityName(relative_entity);
-        assert(name_of_relative_entity != "");
-
-        while (relative_name.substr(0, relative_name.find_first_of("/")) == "..")
         {
-            assert(name_of_relative_entity.find_last_of("/") != std::string::npos);
-            name_of_relative_entity = name_of_relative_entity.substr(0, name_of_relative_entity.find_last_of("/"));
+            auto search = parent_instance_info_ptr->instanceChildren.find(this_instance_ptr);
+            assert(search != parent_instance_info_ptr->instanceChildren.end());
 
-            if (relative_name.find_first_of("/") != std::string::npos)
-                relative_name = relative_name.substr(relative_name.find_first_of("/") + 1);
-            else
-                relative_name = "";
+            parent_instance_info_ptr->instanceChildren.erase(search);
         }
 
-        if (relative_name != "")
-            name = name_of_relative_entity + "/" + relative_name;
-        else
-            name = name_of_relative_entity;
+        for(size_t index = this_instance_ptr->entityOffset; index != this_instance_ptr->entityOffset + this_instance_ptr->size; ++index)
+        {
+            parentOfEachEntity[index] = -1;
+            instancePtrOfEachEntity[index] = nullptr;
+        }
+
+        {
+            auto search = nameToInstancePtr_umap.find(this_instance_ptr->instanceName);
+            assert(search != nameToInstancePtr_umap.end());
+
+            nameToInstancePtr_umap.erase(search);
+        }
+
+        ranges_to_become_available.emplace_back(Entity(this_instance_ptr->entityOffset), Entity(this_instance_ptr->entityOffset + this_instance_ptr->size - 1));     
     }
-    else
-        name = relative_name.substr(relative_name.find_first_of("/") + 1);
 
-    return FindEntityByName(name);
+    for(const auto& this_instance_ptr: instance_to_remove_ptrs_set)
+    {
+        assert(this_instance_ptr->instanceChildren.size());
+        delete this_instance_ptr;
+    }
+
+    AddAvailableRanges(std::move(ranges_to_become_available));
 }
 
-std::string EntitiesHandler::GetEntityName(Entity this_entity)
+Entity EntitiesHandler::FindEntityByPath(const std::string& instance_name, const std::string& fab_path) const
 {
-    assert(this_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[this_entity] != -1);
+    auto search = nameToInstancePtr_umap.find(instance_name);
+    assert(search != nameToInstancePtr_umap.end());
 
-    auto search = entityToName_umap.find(this_entity);
-
-    std::string return_name;
-    if (entityToName_umap.find(this_entity) != entityToName_umap.end())
-        return_name = search->second;
-    else
-        return_name = "";
-
-    return return_name;
+    return FindEntityByPath(search->second, fab_path);
 }
 
-std::vector<componentID> EntitiesHandler::GetComponentsOfEntity(Entity this_entity)
+Entity EntitiesHandler::FindEntityByPath(const InstanceInfo* instance_ptr, const std::string& fab_path) const
 {
-    assert(this_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[this_entity] != -1);
+    auto search = instance_ptr->fabInfo->nameToEntity.find(fab_path);
+    assert(search != instance_ptr->fabInfo->nameToEntity.end());
 
-    for (size_t index = 0; index < entitiesRecycleBin.size(); index++)
-        assert(entitiesRecycleBin[index] != this_entity);
+    Entity fab_entity = search->second;
 
-
-    return componentsOfEachEntity[this_entity];
+    return fab_entity + instance_ptr->entityOffset;
 }
 
-std::vector<Entity> EntitiesHandler::GetChildrenOfEntity(Entity this_entity)
+std::pair<std::string, std::string> EntitiesHandler::GetEntityName(Entity entity) const
 {
-    assert(this_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[this_entity] != -1 || this_entity == 0);
+    assert(instancePtrOfEachEntity[entity] != nullptr);
+
+    const InstanceInfo* instance_info_ptr = instancePtrOfEachEntity[entity];
+    Entity fab_entity = entity - instance_info_ptr->entityOffset;
+
+    auto search = instance_info_ptr->fabInfo->entityToName.find(fab_entity);
+    assert(search != instance_info_ptr->fabInfo->entityToName.end());
+
+    std::string fab_name = search->second;
+    std::string instance_name = instance_info_ptr->instanceName;
+
+    return std::make_pair<std::string, std::string>(std::move(instance_name), std::move(fab_name));
+}
+
+std::vector<Entity> EntitiesHandler::GetEntityAncestors(Entity entity) const
+{
+    assert(entity != 0);
 
     std::vector<Entity> return_vector;
-    for (Entity this_entity : childrenOfEachEntity[this_entity])
+
+    Entity this_entity = entity;
+    while(true)
+    {
         return_vector.emplace_back(this_entity);
+        if(this_entity == 0) break;
+
+        this_entity = GetParentOfEntity(this_entity);
+    }
+
+    std::reverse(return_vector.begin(), return_vector.end());
 
     return return_vector;
 }
 
-Entity EntitiesHandler::GetParentOfEntity(Entity this_entity)
+Entity EntitiesHandler::GetParentOfEntity(Entity entity) const
 {
-    assert(this_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[this_entity] != -1 && this_entity != 0);
-
-    return parentOfEachEntity[this_entity];
+    assert(parentOfEachEntity[entity] != Entity(-1));
+    return parentOfEachEntity[entity];
 }
 
-void EntitiesHandler::EntityAttachedTo(Entity this_entity, componentID at_component)
+void EntitiesHandler::ChangeParentOfInstance(InstanceInfo* instance_ptr, Entity new_parent)
 {
-    assert(this_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[this_entity] != -1);
+    {   // Remove old
+        InstanceInfo* old_parent_instance_info_ptr = instance_ptr->parent_instance;
 
-    for (size_t index = 0; index < entitiesRecycleBin.size(); index++)
-        assert(entitiesRecycleBin[index] != this_entity);
+        auto search = old_parent_instance_info_ptr->instanceChildren.find(instance_ptr);
+        assert(search != old_parent_instance_info_ptr->instanceChildren.end());
 
-    auto search = std::find(componentsOfEachEntity[this_entity].begin(), componentsOfEachEntity[this_entity].end(), at_component);
-    assert(search == componentsOfEachEntity[this_entity].end());
+        old_parent_instance_info_ptr->instanceChildren.erase(search);
+    }
 
-    componentsOfEachEntity[this_entity].emplace_back(at_component);
+    {   // Add new
+        InstanceInfo* new_parent_instance_info_ptr = GetInstanceInfo(new_parent);
+        new_parent_instance_info_ptr->instanceChildren.emplace(instance_ptr);
+
+        instance_ptr->parent_instance = new_parent_instance_info_ptr;
+        parentOfEachEntity[instance_ptr->entityOffset] = Entity(new_parent);
+    }
 }
 
-void EntitiesHandler::EntityDeattachFrom(Entity this_entity, componentID at_component)
+std::pair<Entity, Entity> EntitiesHandler::GetRange(size_t size)
 {
-    assert(this_entity < componentsOfEachEntity.size());
-    assert(parentOfEachEntity[this_entity] != -1);
+    auto search_bigger_than_size = availableRanges.lower_bound(size);
+    assert(search_bigger_than_size != availableRanges.end());
 
-    for (size_t index = 0; index < entitiesRecycleBin.size(); index++)
-        assert(entitiesRecycleBin[index] != this_entity);
+    std::pair<Entity, Entity> free_range = search_bigger_than_size->second;
 
-    auto search = std::find(componentsOfEachEntity[this_entity].begin(), componentsOfEachEntity[this_entity].end(), at_component);
-    assert(search != componentsOfEachEntity[this_entity].end());
+    std::pair<Entity, Entity> return_range = std::pair<Entity, Entity>(free_range.first, Entity(free_range.first + size - 1));
+    std::pair<Entity, Entity> unused_range = std::pair<Entity, Entity>(Entity(free_range.first + size), free_range.second);
 
-    componentsOfEachEntity[this_entity].erase(search);
+    size_t unused_range_size = unused_range.second - unused_range.first + 1;
+
+    availableRanges.erase(search_bigger_than_size);
+    if(unused_range_size != 0)
+    {
+        availableRanges.emplace(unused_range_size, unused_range);
+    }
+
+    return return_range;
+}
+
+void EntitiesHandler::AddAvailableRanges(std::vector<std::pair<Entity, Entity>>&& new_ranges)
+{
+    if(new_ranges.empty())
+        return;
+
+    std::vector<std::pair<Entity, Entity>> ranges = std::move(new_ranges);
+    ranges.reserve(ranges.size() + availableRanges.size());
+
+    for(auto& this_availabe_range: availableRanges)
+        ranges.emplace_back(this_availabe_range.second);
+
+    availableRanges.clear();
+
+    std::sort(ranges.begin(), ranges.end(), [](const auto& a, const auto& b) {return a.first < b.first;});
+
+    {
+        std::pair<Entity, Entity> latest_continue_range = ranges.front();
+        for(auto range_it = ranges.begin() + 1; range_it != ranges.end(); ++range_it)
+        {
+            if(latest_continue_range.second + 1 == range_it->first)
+            {
+                latest_continue_range.second = range_it->second;
+            }
+            else
+            {
+                availableRanges.emplace(latest_continue_range.second - latest_continue_range.first + 1, latest_continue_range);
+                latest_continue_range = *range_it;
+            }
+        }
+        availableRanges.emplace(latest_continue_range.second - latest_continue_range.first + 1, latest_continue_range);
+    }
+}
+
+void EntitiesHandler::ExtentVectors(size_t max_index)
+{
+    if(max_index > parentOfEachEntity.size() - 1)
+    {
+        parentOfEachEntity.resize(max_index + 1, -1);
+        instancePtrOfEachEntity.resize(max_index + 1, nullptr);
+    }
 }

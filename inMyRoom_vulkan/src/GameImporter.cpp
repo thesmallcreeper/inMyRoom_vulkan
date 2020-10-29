@@ -1,6 +1,7 @@
 #include "GameImporter.h"
 
 #include "Engine.h"
+#include "ECS/ECSwrapper.h"
 
 #include <algorithm>
 #include <unordered_set>
@@ -37,6 +38,14 @@ void GameImporter::ImportGame()
 
     AddDefaultCameraFab();
     AddFabs();
+
+    std::vector<Node*> fab_root_nodes;
+    for(const auto& this_fab_name_uptr_pair: fabs_umap)
+    {
+        fab_root_nodes.emplace_back(this_fab_name_uptr_pair.second.get());
+    }
+
+    engine_ptr->GetECSwrapperPtr()->AddFabs(fab_root_nodes);
 }
 
 void GameImporter::AddGameDLLcomponents()
@@ -188,12 +197,10 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
 
         // Add scene node position comp
         {
-            CompEntityInitMap this_map;
-            scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::NodeData), this_map);
+            scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::NodeData), CompEntityInitMap());
+            scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::EarlyNodeGlobalMatrix), CompEntityInitMap());
+            scene_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix), CompEntityInitMap());
         }
-
-        // Add scene node matrix comp
-        scene_node->shouldAddNodeGlobalMatrixCompEntity = true;
 
         model_node->children.emplace_back(std::move(scene_node));
     }
@@ -209,9 +216,6 @@ std::unique_ptr<Node> GameImporter::ImportNodeExistance(tinygltf::Node& this_glt
         return_node_uptr->nodeName = this_gltf_node.name;
     else
         return_node_uptr->nodeName = "node_" + NumberToString(anonymousNameCounter++);
-
-    // NodeGlobalMatrixCompEntity is added on the spot (later)
-    return_node_uptr->shouldAddNodeGlobalMatrixCompEntity = true;
 
     if (this_gltf_node.children.size())
     {
@@ -285,6 +289,8 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
     // NodeData component
     {
         this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::NodeData), CreatePositionInitMap(this_gltf_node));
+        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::EarlyNodeGlobalMatrix), CompEntityInitMap());
+        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix), CompEntityInitMap());
     }
 
     // Model draw component
@@ -660,7 +666,7 @@ void GameImporter::InitializeGame()
         std::string this_init_name = this_iterator.key();
         std::string this_init_fab_using = this_iterator.value().as_string();
 
-        AddFabAndGetRoot(this_init_fab_using, 0, this_init_name);
+        engine_ptr->GetECSwrapperPtr()->AddInstance(this_init_fab_using, this_init_name);
 
         engine_ptr->GetECSwrapperPtr()->CompleteAddsAndRemoves();
     }
@@ -668,7 +674,11 @@ void GameImporter::InitializeGame()
 
 void GameImporter::InitOneDefaultCameraAndBindIt()
 {
-    Entity default_camera_entity = AddFabAndGetRoot("_defaultCamera", 0, "_defaultCamera");
+    AdditionInfo* default_camera_addition_ptr = engine_ptr->GetECSwrapperPtr()->AddInstance("_defaultCamera", "_defaultCamera");
+    Entity default_camera_entity = default_camera_addition_ptr->instance_info_ptr->entityOffset;
+
+    engine_ptr->GetECSwrapperPtr()->CompleteAddsAndRemoves();
+
     CameraComp* camera_comp_ptr = reinterpret_cast<CameraComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::Camera)));
     camera_comp_ptr->BindCameraEntity(default_camera_entity);
 }
@@ -730,92 +740,6 @@ void GameImporter::AddTweaksToNode(Node* this_node, const configuru::Config& twe
             }
         }
     }
-}
-
-Entity GameImporter::AddFabAndGetRoot(std::string fab_name, std::string parent_path, std::string preferred_name)
-{
-    Entity parent_entity = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->FindEntityByName(parent_path);
-    return AddFabAndGetRoot(fab_name, parent_entity, preferred_name);
-}
-
-Entity GameImporter::AddFabAndGetRoot(std::string fab_name, Entity parent_entity, std::string preferred_name)
-{
-    if (preferred_name == "")
-        preferred_name = fab_name + "_" + NumberToString(anonymousNameCounter++);
-
-    auto search = fabs_umap.find(fab_name);
-    assert(search != fabs_umap.end());
-
-    Node* this_root_node = search->second.get();
-    this_root_node->nodeName = preferred_name;          // Will be used as a variable to pass down the preferred name;
-
-    std::string parent_full_name;
-    if (parent_entity != 0)
-        parent_full_name = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->GetEntityName(parent_entity);
-    else
-        parent_full_name = "_root";
-
-    AddNodeToEntityHandler(parent_entity, parent_full_name, this_root_node);
-
-    AddNodeComponentsToECS(parent_entity, this_root_node);
-
-    return this_root_node->latestEntity;
-}
-
-void GameImporter::AddNodeToEntityHandler(Entity parent_entity, std::string parent_full_name, Node* this_node)
-{
-
-    Entity this_entity;
-    if (parent_entity != 0)
-        this_entity = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->CreateEntityWithParent(parent_entity);
-    else
-        this_entity = engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->CreateEntity();
-
-    std::string this_full_name = "";
-    if (parent_full_name.size() && this_node->nodeName != "")
-    {
-        if (parent_full_name == "_root")
-            this_full_name = this_node->nodeName;
-        else
-            this_full_name = parent_full_name + "/" + this_node->nodeName;
-
-        engine_ptr->GetECSwrapperPtr()->GetEntitiesHandler()->AddEntityName(this_entity, this_full_name);
-    }
-
-    this_node->latestEntity = this_entity;
-
-    for (size_t index = 0; index < this_node->children.size(); index++)
-        AddNodeToEntityHandler(this_entity, this_full_name, this_node->children[index].get());
-}
-
-void GameImporter::AddNodeComponentsToECS(Entity parent_entity, Node* this_node)
-{
-    Entity this_entity = this_node->latestEntity;
-
-    // Add fab's components
-    for (auto& this_component_initMap_pair : this_node->componentIDsToInitMaps)
-    {
-        engine_ptr->GetECSwrapperPtr()->GetComponentByID(this_component_initMap_pair.first)->AddComponentEntityByMap(this_entity, this_component_initMap_pair.second);
-    }
-
-    // Add EarlyNodeGlobalMatrixCompEntity
-    if(this_node->shouldAddNodeGlobalMatrixCompEntity)
-    {
-        EarlyNodeGlobalMatrixCompEntity this_node_early_global_matrix_entity(this_entity);
-        this_node_early_global_matrix_entity.parentEntity = parent_entity;
-
-        EarlyNodeGlobalMatrixComp* early_node_global_matrix_comp_ptr = static_cast<EarlyNodeGlobalMatrixComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::EarlyNodeGlobalMatrix)));
-        early_node_global_matrix_comp_ptr->AddComponent(this_entity, this_node_early_global_matrix_entity);
-
-        LateNodeGlobalMatrixCompEntity this_node_late_global_matrix_entity(this_entity);
-        this_node_late_global_matrix_entity.parentEntity = parent_entity;
-
-        LateNodeGlobalMatrixComp* late_node_global_matrix_comp_ptr = static_cast<LateNodeGlobalMatrixComp*>(engine_ptr->GetECSwrapperPtr()->GetComponentByID(static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix)));
-        late_node_global_matrix_comp_ptr->AddComponent(this_entity, this_node_late_global_matrix_entity);
-    }
-
-    for (size_t index = 0; index < this_node->children.size(); index++)
-        AddNodeComponentsToECS(this_entity, this_node->children[index].get());
 }
 
 Node* GameImporter::GetFabNode(std::string fab_node)

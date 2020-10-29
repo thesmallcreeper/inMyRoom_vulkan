@@ -1,12 +1,12 @@
 #pragma once
 
 #include "CompEntities/SnakePlayerCompEntity.h"
-#include "ECS/ComponentSparseBaseClass.h"
+#include "ECS/ComponentDataClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
 
 class SnakePlayerComp
-    :public ComponentSparseBaseClass<SnakePlayerCompEntity, static_cast<componentID>(componentIDenum::SnakePlayer), "SnakePlayer">
+    :public ComponentDataClass<SnakePlayerCompEntity, static_cast<componentID>(componentIDenum::SnakePlayer), "SnakePlayer", sparse_set>
 {
 public:
     SnakePlayerComp(ECSwrapper* const in_ecs_wrapper_ptr);
@@ -15,7 +15,7 @@ public:
     void Update() override;
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
 
-    void CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData) override;
+    void CollisionCallback(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs) override;
 
 private:
     std::chrono::steady_clock::time_point lastSnapTimePoint;

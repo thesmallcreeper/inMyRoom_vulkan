@@ -6,7 +6,7 @@
 #include <concepts>
 #include <cassert>
 
-template<typename index_T, typename dense_T, index_T dense_T::* dense_T_index_ptr> requires
+template<typename index_T, typename dense_T, typename dense_base_T, index_T dense_base_T::* dense_T_index_ptr> requires
     requires (dense_T t){index_T(t.*dense_T_index_ptr);}
 class dense_set
 {
@@ -32,7 +32,7 @@ public:
         {
             while(ptr_ != ptr_end_)
             {
-                if(*ptr_.*dense_T_index_ptr != -1)
+                if(*ptr_.*dense_T_index_ptr != index_T(-1))
                     break;
 
                 ++ptr_;
@@ -64,7 +64,7 @@ public:
         {
             while(ptr_ != ptr_end_)
             {
-                if(*ptr_.*dense_T_index_ptr != -1)
+                if(*ptr_.*dense_T_index_ptr != index_T(-1))
                     break;
 
                 ++ptr_;
@@ -79,10 +79,19 @@ public:
     dense_set(const dense_set& other, index_T offset) {add_elements(other, offset);}
     dense_set(dense_set&& other, index_T offset) {add_elements(std::move(other), offset);}
 
-    iterator begin() {return iterator(&(*array.begin()), &(*array.end()));}
-    iterator end() {return iterator(&(*array.end()), &(*array.end()));}
-    const_iterator cbegin() {return const_iterator(&(*array.begin()), &(*array.end()));}
-    const_iterator cend() {return const_iterator(&(*array.end()), &(*array.end()));}
+    void deinit()
+    {
+        array_offset = index_T(-1);
+        array.clear();
+    }
+
+
+    iterator begin() {return iterator(array.data(), array.data() + array.size());}
+    iterator end() {return iterator(array.data() + array.size(), array.data() + array.size());}
+    const_iterator begin() const {return const_iterator(array.data(), array.data() + array.size());}
+    const_iterator end() const {return const_iterator(array.data() + array.size(), array.data() + array.size());}
+    const_iterator cbegin() const {return const_iterator(array.data(), array.data() + array.size());}
+    const_iterator cend() const {return const_iterator(array.data() + array.size(), array.data() + array.size());}
 
     [[nodiscard]] dense_T& operator[](index_T index)
     {
@@ -99,17 +108,34 @@ public:
 
     bool does_exist(index_T index) const
     {
-        return array[index - array_offset].*dense_T_index_ptr != -1;
+        return index >= array_offset &&
+               index < array_offset + array.size() &&
+               array[index - array_offset].*dense_T_index_ptr != index_T(-1);
     }
 
-    [[nodiscard]] size_t size() const
+    [[nodiscard]] size_t container_size() const
     {
         return array.size();
     }
 
-    template<typename dense_T_other>
-        requires std::same_as<dense_T, typename std::remove_reference<dense_T_other>::type>
-    void add_element(dense_T_other&& dense_element, index_T offset = 0)
+    [[nodiscard]] size_t size() const
+    {
+        return valid_objs;
+    }
+
+    void add_element(const dense_T& dense_element, index_T offset = 0)
+    {
+        index_T index = dense_element.*dense_T_index_ptr + offset;
+
+        extent_array(index);
+
+        auto& ref = array[index - array_offset] = dense_element;
+        ref.*dense_T_index_ptr += offset;
+
+        ++valid_objs;
+    }
+
+    void add_element(dense_T&& dense_element, index_T offset = 0)
     {
         index_T index = dense_element.*dense_T_index_ptr + offset;
 
@@ -117,30 +143,33 @@ public:
 
         auto& ref = array[index - array_offset] = std::move(dense_element);
         ref.*dense_T_index_ptr += offset;
+
+        ++valid_objs;
     }
 
-    template<typename T_other>
-        requires std::same_as<dense_set, typename std::remove_reference<T_other>::type>
-    void add_elements(T_other&& other, index_T offset = 0)
+    void add_elements(const dense_set& other, index_T offset = 0)
     {
-        if (other.array_offset == -1)
+        if (other.array_offset == index_T(-1))
             return;
 
         extent_array(other.array_offset + offset, other.array_offset + other.array.size() - 1 + offset);
 
-        if constexpr(not std::is_lvalue_reference<T_other>::value)
+        for(auto it = other.array.begin(); it != other.array.end(); ++it)
         {
-            for(auto it = std::make_move_iterator(other.array.begin()); it != std::make_move_iterator(other.array.end()); ++it)
-            {
-                add_element(*it, offset);
-            }
+            add_element(*it, offset);
         }
-        else
+    }
+
+    void add_elements(dense_set&& other, index_T offset = 0)
+    {
+        if (other.array_offset == index_T(-1))
+            return;
+
+        extent_array(other.array_offset + offset, other.array_offset + other.array.size() - 1 + offset);
+
+        for(auto it = std::make_move_iterator(other.array.begin()); it != std::make_move_iterator(other.array.end()); ++it)
         {
-            for(auto it = other.array.begin(); it != other.array.end(); ++it)
-            {
-                add_element(*it, offset);
-            }
+            add_element(*it, offset);
         }
     }
 
@@ -155,20 +184,20 @@ public:
         index_T max_index = 0;
         for (auto _first = first; _first != last; ++_first)
         {
-            if(_first->array_offset != -1)
+            if((*_first).array_offset != index_T(-1))
             {
-                min_index = std::min(min_index, _first->array_offset);
-                max_index = std::max(max_index, _first->array_offset + _first->array.size() - 1);
+                min_index = std::min(min_index, index_T((*_first).array_offset));
+                max_index = std::max(max_index, index_T((*_first).array_offset + (*_first).array.size() - 1));
             }
         }
 
-        if(min_index != -1)
+        if(min_index != index_T(-1))
         {
             extent_array(min_index, max_index);
 
             for (auto _first = first; _first != last; ++_first)
             {
-                add_elements(*_first);
+                add_elements((*_first));
             }
         }
     }
@@ -182,10 +211,12 @@ public:
         {
             for(auto index = range.first; index <= range.second; ++index)
             {
-                if(array[index - array_offset].*dense_T_index_ptr != -1)
+                if(array[index - array_offset].*dense_T_index_ptr != index_T(-1))
                 {
                     array[index - array_offset].~dense_T();
-                    array[index - array_offset].*dense_T_index_ptr = -1;
+                    array[index - array_offset].*dense_T_index_ptr = index_T(-1);
+
+                    --valid_objs;
                 }
             }
         }
@@ -194,12 +225,12 @@ public:
 private:
     void extent_array(size_t min_index, size_t max_index)
     {
-        if(array_offset == -1) [[unlikely]]
+        if(array_offset == index_T(-1)) [[unlikely]]
         {
             size_t range_size = max_index - min_index + 1;
             array.resize(range_size, -1);
 
-            array_offset = min_index;
+            array_offset = static_cast<index_T>(min_index);
         }
         else [[likely]]
         {
@@ -218,7 +249,7 @@ private:
 
                 array = std::move(new_array);
 
-                array_offset = min_index;
+                array_offset = static_cast<index_T>(min_index);
             }
             if(max_index > array_offset + array.size() - 1) [[unlikely]]
             {
@@ -233,6 +264,8 @@ private:
     }
 
     private:
-    index_T array_offset = -1;
+    index_T array_offset = index_T(-1);
     std::vector<dense_T> array;
+
+    size_t valid_objs = 0;
 };

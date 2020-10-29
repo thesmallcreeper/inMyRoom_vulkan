@@ -1,13 +1,13 @@
 #pragma once
 
 #include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
-#include "ECS/ComponentSparseBaseClass.h"
+#include "ECS/ComponentDataClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
 
 
 class CameraDefaultInputComp final
-    :public ComponentSparseBaseClass<CameraDefaultInputCompEntity, static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput">
+    :public ComponentDataClass<CameraDefaultInputCompEntity, static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput", sparse_set>
 {
 public:
     CameraDefaultInputComp(ECSwrapper* const in_ecs_wrapper_ptr, float default_speed);

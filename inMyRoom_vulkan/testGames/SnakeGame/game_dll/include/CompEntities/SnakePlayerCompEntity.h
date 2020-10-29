@@ -29,11 +29,12 @@ public:
         "UpDirection",              globalUp                    = vec4.xyz  (optional-default  0,-1, 0)
         "IsHumanPlayer",            isHumanPlayer               = bool      (optional-default false)
     */
-    static SnakePlayerCompEntity CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map);
+    static SnakePlayerCompEntity CreateComponentEntityByMap(Entity in_entity, const std::string& entity_name, const CompEntityInitMap& in_map);
 
     void Init();
     void Update(NodeDataComp* nodeDataComp_ptr,
                 CameraComp* cameraComp_ptr,
+                AnimationActorComp* animationActorComp_ptr,
                 AnimationComposerComp* animationComposerComp_ptr,
                 const std::chrono::duration<float> update_deltaTime,
                 const std::chrono::duration<float> async_durationOfLastState);
@@ -43,6 +44,7 @@ public:
     void CollisionUpdate(NodeDataComp* nodeDataComp_ptr,
                          CameraComp* cameraComp_ptr,
                          CameraDefaultInputComp* cameraDefaultInputComp_ptr,
+                         AnimationActorComp* animationActorComp_ptr,
                          AnimationComposerComp* animationComposerComp_ptr,
                          const CollisionCallbackData& this_collisionCallbackData);
 
@@ -75,5 +77,7 @@ public: //data
     bool isHumanPlayer = false;
     bool isGoingToDelete = false;
 
-    Entity animationComposerEntity;
+    bool shouldStartAnimation = true;
+
+    Entity animationComposerRelativeEntity;
 };

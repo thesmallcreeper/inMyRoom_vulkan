@@ -27,7 +27,7 @@ CameraCompEntity CameraCompEntity::GetEmpty()
     return this_cameraCompEntity;
 }
 
-CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
+CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map)
 {
     CameraCompEntity this_cameraCompEntity(in_entity);
 

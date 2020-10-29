@@ -16,7 +16,7 @@ SkinCompEntity SkinCompEntity::GetEmpty()
     return this_skinCompEntity;
 }
 
-SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
+SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map)
 {
     SkinCompEntity this_skinCompEntity(in_entity);
 
@@ -39,11 +39,11 @@ SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity
             auto search = in_map.stringMap.find(map_search_string);
             std::string this_relative_node_name = search->second;
 
-            Entity this_joint_entity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()
-                                                        ->FindEntityByRelativeName(this_relative_node_name,
-                                                                                   this_skinCompEntity.thisEntity);
+            Entity this_joint_entity = GetComponentPtr()->GetECSwrapper()
+                                                        ->GetRelativeEntityOffset(entity_name, 
+                                                                                  this_relative_node_name);
 
-            this_skinCompEntity.jointEntities.emplace_back(this_joint_entity);
+            this_skinCompEntity.jointRelativeEntities.emplace_back(this_joint_entity);
 
             map_search_string = "JointRelativeName_" + std::to_string(++index);
         }
@@ -60,9 +60,9 @@ void SkinCompEntity::Update(LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp
 {
     lastNodesMatricesOffset = static_cast<uint32_t>(skinsOfMeshes_ptr->GetNodesRecordSize());
 
-    for (const Entity this_jointEntity : jointEntities)
+    for (const Entity this_jointEntity : jointRelativeEntities)
     {
-        LateNodeGlobalMatrixCompEntity& this_nodeGlobalMatrixCompEntity_ptr = nodeGlobalMatrixComp_ptr->GetComponentEntity(this_jointEntity);
+        LateNodeGlobalMatrixCompEntity& this_nodeGlobalMatrixCompEntity_ptr = nodeGlobalMatrixComp_ptr->GetComponentEntity(this_jointEntity + thisEntity);
         glm::mat4 joint_global_matrix = this_nodeGlobalMatrixCompEntity_ptr.globalMatrix;
             
         skinsOfMeshes_ptr->AddNodeMatrix(joint_global_matrix);

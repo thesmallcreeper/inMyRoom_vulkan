@@ -5,14 +5,16 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
+#include <set>
 
 #include "glm/gtx/quaternion.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 
-typedef uint32_t Entity;
+typedef uint16_t Entity;
 typedef uint32_t componentID;
 typedef void* ComponentEntityPtr;
+typedef void* DataSetPtr;
 
 struct CompEntityInitMap
 {
@@ -30,6 +32,59 @@ struct CompEntityInitMap
         intMap = other.intMap;
         stringMap = other.stringMap;
     }
+};
+
+struct Node
+{
+    std::map<componentID, CompEntityInitMap> componentIDsToInitMaps;
+
+    size_t glTFnodeIndex = -1;
+    std::string nodeName = "";
+
+    std::vector<std::unique_ptr<Node>> children;
+
+    Node() {}
+    Node(Node const& other)
+    {
+        componentIDsToInitMaps = other.componentIDsToInitMaps;
+
+        glTFnodeIndex = other.glTFnodeIndex;
+        nodeName = other.nodeName;
+
+        for (size_t index = 0; index < other.children.size(); index++)
+        {
+            const Node* this_child_node_ptr = other.children[index].get();
+            children.emplace_back(std::make_unique<Node>(*this_child_node_ptr));
+        }
+    }
+};
+
+struct FabInfo
+{
+    std::string fabName;
+    size_t fabIndex;
+
+    size_t size;
+    std::vector<Entity> entitiesParents;
+
+    std::unordered_map<std::string, Entity> nameToEntity;
+    std::unordered_map<Entity, std::string> entityToName;
+
+    std::vector<std::pair<class ComponentBaseClass*, std::pair<Entity, Entity>>> component_ranges;
+};
+
+
+struct InstanceInfo
+{
+    const FabInfo* fabInfo = nullptr;
+    Entity entityOffset = 0;
+
+    std::string instanceName;
+
+    size_t size;
+
+    InstanceInfo* parent_instance = nullptr;
+    std::set<InstanceInfo*> instanceChildren;
 };
 
 // used a lot in: Animation Actors
@@ -61,36 +116,6 @@ enum class MapType
     string_type,
     entity_type,
     bool_type
-};
-
-// used a lot in: Game Import
-struct Node
-{
-    std::map<componentID, CompEntityInitMap> componentIDsToInitMaps;
-    bool shouldAddNodeGlobalMatrixCompEntity = false;
-
-    Entity latestEntity = 0;                // for fabs->Entities
-    size_t glTFnodeIndex = -1;
-    std::string nodeName = "";
-
-    std::vector<std::unique_ptr<Node>> children;
-
-    Node()
-    {}
-    Node(Node const& other)
-    {
-        componentIDsToInitMaps = other.componentIDsToInitMaps;
-        shouldAddNodeGlobalMatrixCompEntity = other.shouldAddNodeGlobalMatrixCompEntity;
-
-        latestEntity = other.latestEntity;
-        glTFnodeIndex = other.glTFnodeIndex;
-        nodeName = other.nodeName;
-        for (size_t index = 0; index < other.children.size(); index++)
-        {
-            const Node* this_child_node_ptr = other.children[index].get();
-            children.emplace_back(std::make_unique<Node>(*this_child_node_ptr));
-        }
-    }
 };
 
 // used a lot in: InputManager

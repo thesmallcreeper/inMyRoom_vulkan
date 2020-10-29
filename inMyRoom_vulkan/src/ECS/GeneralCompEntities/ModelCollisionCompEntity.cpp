@@ -19,7 +19,7 @@ ModelCollisionCompEntity ModelCollisionCompEntity::GetEmpty()
     return this_modelCollisionCompEntity;
 }
 
-ModelCollisionCompEntity ModelCollisionCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
+ModelCollisionCompEntity ModelCollisionCompEntity::CreateComponentEntityByMap(const Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map)
 {
     ModelCollisionCompEntity this_modelCollisionCompEntity(in_entity);
 

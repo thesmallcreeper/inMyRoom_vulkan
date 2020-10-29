@@ -8,13 +8,6 @@
 #include "glm/gtc/matrix_transform.hpp"
 
 class NodeDataComp;
-class NodeDataCompEntity;
-#ifdef GAME_DLL
-class NodeDataComp :
-    public ComponentBaseWrappedClass<NodeDataCompEntity, static_cast<componentID>(componentIDenum::NodeData), "NodeData"> {};
-#else
-#include "ECS/GeneralComponents/NodeDataComp.h"
-#endif
 
 class NodeDataCompEntity :
     public CompEntityBaseWrappedClass<NodeDataComp>
@@ -31,7 +24,7 @@ public:
         "LocalTranslation",     localTranslation.xyz    = vec4.xyz      (optional)
         "GlobalTranslation",    globalTranslation.xyz   = vec4.xyz      (optional)
     */
-    static NodeDataCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
+    static NodeDataCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     glm::mat4x4 GetGlobalMatrix(glm::mat4x4 parent_global_matrix) const;
 
@@ -59,3 +52,9 @@ public: // data
     glm::vec3 globalTranslation = glm::vec3(0.f, 0.f, 0.f);
 };
 
+#ifdef GAME_DLL
+class NodeDataComp :
+    public ComponentBaseWrappedClass<NodeDataCompEntity, static_cast<componentID>(componentIDenum::NodeData), "NodeData", dense_set> {};
+#else
+#include "ECS/GeneralComponents/NodeDataComp.h"
+#endif

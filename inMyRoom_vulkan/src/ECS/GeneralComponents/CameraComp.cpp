@@ -4,7 +4,7 @@
 CameraComp::CameraComp(ECSwrapper* const in_ecs_wrapper_ptr,
                        float default_fovy, float default_aspect, float default_near, float default_far)
     :
-    ComponentSparseBaseClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera">(in_ecs_wrapper_ptr),
+    ComponentDataClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera", sparse_set>(in_ecs_wrapper_ptr),
     default_fovy(default_fovy),
     default_aspect(default_aspect),
     default_near(default_near),
@@ -18,7 +18,7 @@ CameraComp::~CameraComp()
 
 void CameraComp::Update()
 {
-    for (CameraCompEntity& this_componentEntity : componentEntitiesSparse)
+    for (CameraCompEntity& this_componentEntity : componentEntities)
         this_componentEntity.Update(cullingDebugging);
 }
 

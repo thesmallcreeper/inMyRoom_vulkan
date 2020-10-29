@@ -4,7 +4,7 @@
 
 
 SnakePlayerComp::SnakePlayerComp(ECSwrapper* const in_ecs_wrapper_ptr)
-    :ComponentSparseBaseClass<SnakePlayerCompEntity, static_cast<componentID>(componentIDenum::SnakePlayer), "SnakePlayer">(in_ecs_wrapper_ptr)
+    :ComponentDataClass<SnakePlayerCompEntity, static_cast<componentID>(componentIDenum::SnakePlayer), "SnakePlayer", sparse_set>(in_ecs_wrapper_ptr)
 {
     lastSnapTimePoint = std::chrono::steady_clock::now();
 }
@@ -26,12 +26,16 @@ void SnakePlayerComp::Update()
     componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
     CameraComp* const cameraComp_ptr = static_cast<CameraComp*>(ecsWrapper_ptr->GetComponentByID(camera_componentID));
 
+    componentID animationActor_componentID = static_cast<componentID>(componentIDenum::AnimationActor);
+    AnimationActorComp* const animationActorComp_ptr = static_cast<AnimationActorComp*>(ecsWrapper_ptr->GetComponentByID(animationActor_componentID));
+
     componentID animationComposer_componentID = static_cast<componentID>(componentIDenum::AnimationComposer);
     AnimationComposerComp* const animationComposerComp_ptr = static_cast<AnimationComposerComp*>(ecsWrapper_ptr->GetComponentByID(animationComposer_componentID));
 
-    for (SnakePlayerCompEntity& this_componentEntity : componentEntitiesSparse)
+    for (SnakePlayerCompEntity& this_componentEntity : componentEntities)
         this_componentEntity.Update(nodeDataComp_ptr,
                                     cameraComp_ptr,
+                                    animationActorComp_ptr,
                                     animationComposerComp_ptr,
                                     ecsWrapper_ptr->GetUpdateDeltaTime(),
                                     async_duration);
@@ -46,13 +50,13 @@ void SnakePlayerComp::AsyncInput(InputType input_type, void* struct_data)
 
     std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
 
-    for (SnakePlayerCompEntity& this_componentEntity : componentEntitiesSparse)
+    for (SnakePlayerCompEntity& this_componentEntity : componentEntities)
         this_componentEntity.AsyncInput(input_type, struct_data, duration);
 
     lastSnapTimePoint = next_snap_timePoint;
 }
 
-void SnakePlayerComp::CollisionCallback(Entity this_entity, const CollisionCallbackData& this_collisionCallbackData)
+void SnakePlayerComp::CollisionCallback(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs)
 {
     componentID nodeData_componentID = static_cast<componentID>(componentIDenum::NodeData);
     NodeDataComp* const nodeDataComp_ptr = static_cast<NodeDataComp*>(ecsWrapper_ptr->GetComponentByID(nodeData_componentID));
@@ -63,10 +67,24 @@ void SnakePlayerComp::CollisionCallback(Entity this_entity, const CollisionCallb
     componentID cameraDefaultInput_componentID = static_cast<componentID>(componentIDenum::CameraDefaultInput);
     CameraDefaultInputComp* const cameraDefaultInput_ptr = static_cast<CameraDefaultInputComp*>(ecsWrapper_ptr->GetComponentByID(cameraDefaultInput_componentID));
 
+    componentID animationActor_componentID = static_cast<componentID>(componentIDenum::AnimationActor);
+    AnimationActorComp* const animationActorComp_ptr = static_cast<AnimationActorComp*>(ecsWrapper_ptr->GetComponentByID(animationActor_componentID));
+
     componentID animationComposer_componentID = static_cast<componentID>(componentIDenum::AnimationComposer);
     AnimationComposerComp* const animationComposerComp_ptr = static_cast<AnimationComposerComp*>(ecsWrapper_ptr->GetComponentByID(animationComposer_componentID));
 
-    GetComponentEntity(this_entity).CollisionUpdate(nodeDataComp_ptr, cameraComp_ptr, cameraDefaultInput_ptr, animationComposerComp_ptr, this_collisionCallbackData);
+    for(const auto& this_entity_data_pair:callback_entity_data_pairs)
+    {
+        if(componentEntities.does_exist(this_entity_data_pair.first))
+        {
+            componentEntities[this_entity_data_pair.first].CollisionUpdate(nodeDataComp_ptr,
+                                                                           cameraComp_ptr,
+                                                                           cameraDefaultInput_ptr,
+                                                                           animationActorComp_ptr,
+                                                                           animationComposerComp_ptr,
+                                                                           this_entity_data_pair.second);
+        }
+    }
 }
 
 

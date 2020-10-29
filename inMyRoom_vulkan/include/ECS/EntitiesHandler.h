@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <set>
 
 #include "ECS/ECStypes.h"
@@ -12,31 +13,37 @@ public:
     EntitiesHandler();
     ~EntitiesHandler();
 
-    Entity CreateEntity();
-    Entity CreateEntityWithParent(Entity parent);
-    void   DeleteEmptyEntity(Entity this_entity);
+    InstanceInfo* AddInstanceEntities(const FabInfo* fab_info_ptr, Entity parent = 0);
+    InstanceInfo* AddInstanceEntities(const FabInfo* fab_info_ptr, const std::string& instance_name, Entity parent = 0);
 
-    void   AddEntityName(Entity this_entity, std::string name);
-    Entity FindEntityByName(std::string name);
-    Entity FindEntityByRelativeName(std::string name, Entity relative_entity);      // "_root/.." points to the root
-    std::string GetEntityName(Entity this_entity);
+    InstanceInfo* GetInstanceInfo(Entity entity);
+    InstanceInfo* GetInstanceInfo(const std::string& name);
 
-    std::vector<componentID> GetComponentsOfEntity(Entity this_entity);
-    std::vector<Entity> GetChildrenOfEntity(Entity this_entity);
-    Entity GetParentOfEntity(Entity this_entity);
+    void RemoveInstancesEntities(const std::set<InstanceInfo*>& instance_to_remove_ptrs_set);
 
-    // Callbacks
-    void EntityAttachedTo(Entity this_entity, componentID at_component);
-    void EntityDeattachFrom(Entity this_entity, componentID at_component);
+    Entity FindEntityByPath(const std::string& instance_name, const std::string& fab_path) const;
+    Entity FindEntityByPath(const InstanceInfo* instance_ptr, const std::string& fab_path) const;
+    std::pair<std::string, std::string> GetEntityName(Entity entity) const;
+
+    std::vector<Entity> GetEntityAncestors(Entity entity) const;
+
+    Entity GetParentOfEntity(Entity entity) const;
+    void ChangeParentOfInstance(InstanceInfo* instance_ptr, Entity new_parent);
+
+private:
+    std::pair<Entity, Entity> GetRange(size_t size);
+    void AddAvailableRanges(std::vector<std::pair<Entity, Entity>>&& new_ranges);
+
+    void ExtentVectors(size_t max_index);
 
 private: // Data
     std::vector<Entity> parentOfEachEntity;
-    std::vector<std::set<Entity>> childrenOfEachEntity;
-    std::vector<std::vector<componentID>> componentsOfEachEntity;
+    std::vector<InstanceInfo*> instancePtrOfEachEntity;
 
-    std::vector<Entity> entitiesRecycleBin;
+    std::multimap<size_t, std::pair<Entity, Entity>> availableRanges;
 
-    std::unordered_map<std::string, Entity> nameToEntity_umap;
-    std::unordered_map<Entity, std::string> entityToName_umap;
+    std::unordered_map<std::string, InstanceInfo*> nameToInstancePtr_umap;
+
+    size_t noNameInstancesSoFar = 0;
 };
 

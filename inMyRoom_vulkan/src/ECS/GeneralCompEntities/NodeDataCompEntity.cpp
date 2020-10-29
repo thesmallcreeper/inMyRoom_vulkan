@@ -16,7 +16,7 @@ NodeDataCompEntity NodeDataCompEntity::GetEmpty()
     return this_positionCompEntity;
 }
 
-NodeDataCompEntity NodeDataCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
+NodeDataCompEntity NodeDataCompEntity::CreateComponentEntityByMap(const Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map)
 {
     NodeDataCompEntity this_positionCompEntity(in_entity);
 

@@ -93,9 +93,9 @@
     <ClInclude Include="include\ECS\CompEntityBaseWrappedClass.h" />
     <ClInclude Include="include\ECS\ComponentBaseClass.h" />
     <ClInclude Include="include\ECS\ComponentBaseWrappedClass.h" />
-    <ClInclude Include="include\ECS\ComponentRawBaseClass.h" />
+    <ClInclude Include="include\ECS\ComponentDataClass.h" />
     <ClInclude Include="include\ECS\ComponentsIDsEnum.h" />
-    <ClInclude Include="include\ECS\ComponentSparseBaseClass.h" />
+    <ClInclude Include="include\ECS\ConceptHelpers.h" />
     <ClInclude Include="include\ECS\ECStypes.h" />
     <ClInclude Include="include\ECS\ECSwrapper.h" />
     <ClInclude Include="include\ECS\ExportedFunctions.h" />
@@ -238,7 +238,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
@@ -280,7 +280,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
-      <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;NDEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;NDEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>

@@ -5,13 +5,6 @@
 #include "Geometry/ViewportFrustum.h"
 
 class CameraComp;
-class CameraCompEntity;
-#ifdef GAME_DLL
-class CameraComp
-    :public ComponentBaseWrappedClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera"> {};
-#else
-#include "ECS/GeneralComponents/CameraComp.h"
-#endif
 
 class CameraCompEntity :
     public CompEntityBaseWrappedClass<CameraComp>
@@ -31,7 +24,7 @@ public:
         "GlobalDirection",   globalDirection         = vec4.xyz      (optional-default  0, 0, 1)
         "UpDirection",       globalUp                = vec4.xyz      (optional-default  0,-1, 0)
     */
-    static CameraCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
+    static CameraCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void Init();
     void Update(bool cull_debugging);
@@ -50,3 +43,10 @@ public:
     ViewportFrustum cameraViewportFrustum;
     ViewportFrustum cullingViewportFrustum;
 };
+
+#ifdef GAME_DLL
+class CameraComp
+    :public ComponentBaseWrappedClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera", sparse_set> {};
+#else
+#include "ECS/GeneralComponents/CameraComp.h"
+#endif

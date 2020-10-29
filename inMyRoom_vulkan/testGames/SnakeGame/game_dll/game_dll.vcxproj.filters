@@ -135,6 +135,12 @@
     <ClInclude Include="..\..\..\include\ECS\CompEntityBaseWrappedClass.h">
       <Filter>Header Files\General</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\dense_set.h">
+      <Filter>Header Files\General\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\sparse_set.h">
+      <Filter>Header Files\General\_etc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\game_dll.cpp">

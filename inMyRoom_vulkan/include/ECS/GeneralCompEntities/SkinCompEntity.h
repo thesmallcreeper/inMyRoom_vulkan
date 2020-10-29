@@ -3,13 +3,6 @@
 #include "ECS/CompEntityBaseWrappedClass.h"
 
 class SkinComp;
-class SkinCompEntity;
-#ifdef GAME_DLL
-class SkinComp 
-    :public ComponentBaseWrappedClass<SkinCompEntity, static_cast<componentID>(componentIDenum::Skin), "Skin"> {};
-#else
-#include "ECS/GeneralComponents/SkinComp.h"
-#endif
 
 #include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
 
@@ -26,7 +19,7 @@ public:
         "InverseBindMatricesOffset",     inverseBindMatricesOffset     = int
         "JointRelativeName_X",           jointEntities[X]              = string    (name)
     */
-    static SkinCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
+    static SkinCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void Init();
     void Update(LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
@@ -34,8 +27,15 @@ public:
 
 #endif
 public: // data
-    std::vector<Entity> jointEntities;
+    std::vector<Entity> jointRelativeEntities;
 
     uint32_t inverseBindMatricesOffset;
     uint32_t lastNodesMatricesOffset;
 };
+
+#ifdef GAME_DLL
+class SkinComp 
+    :public ComponentBaseWrappedClass<SkinCompEntity, static_cast<componentID>(componentIDenum::Skin), "Skin", sparse_set> {};
+#else
+#include "ECS/GeneralComponents/SkinComp.h"
+#endif

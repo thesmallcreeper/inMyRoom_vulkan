@@ -3,13 +3,6 @@
 #include "ECS/CompEntityBaseWrappedClass.h"
 
 class ModelDrawComp;
-class ModelDrawCompEntity;
-#ifdef GAME_DLL
-class ModelDrawComp
-    :public ComponentBaseWrappedClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw"> {};
-#else
-#include "ECS/GeneralComponents/ModelDrawComp.h"
-#endif
 
 #include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
 #include "ECS/GeneralCompEntities/SkinCompEntity.h"
@@ -29,7 +22,7 @@ public:
             "DisableCulling",    disableCulling          = int         (optional)
             "IsSkin",            isSkin                  = int         (optional)
     */
-    static ModelDrawCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
+    static ModelDrawCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void Init();
 
@@ -49,3 +42,10 @@ public: // data
     
     bool isSkin = false;
 };
+
+#ifdef GAME_DLL
+class ModelDrawComp
+    :public ComponentBaseWrappedClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw", sparse_set> {};
+#else
+#include "ECS/GeneralComponents/ModelDrawComp.h"
+#endif

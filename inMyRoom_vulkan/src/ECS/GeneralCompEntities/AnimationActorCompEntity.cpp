@@ -22,7 +22,7 @@ AnimationActorCompEntity AnimationActorCompEntity::GetEmpty()
     return this_animationActorCompEntity;
 }
 
-AnimationActorCompEntity AnimationActorCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
+AnimationActorCompEntity AnimationActorCompEntity::CreateComponentEntityByMap(const Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map)
 {
     AnimationActorCompEntity this_animationActorCompEntity(in_entity);
     // "Animation_X",  animations_umap[X]  = string  (name/declaration of the animation)

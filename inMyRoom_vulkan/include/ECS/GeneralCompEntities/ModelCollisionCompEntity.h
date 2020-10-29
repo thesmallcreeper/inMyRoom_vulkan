@@ -3,13 +3,6 @@
 #include "ECS/CompEntityBaseWrappedClass.h"
 
 class ModelCollisionComp;
-class ModelCollisionCompEntity;
-#ifdef GAME_DLL
-class ModelCollisionComp
-    :public ComponentBaseWrappedClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision"> {};
-#else
-#include "ECS/GeneralComponents/ModelCollisionComp.h"
-#endif
 
 #include "ECS/GeneralCompEntities/EarlyNodeGlobalMatrixCompEntity.h"
 #include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
@@ -28,7 +21,7 @@ public:
             "DisableCollision",  disableCollision        = int         (optional)
             "ShouldCallback",    shouldCallback          = int         (optional)
     */
-    static ModelCollisionCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
+    static ModelCollisionCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void Init();
 
@@ -43,3 +36,10 @@ public:
     bool disableCollision = false;
     bool shouldCallback = false;
 };
+
+#ifdef GAME_DLL
+class ModelCollisionComp
+    :public ComponentBaseWrappedClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision", sparse_set> {};
+#else
+#include "ECS/GeneralComponents/ModelCollisionComp.h"
+#endif

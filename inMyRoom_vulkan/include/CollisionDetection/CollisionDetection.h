@@ -19,7 +19,7 @@ public:
     void ExecuteCollisionDetection();
 
 private:
-    void CallbackEntity(Entity this_entity, const CollisionCallbackData& collision_callback_data);
+    void MakeCallbacks(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs) const;
 
 private:
     std::vector<CollisionDetectionEntry> collisionDetectionEntries;

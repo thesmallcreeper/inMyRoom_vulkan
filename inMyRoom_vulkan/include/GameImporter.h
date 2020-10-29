@@ -22,10 +22,6 @@ class GameImporter
 public:
     GameImporter(Engine* in_engine_ptr, std::string gameConfig_path);
 
-    Entity AddFabAndGetRoot(std::string fab_name, Entity parent_entity = 0, std::string preferred_name = "");
-    Entity AddFabAndGetRoot(std::string fab_name, std::string parent_path , std::string preferred_name = "");
-
-    Node* GetFabNode(std::string fab_node);
 private:
     void ImportGame();
 
@@ -48,9 +44,8 @@ private:
     std::unique_ptr<Node> ImportModelAnimationComposerAsNodes(Node* root_node, tinygltf::Model& model);
     void ImportNodeComponents(Node* this_node, Node* root_node, tinygltf::Model& this_model);
 
-    void AddNodeToEntityHandler(Entity parent_entity, std::string parent_full_name, Node* this_node);           // fullname == "" means no name for the children D:
-    void AddNodeComponentsToECS(Entity parent_entity, Node* this_node);
-    
+    Node* GetFabNode(std::string fab_node);
+
     static std::string GetFilePathFolder(const std::string& in_fileName);
     static std::string GetFilePathExtension(const std::string& in_fileName);
 

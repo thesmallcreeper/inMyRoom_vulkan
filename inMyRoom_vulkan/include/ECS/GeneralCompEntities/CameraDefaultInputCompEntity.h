@@ -5,13 +5,6 @@
 #include <chrono>
 
 class CameraDefaultInputComp;
-class CameraDefaultInputCompEntity;
-#ifdef GAME_DLL
-class CameraDefaultInputComp
-    :public ComponentBaseWrappedClass<CameraDefaultInputCompEntity, static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput"> {};
-#else
-#include "ECS/GeneralComponents/CameraDefaultInputComp.h"
-#endif
 
 #include "ECS/GeneralCompEntities/CameraCompEntity.h"
 
@@ -31,7 +24,7 @@ public:
     "GlobalDirection",   globalDirection         = vec4.xyz      (optional-default  0, 0, 1)
     "UpDirection",       upDirection             = vec4.xyz      (optional-default  0,-1, 0)
     */
-    static CameraDefaultInputCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
+    static CameraDefaultInputCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void Init();
     void Update(CameraComp* cameraComp_ptr,
@@ -66,3 +59,10 @@ public: //data
     float speed;
     volatile bool isFreezed;
 };
+
+#ifdef GAME_DLL
+class CameraDefaultInputComp
+    :public ComponentBaseWrappedClass<CameraDefaultInputCompEntity, static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput", sparse_set> {};
+#else
+#include "ECS/GeneralComponents/CameraDefaultInputComp.h"
+#endif

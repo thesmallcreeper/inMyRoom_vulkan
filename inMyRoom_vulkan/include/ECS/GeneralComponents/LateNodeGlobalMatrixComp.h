@@ -1,16 +1,18 @@
 #pragma once
 
 #include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
-#include "ECS/ComponentRawBaseClass.h"
+#include "ECS/ComponentDataClass.h"
 
 #include "ECS/ComponentsIDsEnum.h"
 
 
 class LateNodeGlobalMatrixComp final
-    : public ComponentRawBaseClass<LateNodeGlobalMatrixCompEntity, static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix), "LateNodeGlobalMatrix">
+    : public ComponentDataClass<LateNodeGlobalMatrixCompEntity, static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix), "LateNodeGlobalMatrix", dense_set>
 {
 public:
     LateNodeGlobalMatrixComp(ECSwrapper* const in_ecs_wrapper_ptr);
     ~LateNodeGlobalMatrixComp() override;
+
+    void Update() override;
 };
 

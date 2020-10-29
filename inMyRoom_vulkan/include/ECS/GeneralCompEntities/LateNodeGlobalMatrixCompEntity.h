@@ -3,13 +3,6 @@
 #include "ECS/CompEntityBaseWrappedClass.h"
 
 class LateNodeGlobalMatrixComp;
-class LateNodeGlobalMatrixCompEntity;
-#ifdef GAME_DLL
-class LateNodeGlobalMatrixComp :
-    public ComponentBaseWrappedClass<LateNodeGlobalMatrixCompEntity, static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix), "LateNodeGlobalMatrix"> {};
-#else
-#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
-#endif
 
 #include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
@@ -30,16 +23,20 @@ public:
     "MatrixColumn2",        globalMatrix[2]         = vec4          (optional)
     "MatrixColumn3",        globalMatrix[3]         = vec4          (optional)
     */
-    static LateNodeGlobalMatrixCompEntity CreateComponentEntityByMap(Entity in_entity, const CompEntityInitMap& in_map);
+    static LateNodeGlobalMatrixCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
-    void Init();
-    void Update(const NodeDataCompEntity& this_nodeData,
+    void Update(EntitiesHandler* entities_handler_ptr,
+                NodeDataComp* nodeDataComp_ptr,
                 LateNodeGlobalMatrixComp* lateNodeGlobalMatrixComp_ptr);
 
 #endif
 public: // data
     glm::mat4x4 globalMatrix = glm::mat4x4(1.f);
-
-    Entity parentEntity = 0;
 };
 
+#ifdef GAME_DLL
+class LateNodeGlobalMatrixComp :
+    public ComponentBaseWrappedClass<LateNodeGlobalMatrixCompEntity, static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix), "LateNodeGlobalMatrix", dense_set> {};
+#else
+#include "ECS/GeneralComponents/LateNodeGlobalMatrixComp.h"
+#endif

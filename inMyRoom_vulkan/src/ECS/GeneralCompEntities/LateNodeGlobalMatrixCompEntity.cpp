@@ -16,29 +16,10 @@ LateNodeGlobalMatrixCompEntity LateNodeGlobalMatrixCompEntity::GetEmpty()
     return this_nodeGlobalMatrixCompEntity;
 }
 
-LateNodeGlobalMatrixCompEntity LateNodeGlobalMatrixCompEntity::CreateComponentEntityByMap(const Entity in_entity, const CompEntityInitMap& in_map)
+LateNodeGlobalMatrixCompEntity LateNodeGlobalMatrixCompEntity::CreateComponentEntityByMap(const Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map)
 {
     LateNodeGlobalMatrixCompEntity this_lateNodeGlobalMatrixCompEntity(in_entity);
 
-    // "ParentEntity", localScale.xyz = vec4.xyz    (optional)
-    {
-        {
-            auto search = in_map.intMap.find("ParentEntity");
-            if (search != in_map.intMap.end())
-            {
-                Entity this_parent_entity = static_cast<Entity>(search->second);
-                this_lateNodeGlobalMatrixCompEntity.parentEntity = this_parent_entity;
-            }
-        }
-        {
-            auto search = in_map.stringMap.find("ParentName");
-            if (search != in_map.stringMap.end())
-            {
-                Entity this_entity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->FindEntityByRelativeName(search->second, in_entity);
-                this_lateNodeGlobalMatrixCompEntity.parentEntity = this_entity;
-            }
-        }
-    }
     // "MatrixColumn0", globalMatrix[0] = vec4      (optional)
     {
         auto search = in_map.vec4Map.find("MatrixColumn0");
@@ -79,21 +60,22 @@ LateNodeGlobalMatrixCompEntity LateNodeGlobalMatrixCompEntity::CreateComponentEn
     return this_lateNodeGlobalMatrixCompEntity;
 }
 
-void LateNodeGlobalMatrixCompEntity::Update(const NodeDataCompEntity& this_nodeData,
+void LateNodeGlobalMatrixCompEntity::Update(EntitiesHandler* const entities_handler_ptr,
+                                            NodeDataComp* const nodeDataComp_ptr,
                                             LateNodeGlobalMatrixComp* const lateNodeGlobalMatrixComp_ptr)
 {
-    if (parentEntity != 0)
+    Entity parent_entity = entities_handler_ptr->GetParentOfEntity(thisEntity);
+    NodeDataCompEntity& this_node_data = nodeDataComp_ptr->GetComponentEntity(thisEntity);
+
+    if (parent_entity != 0)
     {
-        LateNodeGlobalMatrixCompEntity& parent_nodeGlobalMatrix_componentEntity = lateNodeGlobalMatrixComp_ptr->GetComponentEntity(parentEntity);
-        globalMatrix = this_nodeData.GetGlobalMatrix(parent_nodeGlobalMatrix_componentEntity.globalMatrix);
+        LateNodeGlobalMatrixCompEntity& parent_nodeGlobalMatrix_componentEntity = lateNodeGlobalMatrixComp_ptr->GetComponentEntity(parent_entity);
+        globalMatrix = this_node_data.GetGlobalMatrix(parent_nodeGlobalMatrix_componentEntity.globalMatrix);
     }
     else
-        globalMatrix = this_nodeData.GetGlobalMatrix(glm::mat4(1.f));
-
-}
-
-void LateNodeGlobalMatrixCompEntity::Init()
-{
+    {
+        globalMatrix = this_node_data.GetGlobalMatrix(glm::mat4(1.f));
+    }
 }
 
 #endif
