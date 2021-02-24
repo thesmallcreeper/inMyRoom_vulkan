@@ -30,7 +30,6 @@ public:
 
     void Run();
 
-
 private: // data
 
     configuru::Config& cfgFile;

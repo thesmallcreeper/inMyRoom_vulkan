@@ -78,9 +78,9 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(LateNodeGlobalMatrixComp* nodeGlo
 
         if(!disableCulling)
         {
-            Cuboid this_cuboid = this_global_matrix * this_mesh_info_ptr->boundBoxTree.GetOBB();
+            Paralgram this_paralgram = this_global_matrix * this_mesh_info_ptr->boundBoxTree.GetRootOBB();
 
-            if (frustumCulling_ptr->IsCuboidInsideFrustum(this_cuboid)) // per mesh-object OBB culling
+            if (frustumCulling_ptr->IsParalgramInsideFrustum(this_paralgram)) // per mesh-object OBB culling
                 for (size_t primitive_index = this_mesh_info_ptr->primitiveFirstOffset; primitive_index < this_mesh_info_ptr->primitiveFirstOffset + this_mesh_info_ptr->primitiveRangeSize; primitive_index++)
                 {
                     DrawRequest this_draw_request;

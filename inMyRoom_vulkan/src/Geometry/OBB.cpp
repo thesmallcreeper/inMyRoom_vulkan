@@ -48,10 +48,10 @@ OBB OBB::CreateOBBfromTriangles(const std::vector<Triangle>& in_triangles)
 OBB OBB::CreateAABBfromPoints(const std::vector<glm::vec3>& in_points)
 {
     OBB return_OBB;
-    return_OBB.center = glm::vec4(0.f, 0.f, 0.f, 1.f);
-    return_OBB.sideDirections.u = glm::vec4(1.f, 0.f, 0.f, 0.f);
-    return_OBB.sideDirections.v = glm::vec4(0.f, 1.f, 0.f, 0.f);
-    return_OBB.sideDirections.w = glm::vec4(0.f, 0.f, 1.f, 0.f);
+    return_OBB.center = glm::vec3(0.f, 0.f, 0.f);
+    return_OBB.sideDirections.u = glm::vec3(1.f, 0.f, 0.f);
+    return_OBB.sideDirections.v = glm::vec3(0.f, 1.f, 0.f);
+    return_OBB.sideDirections.w = glm::vec3(0.f, 0.f, 1.f);
 
     {
         float min = std::numeric_limits<float>::infinity();
@@ -66,7 +66,7 @@ OBB OBB::CreateAABBfromPoints(const std::vector<glm::vec3>& in_points)
         float delta = (max - min) + 2.f * std::numeric_limits<float>::epsilon();
         float center_on_this_axis = (max + min) / 2.f;
 
-        return_OBB.halfLengths.x = delta / 2.f;
+        return_OBB.sideDirections.u *= delta / 2.f;
         return_OBB.center.x = center_on_this_axis;
     }
 
@@ -83,7 +83,7 @@ OBB OBB::CreateAABBfromPoints(const std::vector<glm::vec3>& in_points)
         float delta = (max - min) + 2.f * std::numeric_limits<float>::epsilon();
         float center_on_this_axis = (max + min) / 2.f;
 
-        return_OBB.halfLengths.y = delta / 2.f;
+        return_OBB.sideDirections.v *= delta / 2.f;
         return_OBB.center.y = center_on_this_axis;
     }
 
@@ -100,7 +100,7 @@ OBB OBB::CreateAABBfromPoints(const std::vector<glm::vec3>& in_points)
         float delta = (max - min) + 2.f * std::numeric_limits<float>::epsilon();
         float center_on_this_axis = (max + min) / 2.f;
 
-        return_OBB.halfLengths.z = delta / 2.f;
+        return_OBB.sideDirections.w *= delta / 2.f;
         return_OBB.center.z = center_on_this_axis;
     }
 

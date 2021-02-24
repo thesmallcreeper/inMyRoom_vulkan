@@ -512,10 +512,7 @@ OBBtree PrimitivesOfMeshes::GetOBBtreeAndReset()
         }
     }
 
-    OBBtree return_OBBtree;
-
-    if(triangles.size())
-        return_OBBtree = OBBtree(std::move(triangles));
+    OBBtree return_OBBtree(std::move(triangles));
 
     recorderPrimitivesCPUdatas.clear();
     recordingOBBtree = false;

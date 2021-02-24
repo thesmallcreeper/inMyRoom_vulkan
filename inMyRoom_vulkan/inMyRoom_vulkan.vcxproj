@@ -51,7 +51,7 @@
     <ClCompile Include="src\ExportedFunctionsConstructor.cpp" />
     <ClCompile Include="src\GameDLLimporter.cpp" />
     <ClCompile Include="src\GameImporter.cpp" />
-    <ClCompile Include="src\Geometry\Cuboid.cpp" />
+    <ClCompile Include="src\Geometry\Paralgram.cpp" />
     <ClCompile Include="src\Geometry\FrustumCulling.cpp" />
     <ClCompile Include="src\Geometry\OBB.cpp" />
     <ClCompile Include="src\Geometry\OBBtree.cpp" />
@@ -127,7 +127,7 @@
     <ClInclude Include="include\GameDLLimporter.h" />
     <ClInclude Include="include\GameImporter.h" />
     <ClInclude Include="include\game_dll.h" />
-    <ClInclude Include="include\Geometry\Cuboid.h" />
+    <ClInclude Include="include\Geometry\Paralgram.h" />
     <ClInclude Include="include\Geometry\FrustumCulling.h" />
     <ClInclude Include="include\Geometry\OBB.h" />
     <ClInclude Include="include\Geometry\OBBtree.h" />

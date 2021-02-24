@@ -6,10 +6,10 @@
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 
-#include "Geometry/Cuboid.h"
+#include "Geometry/Paralgram.h"
 #include "Geometry/Triangle.h"
 
-class OBB: public Cuboid
+class OBB: public Paralgram
 {
 public:
     static OBB CreateOBBfromPoints(const std::vector<glm::vec3>& in_points);

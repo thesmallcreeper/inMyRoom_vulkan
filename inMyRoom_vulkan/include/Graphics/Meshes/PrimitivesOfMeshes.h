@@ -110,7 +110,7 @@ public: // functions
 
     void StartRecordOBBtree();
 
-    OBBtree  GetOBBtreeAndReset();
+    OBBtree GetOBBtreeAndReset();
 
     const std::vector<PrimitiveSpecificSetInfo>& GetPrimitivesSetInfos(std::string in_primitives_set_name) const;
     const std::vector<PrimitiveGeneralInfo>& GetPrimitivesGeneralInfos() const;

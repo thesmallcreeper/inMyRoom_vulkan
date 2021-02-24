@@ -20,27 +20,27 @@ std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> SweepAn
 
     for (size_t index = 0; index < collisionDetectionEntries.size(); index++)
     {
-        Cuboid this_cuboid = collisionDetectionEntries[index].currentGlobalMatrix * reinterpret_cast<const OBBtree*>(collisionDetectionEntries[index].OBBtree_ptr)->GetOBB();
+        Paralgram this_paralgram = collisionDetectionEntries[index].currentGlobalMatrix * reinterpret_cast<const OBBtree*>(collisionDetectionEntries[index].OBBtree_ptr)->GetRootOBB();
 
         {
             SweepAndPruneEntry this_entry;
             this_entry.index = index;
             this_entry.shouldCallback = collisionDetectionEntries[index].shouldCallback;
-            this_entry.minMaxProjection = this_cuboid.GetMinMaxProjectionToAxis(U_axis);
+            this_entry.minMaxProjection = this_paralgram.GetMinMaxProjectionToAxis(U_axis);
             U_axis_entries.emplace_back(this_entry);
         }
         {
             SweepAndPruneEntry this_entry;
             this_entry.index = index;
             this_entry.shouldCallback = collisionDetectionEntries[index].shouldCallback;
-            this_entry.minMaxProjection = this_cuboid.GetMinMaxProjectionToAxis(V_axis);
+            this_entry.minMaxProjection = this_paralgram.GetMinMaxProjectionToAxis(V_axis);
             V_axis_entries.emplace_back(this_entry);
         }
         {
             SweepAndPruneEntry this_entry;
             this_entry.index = index;
             this_entry.shouldCallback = collisionDetectionEntries[index].shouldCallback;
-            this_entry.minMaxProjection = this_cuboid.GetMinMaxProjectionToAxis(W_axis);
+            this_entry.minMaxProjection = this_paralgram.GetMinMaxProjectionToAxis(W_axis);
             W_axis_entries.emplace_back(this_entry);
         }     
     }

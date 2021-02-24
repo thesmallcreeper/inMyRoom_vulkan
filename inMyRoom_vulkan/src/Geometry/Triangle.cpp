@@ -1,14 +1,13 @@
 #include "Geometry/Triangle.h"
 
-#include "glm/gtx/intersect.hpp"
 
 Triangle Triangle::MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Triangle& rhs)
 {
     Triangle return_triangle;
 
-    return_triangle.p0 = in_matrix * rhs.p0;
-    return_triangle.p1 = in_matrix * rhs.p1;
-    return_triangle.p2 = in_matrix * rhs.p2;
+    return_triangle.p0 = glm::vec3(in_matrix * glm::vec4(rhs.p0, 1.f));
+    return_triangle.p1 = glm::vec3(in_matrix * glm::vec4(rhs.p1, 1.f));
+    return_triangle.p2 = glm::vec3(in_matrix * glm::vec4(rhs.p2, 1.f));
 
     return return_triangle;
 }
@@ -17,9 +16,9 @@ Triangle Triangle::CreateTriangle(const glm::vec3 in_p0, const glm::vec3 in_p1, 
 {
     Triangle return_triangle;
 
-    return_triangle.p0 = glm::vec4(in_p0, 1.f);
-    return_triangle.p1 = glm::vec4(in_p1, 1.f);
-    return_triangle.p2 = glm::vec4(in_p2, 1.f);
+    return_triangle.p0 = in_p0;
+    return_triangle.p1 = in_p1;
+    return_triangle.p2 = in_p2;
 
     return return_triangle;
 }
@@ -77,17 +76,17 @@ std::vector<Triangle> Triangle::CreateTriangleList(const std::vector<glm::vec3>&
     return return_vector;
 }
 
-TrianglesInterseptionInfo Triangle::InterseptTrianglesInfo(const Triangle& lhs, const Triangle& rhs)
+TrianglesIntersectionInfo Triangle::IntersectTriangles(const Triangle& lhs, const Triangle& rhs)
 {
-    TrianglesInterseptionInfo return_info;
+    TrianglesIntersectionInfo return_info;
 
-    glm::vec4 lhs_p0 = lhs.GetP0();
-    glm::vec4 lhs_p1 = lhs.GetP1();
-    glm::vec4 lhs_p2 = lhs.GetP2();
+    glm::vec3 lhs_p0 = lhs.GetP0();
+    glm::vec3 lhs_p1 = lhs.GetP1();
+    glm::vec3 lhs_p2 = lhs.GetP2();
 
-    glm::vec4 rhs_p0 = rhs.GetP0();
-    glm::vec4 rhs_p1 = rhs.GetP1();
-    glm::vec4 rhs_p2 = rhs.GetP2();
+    glm::vec3 rhs_p0 = rhs.GetP0();
+    glm::vec3 rhs_p1 = rhs.GetP1();
+    glm::vec3 rhs_p2 = rhs.GetP2();
 
     int _doIntersept_int = 0;
     int _areCoplanar_int = 0;
@@ -104,24 +103,8 @@ TrianglesInterseptionInfo Triangle::InterseptTrianglesInfo(const Triangle& lhs, 
     return return_info;
 }
 
-TriangleRayInterseptionInfo Triangle::InterseptTriangleWithRayInfo(const Triangle& triange, const Ray& ray)
-{
-    TriangleRayInterseptionInfo return_info;
 
-    glm::vec3 _p0 = glm::vec3(triange.p0);
-    glm::vec3 _p1 = glm::vec3(triange.p1);
-    glm::vec3 _p2 = glm::vec3(triange.p2);
-    glm::vec3 origin = glm::vec3(ray.GetOrigin());
-    glm::vec3 direction = glm::vec3(ray.GetDirection());
-
-    glm::vec2 bary_position;
-
-    return_info.doIntersept = glm::intersectRayTriangle(origin, direction, _p0, _p1, _p2, bary_position, return_info.distanceFromOrigin);
-
-    return return_info;
-}
-
-std::pair<float, float> Triangle::GetMinMaxProjectionToAxis(const glm::vec4& in_axis) const
+std::pair<float, float> Triangle::GetMinMaxProjectionToAxis(const glm::vec3& in_axis) const
 {
     float min = +std::numeric_limits<float>::infinity();
     float max = -std::numeric_limits<float>::infinity();
@@ -148,17 +131,17 @@ std::pair<float, float> Triangle::GetMinMaxProjectionToAxis(const glm::vec4& in_
     return std::make_pair(min, max);
 }
 
-glm::vec4 Triangle::GetP0() const
+glm::vec3 Triangle::GetP0() const
 {
     return p0;
 }
 
-glm::vec4 Triangle::GetP1() const
+glm::vec3 Triangle::GetP1() const
 {
     return p1;
 }
 
-glm::vec4 Triangle::GetP2() const
+glm::vec3 Triangle::GetP2() const
 {
     return p2;
 }

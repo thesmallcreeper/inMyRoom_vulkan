@@ -2,26 +2,18 @@
 
 #include <vector>
 
-#include "Geometry/Ray.h"
-
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 #include "glm/mat4x4.hpp"
 
 #include "glTFenum.h"
 
-struct TrianglesInterseptionInfo
+struct TrianglesIntersectionInfo
 {
     bool doIntersept;
     bool areCoplanar;
     glm::vec3 source;
     glm::vec3 target;
-};
-
-struct TriangleRayInterseptionInfo
-{
-    bool doIntersept;
-    float distanceFromOrigin;
 };
 
 class Triangle
@@ -35,19 +27,18 @@ public:
                                                     const std::vector<uint32_t>& indices,
                                                     const glTFmode triangleMode);
 
-    static TrianglesInterseptionInfo InterseptTrianglesInfo(const Triangle& lhs, const Triangle& rhs);
-    static TriangleRayInterseptionInfo InterseptTriangleWithRayInfo(const Triangle& triange, const Ray& ray);
+    static TrianglesIntersectionInfo IntersectTriangles(const Triangle& lhs, const Triangle& rhs);
 
-    std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec4& in_axis) const;
+    std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec3& in_axis) const;
 public:
-    glm::vec4 GetP0() const;
-    glm::vec4 GetP1() const;
-    glm::vec4 GetP2() const;
+    glm::vec3 GetP0() const;
+    glm::vec3 GetP1() const;
+    glm::vec3 GetP2() const;
 
 private:
-    glm::vec4 p0;
-    glm::vec4 p1;
-    glm::vec4 p2;
+    glm::vec3 p0;
+    glm::vec3 p1;
+    glm::vec3 p2;
 
 };
 

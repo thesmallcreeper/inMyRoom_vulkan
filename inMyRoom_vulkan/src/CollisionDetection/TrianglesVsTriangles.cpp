@@ -13,17 +13,17 @@ std::vector<CSentriesPairCollisionCenter> TrianglesVsTriangles::ExecuteTriangles
         glm::vec3 collision_point_weighter_sum = glm::vec3(0.f, 0.f, 0.f);
         float weight = 0.f;
 
-        for (const std::pair<Triangles, Triangles>& this_trianglePair : this_CSentriesPairTrianglesPairs.trianglesPairs)
+        for (const OBBtreesIntersectInfo::CandidateTriangleRangeCombination& this_triangleRangeCompination : this_CSentriesPairTrianglesPairs.OBBtreesIntersectInfo.candidateTriangleRangeCompinations)
         {
-            for (const Triangle& this_first_triangle_model_space : this_trianglePair.first)
+            for (size_t i = this_triangleRangeCompination.first_obbtree_offset; i != this_triangleRangeCompination.first_obbtree_offset + this_triangleRangeCompination.first_obbtree_count; ++i)
             {
-                Triangle this_first_triangle = this_CSentriesPairTrianglesPairs.firstEntry.currentGlobalMatrix * this_first_triangle_model_space;
+                Triangle this_first_triangle = this_CSentriesPairTrianglesPairs.firstEntry.currentGlobalMatrix * this_CSentriesPairTrianglesPairs.OBBtreesIntersectInfo.first_obb_tree->GetTriangle(i);
 
-                for (const Triangle& this_second_triangle_model_space : this_trianglePair.second)
+                for (size_t j = this_triangleRangeCompination.second_obbtree_offset; j != this_triangleRangeCompination.second_obbtree_offset + this_triangleRangeCompination.second_obbtree_count; ++j)
                 {
-                    Triangle this_second_triangle = this_CSentriesPairTrianglesPairs.secondEntry.currentGlobalMatrix * this_second_triangle_model_space;
+                    Triangle this_second_triangle = this_CSentriesPairTrianglesPairs.secondEntry.currentGlobalMatrix * this_CSentriesPairTrianglesPairs.OBBtreesIntersectInfo.second_obb_tree->GetTriangle(j);
 
-                    TrianglesInterseptionInfo this_interseption = Triangle::InterseptTrianglesInfo(this_first_triangle, this_second_triangle);
+                    TrianglesIntersectionInfo this_interseption = Triangle::IntersectTriangles(this_first_triangle, this_second_triangle);
 
                     if (this_interseption.doIntersept && !this_interseption.areCoplanar)
                     {

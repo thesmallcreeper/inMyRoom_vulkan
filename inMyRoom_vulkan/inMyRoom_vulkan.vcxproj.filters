@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\_ect">
-      <UniqueIdentifier>{6d1be37a-7301-4c7e-8906-76ce099d53d7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\_etc">
       <UniqueIdentifier>{3f363aaa-a27a-4d80-96ad-22df54595c09}</UniqueIdentifier>
     </Filter>
@@ -70,6 +67,9 @@
     <Filter Include="Header Files\CollisionDetection">
       <UniqueIdentifier>{ca006267-0dd9-4f32-b249-27bcd44b57a7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\_etc">
+      <UniqueIdentifier>{6d1be37a-7301-4c7e-8906-76ce099d53d7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -85,7 +85,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\DiTO\dito.cpp">
-      <Filter>Source Files\_ect</Filter>
+      <Filter>Source Files\_etc</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp">
       <Filter>Source Files\ECS</Filter>
@@ -98,9 +98,6 @@
     </ClCompile>
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp">
       <Filter>Source Files\ECS\GeneralCompEntities</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Geometry\Cuboid.cpp">
-      <Filter>Source Files\Geometry</Filter>
     </ClCompile>
     <ClCompile Include="src\Geometry\FrustumCulling.cpp">
       <Filter>Source Files\Geometry</Filter>
@@ -246,6 +243,9 @@
     <ClCompile Include="src\implementations.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Geometry\Paralgram.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -292,9 +292,6 @@
     </ClInclude>
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelDrawCompEntity.h">
       <Filter>Header Files\ECS\GeneralCompEntities</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Geometry\Cuboid.h">
-      <Filter>Header Files\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="include\Geometry\FrustumCulling.h">
       <Filter>Header Files\Geometry</Filter>
@@ -472,6 +469,9 @@
     </ClInclude>
     <ClInclude Include="include\ECS\ConceptHelpers.h">
       <Filter>Header Files\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Geometry\Paralgram.h">
+      <Filter>Header Files\Geometry</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

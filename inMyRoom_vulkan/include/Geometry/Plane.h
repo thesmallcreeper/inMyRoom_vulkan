@@ -1,9 +1,8 @@
 #pragma once
 
 #include "glm/vec3.hpp"
-#include "glm/vec4.hpp"
 
-#include "Geometry/Cuboid.h"
+#include "Geometry/Paralgram.h"
 
 enum PlaneIntersectResult
 {
@@ -18,10 +17,10 @@ public:
     static Plane CreatePlane(const glm::vec3 in_normal, const float in_d);
 
 public:
-    PlaneIntersectResult IntersectCuboid(const Cuboid in_cuboid) const;
+    PlaneIntersectResult IntersectParalgram(const Paralgram in_paralgram) const;
 
 private:
-    glm::vec4 normal;
+    glm::vec3 normal;
     float d;
 };
 

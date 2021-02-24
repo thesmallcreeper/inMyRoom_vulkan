@@ -9,6 +9,7 @@
 #include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
 
 #include <cassert>
+#include <iostream>
 
 SnakePlayerCompEntity::SnakePlayerCompEntity(const Entity this_entity)
     :CompEntityBaseWrappedClass<SnakePlayerComp>(this_entity)
@@ -218,6 +219,8 @@ void SnakePlayerCompEntity::CollisionUpdate(NodeDataComp* nodeDataComp_ptr,
     NodeDataCompEntity& this_nodeData_compEntity_ptr = nodeDataComp_ptr->GetComponentEntity(thisEntity);
     CameraCompEntity& this_camera_compEntity_ptr = cameraComp_ptr->GetComponentEntity(thisEntity);
     AnimationComposerCompEntity& snake_animationComposer_compEntity_ptr = animationComposerComp_ptr->GetComponentEntity(animationComposerRelativeEntity + thisEntity);
+
+
 
     {
         glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 1.1f;

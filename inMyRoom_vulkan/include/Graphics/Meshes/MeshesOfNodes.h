@@ -8,7 +8,7 @@
 #include "wrappers/descriptor_set.h"
 #include "wrappers/command_buffer.h"
 
-#include "Geometry/OBB.h"
+#include "Geometry/OBBtree.h"
 
 #include "Graphics/Meshes/PrimitivesOfMeshes.h"
 
