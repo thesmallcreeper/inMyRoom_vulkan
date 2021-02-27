@@ -10,9 +10,6 @@
 [submodule "tinygltf"]
 	path = tinygltf
 	url = https://github.com/thesmallcreeper/tinygltf
-[submodule "MathGeoLib"]
-	path = MathGeoLib
-	url = https://github.com/thesmallcreeper/MathGeoLib
 [submodule "Compressonator"]
 	path = Compressonator
 	url = https://github.com/thesmallcreeper/Compressonator
