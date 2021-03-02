@@ -120,6 +120,18 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
             this_primitiveInitInfo.commonGraphicsPipelineSpecs.normalComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
 
             AddAccessorDataToLocalBuffer(localNormalBuffer, false, false, sizeof(float), in_model, this_accessor);
+
+            if (recordingOBBtree)
+            {
+                size_t begin_index_byte = this_primitiveInitInfo.normalBufferOffset;
+                size_t end_index_byte = localNormalBuffer.size();
+
+                float* begin_index = reinterpret_cast<float*>(localNormalBuffer.data() + begin_index_byte);
+                float* end_index = reinterpret_cast<float*>(localNormalBuffer.data() + end_index_byte);
+
+                for (float* this_ptr = begin_index; this_ptr != end_index; this_ptr += 3)
+                    this_primitiveCPUdata.normals.emplace_back(glm::vec3(this_ptr[0], this_ptr[1], this_ptr[2]));
+            }
         }
     }
 
@@ -504,7 +516,8 @@ OBBtree PrimitivesOfMeshes::GetOBBtreeAndReset()
     {
         if (this_primitiveCPUdata.isSkin == false)
         {
-            std::vector<Triangle> this_triangles_list = Triangle::CreateTriangleList(this_primitiveCPUdata.points, this_primitiveCPUdata.indices, this_primitiveCPUdata.drawMode);
+            std::vector<Triangle> this_triangles_list = Triangle::CreateTriangleList(this_primitiveCPUdata.points, this_primitiveCPUdata.normals,
+                                                                                     this_primitiveCPUdata.indices, this_primitiveCPUdata.drawMode);
 
             std::copy(this_triangles_list.begin(),
                       this_triangles_list.end(),

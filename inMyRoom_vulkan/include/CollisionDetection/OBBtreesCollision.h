@@ -4,8 +4,6 @@
 
 #include "Geometry/OBBtree.h"
 
-typedef std::vector<Triangle> Triangles;
-
 struct CSentriesPairTrianglesPairs
 {
     CollisionDetectionEntry firstEntry;

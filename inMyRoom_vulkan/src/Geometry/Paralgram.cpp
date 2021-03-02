@@ -17,83 +17,89 @@ Paralgram Paralgram::MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Par
 bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram& rhs)
 {
     // lhs based tests
-    {   // 1. lhs U axis
-        glm::vec3 axis = glm::normalize(lhs.sideDirections.u);
+    {   // 1. lhs U axis face
+        glm::vec3 lhs_u_face = glm::cross(glm::normalize(lhs.sideDirections.v), glm::normalize(lhs.sideDirections.w));
+        {
+            glm::vec3 axis = glm::normalize(lhs_u_face);
 
-        std::pair<float, float> lhs_projection = std::make_pair(lhs.GetCenterProjectionToAxis(axis) - glm::length(lhs.sideDirections.u),    //min
-                                                                lhs.GetCenterProjectionToAxis(axis) + glm::length(lhs.sideDirections.u));   //max
+            std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
 
-        std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
-
-        if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
-            return false;
+            if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
+                return false;
+        }
     }
 
-    {   // 2. lhs V axis
-        glm::vec3 axis = glm::normalize(lhs.sideDirections.v);
+    {   // 2. lhs V axis face
+        glm::vec3 lhs_v_face = glm::cross(glm::normalize(lhs.sideDirections.u), glm::normalize(lhs.sideDirections.w));
+        {
+            glm::vec3 axis = glm::normalize(lhs_v_face);
 
-        std::pair<float, float> lhs_projection = std::make_pair(lhs.GetCenterProjectionToAxis(axis) - glm::length(lhs.sideDirections.v),    //min
-                                                                lhs.GetCenterProjectionToAxis(axis) + glm::length(lhs.sideDirections.v));   //max
+            std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
 
-        std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
-
-        if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
-            return false;
+            if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
+                return false;
+        }
     }
 
-    {   // 3. lhs W axis
-        glm::vec3 axis = glm::normalize(lhs.sideDirections.w);
+    {   // 3. lhs W axis face
+        glm::vec3 lhs_w_face = glm::cross(glm::normalize(lhs.sideDirections.u), glm::normalize(lhs.sideDirections.v));
+        {
+            glm::vec3 axis = glm::normalize(lhs_w_face);
 
-        std::pair<float, float> lhs_projection = std::make_pair(lhs.GetCenterProjectionToAxis(axis) - glm::length(lhs.sideDirections.w),    //min
-                                                                lhs.GetCenterProjectionToAxis(axis) + glm::length(lhs.sideDirections.w));   //max
+            std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
 
-        std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
-
-        if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
-            return false;
+            if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
+                return false;
+        }
     }
 
     // rhs based tests
-    {   // 4. rhs U axis
-        glm::vec3 axis = glm::normalize(rhs.sideDirections.u);
+    {   // 4. rhs U axis face
+        glm::vec3 rhs_u_face = glm::cross(glm::normalize(rhs.sideDirections.v), glm::normalize(rhs.sideDirections.w));
+        {
+            glm::vec3 axis = glm::normalize(rhs_u_face);
 
-        std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
 
-        std::pair<float, float> rhs_projection = std::make_pair(rhs.GetCenterProjectionToAxis(axis) - glm::length(rhs.sideDirections.u),    //min
-                                                                rhs.GetCenterProjectionToAxis(axis) + glm::length(rhs.sideDirections.u));   //max
-
-        if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
-            return false;
+            if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
+                return false;
+        }
     }
 
-    {   // 5. rhs V axis
-        glm::vec3 axis = glm::normalize(rhs.sideDirections.v);
+    {   // 5. rhs V axis face
+        glm::vec3 rhs_v_face = glm::cross(glm::normalize(rhs.sideDirections.u), glm::normalize(rhs.sideDirections.w));
+        {   
+            glm::vec3 axis = glm::normalize(rhs_v_face);
 
-        std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
 
-        std::pair<float, float> rhs_projection = std::make_pair(rhs.GetCenterProjectionToAxis(axis) - glm::length(rhs.sideDirections.v),    //min
-                                                                rhs.GetCenterProjectionToAxis(axis) + glm::length(rhs.sideDirections.v));   //max
-
-        if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
-            return false;
+            if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
+                return false;
+        }
     }
 
-    {   // 6. rhs W axis
-        glm::vec3 axis = glm::normalize(rhs.sideDirections.w);
+    {   // 6. rhs W axis face
+        glm::vec3 rhs_w_face = glm::cross(glm::normalize(rhs.sideDirections.u), glm::normalize(rhs.sideDirections.v));
+        {   
+            glm::vec3 axis = glm::normalize(rhs_w_face);
 
-        std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> lhs_projection = lhs.GetMinMaxProjectionToAxis(axis);
+            std::pair<float, float> rhs_projection = rhs.GetMinMaxProjectionToAxis(axis);
 
-        std::pair<float, float> rhs_projection = std::make_pair(rhs.GetCenterProjectionToAxis(axis) - glm::length(rhs.sideDirections.w),    //min
-                                                                rhs.GetCenterProjectionToAxis(axis) + glm::length(rhs.sideDirections.w));   //max
-
-        if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
-            return false;
+            if (!DoMinMaxProjectionsToAxisIntersept(lhs_projection, rhs_projection))
+                return false;
+        }
     }
 
     // cross product based tests
     {   // 7. UxU
         glm::vec3 cross_product_u_u = glm::cross(glm::normalize(lhs.sideDirections.u), glm::normalize(rhs.sideDirections.u));
-        if (glm::length(cross_product_u_u) > 0.f)
+        if (glm::length(cross_product_u_u) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_u_u);
 
@@ -107,7 +113,7 @@ bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram
 
     {   // 8. UxV
         glm::vec3 cross_product_u_v = glm::cross(glm::normalize(lhs.sideDirections.u), glm::normalize(rhs.sideDirections.v));
-        if (glm::length(cross_product_u_v) > 0.f)
+        if (glm::length(cross_product_u_v) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_u_v);
 
@@ -121,7 +127,7 @@ bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram
 
     {   // 9. UxW
         glm::vec3 cross_product_u_w = glm::cross(glm::normalize(lhs.sideDirections.u), glm::normalize(rhs.sideDirections.w));
-        if (glm::length(cross_product_u_w) > 0.f)
+        if (glm::length(cross_product_u_w) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_u_w);
 
@@ -135,7 +141,7 @@ bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram
 
     {   // 10. VxU
         glm::vec3 cross_product_v_u = glm::cross(glm::normalize(lhs.sideDirections.v), glm::normalize(rhs.sideDirections.u));
-        if (glm::length(cross_product_v_u) > 0.f)
+        if (glm::length(cross_product_v_u) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_v_u);
 
@@ -149,7 +155,7 @@ bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram
 
     {   // 11. VxV
         glm::vec3 cross_product_v_v = glm::cross(glm::normalize(lhs.sideDirections.v), glm::normalize(rhs.sideDirections.v));
-        if (glm::length(cross_product_v_v) > 0.f)
+        if (glm::length(cross_product_v_v) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_v_v);
 
@@ -163,7 +169,7 @@ bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram
 
     {   // 12. VxW
         glm::vec3 cross_product_v_w = glm::cross(glm::normalize(lhs.sideDirections.v), glm::normalize(rhs.sideDirections.w));
-        if (glm::length(cross_product_v_w) > 0.f)
+        if (glm::length(cross_product_v_w) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_v_w);
 
@@ -177,7 +183,7 @@ bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram
 
     {   // 13. WxU
         glm::vec3 cross_product_w_u = glm::cross(glm::normalize(lhs.sideDirections.w), glm::normalize(rhs.sideDirections.u));
-        if (glm::length(cross_product_w_u) > 0.f)
+        if (glm::length(cross_product_w_u) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_w_u);
 
@@ -191,7 +197,7 @@ bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram
 
     {   // 14. WxV
         glm::vec3 cross_product_w_v = glm::cross(glm::normalize(lhs.sideDirections.w), glm::normalize(rhs.sideDirections.v));
-        if (glm::length(cross_product_w_v) > 0.f)
+        if (glm::length(cross_product_w_v) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_w_v);
 
@@ -205,7 +211,7 @@ bool Paralgram::IntersectParalgramsBoolean(const Paralgram& lhs, const Paralgram
 
     {   // 15. WxW
         glm::vec3 cross_product_w_w = glm::cross(glm::normalize(lhs.sideDirections.w), glm::normalize(rhs.sideDirections.w));
-        if (glm::length(cross_product_w_w) > 0.f)
+        if (glm::length(cross_product_w_w) > std::numeric_limits<float>::epsilon())
         {
             glm::vec3 axis = glm::normalize(cross_product_w_w);
 

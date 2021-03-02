@@ -36,6 +36,7 @@ struct PrimitiveGeneralInfo
 struct PrimitiveCPUdata
 {
     std::vector<glm::vec3> points;
+    std::vector<glm::vec3> normals;
     std::vector<uint32_t> indices;
     glTFmode drawMode;
     bool isSkin = false;

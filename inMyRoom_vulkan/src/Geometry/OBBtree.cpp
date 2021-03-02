@@ -168,7 +168,8 @@ size_t OBBtree::OBBtreeSplitBuildNode::LeavesCount() const
     }
 }
 
-void OBBtree::OBBtreeNode::InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtree_split_build_node_ptr, std::vector<OBBtreeNode>& obbTreeNodes, std::vector<Triangle>& triangles)
+void OBBtree::OBBtreeNode::InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtree_split_build_node_ptr, std::vector<OBBtreeNode>& obbTreeNodes,
+                                                   std::vector<TrianglePosition>& triangles_position, std::vector<TriangleNormal>& triangles_normal)
 {
     if(not obbtree_split_build_node_ptr->IsLeaf())
     {
@@ -193,10 +194,13 @@ void OBBtree::OBBtreeNode::InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtre
     }
     else
     {
-        uint32_t triangles_offset = uint32_t(triangles.size());
+        uint32_t triangles_offset = uint32_t(triangles_position.size());
         uint16_t this_node_triangles_count = uint16_t(obbtree_split_build_node_ptr->GetTrianglesRef().size());
-        std::copy(obbtree_split_build_node_ptr->GetTrianglesRef().begin(), obbtree_split_build_node_ptr->GetTrianglesRef().end(),
-                  std::back_inserter(triangles));
+        for(const Triangle& this_triangle: obbtree_split_build_node_ptr->GetTrianglesRef())
+        {
+            triangles_position.emplace_back(this_triangle.GetTrianglePosition());
+            triangles_normal.emplace_back(this_triangle.GetTriangleNormal());
+        }
 
         size_t parent_index = obbtree_split_build_node_ptr->GetParentPtr()->index_in_vector;
 
@@ -217,7 +221,7 @@ void OBBtree::OBBtreeNode::InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtre
     }
 }
 
-OBBtree::OBBtreeTraveler::OBBtreeTraveler(const OBB* root_obb, const std::vector<OBBtree::OBBtreeNode>& obb_tree_nodes, const std::vector<Triangle>& triangles)
+OBBtree::OBBtreeTraveler::OBBtreeTraveler(const OBB* root_obb, const std::vector<OBBtree::OBBtreeNode>& obb_tree_nodes, size_t in_triangles_count)
     : OBBtreeNodes_ref(obb_tree_nodes)
 {
     obb_ptr = root_obb;
@@ -233,7 +237,7 @@ OBBtree::OBBtreeTraveler::OBBtreeTraveler(const OBB* root_obb, const std::vector
         isLeaf = true;
         
         triangles_offset = 0;
-        triangles_count = triangles.size();
+        triangles_count = in_triangles_count;
     }
 }
 
@@ -319,7 +323,8 @@ OBBtree::OBBtree(std::vector<Triangle>&& in_triangles)
     if(not obb_split_build_node_root->IsLeaf())
     {
         OBBtreeNodes.reserve(inner_nodes);
-        triangles.reserve(triangles_count);
+        triangles_position.reserve(triangles_count);
+        triangles_normal.reserve(triangles_count);
 
         OBBtreeNodes.emplace_back();
         obb_split_build_node_root->index_in_vector = 0;
@@ -331,7 +336,11 @@ OBBtree::OBBtree(std::vector<Triangle>&& in_triangles)
     {
         assert(inner_nodes == 0);
 
-        triangles = obb_split_build_node_root->GetTriangles();
+        for(const Triangle& this_triangle: in_triangles)
+        {
+            triangles_position.emplace_back(this_triangle.GetTrianglePosition());
+            triangles_normal.emplace_back(this_triangle.GetTriangleNormal());
+        }
     }
 
 }
@@ -343,17 +352,22 @@ OBB OBBtree::GetRootOBB() const
 
 OBBtree::OBBtreeTraveler OBBtree::GetRootTraveler() const
 {
-    return OBBtreeTraveler(&root_obb, OBBtreeNodes, triangles);
+    return OBBtreeTraveler(&root_obb, OBBtreeNodes, triangles_position.size());
 }
 
-Triangle OBBtree::GetTriangle(size_t index) const
+TrianglePosition OBBtree::GetTrianglePosition(size_t index) const
 {
-    return triangles[index];
+    return triangles_position[index];
+}
+
+TriangleNormal OBBtree::GetTriangleNormal(size_t index) const
+{
+    return triangles_normal[index];
 }
 
 void OBBtree::ConstructDFSrecursive(OBBtree::OBBtreeSplitBuildNode * obbtree_split_build_node_ptr)
 {
-    OBBtreeNode::InitializeTreeBuildNode(obbtree_split_build_node_ptr, OBBtreeNodes, triangles);
+    OBBtreeNode::InitializeTreeBuildNode(obbtree_split_build_node_ptr, OBBtreeNodes, triangles_position, triangles_normal);
 
     if(not obbtree_split_build_node_ptr->IsLeaf())
     {
@@ -392,14 +406,9 @@ void OBBtree::IntersectOBBtreesRecursive(const OBBtreeTraveler& first_tree_trave
 
     if (Paralgram::IntersectParalgramsBoolean(first_paralgram, second_paralgram))
     {
-        if (first_tree_traveler.IsLeaf() && second_tree_traveler.IsLeaf())
+        if (not first_tree_traveler.IsLeaf() && not second_tree_traveler.IsLeaf()) [[likely]]
         {
-            intesection_info.candidateTriangleRangeCompinations.emplace_back(first_tree_traveler.GetTrianglesOffset(), first_tree_traveler.GetTrianglesCount(),
-                                                                             second_tree_traveler.GetTrianglesOffset(), second_tree_traveler.GetTrianglesCount());
-        }
-        else if (not first_tree_traveler.IsLeaf() && not second_tree_traveler.IsLeaf())
-        {
-            if (first_paralgram.GetSurface() > second_paralgram.GetSurface())
+            if (first_paralgram.GetSurface() >= second_paralgram.GetSurface())
             {
                 IntersectOBBtreesRecursive(first_tree_traveler.GetLeftChildTraveler(),
                                            second_tree_traveler,
@@ -433,7 +442,7 @@ void OBBtree::IntersectOBBtreesRecursive(const OBBtreeTraveler& first_tree_trave
                                        second_tree_matrix,
                                        intesection_info);
         }
-        else
+        else if (not first_tree_traveler.IsLeaf() && second_tree_traveler.IsLeaf())
         {
             IntersectOBBtreesRecursive(first_tree_traveler.GetLeftChildTraveler(),
                                        second_tree_traveler,
@@ -443,6 +452,11 @@ void OBBtree::IntersectOBBtreesRecursive(const OBBtreeTraveler& first_tree_trave
                                        second_tree_traveler,
                                        second_tree_matrix,
                                        intesection_info);
+        }
+        else
+        {
+            intesection_info.candidateTriangleRangeCompinations.emplace_back(first_tree_traveler.GetTrianglesOffset(), first_tree_traveler.GetTrianglesCount(),
+                                                                             second_tree_traveler.GetTrianglesOffset(), second_tree_traveler.GetTrianglesCount());
         }
     }
 }

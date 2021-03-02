@@ -1,6 +1,7 @@
 #include "Geometry/Ray.h"
 #include "glm/gtx/intersect.hpp"
 
+#include <algorithm>
 
 Ray Ray::CreateRay(const glm::vec3 in_origin, const glm::vec3 in_direction)
 {
@@ -22,25 +23,32 @@ glm::vec3 Ray::GetDirection() const
     return direction;
 }
 
-std::pair<bool, float> Ray::IntersectTriangle(const Triangle& triange) const
+void Ray::MoveOriginEpsilonTowardsDirection(float factor)
 {
-    std::pair<bool, float> return_pair = std::make_pair( false, std::numeric_limits<float>::infinity());
+    float biggest_component_abs_value = std::max({std::abs(origin.x), std::abs(origin.y), std::abs(origin.z)});
+    float scalled_epsilon = biggest_component_abs_value * std::numeric_limits<float>::epsilon();
+
+    glm::vec3 origin_tick = direction * (factor * scalled_epsilon);
+
+    origin = origin + origin_tick;
+}
+
+RayTriangleIntersectInfo Ray::IntersectTriangle(const TrianglePosition& triange) const
+{
+    RayTriangleIntersectInfo return_info;
 
     glm::vec3 _p0 = triange.GetP0();
     glm::vec3 _p1 = triange.GetP1();
     glm::vec3 _p2 = triange.GetP2();
 
-    glm::vec2 bary_position;
+    return_info.doIntersect = glm::intersectRayTriangle(origin, direction, _p0, _p1, _p2, return_info.baryPosition, return_info.distanceFromOrigin, return_info.itBackfaces);
 
-    return_pair.first = glm::intersectRayTriangle(origin, direction, _p0, _p1, _p2, bary_position, return_pair.second);
-
-    return return_pair;
+    return return_info;
 }
 
 std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram& paralgram) const
 {
     // Code based on Realtime Rendering (RTR) 4th edition p. 960
-    static const float epsilon = 1.0E-16;
 
     float min_distance = -std::numeric_limits<float>::infinity();
     float max_distance = +std::numeric_limits<float>::infinity();
@@ -51,7 +59,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
         float e = glm::dot(glm::normalize(paralgram.GetSideDirectionU()), _P);
         float f = glm::dot(glm::normalize(paralgram.GetSideDirectionU()), direction);
 
-        if (std::abs(f) > epsilon)
+        if (std::abs(f) > std::numeric_limits<float>::epsilon())
         {
             float t1 = (e + glm::length(paralgram.GetSideDirectionU())) / f;
             float t2 = (e - glm::length(paralgram.GetSideDirectionU())) / f;
@@ -71,7 +79,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
         float e = glm::dot(glm::normalize(paralgram.GetSideDirectionV()), _P);
         float f = glm::dot(glm::normalize(paralgram.GetSideDirectionV()), direction);
 
-        if (std::abs(f) > epsilon)
+        if (std::abs(f) > std::numeric_limits<float>::epsilon())
         {
             float t1 = (e + glm::length(paralgram.GetSideDirectionV())) / f;
             float t2 = (e - glm::length(paralgram.GetSideDirectionV())) / f;
@@ -91,7 +99,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
         float e = glm::dot(glm::normalize(paralgram.GetSideDirectionW()), _P);
         float f = glm::dot(glm::normalize(paralgram.GetSideDirectionW()), direction);
 
-        if (std::abs(f) > epsilon)
+        if (std::abs(f) > std::numeric_limits<float>::epsilon())
         {
             float t1 = (e + glm::length(paralgram.GetSideDirectionW())) / f;
             float t2 = (e - glm::length(paralgram.GetSideDirectionW())) / f;
@@ -110,9 +118,9 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
     return std::make_pair(true, std::make_pair(min_distance, max_distance));
 }
 
-RayTriangleIntersectInfo Ray::IntersectOBBtree(const OBBtree& obb_tree, const glm::mat4x4& matrix) const
+RayOBBtreeIntersectInfo Ray::IntersectOBBtree(const OBBtree& obb_tree, const glm::mat4x4& matrix) const
 {
-    RayTriangleIntersectInfo return_intersect_info;
+    RayOBBtreeIntersectInfo return_intersect_info;
 
     OBBtree::OBBtreeTraveler root_traveler = obb_tree.GetRootTraveler();
 
@@ -130,7 +138,7 @@ RayTriangleIntersectInfo Ray::IntersectOBBtree(const OBBtree& obb_tree, const gl
 void Ray::IntersectOBBtreeRecursive(const OBBtree::OBBtreeTraveler& obb_tree_traveler,
                            const OBBtree& obb_tree,
                            const glm::mat4x4& matrix,
-                           RayTriangleIntersectInfo& best_intersection_so_far_info) const
+                           RayOBBtreeIntersectInfo& best_intersection_so_far_info) const
 {
     if (not obb_tree_traveler.IsLeaf())
     {
@@ -185,21 +193,21 @@ void Ray::IntersectOBBtreeRecursive(const OBBtree::OBBtreeTraveler& obb_tree_tra
     }
     else
     {
-        size_t triangle_offset = obb_tree_traveler.GetTrianglesOffset();
-
-        for (size_t i = 0; i != obb_tree_traveler.GetTrianglesCount(); ++i)
+        for (size_t i = obb_tree_traveler.GetTrianglesOffset(); i != obb_tree_traveler.GetTrianglesOffset() + obb_tree_traveler.GetTrianglesCount(); ++i)
         {
-            Triangle triangle = obb_tree.GetTriangle(triangle_offset + i);
-            Triangle this_triangle = matrix * triangle;
-            std::pair<bool, float> interseption_result = IntersectTriangle(this_triangle);
+            TrianglePosition triangle = obb_tree.GetTrianglePosition(i);
+            TrianglePosition this_triangle = matrix * triangle;
+            RayTriangleIntersectInfo interseption_result = IntersectTriangle(this_triangle);
 
-            if (interseption_result.first &&
-                interseption_result.second > 0.f &&
-                interseption_result.second < best_intersection_so_far_info.distanceFromOrigin )
+            if (interseption_result.doIntersect &&
+                interseption_result.distanceFromOrigin > 0.f &&
+                interseption_result.distanceFromOrigin < best_intersection_so_far_info.distanceFromOrigin )
             {
                 best_intersection_so_far_info.doIntersect = true;
-                best_intersection_so_far_info.distanceFromOrigin = interseption_result.second;
-                best_intersection_so_far_info.triangle = triangle;
+                best_intersection_so_far_info.itBackfaces = interseption_result.itBackfaces;
+                best_intersection_so_far_info.distanceFromOrigin = interseption_result.distanceFromOrigin;
+                best_intersection_so_far_info.triangle_index = i;
+                best_intersection_so_far_info.baryPosition = interseption_result.baryPosition;
             }             
         }
     }

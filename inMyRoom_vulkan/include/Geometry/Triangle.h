@@ -16,36 +16,86 @@ struct TrianglesIntersectionInfo
     glm::vec3 target;
 };
 
-class Triangle
+class TrianglePosition
 {
 public:
-    static Triangle MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Triangle& rhs);
-
-    static Triangle CreateTriangle(const glm::vec3 p0, const glm::vec3 p1, const glm::vec3 p2);
-
-    static std::vector<Triangle> CreateTriangleList(const std::vector<glm::vec3>& points,
-                                                    const std::vector<uint32_t>& indices,
-                                                    const glTFmode triangleMode);
-
-    static TrianglesIntersectionInfo IntersectTriangles(const Triangle& lhs, const Triangle& rhs);
+    TrianglePosition() {};
+    explicit TrianglePosition(glm::vec3 in_p0, glm::vec3 in_p1, glm::vec3 in_p2);
 
     std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec3& in_axis) const;
+    glm::vec3 GetTriangleNormal() const;
+
+    static TrianglePosition MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const TrianglePosition& rhs);
+    static TrianglesIntersectionInfo IntersectTriangles(const TrianglePosition& lhs, const TrianglePosition& rhs);
+
+protected:
+    static std::vector<TrianglePosition> CreateTrianglePositionList(const std::vector<glm::vec3>& points,
+                                                                    const std::vector<uint32_t>& indices,
+                                                                    const glTFmode triangleMode);
 public:
     glm::vec3 GetP0() const;
     glm::vec3 GetP1() const;
     glm::vec3 GetP2() const;
-
 private:
     glm::vec3 p0;
     glm::vec3 p1;
     glm::vec3 p2;
-
 };
 
-inline Triangle operator* (const glm::mat4x4& in_matrix, const Triangle& rhs)
+inline TrianglePosition operator* (const glm::mat4x4& in_matrix, const TrianglePosition& rhs)
 {
-    return Triangle::MultiplyBy4x4Matrix(in_matrix, rhs);
+    return TrianglePosition::MultiplyBy4x4Matrix(in_matrix, rhs);
 }
+
+
+class TriangleNormal
+{
+public:
+    TriangleNormal() {};
+    explicit TriangleNormal(glm::vec3 in_n0, glm::vec3 in_n1, glm::vec3 in_n2);
+    explicit TriangleNormal(glm::vec3 n);
+
+    glm::vec3 GetNormal(glm::vec2 baryCoords, const glm::mat3x3& corrected_matrix) const;
+
+    static glm::mat3x3 GetNormalCorrectedMatrix(const glm::mat4x4& in_matrix);
+
+protected:
+    static std::vector<TriangleNormal> CreateTriangleNormalList(const std::vector<glm::vec3>& points,           // If no normal then fallback to triangles normal
+                                                                const std::vector<glm::vec3>& normals,
+                                                                const std::vector<uint32_t>& indices,
+                                                                const glTFmode triangleMode);
+public:
+    glm::vec3 GetN0() const;
+    glm::vec3 GetN1() const;
+    glm::vec3 GetN2() const;
+private:
+    glm::vec3 n0;
+    glm::vec3 n1;
+    glm::vec3 n2;
+};
+
+
+class Triangle
+    :
+    public TrianglePosition,
+    public TriangleNormal
+{
+public:
+    Triangle() {};
+    explicit Triangle(TrianglePosition in_position, TriangleNormal in_normal);
+
+    TrianglePosition GetTrianglePosition() const;
+    TriangleNormal GetTriangleNormal() const;
+
+    static std::vector<Triangle> CreateTriangleList(const std::vector<glm::vec3>& points,
+                                                    const std::vector<glm::vec3>& normals,
+                                                    const std::vector<uint32_t>& indices,
+                                                    const glTFmode triangleMode);
+
+    // static std::pair<std::vector<TrianglePosition>, std::vector<TriangleNormal>> SplitTriangleVector(const std::vector<Triangle>& triangles);
+};
+
+// Copy pasta for triangle-triangle intersect
 
 /* Triangle/triangle intersection test routine,
  * by Tomas Moller, 1997.

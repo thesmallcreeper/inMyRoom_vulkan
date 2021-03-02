@@ -17,13 +17,13 @@ std::vector<CSentriesPairCollisionCenter> TrianglesVsTriangles::ExecuteTriangles
         {
             for (size_t i = this_triangleRangeCompination.first_obbtree_offset; i != this_triangleRangeCompination.first_obbtree_offset + this_triangleRangeCompination.first_obbtree_count; ++i)
             {
-                Triangle this_first_triangle = this_CSentriesPairTrianglesPairs.firstEntry.currentGlobalMatrix * this_CSentriesPairTrianglesPairs.OBBtreesIntersectInfo.first_obb_tree->GetTriangle(i);
+                TrianglePosition this_first_triangle = this_CSentriesPairTrianglesPairs.firstEntry.currentGlobalMatrix * this_CSentriesPairTrianglesPairs.OBBtreesIntersectInfo.first_obb_tree->GetTrianglePosition(i);
 
                 for (size_t j = this_triangleRangeCompination.second_obbtree_offset; j != this_triangleRangeCompination.second_obbtree_offset + this_triangleRangeCompination.second_obbtree_count; ++j)
                 {
-                    Triangle this_second_triangle = this_CSentriesPairTrianglesPairs.secondEntry.currentGlobalMatrix * this_CSentriesPairTrianglesPairs.OBBtreesIntersectInfo.second_obb_tree->GetTriangle(j);
+                    TrianglePosition this_second_triangle = this_CSentriesPairTrianglesPairs.secondEntry.currentGlobalMatrix * this_CSentriesPairTrianglesPairs.OBBtreesIntersectInfo.second_obb_tree->GetTrianglePosition(j);
 
-                    TrianglesIntersectionInfo this_interseption = Triangle::IntersectTriangles(this_first_triangle, this_second_triangle);
+                    TrianglesIntersectionInfo this_interseption = TrianglePosition::IntersectTriangles(this_first_triangle, this_second_triangle);
 
                     if (this_interseption.doIntersept && !this_interseption.areCoplanar)
                     {

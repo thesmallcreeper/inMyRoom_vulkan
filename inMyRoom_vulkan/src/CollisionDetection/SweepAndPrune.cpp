@@ -6,9 +6,9 @@
 #include <utility>
 
 SweepAndPrune::SweepAndPrune(glm::vec3 in_U_axis, glm::vec3 in_V_axis, glm::vec3 in_W_axis)
-    :U_axis(glm::vec4(in_U_axis, 0.f)),
-     V_axis(glm::vec4(in_V_axis, 0.f)),
-     W_axis(glm::vec4(in_W_axis, 0.f))
+    :U_axis(in_U_axis),
+     V_axis(in_V_axis),
+     W_axis(in_W_axis)
 {
 }
 

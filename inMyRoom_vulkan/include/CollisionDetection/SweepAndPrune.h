@@ -39,7 +39,7 @@ public:
     std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> ExecuteSweepAndPrune(const std::vector<CollisionDetectionEntry>& collisionDetectionEntries);
 
 private:
-    const glm::vec4 U_axis;
-    const glm::vec4 V_axis;
-    const glm::vec4 W_axis;
+    const glm::vec3 U_axis;
+    const glm::vec3 V_axis;
+    const glm::vec3 W_axis;
 };

@@ -65,7 +65,8 @@ private:
     class OBBtreeNode
     {
     public:
-        static void InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtree_split_build_node_ptr, std::vector<OBBtreeNode>& obbTreeNodes, std::vector<Triangle>& triangles);
+        static void InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtree_split_build_node_ptr, std::vector<OBBtreeNode>& obbTreeNodes,
+                                            std::vector<TrianglePosition>& triangles_position, std::vector<TriangleNormal>& triangles_normal);
 
         OBB left_child_obb;
         OBB right_child_obb;
@@ -80,7 +81,7 @@ public:
     {
     public:
         OBBtreeTraveler(const std::vector<OBBtreeNode>& obb_tree_nodes) : OBBtreeNodes_ref(obb_tree_nodes) {};
-        OBBtreeTraveler(const OBB* root_obb, const std::vector<OBBtreeNode>& obb_tree_nodes, const std::vector<Triangle>& triangles);
+        OBBtreeTraveler(const OBB* root_obb, const std::vector<OBBtreeNode>& obb_tree_nodes, size_t in_triangles_count);
 
         bool IsLeaf() const;
         OBBtreeTraveler GetLeftChildTraveler() const;
@@ -107,7 +108,8 @@ public:
 
     OBB GetRootOBB() const;
     OBBtreeTraveler GetRootTraveler() const;
-    Triangle GetTriangle(size_t index) const;
+    TrianglePosition GetTrianglePosition(size_t index) const;
+    TriangleNormal GetTriangleNormal(size_t index) const;
 
     static void IntersectOBBtrees(const OBBtree& first_tree,
                                   const OBBtree& second_tree,
@@ -126,5 +128,6 @@ private:
     OBB root_obb;
 
     std::vector<OBBtreeNode> OBBtreeNodes;
-    std::vector<Triangle> triangles;
+    std::vector<TrianglePosition> triangles_position;
+    std::vector<TriangleNormal> triangles_normal;
 };

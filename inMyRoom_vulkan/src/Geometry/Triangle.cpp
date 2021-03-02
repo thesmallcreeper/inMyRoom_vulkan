@@ -1,73 +1,57 @@
 #include "Geometry/Triangle.h"
 
+#include "glm/gtc/matrix_inverse.hpp"
+#include "glm/vec3.hpp"
 
-Triangle Triangle::MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Triangle& rhs)
+#include <algorithm>
+#include <iterator>
+
+template<typename T>
+std::vector<T> CreateIndicesTriplets(const std::vector<glm::vec3>& data, const std::vector<uint32_t>& indices, const glTFmode triangleMode)
 {
-    Triangle return_triangle;
-
-    return_triangle.p0 = glm::vec3(in_matrix * glm::vec4(rhs.p0, 1.f));
-    return_triangle.p1 = glm::vec3(in_matrix * glm::vec4(rhs.p1, 1.f));
-    return_triangle.p2 = glm::vec3(in_matrix * glm::vec4(rhs.p2, 1.f));
-
-    return return_triangle;
-}
-
-Triangle Triangle::CreateTriangle(const glm::vec3 in_p0, const glm::vec3 in_p1, const glm::vec3 in_p2)
-{
-    Triangle return_triangle;
-
-    return_triangle.p0 = in_p0;
-    return_triangle.p1 = in_p1;
-    return_triangle.p2 = in_p2;
-
-    return return_triangle;
-}
-
-std::vector<Triangle> Triangle::CreateTriangleList(const std::vector<glm::vec3>& points, const std::vector<uint32_t>& indices, const glTFmode triangleMode)
-{
-    std::vector<Triangle> return_vector;
+    std::vector<T> return_vector;
 
     switch (triangleMode)
     {
         case glTFmode::points:
         {
             for (size_t i = 0; i < indices.size(); i++)
-                return_vector.emplace_back(CreateTriangle(points[indices[i]], points[indices[i]], points[indices[i]]));
+                return_vector.emplace_back(data[indices[i]], data[indices[i]], data[indices[i]]);
 
             break;
         }
         case glTFmode::line:
         {
             for (size_t i = 0; i < indices.size() / 2; i++)
-                return_vector.emplace_back(CreateTriangle(points[indices[2 * i]], points[indices[2 * i]], points[indices[2 * i + 1]]));
+                return_vector.emplace_back(data[indices[2 * i]], data[indices[2 * i]], data[indices[2 * i + 1]]);
             
             break;
         }
         case glTFmode::line_strip:
         {
             for (size_t i = 0; i < indices.size() - 1; i++)
-                return_vector.emplace_back(CreateTriangle(points[indices[i]], points[indices[i]], points[indices[i + 1]]));
+                return_vector.emplace_back(data[indices[i]], data[indices[i]], data[indices[i + 1]]);
 
             break;
         }
         case glTFmode::triangles:
         {
             for (size_t i = 0; i < indices.size() / 3; i++)
-                return_vector.emplace_back(CreateTriangle(points[indices[3 * i]], points[indices[3 * i + 1]], points[indices[3 * i + 2]]));
+                return_vector.emplace_back(data[indices[3 * i]], data[indices[3 * i + 1]], data[indices[3 * i + 2]]);
 
             break;
         }
         case glTFmode::triangle_strip:
         {
             for (size_t i = 0; i < indices.size() - 2; i++)
-                return_vector.emplace_back(CreateTriangle(points[indices[i]], points[indices[i + (1 + i % 2)]], points[indices[i + (2 - i % 2)]]));
+                return_vector.emplace_back(data[indices[i]], data[indices[i + (1 + i % 2)]], data[indices[i + (2 - i % 2)]]);
 
             break;
         }
         case glTFmode::triangle_fan:
         {
             for (size_t i = 0; i < indices.size() - 2; i++)
-                return_vector.emplace_back(CreateTriangle(points[indices[i + 1]], points[indices[i + 2]], points[indices[0]]));
+                return_vector.emplace_back(data[indices[i + 1]], data[indices[i + 2]], data[indices[0]]);
 
             break;
         }
@@ -76,7 +60,30 @@ std::vector<Triangle> Triangle::CreateTriangleList(const std::vector<glm::vec3>&
     return return_vector;
 }
 
-TrianglesIntersectionInfo Triangle::IntersectTriangles(const Triangle& lhs, const Triangle& rhs)
+TrianglePosition::TrianglePosition(glm::vec3 in_p0, glm::vec3 in_p1, glm::vec3 in_p2)
+    :
+    p0(in_p0),
+    p1(in_p1),
+    p2(in_p2) 
+{}
+
+TrianglePosition TrianglePosition::MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const TrianglePosition& rhs)
+{
+    TrianglePosition return_triangle;
+
+    return_triangle.p0 = glm::vec3(in_matrix * glm::vec4(rhs.p0, 1.f));
+    return_triangle.p1 = glm::vec3(in_matrix * glm::vec4(rhs.p1, 1.f));
+    return_triangle.p2 = glm::vec3(in_matrix * glm::vec4(rhs.p2, 1.f));
+
+    return return_triangle;
+}
+
+std::vector<TrianglePosition> TrianglePosition::CreateTrianglePositionList(const std::vector<glm::vec3>& points, const std::vector<uint32_t>& indices, const glTFmode triangleMode)
+{
+    return CreateIndicesTriplets<TrianglePosition>(points, indices, triangleMode);
+}
+
+TrianglesIntersectionInfo TrianglePosition::IntersectTriangles(const TrianglePosition& lhs, const TrianglePosition& rhs)
 {
     TrianglesIntersectionInfo return_info;
 
@@ -104,7 +111,7 @@ TrianglesIntersectionInfo Triangle::IntersectTriangles(const Triangle& lhs, cons
 }
 
 
-std::pair<float, float> Triangle::GetMinMaxProjectionToAxis(const glm::vec3& in_axis) const
+std::pair<float, float> TrianglePosition::GetMinMaxProjectionToAxis(const glm::vec3& in_axis) const
 {
     float min = +std::numeric_limits<float>::infinity();
     float max = -std::numeric_limits<float>::infinity();
@@ -131,20 +138,123 @@ std::pair<float, float> Triangle::GetMinMaxProjectionToAxis(const glm::vec3& in_
     return std::make_pair(min, max);
 }
 
-glm::vec3 Triangle::GetP0() const
+glm::vec3 TrianglePosition::GetTriangleNormal() const
+{
+    glm::vec3 edge1 = p1 - p0;
+    glm::vec3 edge2 = p2 - p0;
+
+    return glm::normalize(glm::cross(edge1, edge2));
+}
+
+glm::vec3 TrianglePosition::GetP0() const
 {
     return p0;
 }
 
-glm::vec3 Triangle::GetP1() const
+glm::vec3 TrianglePosition::GetP1() const
 {
     return p1;
 }
 
-glm::vec3 Triangle::GetP2() const
+glm::vec3 TrianglePosition::GetP2() const
 {
     return p2;
 }
+
+TriangleNormal::TriangleNormal(glm::vec3 in_n0, glm::vec3 in_n1, glm::vec3 in_n2)
+    :
+    n0(in_n0),
+    n1(in_n1),
+    n2(in_n2) 
+{}
+
+TriangleNormal::TriangleNormal(glm::vec3 n)
+    :
+    n0(n),
+    n1(n),
+    n2(n) 
+{}
+
+glm::mat3x3 TriangleNormal::GetNormalCorrectedMatrix(const glm::mat4x4 & in_matrix)
+{
+    return glm::inverseTranspose(glm::mat3x3(in_matrix));
+}
+
+glm::vec3 TriangleNormal::GetNormal(glm::vec2 baryCoords, const glm::mat3x3 & corrected_matrix) const
+{
+    glm::vec3 interpolated_normal = (1.f - baryCoords.x - baryCoords.y) * n0 + baryCoords.x * n1 + baryCoords.y * n2;
+    glm::vec3 aligned_vector = corrected_matrix * interpolated_normal;
+    glm::vec3 normalized_vector = glm::normalize(aligned_vector);
+
+    return normalized_vector;
+}
+
+std::vector<TriangleNormal> TriangleNormal::CreateTriangleNormalList(const std::vector<glm::vec3>& points,
+                                                                     const std::vector<glm::vec3>& normals,
+                                                                     const std::vector<uint32_t>& indices,
+                                                                     const glTFmode triangleMode)
+{
+    if(normals.size())
+    {
+        return CreateIndicesTriplets<TriangleNormal>(normals, indices, triangleMode);
+    }
+    else
+    {
+        const std::vector<TrianglePosition> triangle_positions = CreateIndicesTriplets<TrianglePosition>(points, indices, triangleMode);
+
+        std::vector<TriangleNormal> return_vector;
+        std::transform(triangle_positions.cbegin(), triangle_positions.cend(), std::back_inserter(return_vector),
+                       [](const TrianglePosition& triangle_pos) -> TriangleNormal {return TriangleNormal(triangle_pos.GetTriangleNormal());});
+
+        return return_vector;
+    }
+}
+
+glm::vec3 TriangleNormal::GetN0() const
+{
+    return n0;
+}
+
+glm::vec3 TriangleNormal::GetN1() const
+{
+    return n1;
+}
+
+glm::vec3 TriangleNormal::GetN2() const
+{
+    return n2;
+}
+
+Triangle::Triangle(TrianglePosition in_position, TriangleNormal in_normal)
+    :
+    TrianglePosition(in_position),
+    TriangleNormal(in_normal)
+{}
+
+std::vector<Triangle> Triangle::CreateTriangleList(const std::vector<glm::vec3>& points, const std::vector<glm::vec3>& normals, const std::vector<uint32_t>& indices, const glTFmode triangleMode)
+{
+    const std::vector<TrianglePosition> triangles_position = TrianglePosition::CreateTrianglePositionList(points, indices, triangleMode);
+    const std::vector<TriangleNormal> triangles_normal = TriangleNormal::CreateTriangleNormalList(points, normals, indices, triangleMode);
+
+    std::vector<Triangle> return_vector;
+    std::transform(triangles_position.cbegin(), triangles_position.cend(),
+                   triangles_normal.cbegin(),
+                   std::back_inserter(return_vector),
+                   [](const TrianglePosition& tr_pos, const TriangleNormal& tr_normal) -> Triangle {return Triangle(tr_pos, tr_normal);});
+
+    return return_vector;
+}
+
+TrianglePosition Triangle::GetTrianglePosition() const
+{
+    return *static_cast<const TrianglePosition*>(this);
+}
+
+TriangleNormal Triangle::GetTriangleNormal() const
+{
+    return *static_cast<const TriangleNormal*>(this);
+}
+
 
 /* Triangle/triangle intersection test routine,
  * by Tomas Moller, 1997.

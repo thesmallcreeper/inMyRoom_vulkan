@@ -9,8 +9,18 @@
 struct RayTriangleIntersectInfo
 {
     bool doIntersect = false;
+    bool itBackfaces = false;
     float distanceFromOrigin = std::numeric_limits<float>::infinity();
-    Triangle triangle;
+    glm::vec2 baryPosition = glm::vec2();
+};
+
+struct RayOBBtreeIntersectInfo
+{
+    bool doIntersect = false;
+    bool itBackfaces = false;
+    float distanceFromOrigin = std::numeric_limits<float>::infinity();
+    size_t triangle_index = -1;
+    glm::vec2 baryPosition = glm::vec2();
 };
 
 class Ray
@@ -22,15 +32,17 @@ public:
     glm::vec3 GetOrigin() const;
     glm::vec3 GetDirection() const;
 
-    std::pair<bool, float> IntersectTriangle(const Triangle& triange) const;
+    void MoveOriginEpsilonTowardsDirection(float factor);
+
+    RayTriangleIntersectInfo IntersectTriangle(const TrianglePosition& triange) const;
     std::pair<bool, std::pair<float, float>> IntersectParalgram(const Paralgram& paralgram) const;        // Returns bool(doIntesept), pair(min, max) distance
-    RayTriangleIntersectInfo IntersectOBBtree(const OBBtree& obb_tree, const glm::mat4x4& matrix) const;
+    RayOBBtreeIntersectInfo IntersectOBBtree(const OBBtree& obb_tree, const glm::mat4x4& matrix) const;
 
 private:
     void IntersectOBBtreeRecursive(const OBBtree::OBBtreeTraveler& obb_tree_traveler,
                                    const OBBtree& obb_tree,
                                    const glm::mat4x4& matrix,
-                                   RayTriangleIntersectInfo& best_intersection_so_far) const;
+                                   RayOBBtreeIntersectInfo& best_intersection_so_far) const;
 private:
     glm::vec3 origin;
     glm::vec3 direction;
