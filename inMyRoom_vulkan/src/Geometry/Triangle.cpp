@@ -4,12 +4,13 @@
 #include "glm/vec3.hpp"
 
 #include <algorithm>
+#include <numeric>
 #include <iterator>
 
-template<typename T>
-std::vector<T> CreateIndicesTriplets(const std::vector<glm::vec3>& data, const std::vector<uint32_t>& indices, const glTFmode triangleMode)
+template<typename T_return, typename T_data = glm::vec3>
+std::vector<T_return> CreateIndicesTriplets(const std::vector<T_data>& data, const std::vector<uint32_t>& indices, const glTFmode triangleMode)
 {
-    std::vector<T> return_vector;
+    std::vector<T_return> return_vector;
 
     switch (triangleMode)
     {
@@ -62,18 +63,16 @@ std::vector<T> CreateIndicesTriplets(const std::vector<glm::vec3>& data, const s
 
 TrianglePosition::TrianglePosition(glm::vec3 in_p0, glm::vec3 in_p1, glm::vec3 in_p2)
     :
-    p0(in_p0),
-    p1(in_p1),
-    p2(in_p2) 
+    p_array({ in_p0 , in_p1 , in_p2 })
 {}
 
 TrianglePosition TrianglePosition::MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const TrianglePosition& rhs)
 {
     TrianglePosition return_triangle;
 
-    return_triangle.p0 = glm::vec3(in_matrix * glm::vec4(rhs.p0, 1.f));
-    return_triangle.p1 = glm::vec3(in_matrix * glm::vec4(rhs.p1, 1.f));
-    return_triangle.p2 = glm::vec3(in_matrix * glm::vec4(rhs.p2, 1.f));
+    return_triangle.p_array[0] = glm::vec3(in_matrix * glm::vec4(rhs.p_array[0], 1.f));
+    return_triangle.p_array[1] = glm::vec3(in_matrix * glm::vec4(rhs.p_array[1], 1.f));
+    return_triangle.p_array[2] = glm::vec3(in_matrix * glm::vec4(rhs.p_array[2], 1.f));
 
     return return_triangle;
 }
@@ -87,13 +86,13 @@ TrianglesIntersectionInfo TrianglePosition::IntersectTriangles(const TrianglePos
 {
     TrianglesIntersectionInfo return_info;
 
-    glm::vec3 lhs_p0 = lhs.GetP0();
-    glm::vec3 lhs_p1 = lhs.GetP1();
-    glm::vec3 lhs_p2 = lhs.GetP2();
+    glm::vec3 lhs_p0 = lhs.GetP(0);
+    glm::vec3 lhs_p1 = lhs.GetP(1);
+    glm::vec3 lhs_p2 = lhs.GetP(2);
 
-    glm::vec3 rhs_p0 = rhs.GetP0();
-    glm::vec3 rhs_p1 = rhs.GetP1();
-    glm::vec3 rhs_p2 = rhs.GetP2();
+    glm::vec3 rhs_p0 = rhs.GetP(0);
+    glm::vec3 rhs_p1 = rhs.GetP(1);
+    glm::vec3 rhs_p2 = rhs.GetP(2);
 
     int _doIntersept_int = 0;
     int _areCoplanar_int = 0;
@@ -117,19 +116,19 @@ std::pair<float, float> TrianglePosition::GetMinMaxProjectionToAxis(const glm::v
     float max = -std::numeric_limits<float>::infinity();
 
     {
-        float projection_p0 = glm::dot(in_axis, p0);
+        float projection_p0 = glm::dot(in_axis, GetP(0));
 
         if (projection_p0 < min) min = projection_p0;
         if (projection_p0 > max) max = projection_p0;
     }
     {
-        float projection_p1 = glm::dot(in_axis, p1);
+        float projection_p1 = glm::dot(in_axis, GetP(1));
 
         if (projection_p1 < min) min = projection_p1;
         if (projection_p1 > max) max = projection_p1;
     }
     {
-        float projection_p2 = glm::dot(in_axis, p2);
+        float projection_p2 = glm::dot(in_axis, GetP(2));
 
         if (projection_p2 < min) min = projection_p2;
         if (projection_p2 > max) max = projection_p2;
@@ -140,39 +139,20 @@ std::pair<float, float> TrianglePosition::GetMinMaxProjectionToAxis(const glm::v
 
 glm::vec3 TrianglePosition::GetTriangleNormal() const
 {
-    glm::vec3 edge1 = p1 - p0;
-    glm::vec3 edge2 = p2 - p0;
+    glm::vec3 edge1 = GetP(1) - GetP(0);
+    glm::vec3 edge2 = GetP(2) - GetP(0);
 
     return glm::normalize(glm::cross(edge1, edge2));
 }
 
-glm::vec3 TrianglePosition::GetP0() const
-{
-    return p0;
-}
-
-glm::vec3 TrianglePosition::GetP1() const
-{
-    return p1;
-}
-
-glm::vec3 TrianglePosition::GetP2() const
-{
-    return p2;
-}
-
 TriangleNormal::TriangleNormal(glm::vec3 in_n0, glm::vec3 in_n1, glm::vec3 in_n2)
     :
-    n0(in_n0),
-    n1(in_n1),
-    n2(in_n2) 
+    n_array({ in_n0 , in_n1 , in_n2 })
 {}
 
 TriangleNormal::TriangleNormal(glm::vec3 n)
     :
-    n0(n),
-    n1(n),
-    n2(n) 
+    n_array({ n , n , n })
 {}
 
 glm::mat3x3 TriangleNormal::GetNormalCorrectedMatrix(const glm::mat4x4 & in_matrix)
@@ -182,7 +162,7 @@ glm::mat3x3 TriangleNormal::GetNormalCorrectedMatrix(const glm::mat4x4 & in_matr
 
 glm::vec3 TriangleNormal::GetNormal(glm::vec2 baryCoords, const glm::mat3x3 & corrected_matrix) const
 {
-    glm::vec3 interpolated_normal = (1.f - baryCoords.x - baryCoords.y) * n0 + baryCoords.x * n1 + baryCoords.y * n2;
+    glm::vec3 interpolated_normal = (1.f - baryCoords.x - baryCoords.y) * GetN(0) + baryCoords.x * GetN(1) + baryCoords.y * GetN(2);
     glm::vec3 aligned_vector = corrected_matrix * interpolated_normal;
     glm::vec3 normalized_vector = glm::normalize(aligned_vector);
 
@@ -210,37 +190,45 @@ std::vector<TriangleNormal> TriangleNormal::CreateTriangleNormalList(const std::
     }
 }
 
-glm::vec3 TriangleNormal::GetN0() const
+TriangleIndices::TriangleIndices(uint32_t in_i0, uint32_t in_i1, uint32_t in_i2)
+    :
+    i_array({ in_i0 , in_i1 , in_i2 })
 {
-    return n0;
 }
 
-glm::vec3 TriangleNormal::GetN1() const
+std::vector<TriangleIndices> TriangleIndices::CreateTriangleIndicesList(const std::vector<uint32_t>& indices, const glTFmode triangleMode)
 {
-    return n1;
+    size_t max_index = *(std::max_element(indices.begin(), indices.end()));
+
+    std::vector<uint32_t> data_iota(max_index + size_t(1), 0);
+    std::iota(data_iota.begin(), data_iota.end(), 0);
+
+    return CreateIndicesTriplets<TriangleIndices, uint32_t>(data_iota, indices, triangleMode);
 }
 
-glm::vec3 TriangleNormal::GetN2() const
-{
-    return n2;
-}
-
-Triangle::Triangle(TrianglePosition in_position, TriangleNormal in_normal)
+Triangle::Triangle(TrianglePosition in_position, TriangleNormal in_normal, TriangleIndices in_indices)
     :
     TrianglePosition(in_position),
-    TriangleNormal(in_normal)
+    TriangleNormal(in_normal),
+    TriangleIndices(in_indices)
 {}
 
 std::vector<Triangle> Triangle::CreateTriangleList(const std::vector<glm::vec3>& points, const std::vector<glm::vec3>& normals, const std::vector<uint32_t>& indices, const glTFmode triangleMode)
 {
     const std::vector<TrianglePosition> triangles_position = TrianglePosition::CreateTrianglePositionList(points, indices, triangleMode);
     const std::vector<TriangleNormal> triangles_normal = TriangleNormal::CreateTriangleNormalList(points, normals, indices, triangleMode);
+    const std::vector<TriangleIndices> triangles_indices = TriangleIndices::CreateTriangleIndicesList(indices, triangleMode);
+
+    size_t triangles_count = triangles_position.size();
 
     std::vector<Triangle> return_vector;
-    std::transform(triangles_position.cbegin(), triangles_position.cend(),
-                   triangles_normal.cbegin(),
-                   std::back_inserter(return_vector),
-                   [](const TrianglePosition& tr_pos, const TriangleNormal& tr_normal) -> Triangle {return Triangle(tr_pos, tr_normal);});
+    return_vector.reserve(triangles_count);
+    for(size_t i = 0; i < triangles_count; ++i)
+    {
+        return_vector.emplace_back(triangles_position[i],
+                                   triangles_normal[i],
+                                   triangles_indices[i]);
+    }
 
     return return_vector;
 }
@@ -253,6 +241,11 @@ TrianglePosition Triangle::GetTrianglePosition() const
 TriangleNormal Triangle::GetTriangleNormal() const
 {
     return *static_cast<const TriangleNormal*>(this);
+}
+
+TriangleIndices Triangle::GetTriangleIndices() const
+{
+    return *static_cast<const TriangleIndices*>(this);
 }
 
 

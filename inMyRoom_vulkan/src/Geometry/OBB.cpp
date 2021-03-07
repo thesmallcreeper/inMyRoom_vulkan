@@ -37,9 +37,9 @@ OBB OBB::CreateOBBfromTriangles(const std::vector<Triangle>& in_triangles)
 
     for (const Triangle& this_triangle : in_triangles)
     {
-        points.emplace_back(glm::vec3(this_triangle.GetP0()));
-        points.emplace_back(glm::vec3(this_triangle.GetP1()));
-        points.emplace_back(glm::vec3(this_triangle.GetP2()));
+        points.emplace_back(glm::vec3(this_triangle.GetP(0)));
+        points.emplace_back(glm::vec3(this_triangle.GetP(1)));
+        points.emplace_back(glm::vec3(this_triangle.GetP(2)));
     }
 
     return CreateOBBfromPoints(points);

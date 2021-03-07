@@ -97,6 +97,10 @@ void OBBtree::OBBtreeSplitBuildNode::SplitOBBandCreateChildren()
     isLeaf = false;
     leftChild_uptr = std::make_unique<OBBtree::OBBtreeSplitBuildNode>(this, false, std::move(left_child_triangles));
     rightChild_uptr = std::make_unique<OBBtree::OBBtreeSplitBuildNode>(this, true, std::move(right_child_triangles));
+
+    // left child should the highest ray-hit chance
+    if(rightChild_uptr->GetOBB().GetSurface() > leftChild_uptr->GetOBB().GetSurface())
+        std::swap(rightChild_uptr, leftChild_uptr);
 }
 
 
@@ -169,7 +173,9 @@ size_t OBBtree::OBBtreeSplitBuildNode::LeavesCount() const
 }
 
 void OBBtree::OBBtreeNode::InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtree_split_build_node_ptr, std::vector<OBBtreeNode>& obbTreeNodes,
-                                                   std::vector<TrianglePosition>& triangles_position, std::vector<TriangleNormal>& triangles_normal)
+                                                   std::vector<TrianglePosition>& triangles_position,
+                                                   std::vector<TriangleNormal>& triangles_normal,
+                                                   std::vector<TriangleIndices>& triangles_indices)
 {
     if(not obbtree_split_build_node_ptr->IsLeaf())
     {
@@ -200,6 +206,7 @@ void OBBtree::OBBtreeNode::InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtre
         {
             triangles_position.emplace_back(this_triangle.GetTrianglePosition());
             triangles_normal.emplace_back(this_triangle.GetTriangleNormal());
+            triangles_indices.emplace_back(this_triangle.GetTriangleIndices());
         }
 
         size_t parent_index = obbtree_split_build_node_ptr->GetParentPtr()->index_in_vector;
@@ -340,6 +347,7 @@ OBBtree::OBBtree(std::vector<Triangle>&& in_triangles)
         {
             triangles_position.emplace_back(this_triangle.GetTrianglePosition());
             triangles_normal.emplace_back(this_triangle.GetTriangleNormal());
+            triangles_indices.emplace_back(this_triangle.GetTriangleIndices());
         }
     }
 
@@ -367,7 +375,7 @@ TriangleNormal OBBtree::GetTriangleNormal(size_t index) const
 
 void OBBtree::ConstructDFSrecursive(OBBtree::OBBtreeSplitBuildNode * obbtree_split_build_node_ptr)
 {
-    OBBtreeNode::InitializeTreeBuildNode(obbtree_split_build_node_ptr, OBBtreeNodes, triangles_position, triangles_normal);
+    OBBtreeNode::InitializeTreeBuildNode(obbtree_split_build_node_ptr, OBBtreeNodes, triangles_position, triangles_normal, triangles_indices);
 
     if(not obbtree_split_build_node_ptr->IsLeaf())
     {

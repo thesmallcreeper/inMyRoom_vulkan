@@ -20,7 +20,7 @@ std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> SweepAn
 
     for (size_t index = 0; index < collisionDetectionEntries.size(); index++)
     {
-        Paralgram this_paralgram = collisionDetectionEntries[index].currentGlobalMatrix * reinterpret_cast<const OBBtree*>(collisionDetectionEntries[index].OBBtree_ptr)->GetRootOBB();
+        Paralgram this_paralgram = collisionDetectionEntries[index].currentGlobalMatrix * collisionDetectionEntries[index].OBBtree_ptr->GetRootOBB();
 
         {
             SweepAndPruneEntry this_entry;

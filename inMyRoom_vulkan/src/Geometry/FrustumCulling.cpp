@@ -9,7 +9,7 @@ bool FrustumCulling::IsParalgramInsideFrustum(const Paralgram in_paralgram) cons
 {
     for (size_t i = 0; i < 6; i++)
     {
-        if (frustumPlanes[i].IntersectParalgram(in_paralgram) == OUTSIDE)
+        if (frustumPlanes[i].IntersectParalgram(in_paralgram) == PlaneIntersectResult::OUTSIDE)
             return false;
     }
 

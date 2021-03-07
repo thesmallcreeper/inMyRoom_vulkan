@@ -42,7 +42,16 @@ void CollisionDetection::ExecuteCollisionDetection()
     std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> broadPhaseResults = broadPhaseCollision_uptr->ExecuteSweepAndPrune(collisionDetectionEntries);
 
     // Mid phase collision
-    std::vector<CSentriesPairTrianglesPairs> midPhaseResults = midPhaseCollision_uptr->ExecuteOBBtreesCollision(broadPhaseResults);
+    std::vector<CSentriesPairTrianglesPairs> midPhaseResults;
+    midPhaseResults.reserve(broadPhaseResults.size());
+    for(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& this_pair: broadPhaseResults)
+    {
+        CSentriesPairTrianglesPairs this_result = midPhaseCollision_uptr->ExecuteOBBtreesCollision(this_pair);
+            if(this_result.OBBtreesIntersectInfo.candidateTriangleRangeCompinations.size())
+            {
+                midPhaseResults.emplace_back(std::move(this_result));
+            }
+    }     
 
     // Narrow phase collision
     std::vector<CSentriesPairCollisionCenter> narrowPhaseResults = narrowPhaseCollision_uptr->ExecuteTrianglesVsTriangles(midPhaseResults);

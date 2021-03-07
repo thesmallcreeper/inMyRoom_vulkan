@@ -1,4 +1,4 @@
-    #include "Geometry/Paralgram.h"
+#include "Geometry/Paralgram.h"
 
 
 Paralgram Paralgram::MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const Paralgram& rhs)

@@ -149,9 +149,8 @@ struct CollisionDetectionEntry
 {
     glm::mat4x4 currentGlobalMatrix;
     glm::mat4x4 previousGlobalMatrix;
-    const void* OBBtree_ptr;
+    const class OBBtree* OBBtree_ptr;
     bool shouldCallback;
-
     Entity entity;
 };
 

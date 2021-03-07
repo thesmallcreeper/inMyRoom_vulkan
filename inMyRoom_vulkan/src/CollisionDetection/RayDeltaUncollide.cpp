@@ -35,9 +35,9 @@ std::pair<glm::vec3, glm::vec3> RayDeltaUncollide::ExecuteRayDeltaUncollide(cons
     if (first_to_second_intersect.doIntersect)
     {
         TrianglePosition best_triangle_first_to_second_worldspace = this_entriesPaircollisionCenter.secondEntry.currentGlobalMatrix * 
-            reinterpret_cast<const OBBtree*>(this_entriesPaircollisionCenter.secondEntry.OBBtree_ptr)->GetTrianglePosition(first_to_second_intersect.triangle_index);
-        glm::vec3 normal_of_triangle = glm::normalize(glm::cross(glm::vec3(best_triangle_first_to_second_worldspace.GetP1()) - glm::vec3(best_triangle_first_to_second_worldspace.GetP0()),
-                                                                 glm::vec3(best_triangle_first_to_second_worldspace.GetP2()) - glm::vec3(best_triangle_first_to_second_worldspace.GetP0())));
+            this_entriesPaircollisionCenter.secondEntry.OBBtree_ptr->GetTrianglePosition(first_to_second_intersect.triangle_index);
+        glm::vec3 normal_of_triangle = glm::normalize(glm::cross(glm::vec3(best_triangle_first_to_second_worldspace.GetP(1)) - glm::vec3(best_triangle_first_to_second_worldspace.GetP(0)),
+                                                                 glm::vec3(best_triangle_first_to_second_worldspace.GetP(2)) - glm::vec3(best_triangle_first_to_second_worldspace.GetP(0))));
 
         if (glm::dot(normal_of_triangle, second_to_first_previousFrame_direction) < 0.f)
             normal_of_triangle = -normal_of_triangle;
@@ -61,9 +61,9 @@ std::pair<glm::vec3, glm::vec3> RayDeltaUncollide::ExecuteRayDeltaUncollide(cons
     if (second_to_first_intersect.doIntersect)
     {
         TrianglePosition best_triangle_second_to_first_worldspace = this_entriesPaircollisionCenter.firstEntry.currentGlobalMatrix *
-            reinterpret_cast<const OBBtree*>(this_entriesPaircollisionCenter.firstEntry.OBBtree_ptr)->GetTrianglePosition(second_to_first_intersect.triangle_index);
-        glm::vec3 normal_of_triangle = glm::normalize(glm::cross(glm::vec3(best_triangle_second_to_first_worldspace.GetP1()) - glm::vec3(best_triangle_second_to_first_worldspace.GetP0()),
-                                                                 glm::vec3(best_triangle_second_to_first_worldspace.GetP2()) - glm::vec3(best_triangle_second_to_first_worldspace.GetP0())));
+            this_entriesPaircollisionCenter.firstEntry.OBBtree_ptr->GetTrianglePosition(second_to_first_intersect.triangle_index);
+        glm::vec3 normal_of_triangle = glm::normalize(glm::cross(glm::vec3(best_triangle_second_to_first_worldspace.GetP(1)) - glm::vec3(best_triangle_second_to_first_worldspace.GetP(0)),
+                                                                 glm::vec3(best_triangle_second_to_first_worldspace.GetP(2)) - glm::vec3(best_triangle_second_to_first_worldspace.GetP(0))));
 
         if (glm::dot(normal_of_triangle, first_to_second_previousFrame_direction) < 0.f)
             normal_of_triangle = -normal_of_triangle;

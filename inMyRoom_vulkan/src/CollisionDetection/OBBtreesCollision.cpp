@@ -4,23 +4,16 @@ OBBtreesCollision::OBBtreesCollision()
 {
 }
 
-std::vector<CSentriesPairTrianglesPairs> OBBtreesCollision::ExecuteOBBtreesCollision(const std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>>& collisionDetectionEntriesPairs) const
+CSentriesPairTrianglesPairs OBBtreesCollision::ExecuteOBBtreesCollision(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& collisionDetectionEntriesPair) const
 {
-    std::vector<CSentriesPairTrianglesPairs> return_vector;
+    CSentriesPairTrianglesPairs return_triangle_pairs;
+    return_triangle_pairs.firstEntry = collisionDetectionEntriesPair.first;
+    return_triangle_pairs.secondEntry = collisionDetectionEntriesPair.second;
 
-    for (const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& this_collisionDetectionEntriesPair : collisionDetectionEntriesPairs)
-    {
-        CSentriesPairTrianglesPairs this_return;
-        this_return.firstEntry = this_collisionDetectionEntriesPair.first;
-        this_return.secondEntry = this_collisionDetectionEntriesPair.second;
+    OBBtree::IntersectOBBtrees(*collisionDetectionEntriesPair.first.OBBtree_ptr,
+                               *collisionDetectionEntriesPair.second.OBBtree_ptr,
+                               glm::inverse(collisionDetectionEntriesPair.first.currentGlobalMatrix) * collisionDetectionEntriesPair.second.currentGlobalMatrix,
+                               return_triangle_pairs.OBBtreesIntersectInfo);
 
-        OBBtree::IntersectOBBtrees(*reinterpret_cast<const OBBtree*>(this_collisionDetectionEntriesPair.first.OBBtree_ptr),
-                                   *reinterpret_cast<const OBBtree*>(this_collisionDetectionEntriesPair.second.OBBtree_ptr),
-                                   glm::inverse(this_collisionDetectionEntriesPair.first.currentGlobalMatrix) * this_collisionDetectionEntriesPair.second.currentGlobalMatrix,
-                                   this_return.OBBtreesIntersectInfo);
-
-        return_vector.emplace_back(this_return);
-    }
-
-    return return_vector;
+    return return_triangle_pairs;
 }

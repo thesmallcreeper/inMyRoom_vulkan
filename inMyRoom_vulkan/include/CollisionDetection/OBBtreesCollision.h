@@ -16,5 +16,5 @@ class OBBtreesCollision
 public:
     OBBtreesCollision();
 
-    std::vector<CSentriesPairTrianglesPairs> ExecuteOBBtreesCollision(const std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>>& collisionDetectionEntriesPairs) const;
+    CSentriesPairTrianglesPairs ExecuteOBBtreesCollision(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& collisionDetectionEntriesPair) const;
 };

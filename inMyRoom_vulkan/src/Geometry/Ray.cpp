@@ -37,9 +37,9 @@ RayTriangleIntersectInfo Ray::IntersectTriangle(const TrianglePosition& triange)
 {
     RayTriangleIntersectInfo return_info;
 
-    glm::vec3 _p0 = triange.GetP0();
-    glm::vec3 _p1 = triange.GetP1();
-    glm::vec3 _p2 = triange.GetP2();
+    glm::vec3 _p0 = triange.GetP(0);
+    glm::vec3 _p1 = triange.GetP(1);
+    glm::vec3 _p2 = triange.GetP(2);
 
     return_info.doIntersect = glm::intersectRayTriangle(origin, direction, _p0, _p1, _p2, return_info.baryPosition, return_info.distanceFromOrigin, return_info.itBackfaces);
 

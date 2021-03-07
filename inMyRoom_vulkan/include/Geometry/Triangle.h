@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <array>
 
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
@@ -32,14 +33,12 @@ protected:
     static std::vector<TrianglePosition> CreateTrianglePositionList(const std::vector<glm::vec3>& points,
                                                                     const std::vector<uint32_t>& indices,
                                                                     const glTFmode triangleMode);
+
 public:
-    glm::vec3 GetP0() const;
-    glm::vec3 GetP1() const;
-    glm::vec3 GetP2() const;
+    glm::vec3 GetP(size_t index) const { return p_array[index]; }
+
 private:
-    glm::vec3 p0;
-    glm::vec3 p1;
-    glm::vec3 p2;
+    std::array<glm::vec3, 3> p_array;
 };
 
 inline TrianglePosition operator* (const glm::mat4x4& in_matrix, const TrianglePosition& rhs)
@@ -65,27 +64,43 @@ protected:
                                                                 const std::vector<uint32_t>& indices,
                                                                 const glTFmode triangleMode);
 public:
-    glm::vec3 GetN0() const;
-    glm::vec3 GetN1() const;
-    glm::vec3 GetN2() const;
+    glm::vec3 GetN(size_t index) const { return n_array[index]; }
+
 private:
-    glm::vec3 n0;
-    glm::vec3 n1;
-    glm::vec3 n2;
+    std::array<glm::vec3, 3> n_array;
 };
 
+class TriangleIndices
+{
+public:
+    TriangleIndices() {};
+    explicit TriangleIndices(uint32_t in_i0, uint32_t in_i1, uint32_t in_i2);
+
+protected:
+    static std::vector<TriangleIndices> CreateTriangleIndicesList(const std::vector<uint32_t>& indices,
+                                                                  const glTFmode triangleMode);
+public:
+    uint32_t GetI(size_t index) const { return i_array[index]; }
+
+private:
+    std::array<uint32_t, 3> i_array;
+};
 
 class Triangle
     :
     public TrianglePosition,
-    public TriangleNormal
+    public TriangleNormal,
+    public TriangleIndices
 {
 public:
     Triangle() {};
-    explicit Triangle(TrianglePosition in_position, TriangleNormal in_normal);
+    explicit Triangle(TrianglePosition in_position,
+                      TriangleNormal in_normal,
+                      TriangleIndices in_indices);
 
     TrianglePosition GetTrianglePosition() const;
     TriangleNormal GetTriangleNormal() const;
+    TriangleIndices GetTriangleIndices() const;
 
     static std::vector<Triangle> CreateTriangleList(const std::vector<glm::vec3>& points,
                                                     const std::vector<glm::vec3>& normals,

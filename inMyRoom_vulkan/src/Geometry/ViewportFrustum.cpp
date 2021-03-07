@@ -97,7 +97,7 @@ std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
         glm::vec3 this_planes_normal = - glm::vec3(planes_glm[i].x, planes_glm[i].y, planes_glm[i].z);
         float this_planes_d = - planes_glm[i].w;
 
-        Plane this_plane = Plane::CreatePlane(this_planes_normal, this_planes_d);
+        Plane this_plane = Plane(this_planes_normal, this_planes_d);
         planes[i] = this_plane;
     }
 

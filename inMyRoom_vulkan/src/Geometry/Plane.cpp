@@ -2,16 +2,29 @@
 
 #include <cmath>
 
-Plane Plane::CreatePlane(const glm::vec3 in_normal, const float in_d)
+Plane::Plane(const glm::vec3 in_normal, const float in_d)
 {
-    Plane return_plane;
-
     glm::vec3 unormalized_normal = in_normal;
     float length = glm::length(unormalized_normal);
-    return_plane.normal = unormalized_normal / length;
-    return_plane.d = in_d / length;
 
-    return return_plane;
+    normal = unormalized_normal / length;
+    d = in_d / length;
+}
+
+Plane Plane::CreatePlaneFromTriangle(const TrianglePosition& in_triangle)
+{
+    glm::vec3 normal = in_triangle.GetTriangleNormal();
+    float d = - glm::dot(in_triangle.GetP(0), normal);
+
+    return Plane(normal, d);
+}
+
+PlaneIntersectResult Plane::IntersectPoint(glm::vec3 in_point)
+{
+    float s = glm::dot(in_point, this->normal) + this->d;
+
+    if (s > 0) return PlaneIntersectResult::OUTSIDE;
+    else return PlaneIntersectResult::INSIDE;
 }
 
 PlaneIntersectResult Plane::IntersectParalgram(const Paralgram in_paralgram) const

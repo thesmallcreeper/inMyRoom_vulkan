@@ -66,7 +66,9 @@ private:
     {
     public:
         static void InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtree_split_build_node_ptr, std::vector<OBBtreeNode>& obbTreeNodes,
-                                            std::vector<TrianglePosition>& triangles_position, std::vector<TriangleNormal>& triangles_normal);
+                                            std::vector<TrianglePosition>& triangles_position,
+                                            std::vector<TriangleNormal>& triangles_normal,
+                                            std::vector<TriangleIndices>& triangles_indices);
 
         OBB left_child_obb;
         OBB right_child_obb;
@@ -130,4 +132,5 @@ private:
     std::vector<OBBtreeNode> OBBtreeNodes;
     std::vector<TrianglePosition> triangles_position;
     std::vector<TriangleNormal> triangles_normal;
+    std::vector<TriangleIndices> triangles_indices;
 };
