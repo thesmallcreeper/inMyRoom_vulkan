@@ -4,7 +4,7 @@
 
 #include "Geometry/OBBtree.h"
 
-struct CSentriesPairTrianglesPairs
+struct CDentriesPairTrianglesPairs
 {
     CollisionDetectionEntry firstEntry;
     CollisionDetectionEntry secondEntry;
@@ -16,5 +16,5 @@ class OBBtreesCollision
 public:
     OBBtreesCollision();
 
-    CSentriesPairTrianglesPairs ExecuteOBBtreesCollision(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& collisionDetectionEntriesPair) const;
+    CDentriesPairTrianglesPairs ExecuteOBBtreesCollision(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& collisionDetectionEntriesPair) const;
 };

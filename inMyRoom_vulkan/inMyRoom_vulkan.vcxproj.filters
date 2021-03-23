@@ -108,9 +108,6 @@
     <ClCompile Include="src\Geometry\Plane.cpp">
       <Filter>Source Files\Geometry</Filter>
     </ClCompile>
-    <ClCompile Include="src\Geometry\ViewportFrustum.cpp">
-      <Filter>Source Files\Geometry</Filter>
-    </ClCompile>
     <ClCompile Include="src\ECS\EntitiesHandler.cpp">
       <Filter>Source Files\ECS</Filter>
     </ClCompile>
@@ -228,7 +225,7 @@
     <ClCompile Include="src\CollisionDetection\SweepAndPrune.cpp">
       <Filter>Source Files\CollisionDetection</Filter>
     </ClCompile>
-    <ClCompile Include="src\CollisionDetection\TrianglesVsTriangles.cpp">
+    <ClCompile Include="src\CollisionDetection\CreateUncollideRays.cpp">
       <Filter>Source Files\CollisionDetection</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelCollisionCompEntity.cpp">
@@ -237,13 +234,16 @@
     <ClCompile Include="src\ECS\GeneralComponents\ModelCollisionComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
-    <ClCompile Include="src\CollisionDetection\RayDeltaUncollide.cpp">
+    <ClCompile Include="src\CollisionDetection\ShootUncollideRays.cpp">
       <Filter>Source Files\CollisionDetection</Filter>
     </ClCompile>
     <ClCompile Include="src\implementations.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Geometry\Paralgram.cpp">
+      <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Geometry\ViewportFrustum.cpp">
       <Filter>Source Files\Geometry</Filter>
     </ClCompile>
   </ItemGroup>
@@ -428,7 +428,7 @@
     <ClInclude Include="include\CollisionDetection\OBBtreesCollision.h">
       <Filter>Header Files\CollisionDetection</Filter>
     </ClInclude>
-    <ClInclude Include="include\CollisionDetection\TrianglesVsTriangles.h">
+    <ClInclude Include="include\CollisionDetection\CreateUncollideRays.h">
       <Filter>Header Files\CollisionDetection</Filter>
     </ClInclude>
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelCollisionCompEntity.h">
@@ -437,7 +437,7 @@
     <ClInclude Include="include\ECS\GeneralComponents\ModelCollisionComp.h">
       <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
-    <ClInclude Include="include\CollisionDetection\RayDeltaUncollide.h">
+    <ClInclude Include="include\CollisionDetection\ShootUncollideRays.h">
       <Filter>Header Files\CollisionDetection</Filter>
     </ClInclude>
     <ClInclude Include="include\Geometry\Triangle.h">

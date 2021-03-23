@@ -223,7 +223,7 @@ void SnakePlayerCompEntity::CollisionUpdate(NodeDataComp* nodeDataComp_ptr,
 
 
     {
-        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector * 1.1f;
+        glm::vec3 delta_vector = this_collisionCallbackData.deltaVector;
         if (glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f)) > 0.f)
         {
             delta_vector -= glm::vec3(0.f, 1.f, 0.f) * glm::dot(delta_vector, glm::vec3(0.f, 1.f, 0.f));

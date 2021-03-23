@@ -4,9 +4,9 @@ OBBtreesCollision::OBBtreesCollision()
 {
 }
 
-CSentriesPairTrianglesPairs OBBtreesCollision::ExecuteOBBtreesCollision(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& collisionDetectionEntriesPair) const
+CDentriesPairTrianglesPairs OBBtreesCollision::ExecuteOBBtreesCollision(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& collisionDetectionEntriesPair) const
 {
-    CSentriesPairTrianglesPairs return_triangle_pairs;
+    CDentriesPairTrianglesPairs return_triangle_pairs;
     return_triangle_pairs.firstEntry = collisionDetectionEntriesPair.first;
     return_triangle_pairs.secondEntry = collisionDetectionEntriesPair.second;
 

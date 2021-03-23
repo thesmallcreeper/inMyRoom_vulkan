@@ -12,6 +12,8 @@
 class OBB: public Paralgram
 {
 public:
+    static OBB EmptyOBB();
+
     static OBB CreateOBBfromPoints(const std::vector<glm::vec3>& in_points);
     static OBB CreateOBBfromTriangles(const std::vector<Triangle>& in_triangles);
 

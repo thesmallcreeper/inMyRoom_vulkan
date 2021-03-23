@@ -15,9 +15,6 @@ struct OBBtreesIntersectInfo
         size_t second_obbtree_count = 0;
     };
 
-    const class OBBtree* first_obb_tree = nullptr;
-    const class OBBtree* second_obb_tree = nullptr;
-
     std::vector<CandidateTriangleRangeCombination> candidateTriangleRangeCompinations;
 };
 
@@ -49,6 +46,7 @@ private:
 
     public:
         size_t index_in_vector = -1;
+        static constexpr size_t maxNumberOfTriangles = 4;
 
     private:
         OBB OBBvolume;
@@ -58,8 +56,6 @@ private:
         std::unique_ptr<OBBtreeSplitBuildNode> leftChild_uptr;
         std::unique_ptr<OBBtreeSplitBuildNode> rightChild_uptr;
         std::vector<Triangle> triangles;
-
-        static const size_t maxNumberOfTriangles = 4;
     };
 
     class OBBtreeNode
@@ -112,11 +108,14 @@ public:
     OBBtreeTraveler GetRootTraveler() const;
     TrianglePosition GetTrianglePosition(size_t index) const;
     TriangleNormal GetTriangleNormal(size_t index) const;
+    TriangleIndices GetTriangleIndices(size_t index) const;
 
     static void IntersectOBBtrees(const OBBtree& first_tree,
                                   const OBBtree& second_tree,
                                   const glm::mat4x4& second_tree_matrix,
                                   OBBtreesIntersectInfo& intesection_info);
+
+    static constexpr size_t GetMaxNumberOfTrianglesPerNode() {return OBBtreeSplitBuildNode::maxNumberOfTriangles;}
 
 private:
     void ConstructDFSrecursive(OBBtreeSplitBuildNode* obbtree_split_build_node_ptr);

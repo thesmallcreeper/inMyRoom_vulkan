@@ -26,6 +26,8 @@ public:
     std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec3& in_axis) const;
     glm::vec3 GetTriangleNormal() const;
 
+    glm::vec2 GetBarycentricOfPoint(glm::vec3 point) const;
+
     static TrianglePosition MultiplyBy4x4Matrix(const glm::mat4x4& in_matrix, const TrianglePosition& rhs);
     static TrianglesIntersectionInfo IntersectTriangles(const TrianglePosition& lhs, const TrianglePosition& rhs);
 
@@ -46,7 +48,6 @@ inline TrianglePosition operator* (const glm::mat4x4& in_matrix, const TriangleP
     return TrianglePosition::MultiplyBy4x4Matrix(in_matrix, rhs);
 }
 
-
 class TriangleNormal
 {
 public:
@@ -54,9 +55,12 @@ public:
     explicit TriangleNormal(glm::vec3 in_n0, glm::vec3 in_n1, glm::vec3 in_n2);
     explicit TriangleNormal(glm::vec3 n);
 
+    glm::vec3 GetNormal(size_t index, const glm::mat3x3& corrected_matrix) const;
+    glm::vec3 GetNormal(size_t index) const;
     glm::vec3 GetNormal(glm::vec2 baryCoords, const glm::mat3x3& corrected_matrix) const;
+    glm::vec3 GetNormal(glm::vec2 baryCoords) const;
 
-    static glm::mat3x3 GetNormalCorrectedMatrix(const glm::mat4x4& in_matrix);
+    static glm::mat3x3 GetNormalCorrectedMatrixUnormalized(const glm::mat4x4& in_matrix);
 
 protected:
     static std::vector<TriangleNormal> CreateTriangleNormalList(const std::vector<glm::vec3>& points,           // If no normal then fallback to triangles normal

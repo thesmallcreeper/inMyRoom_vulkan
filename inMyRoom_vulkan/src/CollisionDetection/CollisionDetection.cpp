@@ -16,10 +16,11 @@ CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
         midPhaseCollision_uptr = std::make_unique<OBBtreesCollision>();
     }
     {
-        narrowPhaseCollision_uptr = std::make_unique<TrianglesVsTriangles>();
+        createUncollideRays_uptr = std::make_unique<CreateUncollideRays>();
     }
     {
-        rayDeltaUncollide_uptr = std::make_unique<RayDeltaUncollide>(30.f);
+        shootDeltaUncollide_uptr = std::make_unique<ShootUncollideRays>(glm::radians(50.f),
+                                                                        1.01f);
     }
 }
 
@@ -42,44 +43,63 @@ void CollisionDetection::ExecuteCollisionDetection()
     std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> broadPhaseResults = broadPhaseCollision_uptr->ExecuteSweepAndPrune(collisionDetectionEntries);
 
     // Mid phase collision
-    std::vector<CSentriesPairTrianglesPairs> midPhaseResults;
+    std::vector<CDentriesPairTrianglesPairs> midPhaseResults;
     midPhaseResults.reserve(broadPhaseResults.size());
     for(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& this_pair: broadPhaseResults)
     {
-        CSentriesPairTrianglesPairs this_result = midPhaseCollision_uptr->ExecuteOBBtreesCollision(this_pair);
-            if(this_result.OBBtreesIntersectInfo.candidateTriangleRangeCompinations.size())
-            {
-                midPhaseResults.emplace_back(std::move(this_result));
-            }
+        CDentriesPairTrianglesPairs this_result = midPhaseCollision_uptr->ExecuteOBBtreesCollision(this_pair);
+        if(this_result.OBBtreesIntersectInfo.candidateTriangleRangeCompinations.size())
+        {
+            midPhaseResults.emplace_back(std::move(this_result));
+        }
     }     
 
-    // Narrow phase collision
-    std::vector<CSentriesPairCollisionCenter> narrowPhaseResults = narrowPhaseCollision_uptr->ExecuteTrianglesVsTriangles(midPhaseResults);
+    // Create rays phase (narrow phase)
+    std::vector<CDentriesUncollideRays> createUncollideRaysResults;
+    for (const CDentriesPairTrianglesPairs& this_triangles_pairs : midPhaseResults)
+    {
+        CDentriesUncollideRays this_result = createUncollideRays_uptr->ExecuteCreateUncollideRays(this_triangles_pairs);
+        if(this_result.rays_from_first_to_second.size() || this_result.rays_from_second_to_first.size())
+        {
+            createUncollideRaysResults.emplace_back(std::move(this_result));
+        }
+    }
 
     std::vector<std::pair<Entity, CollisionCallbackData>> callbacks_to_be_made;
-    for (CSentriesPairCollisionCenter& this_narrowPhaseResult : narrowPhaseResults)
+    for (CDentriesUncollideRays& this_uncollideRaysResult : createUncollideRaysResults)
     {
-        if (this_narrowPhaseResult.firstEntry.entity > this_narrowPhaseResult.secondEntry.entity)
-        {
-            std::swap(this_narrowPhaseResult.firstEntry, this_narrowPhaseResult.secondEntry);
-        }
-
         CollisionCallbackData first_collisionCallbackData;
-        first_collisionCallbackData.familyEntity = this_narrowPhaseResult.firstEntry.entity;
-        first_collisionCallbackData.collideWithEntity = this_narrowPhaseResult.secondEntry.entity;
+        first_collisionCallbackData.familyEntity = this_uncollideRaysResult.firstEntry.entity;
+        first_collisionCallbackData.collideWithEntity = this_uncollideRaysResult.secondEntry.entity;
 
         CollisionCallbackData second_collisionCallbackData;
-        second_collisionCallbackData.familyEntity = this_narrowPhaseResult.secondEntry.entity;
-        second_collisionCallbackData.collideWithEntity = this_narrowPhaseResult.firstEntry.entity;
+        second_collisionCallbackData.familyEntity = this_uncollideRaysResult.secondEntry.entity;
+        second_collisionCallbackData.collideWithEntity = this_uncollideRaysResult.firstEntry.entity;
 
-        if(this_narrowPhaseResult.firstEntry.currentGlobalMatrix != this_narrowPhaseResult.firstEntry.previousGlobalMatrix ||
-           this_narrowPhaseResult.secondEntry.currentGlobalMatrix != this_narrowPhaseResult.secondEntry.previousGlobalMatrix)
+        if(this_uncollideRaysResult.firstEntry.currentGlobalMatrix != this_uncollideRaysResult.firstEntry.previousGlobalMatrix ||
+           this_uncollideRaysResult.secondEntry.currentGlobalMatrix != this_uncollideRaysResult.secondEntry.previousGlobalMatrix)
         {
-            std::pair<glm::vec3, glm::vec3> delta = rayDeltaUncollide_uptr->ExecuteRayDeltaUncollide(this_narrowPhaseResult);
+            glm::vec3 delta = shootDeltaUncollide_uptr->ExecuteShootUncollideRays(this_uncollideRaysResult);
 
-            first_collisionCallbackData.deltaVector = delta.first;
-            second_collisionCallbackData.deltaVector = delta.second;
+            float first_movement_between_frames = PointMovementBetweenFrames(this_uncollideRaysResult.average_point_first_modelspace,
+                                                                             this_uncollideRaysResult.firstEntry.currentGlobalMatrix,
+                                                                             this_uncollideRaysResult.firstEntry.previousGlobalMatrix);
+
+            float second_movement_between_frames = PointMovementBetweenFrames(this_uncollideRaysResult.average_point_second_modelspace,
+                                                                              this_uncollideRaysResult.secondEntry.currentGlobalMatrix,
+                                                                              this_uncollideRaysResult.secondEntry.previousGlobalMatrix);
+
+            float total_movement = first_movement_between_frames + second_movement_between_frames;
+
+            first_collisionCallbackData.deltaVector = - delta * (first_movement_between_frames / total_movement);
+            second_collisionCallbackData.deltaVector = + delta * (second_movement_between_frames / total_movement);
         }
+        else
+        {
+            first_collisionCallbackData.deltaVector = glm::vec3(0.f);
+            second_collisionCallbackData.deltaVector = glm::vec3(0.f);
+        }
+        
 
         std::vector<Entity> first_ancestors = ECSwrapper_ptr->GetEntitiesHandler()->GetEntityAncestors(first_collisionCallbackData.familyEntity);
         std::vector<Entity> second_ancestors = ECSwrapper_ptr->GetEntitiesHandler()->GetEntityAncestors(second_collisionCallbackData.familyEntity);
@@ -113,4 +133,14 @@ void CollisionDetection::MakeCallbacks(const std::vector<std::pair<Entity, Colli
         if(this_compID_component_ptr_pair.second != nullptr)
             this_compID_component_ptr_pair.second->CollisionCallback(callback_entity_data_pairs);
     }
+}
+
+float CollisionDetection::PointMovementBetweenFrames(const glm::vec3 point, const glm::mat4& m_first, const glm::mat4& m_second)
+{
+    glm::vec3 p_first = glm::vec3(m_first * glm::vec4(point, 1.f));
+    glm::vec3 p_second = glm::vec3(m_second * glm::vec4(point, 1.f));
+
+    glm::vec3 v_diff = p_first - p_second;
+
+    return glm::length(v_diff);
 }

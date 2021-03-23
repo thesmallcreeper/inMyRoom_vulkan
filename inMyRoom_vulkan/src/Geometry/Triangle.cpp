@@ -145,6 +145,23 @@ glm::vec3 TrianglePosition::GetTriangleNormal() const
     return glm::normalize(glm::cross(edge1, edge2));
 }
 
+glm::vec2 TrianglePosition::GetBarycentricOfPoint(glm::vec3 point) const
+{
+    glm::vec2 return_barycentric;
+
+    glm::vec3 v0 = GetP(1) - GetP(0), v1 = GetP(2) - GetP(0), v2 = point - GetP(0);
+    float d00 = glm::dot(v0, v0);
+    float d01 = glm::dot(v0, v1);
+    float d11 = glm::dot(v1, v1);
+    float d20 = glm::dot(v2, v0);
+    float d21 = glm::dot(v2, v1);
+    float denom = d00 * d11 - d01 * d01;
+    return_barycentric.x = (d11 * d20 - d01 * d21) / denom;
+    return_barycentric.y = (d00 * d21 - d01 * d20) / denom;
+
+    return return_barycentric;
+}
+
 TriangleNormal::TriangleNormal(glm::vec3 in_n0, glm::vec3 in_n1, glm::vec3 in_n2)
     :
     n_array({ in_n0 , in_n1 , in_n2 })
@@ -155,9 +172,26 @@ TriangleNormal::TriangleNormal(glm::vec3 n)
     n_array({ n , n , n })
 {}
 
-glm::mat3x3 TriangleNormal::GetNormalCorrectedMatrix(const glm::mat4x4 & in_matrix)
+glm::mat3x3 TriangleNormal::GetNormalCorrectedMatrixUnormalized(const glm::mat4x4 & in_matrix)
 {
-    return glm::inverseTranspose(glm::mat3x3(in_matrix));
+    return glm::adjointTranspose(glm::mat3x3(in_matrix));
+}
+
+glm::vec3 TriangleNormal::GetNormal(size_t index, const glm::mat3x3& corrected_matrix) const
+{
+    glm::vec3 normal = GetN(index);
+    glm::vec3 aligned_vector = corrected_matrix * normal;
+    glm::vec3 normalized_vector = glm::normalize(aligned_vector);
+
+    return normalized_vector;
+}
+
+glm::vec3 TriangleNormal::GetNormal(size_t index) const
+{
+    glm::vec3 normal = GetN(index);
+    glm::vec3 normalized_vector = glm::normalize(normal);
+
+    return normalized_vector;
 }
 
 glm::vec3 TriangleNormal::GetNormal(glm::vec2 baryCoords, const glm::mat3x3 & corrected_matrix) const
@@ -165,6 +199,14 @@ glm::vec3 TriangleNormal::GetNormal(glm::vec2 baryCoords, const glm::mat3x3 & co
     glm::vec3 interpolated_normal = (1.f - baryCoords.x - baryCoords.y) * GetN(0) + baryCoords.x * GetN(1) + baryCoords.y * GetN(2);
     glm::vec3 aligned_vector = corrected_matrix * interpolated_normal;
     glm::vec3 normalized_vector = glm::normalize(aligned_vector);
+
+    return normalized_vector;
+}
+
+glm::vec3 TriangleNormal::GetNormal(glm::vec2 baryCoords) const
+{
+    glm::vec3 interpolated_normal = (1.f - baryCoords.x - baryCoords.y) * GetN(0) + baryCoords.x * GetN(1) + baryCoords.y * GetN(2);
+    glm::vec3 normalized_vector = glm::normalize(interpolated_normal);
 
     return normalized_vector;
 }
@@ -213,7 +255,10 @@ Triangle::Triangle(TrianglePosition in_position, TriangleNormal in_normal, Trian
     TriangleIndices(in_indices)
 {}
 
-std::vector<Triangle> Triangle::CreateTriangleList(const std::vector<glm::vec3>& points, const std::vector<glm::vec3>& normals, const std::vector<uint32_t>& indices, const glTFmode triangleMode)
+std::vector<Triangle> Triangle::CreateTriangleList(const std::vector<glm::vec3>& points,
+                                                   const std::vector<glm::vec3>& normals,
+                                                   const std::vector<uint32_t>& indices,
+                                                   const glTFmode triangleMode)
 {
     const std::vector<TrianglePosition> triangles_position = TrianglePosition::CreateTrianglePositionList(points, indices, triangleMode);
     const std::vector<TriangleNormal> triangles_normal = TriangleNormal::CreateTriangleNormalList(points, normals, indices, triangleMode);

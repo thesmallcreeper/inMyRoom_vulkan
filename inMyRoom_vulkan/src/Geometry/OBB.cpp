@@ -4,6 +4,11 @@
 
 OBB OBB::CreateOBBfromPoints(const std::vector<glm::vec3>& in_points)
 {
+    if(in_points.size() == 0)
+    {
+        return EmptyOBB();
+    }
+
     /*
     DiTO::OBB<float> dito_OBB;
     const DiTO::Vector<float>* dito_points = reinterpret_cast<const DiTO::Vector<float>*>(in_points.data());
@@ -103,6 +108,18 @@ OBB OBB::CreateAABBfromPoints(const std::vector<glm::vec3>& in_points)
         return_OBB.sideDirections.w *= delta / 2.f;
         return_OBB.center.z = center_on_this_axis;
     }
+
+    return return_OBB;
+}
+
+OBB OBB::EmptyOBB()
+{
+    OBB return_OBB;
+
+    return_OBB.center = glm::vec3(0.f, 0.f, 0.f);
+    return_OBB.sideDirections.u = glm::vec3(1.f, 0.f, 0.f);
+    return_OBB.sideDirections.v = glm::vec3(0.f, 1.f, 0.f);
+    return_OBB.sideDirections.w = glm::vec3(0.f, 0.f, 1.f);
 
     return return_OBB;
 }

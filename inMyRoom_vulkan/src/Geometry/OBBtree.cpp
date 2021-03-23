@@ -99,8 +99,12 @@ void OBBtree::OBBtreeSplitBuildNode::SplitOBBandCreateChildren()
     rightChild_uptr = std::make_unique<OBBtree::OBBtreeSplitBuildNode>(this, true, std::move(right_child_triangles));
 
     // left child should the highest ray-hit chance
-    if(rightChild_uptr->GetOBB().GetSurface() > leftChild_uptr->GetOBB().GetSurface())
+    if (rightChild_uptr->GetOBB().GetSurface() > leftChild_uptr->GetOBB().GetSurface())
+    {
         std::swap(rightChild_uptr, leftChild_uptr);
+        rightChild_uptr->isRightChild = true;
+        leftChild_uptr->isRightChild = false;
+    }
 }
 
 
@@ -213,14 +217,14 @@ void OBBtree::OBBtreeNode::InitializeTreeBuildNode(OBBtreeSplitBuildNode* obbtre
 
         if(not obbtree_split_build_node_ptr->IsRightChild())
         {
-            assert(obbTreeNodes[parent_index].left_child_index_or_triangle_offset == -1 && obbTreeNodes[parent_index].left_triangles_count == -1);
+            assert(obbTreeNodes[parent_index].left_child_index_or_triangle_offset == uint32_t(-1) && obbTreeNodes[parent_index].left_triangles_count == uint16_t(-1));
             obbTreeNodes[parent_index].left_child_index_or_triangle_offset = triangles_offset;
             obbTreeNodes[parent_index].left_triangles_count = this_node_triangles_count;
             obbTreeNodes[parent_index].left_child_obb = obbtree_split_build_node_ptr->GetOBB();
         }
         else
         {
-            assert(obbTreeNodes[parent_index].right_child_index_or_triangle_offset == -1 && obbTreeNodes[parent_index].right_triangles_count == -1);
+            assert(obbTreeNodes[parent_index].right_child_index_or_triangle_offset == uint32_t(-1) && obbTreeNodes[parent_index].right_triangles_count == uint16_t(-1));
             obbTreeNodes[parent_index].right_child_index_or_triangle_offset = triangles_offset;
             obbTreeNodes[parent_index].right_triangles_count = this_node_triangles_count;
             obbTreeNodes[parent_index].right_child_obb = obbtree_split_build_node_ptr->GetOBB();
@@ -257,7 +261,7 @@ OBBtree::OBBtreeTraveler OBBtree::OBBtreeTraveler::GetLeftChildTraveler() const
 {
     assert(IsLeaf() == false);
 
-    OBBtreeTraveler return_traveler{OBBtreeNodes_ref};;
+    OBBtreeTraveler return_traveler{OBBtreeNodes_ref};
     return_traveler.obb_ptr = &obbTreeNode_ptr->left_child_obb;
 
     if(obbTreeNode_ptr->left_triangles_count == 0) [[likely]]
@@ -317,7 +321,6 @@ size_t OBBtree::OBBtreeTraveler::GetTrianglesCount() const
 OBBtree::OBBtree(std::vector<Triangle>&& in_triangles)
 {
     size_t triangles_count = in_triangles.size();
-    assert(triangles_count != 0);
 
     std::unique_ptr<OBBtree::OBBtreeSplitBuildNode> obb_split_build_node_root = std::make_unique<OBBtree::OBBtreeSplitBuildNode>(nullptr, false, std::move(in_triangles));
     root_obb = obb_split_build_node_root->GetOBB();
@@ -332,6 +335,7 @@ OBBtree::OBBtree(std::vector<Triangle>&& in_triangles)
         OBBtreeNodes.reserve(inner_nodes);
         triangles_position.reserve(triangles_count);
         triangles_normal.reserve(triangles_count);
+        triangles_indices.reserve(triangles_count);
 
         OBBtreeNodes.emplace_back();
         obb_split_build_node_root->index_in_vector = 0;
@@ -373,6 +377,11 @@ TriangleNormal OBBtree::GetTriangleNormal(size_t index) const
     return triangles_normal[index];
 }
 
+TriangleIndices OBBtree::GetTriangleIndices(size_t index) const
+{
+    return triangles_indices[index];
+}
+
 void OBBtree::ConstructDFSrecursive(OBBtree::OBBtreeSplitBuildNode * obbtree_split_build_node_ptr)
 {
     OBBtreeNode::InitializeTreeBuildNode(obbtree_split_build_node_ptr, OBBtreeNodes, triangles_position, triangles_normal, triangles_indices);
@@ -389,8 +398,6 @@ void OBBtree::IntersectOBBtrees(const OBBtree& first_tree,
                                 const glm::mat4x4& second_tree_matrix,
                                 OBBtreesIntersectInfo& intesection_info)
 {
-    intesection_info.first_obb_tree = &first_tree;
-    intesection_info.second_obb_tree = &second_tree;
     intesection_info.candidateTriangleRangeCompinations.clear();
 
     OBBtreeTraveler first_tree_traveler = first_tree.GetRootTraveler();

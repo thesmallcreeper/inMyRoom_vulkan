@@ -22,9 +22,9 @@
     <ClCompile Include="..\DiTO\dito.cpp" />
     <ClCompile Include="src\CollisionDetection\CollisionDetection.cpp" />
     <ClCompile Include="src\CollisionDetection\OBBtreesCollision.cpp" />
-    <ClCompile Include="src\CollisionDetection\RayDeltaUncollide.cpp" />
+    <ClCompile Include="src\CollisionDetection\ShootUncollideRays.cpp" />
     <ClCompile Include="src\CollisionDetection\SweepAndPrune.cpp" />
-    <ClCompile Include="src\CollisionDetection\TrianglesVsTriangles.cpp" />
+    <ClCompile Include="src\CollisionDetection\CreateUncollideRays.cpp" />
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp" />
     <ClCompile Include="src\ECS\ECSwrapper.cpp" />
     <ClCompile Include="src\ECS\EntitiesHandler.cpp" />
@@ -85,9 +85,9 @@
     <ClInclude Include="..\tinygltf\tiny_gltf.h" />
     <ClInclude Include="include\CollisionDetection\CollisionDetection.h" />
     <ClInclude Include="include\CollisionDetection\OBBtreesCollision.h" />
-    <ClInclude Include="include\CollisionDetection\RayDeltaUncollide.h" />
+    <ClInclude Include="include\CollisionDetection\ShootUncollideRays.h" />
     <ClInclude Include="include\CollisionDetection\SweepAndPrune.h" />
-    <ClInclude Include="include\CollisionDetection\TrianglesVsTriangles.h" />
+    <ClInclude Include="include\CollisionDetection\CreateUncollideRays.h" />
     <ClInclude Include="include\dense_set.h" />
     <ClInclude Include="include\ECS\CompEntityBaseClass.h" />
     <ClInclude Include="include\ECS\CompEntityBaseWrappedClass.h" />

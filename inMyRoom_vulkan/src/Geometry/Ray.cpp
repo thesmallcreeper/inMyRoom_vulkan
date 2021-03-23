@@ -3,14 +3,11 @@
 
 #include <algorithm>
 
-Ray Ray::CreateRay(const glm::vec3 in_origin, const glm::vec3 in_direction)
+Ray::Ray(const glm::vec3& in_origin, const glm::vec3& in_direction)
+    :
+    origin(in_origin),
+    direction(in_direction)
 {
-    Ray return_ray;
-
-    return_ray.origin = in_origin;
-    return_ray.direction = in_direction;
-
-    return return_ray;
 }
 
 glm::vec3 Ray::GetOrigin() const
@@ -195,8 +192,7 @@ void Ray::IntersectOBBtreeRecursive(const OBBtree::OBBtreeTraveler& obb_tree_tra
     {
         for (size_t i = obb_tree_traveler.GetTrianglesOffset(); i != obb_tree_traveler.GetTrianglesOffset() + obb_tree_traveler.GetTrianglesCount(); ++i)
         {
-            TrianglePosition triangle = obb_tree.GetTrianglePosition(i);
-            TrianglePosition this_triangle = matrix * triangle;
+            TrianglePosition this_triangle = matrix * obb_tree.GetTrianglePosition(i);
             RayTriangleIntersectInfo interseption_result = IntersectTriangle(this_triangle);
 
             if (interseption_result.doIntersect &&

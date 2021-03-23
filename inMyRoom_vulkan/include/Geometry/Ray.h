@@ -26,7 +26,8 @@ struct RayOBBtreeIntersectInfo
 class Ray
 {
 public:
-    static Ray CreateRay(const glm::vec3 origin, const glm::vec3 direction);
+    Ray() {};
+    Ray(const glm::vec3& origin, const glm::vec3& direction);
 
 public:
     glm::vec3 GetOrigin() const;

@@ -5,8 +5,8 @@
 
 #include "CollisionDetection/SweepAndPrune.h"
 #include "CollisionDetection/OBBtreesCollision.h"
-#include "CollisionDetection/TrianglesVsTriangles.h"
-#include "CollisionDetection/RayDeltaUncollide.h"
+#include "CollisionDetection/CreateUncollideRays.h"
+#include "CollisionDetection/ShootUncollideRays.h"
 
 class CollisionDetection
 {
@@ -21,13 +21,15 @@ public:
 private:
     void MakeCallbacks(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs) const;
 
+    float PointMovementBetweenFrames(glm::vec3 point, const glm::mat4& m_first, const glm::mat4& m_second);
+
 private:
     std::vector<CollisionDetectionEntry> collisionDetectionEntries;
 
     std::unique_ptr<SweepAndPrune> broadPhaseCollision_uptr;
     std::unique_ptr<OBBtreesCollision> midPhaseCollision_uptr;
-    std::unique_ptr<TrianglesVsTriangles> narrowPhaseCollision_uptr;
-    std::unique_ptr<RayDeltaUncollide> rayDeltaUncollide_uptr;
+    std::unique_ptr<CreateUncollideRays> createUncollideRays_uptr;
+    std::unique_ptr<ShootUncollideRays> shootDeltaUncollide_uptr;
 
     ECSwrapper* const ECSwrapper_ptr;
 };

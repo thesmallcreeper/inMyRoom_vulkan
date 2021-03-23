@@ -119,7 +119,7 @@ void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
             this_primitiveInitInfo.normalBufferOffset = localNormalBuffer.size();
             this_primitiveInitInfo.commonGraphicsPipelineSpecs.normalComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
 
-            AddAccessorDataToLocalBuffer(localNormalBuffer, false, false, sizeof(float), in_model, this_accessor);
+            AddAccessorDataToLocalBuffer(localNormalBuffer, true, false, sizeof(float), in_model, this_accessor);
 
             if (recordingOBBtree)
             {
