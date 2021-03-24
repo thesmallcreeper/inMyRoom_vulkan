@@ -19,7 +19,8 @@ CollisionDetection::CollisionDetection(ECSwrapper* in_ECSwrapper_ptr)
         createUncollideRays_uptr = std::make_unique<CreateUncollideRays>();
     }
     {
-        shootDeltaUncollide_uptr = std::make_unique<ShootUncollideRays>(glm::radians(50.f),
+        shootDeltaUncollide_uptr = std::make_unique<ShootUncollideRays>(glm::radians(40.f),
+                                                                        glm::radians(65.f),
                                                                         1.01f);
     }
 }

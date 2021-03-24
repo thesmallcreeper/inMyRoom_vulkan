@@ -1,10 +1,12 @@
 #include "CollisionDetection/ShootUncollideRays.h"
 #include <algorithm>
 
-ShootUncollideRays::ShootUncollideRays(float max_angle_from_force_rads, 
+ShootUncollideRays::ShootUncollideRays(float max_cos_from_force_response_smoothstep_start,
+                                       float max_cos_from_force_response_smoothstep_finish,
                                        float in_ray_distance_bias_multiplier)
     :
-    max_angle_from_force_response(std::cosf(max_angle_from_force_rads)),
+    max_cos_from_force_response_smoothstep_start(std::cosf(max_cos_from_force_response_smoothstep_start)),
+    max_cos_from_force_response_smoothstep_finish(std::cosf(max_cos_from_force_response_smoothstep_finish)),
     ray_distance_bias_multiplier(in_ray_distance_bias_multiplier)
 {
 }
@@ -109,10 +111,13 @@ Ray ShootUncollideRays::ReflectHermannResult(const HermannPassResult& hermann_pa
 
 glm::vec3 ShootUncollideRays::CalcForceResponse(const HermannPassResult& hermann_pass_result)
 {
-    float response_length = std::max(0.f , glm::dot(hermann_pass_result.point_objB_normal, hermann_pass_result.response));
     glm::vec3 response_direction = glm::normalize(hermann_pass_result.response);
+    float response_length = glm::length(hermann_pass_result.response);
 
-    return response_direction * response_length;
+    float cos_angle_with_normal = glm::dot(hermann_pass_result.point_objB_normal, response_direction);
+    float cos_angle_with_normal_squared = cos_angle_with_normal * cos_angle_with_normal;
+
+    return response_direction * (cos_angle_with_normal_squared * response_length);
 }
 
 ShootUncollideRays::HermannPassResult ShootUncollideRays::HermannPass(const OBBtree* objA_OBBtree_ptr,
@@ -156,14 +161,21 @@ glm::vec3 ShootUncollideRays::FindResponse(const std::vector<glm::vec3>& ray_res
         glm::vec3 this_normalized_ray_response = glm::normalize(this_ray_response);
         float dot_angle_with_force = glm::dot(this_normalized_ray_response, normalized_force_response);
 
-        if(dot_angle_with_force >= max_angle_from_force_response)
-        {
-            float this_ray_length = glm::length(this_ray_response);
-            float needed_force_response_length = this_ray_length / dot_angle_with_force;
+        float this_ray_length = glm::length(this_ray_response);
+        float needed_force_response_length = this_ray_length / dot_angle_with_force;
 
-            max_length = std::max(max_length, needed_force_response_length);
-        }
+        float smoothstep_filter = SmootherStep(max_cos_from_force_response_smoothstep_finish,
+                                               max_cos_from_force_response_smoothstep_start,
+                                               dot_angle_with_force);
+
+        max_length = std::max(max_length, smoothstep_filter * needed_force_response_length);
     }
 
     return max_length * normalized_force_response;
+}
+
+float ShootUncollideRays::SmootherStep(float edge_a, float edge_b, float x)
+{
+    float tmp = std::clamp((x - edge_a) / (edge_b - edge_a), 0.f, 1.f);
+    return tmp * tmp * tmp * (tmp * (tmp * 6 - 15) + 10);
 }

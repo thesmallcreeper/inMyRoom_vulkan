@@ -25,7 +25,8 @@ private:
 
     static glm::vec3 CalcForceResponse(const HermannPassResult& hermann_pass_result);
 public:
-    ShootUncollideRays(float max_angle_from_force_rads,
+    ShootUncollideRays(float max_cos_from_force_response_smoothstep_start_rads,
+                       float max_cos_from_force_response_smoothstep_finish_rads,
                        float in_ray_distance_bias_multiplier);
 
     glm::vec3 ExecuteShootUncollideRays(const CDentriesUncollideRays& this_entriesPaircollisionCenter) const;
@@ -33,7 +34,10 @@ public:
 private:
     glm::vec3 FindResponse(const std::vector<glm::vec3>& ray_responses, const glm::vec3& normalized_force_response) const;
 
-    const float max_angle_from_force_response;
+    static float SmootherStep(float edge_a, float edge_b, float x);
+
+    const float max_cos_from_force_response_smoothstep_start;
+    const float max_cos_from_force_response_smoothstep_finish;
     const float ray_distance_bias_multiplier = 1.f;
 
 };
