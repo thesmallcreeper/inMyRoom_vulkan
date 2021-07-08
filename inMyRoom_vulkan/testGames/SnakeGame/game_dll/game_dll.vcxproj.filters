@@ -46,27 +46,18 @@
     <Filter Include="Source Files\GameSpecific\CompEntities">
       <UniqueIdentifier>{2881f72d-e6fd-4e11-9c2e-5474b13ca2e7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Geometry">
-      <UniqueIdentifier>{4f87209d-8b06-45d3-bca2-3be703c09e62}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Geometry">
-      <UniqueIdentifier>{f7b8258b-8601-4245-b2b4-fe130fd5be6f}</UniqueIdentifier>
+      <UniqueIdentifier>{0d333315-4827-4e79-97c5-0a730d666701}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Geometry">
+      <UniqueIdentifier>{46c71270-b44e-4b9e-9cc0-fcc8b2b253a9}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\include\game_dll.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\GameSpecificComponentsVector.h">
       <Filter>Header Files\GameSpecific</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\ComponentBaseClass.h">
-      <Filter>Header Files\General</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\ECS\ComponentRawBaseClass.h">
-      <Filter>Header Files\General</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\include\ECS\ComponentSparseBaseClass.h">
       <Filter>Header Files\General</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\ECSwrapper.h">
@@ -114,9 +105,6 @@
     <ClInclude Include="include\Components\SnakePlayerComp.h">
       <Filter>Header Files\GameSpecific\Components</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\Geometry\ViewportFrustum.h">
-      <Filter>Header Files\Geometry</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
@@ -140,6 +128,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\include\sparse_set.h">
       <Filter>Header Files\General\_etc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\Geometry\ViewportFrustum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\include\game_dll.h">
+      <Filter>Header Files\Geometry</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -185,9 +179,6 @@
     <ClCompile Include="src\Components\SnakePlayerComp.cpp">
       <Filter>Source Files\GameSpecific\Components</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\Geometry\ViewportFrustum.cpp">
-      <Filter>Source Files\Geometry</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
@@ -196,6 +187,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelCollisionCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\Geometry\ViewportFrustum.cpp">
+      <Filter>Source Files\Geometry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

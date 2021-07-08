@@ -24,9 +24,7 @@
     <ClInclude Include="..\..\..\include\ECS\CompEntityBaseWrappedClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentBaseClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentBaseWrappedClass.h" />
-    <ClInclude Include="..\..\..\include\ECS\ComponentRawBaseClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ComponentsIDsEnum.h" />
-    <ClInclude Include="..\..\..\include\ECS\ComponentSparseBaseClass.h" />
     <ClInclude Include="..\..\..\include\ECS\ECStypes.h" />
     <ClInclude Include="..\..\..\include\ECS\ECSwrapper.h" />
     <ClInclude Include="..\..\..\include\ECS\EntitiesHandler.h" />
@@ -165,7 +163,7 @@
       <PreprocessorDefinitions>_MBCS;_DEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\glm;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
@@ -210,7 +208,7 @@
       <PreprocessorDefinitions>_MBCS;NDEBUG;GAME_DLL;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\..\..\..\Configuru;..\..\..\..\Anvil\build\include;..\..\..\..\Anvil\include;..\..\..\..\DiTO;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;..\..\..\..\glm;..\..\..\..\Compressonator\Compressonator\;..\..\..\..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\glm;..\..\..\..\inMyRoom_vulkan\include;..\game_dll\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>

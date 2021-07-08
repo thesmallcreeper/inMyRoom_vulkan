@@ -4,10 +4,27 @@
 // that uses this DLL. This way any other project whose source files include this file see
 // GAMEDLL_API functions as being imported from a DLL, whereas this DLL sees symbols
 // defined with this macro as being exported.
-#ifdef GAME_DLL
-#define GAME_DLL_API __declspec(dllexport)
+
+// https://stackoverflow.com/a/2164853
+#if defined(_MSC_VER)
+    //  Microsoft 
+#define EXPORT __declspec(dllexport)
+#define IMPORT __declspec(dllimport)
+#elif defined(__GNUC__)
+    //  GCC
+#define EXPORT __attribute__((visibility("default")))
+#define IMPORT
 #else
-#define GAME_DLL_API __declspec(dllimport)
+    //  do nothing and hope for the best?
+#define EXPORT
+#define IMPORT
+#pragma warning Unknown dynamic link import/export semantics.
+#endif
+
+#ifdef GAME_DLL
+#define GAME_DLL_API EXPORT
+#else
+#define GAME_DLL_API IMPORT
 #endif
 
 #include "ECS/ECSwrapper.h"

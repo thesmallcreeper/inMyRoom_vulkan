@@ -4,14 +4,19 @@ GameDLLimporter::GameDLLimporter(ECSwrapper* in_ecs_wrapper_ptr, std::string gam
     :ECSwrapper_ptr(in_ecs_wrapper_ptr),
      gameDLLlib(nullptr)
 {
+    #ifdef _WIN32       // cause win32 is a moving cancer
     for (auto& this_char : gameDLL_path)
         if (this_char == '/')
             this_char = '\\';
+    #endif
 
     gameDLLlib = ::LoadLibrary(gameDLL_path.c_str());
     assert(gameDLLlib != nullptr);
 
-    getGameDLLComponents_function = reinterpret_cast<std::vector<std::unique_ptr<ComponentBaseClass>>(__stdcall *)(ECSwrapper* const)>(::GetProcAddress(gameDLLlib, "GetGameDLLComponents"));
+    FARPROC address = ::GetProcAddress(gameDLLlib, "GetGameDLLComponents");
+    assert(address != nullptr);
+
+    getGameDLLComponents_function = reinterpret_cast<std::vector<std::unique_ptr<ComponentBaseClass>>(__stdcall *)(ECSwrapper* const)>(address);
     assert(getGameDLLComponents_function != nullptr);
 }
 

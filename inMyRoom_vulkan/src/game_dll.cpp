@@ -6,7 +6,10 @@
 
 GAME_DLL_API std::vector<std::unique_ptr<ComponentBaseClass>> GetGameDLLComponents(ECSwrapper* const in_ecs_wrapper_ptr)
 {
-    #pragma comment(linker, "/EXPORT:" __FUNCTION__"=" __FUNCDNAME__)
+    #ifdef _WIN32
+        #pragma comment(linker, "/EXPORT:" __FUNCTION__"=" __FUNCDNAME__)
+    #endif
+
     return std::move(ConstructAndGetComponentsVector(in_ecs_wrapper_ptr));
 }
 

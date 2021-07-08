@@ -14,5 +14,5 @@ std::vector<std::unique_ptr<ComponentBaseClass>> ConstructAndGetComponentsVector
         return_vector.emplace_back(std::move(snakePlayer_uptr));
     }
 
-    return std::move(return_vector);
+    return return_vector;
 }
