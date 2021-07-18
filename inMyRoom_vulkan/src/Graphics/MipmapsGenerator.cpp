@@ -634,24 +634,25 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     Anvil::RenderPassCreateInfoUniquePtr renderpass_create_info_uptr(new Anvil::RenderPassCreateInfo(device_ptr));
     {
         Anvil::RenderPassAttachmentID color_attachment_id;
+        renderpass_create_info_uptr->add_subpass(&subpass16bitTo8bitID);
+
 
         renderpass_create_info_uptr->add_external_to_subpass_dependency(subpass16bitTo8bitID,
                                                                         Anvil::PipelineStageFlagBits::COMPUTE_SHADER_BIT,
-                                                                        Anvil::PipelineStageFlagBits::FRAGMENT_SHADER_BIT,
-                                                                        Anvil::AccessFlagBits::SHADER_WRITE_BIT,
-                                                                        Anvil::AccessFlagBits::SHADER_READ_BIT,
+                                                                        Anvil::PipelineStageFlagBits::FRAGMENT_SHADER_BIT | Anvil::PipelineStageFlagBits::ALL_GRAPHICS_BIT,
+                                                                        Anvil::AccessFlagBits::SHADER_WRITE_BIT | Anvil::AccessFlagBits::MEMORY_WRITE_BIT,
+                                                                        Anvil::AccessFlagBits::SHADER_READ_BIT | Anvil::AccessFlagBits::MEMORY_READ_BIT,
                                                                         Anvil::DependencyFlagBits::BY_REGION_BIT);
 
         renderpass_create_info_uptr->add_color_attachment(vulkanAlignedFormat,
                                                          Anvil::SampleCountFlagBits::_1_BIT,
                                                          Anvil::AttachmentLoadOp::CLEAR,
                                                          Anvil::AttachmentStoreOp::STORE,
-                                                         Anvil::ImageLayout::UNDEFINED,
+                                                         Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                                                          Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,
                                                          false, /* may_alias */
                                                          &color_attachment_id);
 
-        renderpass_create_info_uptr->add_subpass(&subpass16bitTo8bitID);
         renderpass_create_info_uptr->add_subpass_color_attachment(subpass16bitTo8bitID,
                                                                   Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                                                                   color_attachment_id,
@@ -662,7 +663,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                         Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,
                                                                         Anvil::PipelineStageFlagBits::TRANSFER_BIT,
                                                                         Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,
-                                                                        Anvil::AccessFlagBits::TRANSFER_READ_BIT,
+                                                                        Anvil::AccessFlagBits::TRANSFER_READ_BIT | Anvil::AccessFlagBits::MEMORY_READ_BIT,
                                                                         Anvil::DependencyFlagBits::BY_REGION_BIT);
 
         renderpass_uptr = Anvil::RenderPass::create(std::move(renderpass_create_info_uptr), nullptr);
@@ -749,8 +750,8 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
             image_subresource_range.layer_count = 1;
             image_subresource_range.level_count = 1;
 
-            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::MEMORY_WRITE_BIT,                  /* source_access_mask       */
-                                              Anvil::AccessFlagBits::SHADER_READ_BIT,                   /* destination_access_mask  */
+            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::MEMORY_WRITE_BIT | Anvil::AccessFlagBits::SHADER_WRITE_BIT,   /* source_access_mask       */
+                                              Anvil::AccessFlagBits::MEMORY_READ_BIT | Anvil::AccessFlagBits::SHADER_READ_BIT,                   /* destination_access_mask  */
                                               Anvil::ImageLayout::GENERAL,                              /* old_image_layout */
                                               Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,             /* new_image_layout */
                                               universal_queue_family_index,
