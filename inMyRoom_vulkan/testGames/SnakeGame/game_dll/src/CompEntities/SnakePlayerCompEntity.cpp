@@ -259,7 +259,7 @@ void SnakePlayerCompEntity::CollisionUpdate(NodeDataComp* nodeDataComp_ptr,
             auto search = collided_with_name.find("snake");
             if (search != std::string::npos)
             {
-                Entity default_camera_entity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->FindEntityByPath("_defaultCamera", "_root");
+                Entity default_camera_entity = GetComponentPtr()->GetECSwrapper()->GetEntitiesHandler()->FindEntityByPath("_defaultCamera", "_defaultCamera");
                 CameraDefaultInputCompEntity& default_camera_input = cameraDefaultInputComp_ptr->GetComponentEntity(default_camera_entity);
                 {
                     glm::vec3 local_x = glm::normalize(globalDirection);

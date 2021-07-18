@@ -70,7 +70,7 @@ void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
         {
             if (currentAnimation_time > animation_length)
             {
-                currentAnimation_time = std::fmodf(currentAnimation_time, animation_length);
+                currentAnimation_time = std::fmod(currentAnimation_time, animation_length);
                 translationT0 = current_position_componentEntity.localTranslation;
                 rotationT0 = current_position_componentEntity.localRotation;
                 scaleT0 = current_position_componentEntity.localScale;

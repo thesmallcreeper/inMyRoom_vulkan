@@ -78,7 +78,7 @@ void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, co
                 path_to_mipmap_folder = in_imagesFolder + "//" + this_image.uri.substr(0, this_image.uri.find_last_of('.')) + "_mipmaps";
                 fs::create_directory(path_to_mipmap_folder);
             }
-            else // gotta support that
+            else // TODO: gotta support that
             {
                 assert(0);
             }

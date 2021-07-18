@@ -7,7 +7,6 @@
 #include <string>
 
 class AnimationActorComp;
-
 #include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 
 // TODO cubic interpolation

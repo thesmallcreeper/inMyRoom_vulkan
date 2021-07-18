@@ -27,6 +27,13 @@
 #define GAME_DLL_API IMPORT
 #endif
 
+#ifdef _WIN32
+#define STDCALL __stdcall
+#else
+#define STDCALL __attribute__((stdcall))
+#endif
+
+
 #include "ECS/ECSwrapper.h"
 
-GAME_DLL_API std::vector<std::unique_ptr<ComponentBaseClass>> __stdcall GetGameDLLComponents(ECSwrapper* const in_ecs_wrapper_ptr);
+GAME_DLL_API std::vector<std::unique_ptr<ComponentBaseClass>> STDCALL GetGameDLLComponents(ECSwrapper* const in_ecs_wrapper_ptr);

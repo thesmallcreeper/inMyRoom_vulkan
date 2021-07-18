@@ -10,13 +10,21 @@ GameDLLimporter::GameDLLimporter(ECSwrapper* in_ecs_wrapper_ptr, std::string gam
             this_char = '\\';
     #endif
 
+    #ifdef _WIN32
     gameDLLlib = ::LoadLibrary(gameDLL_path.c_str());
+    #else
+    gameDLLlib = ::dlopen(gameDLL_path.c_str(), RTLD_NOW);
+    #endif
     assert(gameDLLlib != nullptr);
 
+    #ifdef _WIN32
     FARPROC address = ::GetProcAddress(gameDLLlib, "GetGameDLLComponents");
+    #else
+    void* address = ::dlsym(gameDLLlib, "_Z20GetGameDLLComponentsP10ECSwrapper");
+    #endif
     assert(address != nullptr);
 
-    getGameDLLComponents_function = reinterpret_cast<std::vector<std::unique_ptr<ComponentBaseClass>>(__stdcall *)(ECSwrapper* const)>(address);
+    getGameDLLComponents_function = reinterpret_cast<std::vector<std::unique_ptr<ComponentBaseClass>>(STDCALL *)(ECSwrapper* const)>(address);
     assert(getGameDLLComponents_function != nullptr);
 }
 
@@ -25,7 +33,12 @@ GameDLLimporter::~GameDLLimporter()
     gameDLLcomponents.clear();
 
     getGameDLLComponents_function = nullptr;
+
+    #ifdef _WIN32
     ::FreeLibrary(gameDLLlib);
+    #else
+    dlclose(gameDLLlib);
+    #endif
 }
 
 void GameDLLimporter::AddComponentsToECSwrapper()

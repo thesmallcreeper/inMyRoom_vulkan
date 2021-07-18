@@ -5,8 +5,8 @@ ShootUncollideRays::ShootUncollideRays(float max_cos_from_force_response_smooths
                                        float max_cos_from_force_response_smoothstep_finish,
                                        float in_ray_distance_bias_multiplier)
     :
-    max_cos_from_force_response_smoothstep_start(std::cosf(max_cos_from_force_response_smoothstep_start)),
-    max_cos_from_force_response_smoothstep_finish(std::cosf(max_cos_from_force_response_smoothstep_finish)),
+    max_cos_from_force_response_smoothstep_start(std::cos(max_cos_from_force_response_smoothstep_start)),
+    max_cos_from_force_response_smoothstep_finish(std::cos(max_cos_from_force_response_smoothstep_finish)),
     ray_distance_bias_multiplier(in_ray_distance_bias_multiplier)
 {
 }

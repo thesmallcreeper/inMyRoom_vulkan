@@ -123,7 +123,7 @@ void EntitiesHandler::RemoveInstancesEntities(const std::set<InstanceInfo*>& ins
 
     for(const auto& this_instance_ptr: instance_to_remove_ptrs_set)
     {
-        assert(this_instance_ptr->instanceChildren.size());
+        assert(!this_instance_ptr->instanceChildren.size());
         delete this_instance_ptr;
     }
 

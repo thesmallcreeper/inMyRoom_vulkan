@@ -164,7 +164,7 @@ void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
 
     /* Start recording commands */
     cmd_buffer_ptr->start_recording(true,  /* one_time_submit          */
-                                    true); /* simultaneous_use_allowed */
+                                    false); /* simultaneous_use_allowed */
 
     {
         /* Switch the swap-chain image to the color_attachment_optimal image layout */

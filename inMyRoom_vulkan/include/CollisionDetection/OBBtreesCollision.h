@@ -8,7 +8,7 @@ struct CDentriesPairTrianglesPairs
 {
     CollisionDetectionEntry firstEntry;
     CollisionDetectionEntry secondEntry;
-    OBBtreesIntersectInfo OBBtreesIntersectInfo;
+    OBBtreesIntersectInfo OBBtreesIntersectInfoObj;
 };
 
 class OBBtreesCollision

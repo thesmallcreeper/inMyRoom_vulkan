@@ -20,11 +20,12 @@ if (MSVC)
     set(CMAKE_C_FLAGS_RELEASE     "${CMAKE_C_FLAGS_RELEASE} ${relFlags}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${relFlags}")
 else ()
-    add_compile_options(-m64)
-    add_definitions(-mavx -march=corei7-avx -mtune=corei7-avx)
-    set(OPT_FLAGS "-O3 -ffast-math -DNDEBUG")
-    set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} ${OPT_FLAGS}")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OPT_FLAGS}")
+    set(COMMON_FLAGS "-m64")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${COMMON_FLAGS}")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMMON_FLAGS}")
+    set(OPT_FLAGS "-O3 -ffast-math -march=corei7-avx")
+    set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} ${COMMON_FLAGS} ${OPT_FLAGS}")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_FLAGS}  ${OPT_FLAGS}")
 endif()
 
 add_compile_definitions(TINYGLTF_NO_INCLUDE_STB_IMAGE)
@@ -34,15 +35,6 @@ add_compile_definitions(TINYGLTF_NO_STB_IMAGE)
 add_compile_definitions(TINYGLTF_NO_STB_IMAGE_WRITE)
 
 find_package(Threads REQUIRED)
-
-if (WIN32)
-    include_directories($ENV{VK_SDK_PATH}/Include
-                        $ENV{VULKAN_SDK}/Include)
-else()
-    include_directories($ENV{VK_SDK_PATH}/x86_64/include
-                        $ENV{VULKAN_SDK}/include
-                        $ENV{VULKAN_SDK}/x86_64/include)
-endif()
 
 include_directories(
         ../Anvil/include                                                   #Include Anvil

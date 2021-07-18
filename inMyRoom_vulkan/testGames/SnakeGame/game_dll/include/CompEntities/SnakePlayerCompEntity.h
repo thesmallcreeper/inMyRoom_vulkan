@@ -1,18 +1,15 @@
 #pragma once
 
 #include "ECS/CompEntityBaseWrappedClass.h"
+#include <chrono>
+
+class SnakePlayerComp;
 #include "ECS/GeneralCompEntities/NodeDataCompEntity.h"
 #include "ECS/GeneralCompEntities/CameraCompEntity.h"
 #include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
 #include "ECS/GeneralCompEntities/AnimationComposerCompEntity.h"
 
-#include <chrono>
-
-class SnakePlayerComp;
-class SnakePlayerCompEntity;
-#include "Components/SnakePlayerComp.h"
-
-class SnakePlayerCompEntity final:
+class SnakePlayerCompEntity:
     public CompEntityBaseWrappedClass<SnakePlayerComp>
 {
 public:
@@ -81,3 +78,5 @@ public: //data
 
     Entity animationComposerRelativeEntity;
 };
+
+#include "Components/SnakePlayerComp.h"

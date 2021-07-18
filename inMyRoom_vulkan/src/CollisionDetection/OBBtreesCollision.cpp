@@ -13,7 +13,7 @@ CDentriesPairTrianglesPairs OBBtreesCollision::ExecuteOBBtreesCollision(const st
     OBBtree::IntersectOBBtrees(*collisionDetectionEntriesPair.first.OBBtree_ptr,
                                *collisionDetectionEntriesPair.second.OBBtree_ptr,
                                glm::inverse(collisionDetectionEntriesPair.first.currentGlobalMatrix) * collisionDetectionEntriesPair.second.currentGlobalMatrix,
-                               return_triangle_pairs.OBBtreesIntersectInfo);
+                               return_triangle_pairs.OBBtreesIntersectInfoObj);
 
     return return_triangle_pairs;
 }

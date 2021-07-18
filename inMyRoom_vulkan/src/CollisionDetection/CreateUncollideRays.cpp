@@ -71,7 +71,7 @@ CDentriesUncollideRays CreateUncollideRays::ExecuteCreateUncollideRays(const CDe
     std::unordered_map<uint32_t, TriangleCandidateRays> second_candidateTriangleRays;
 
     // Find intersect triangles and flag points that are not outside from the other object
-    for(const auto& this_trianglesPair : entriesPairTrianglesPairs.OBBtreesIntersectInfo.candidateTriangleRangeCompinations)
+    for(const auto& this_trianglesPair : entriesPairTrianglesPairs.OBBtreesIntersectInfoObj.candidateTriangleRangeCompinations)
     {
         std::array<TriangleCandidateRays, OBBtree::GetMaxNumberOfTrianglesPerNode()> this_first_candidateRays;
         std::array<TriangleCandidateRays, OBBtree::GetMaxNumberOfTrianglesPerNode()> this_second_candidateRays;

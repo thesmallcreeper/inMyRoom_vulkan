@@ -11,6 +11,8 @@
 
 #include "Applications/_Plugins/Common/stb_image.h"
 
+#include <cmath>
+
 #include "glm/vec3.hpp"
 #include "glm/vec2.hpp"
 
@@ -444,7 +446,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                     1, /* base_mipmap_depth */
                                                                     1, /* n_layers */
                                                                     Anvil::SampleCountFlagBits::_1_BIT,
-                                                                    Anvil::QueueFamilyFlagBits::COMPUTE_BIT,
+                                                                    Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                     Anvil::SharingMode::EXCLUSIVE,
                                                                     false, /* in_use_full_mipmap_chain */
                                                                     Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
@@ -597,7 +599,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                      Anvil::SharingMode::EXCLUSIVE,
                                                                      Anvil::BufferCreateFlagBits::NONE,
                                                                      Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT,
-                                                                     Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT | Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT);
+                                                                     Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT | Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT | Anvil::MemoryFeatureFlagBits::HOST_COHERENT_BIT);
 
         device_to_host_buffer = Anvil::Buffer::create(std::move(create_info_ptr));
     }
@@ -633,12 +635,19 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
     {
         Anvil::RenderPassAttachmentID color_attachment_id;
 
+        renderpass_create_info_uptr->add_external_to_subpass_dependency(subpass16bitTo8bitID,
+                                                                        Anvil::PipelineStageFlagBits::COMPUTE_SHADER_BIT,
+                                                                        Anvil::PipelineStageFlagBits::FRAGMENT_SHADER_BIT,
+                                                                        Anvil::AccessFlagBits::SHADER_WRITE_BIT,
+                                                                        Anvil::AccessFlagBits::SHADER_READ_BIT,
+                                                                        Anvil::DependencyFlagBits::BY_REGION_BIT);
+
         renderpass_create_info_uptr->add_color_attachment(vulkanAlignedFormat,
                                                          Anvil::SampleCountFlagBits::_1_BIT,
                                                          Anvil::AttachmentLoadOp::CLEAR,
                                                          Anvil::AttachmentStoreOp::STORE,
-                                                         Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                                                         Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                                                         Anvil::ImageLayout::UNDEFINED,
+                                                         Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,
                                                          false, /* may_alias */
                                                          &color_attachment_id);
 
@@ -648,6 +657,13 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                   color_attachment_id,
                                                                   0,        /* in_location                      */
                                                                   nullptr); /* in_opt_attachment_resolve_id_ptr */
+
+        renderpass_create_info_uptr->add_subpass_to_external_dependency(subpass16bitTo8bitID,
+                                                                        Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,
+                                                                        Anvil::PipelineStageFlagBits::TRANSFER_BIT,
+                                                                        Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,
+                                                                        Anvil::AccessFlagBits::TRANSFER_READ_BIT,
+                                                                        Anvil::DependencyFlagBits::BY_REGION_BIT);
 
         renderpass_uptr = Anvil::RenderPass::create(std::move(renderpass_create_info_uptr), nullptr);
     }
@@ -705,7 +721,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
         cmd_buffer_ptr->reset(true);
 
         cmd_buffer_ptr->start_recording(true,  /* one_time_submit          */
-                                        true); /* simultaneous_use_allowed */
+                                        false); /* simultaneous_use_allowed */
 
        // Call compute queue
         cmd_buffer_ptr->record_bind_pipeline(Anvil::PipelineBindPoint::COMPUTE,
@@ -733,7 +749,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
             image_subresource_range.layer_count = 1;
             image_subresource_range.level_count = 1;
 
-            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::SHADER_WRITE_BIT,                  /* source_access_mask       */
+            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::MEMORY_WRITE_BIT,                  /* source_access_mask       */
                                               Anvil::AccessFlagBits::SHADER_READ_BIT,                   /* destination_access_mask  */
                                               Anvil::ImageLayout::GENERAL,                              /* old_image_layout */
                                               Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,             /* new_image_layout */
@@ -762,10 +778,10 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
             // Start renderpass
             {
                 VkClearValue  clear_values[1];
-                clear_values[0].color.float32[0] = 1.0f;
-                clear_values[0].color.float32[1] = 1.0f;
-                clear_values[0].color.float32[2] = 1.0f;
-                clear_values[0].color.float32[3] = 1.0f;
+                clear_values[0].color.float32[0] = 0.0f;
+                clear_values[0].color.float32[1] = 0.0f;
+                clear_values[0].color.float32[2] = 0.0f;
+                clear_values[0].color.float32[3] = 0.0f;
 
                 VkRect2D  render_area;
                 render_area.extent.width = this_mipmap_width;
@@ -826,22 +842,22 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
 
              Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,                  /* source_access_mask       */
                                                Anvil::AccessFlagBits::TRANSFER_READ_BIT,                           /* destination_access_mask  */
-                                               Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,                              /* old_image_layout */
-                                               Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,                              /* new_image_layout */
+                                               Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,            /* old_image_layout */
+                                               Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,               /* new_image_layout */
                                                universal_queue_family_index,
                                                universal_queue_family_index,
                                                mipmap_8bitPerChannel_image_uptr.get(),
                                                image_subresource_range);
 
-             cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,
-                                                     Anvil::PipelineStageFlagBits::TRANSFER_BIT,
-                                                     Anvil::DependencyFlagBits::BY_REGION_BIT,
-                                                     0,
-                                                     nullptr,
-                                                     0,
-                                                     nullptr,
-                                                     1,
-                                                     &image_barrier);
+//             cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,
+//                                                     Anvil::PipelineStageFlagBits::TRANSFER_BIT,
+//                                                     Anvil::DependencyFlagBits::BY_REGION_BIT,
+//                                                     0,
+//                                                     nullptr,
+//                                                     0,
+//                                                     nullptr,
+//                                                     1,
+//                                                     &image_barrier);
 
         }
 
@@ -865,6 +881,26 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                         device_to_host_buffer.get(),
                                                         1,
                                                         &this_copy);
+        }
+
+        {
+            Anvil::BufferBarrier buffer_barrier(Anvil::AccessFlagBits::TRANSFER_WRITE_BIT,
+                                                Anvil::AccessFlagBits::HOST_READ_BIT,
+                                                universal_queue_family_index,
+                                                universal_queue_family_index,
+                                                device_to_host_buffer.get(),
+                                                0,
+                                                device_to_host_buffer->get_create_info_ptr()->get_size());
+
+            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TRANSFER_BIT,
+                                                    Anvil::PipelineStageFlagBits::HOST_BIT,
+                                                    Anvil::DependencyFlagBits::BY_REGION_BIT,
+                                                    0,
+                                                    nullptr,
+                                                    1,
+                                                    &buffer_barrier,
+                                                    0,
+                                                    nullptr);
         }
 
         cmd_buffer_ptr->stop_recording();

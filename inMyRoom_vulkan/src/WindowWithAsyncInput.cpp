@@ -65,7 +65,7 @@ WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platfor
 
 #else
 
-    window_thread_ptr = std::make_unique<std::thread>([=, &prom_m_window_ptr, &prom_threadID]()
+    window_thread_ptr = std::make_unique<std::thread>([=, this, &prom_m_window_ptr, &prom_threadID]()
     {
         /* Create a window */
 
