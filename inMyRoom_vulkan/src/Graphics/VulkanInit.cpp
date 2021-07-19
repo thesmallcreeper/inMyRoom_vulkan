@@ -6,7 +6,6 @@
 #include "misc/swapchain_create_info.h"
 #include "misc/rendering_surface_create_info.h"
 
-#define _DEBUG
 #ifdef _DEBUG
 #define ENABLE_VALIDATION
 #endif
@@ -58,7 +57,9 @@ void VulkanInit::InitVulkan()
     {
         /* Determine which layers we need to request for */
         std::vector<std::string> vulkan_layers;
+#ifdef ENABLE_VALIDATION
         vulkan_layers.emplace_back("VK_LAYER_KHRONOS_synchronization2");
+#endif
 
         /* Determine which extensions we need to request for */
         Anvil::DeviceExtensionConfiguration vk_extensions;

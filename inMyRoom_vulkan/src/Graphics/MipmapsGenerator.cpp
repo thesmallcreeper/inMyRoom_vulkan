@@ -367,13 +367,13 @@ void MipmapsGenerator::InitGPUimageAndView(uint8_t* in_image_raw, size_t image_s
                                                                     Anvil::ImageType::_2D,
                                                                     vulkanAlignedFormat,
                                                                     Anvil::ImageTiling::OPTIMAL,
-                                                                    Anvil::ImageUsageFlagBits::SAMPLED_BIT,
+                                                                    Anvil::ImageUsageFlagBits::SAMPLED_BIT | Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT,
                                                                     static_cast<uint32_t>(original_width),
                                                                     static_cast<uint32_t>(original_height),
                                                                     1, /* base_mipmap_depth */
                                                                     1, /* n_layers */
                                                                     Anvil::SampleCountFlagBits::_1_BIT,
-                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                    Anvil::QueueFamilyFlagBits::COMPUTE_BIT,
                                                                     Anvil::SharingMode::EXCLUSIVE,
                                                                     false, /* in_use_full_mipmap_chain */
                                                                     Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
@@ -599,7 +599,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                      Anvil::SharingMode::EXCLUSIVE,
                                                                      Anvil::BufferCreateFlagBits::NONE,
                                                                      Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT,
-                                                                     Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT | Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT | Anvil::MemoryFeatureFlagBits::HOST_COHERENT_BIT);
+                                                                     Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT | Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT);
 
         device_to_host_buffer = Anvil::Buffer::create(std::move(create_info_ptr));
     }
@@ -639,9 +639,9 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
 
         renderpass_create_info_uptr->add_external_to_subpass_dependency(subpass16bitTo8bitID,
                                                                         Anvil::PipelineStageFlagBits::COMPUTE_SHADER_BIT,
-                                                                        Anvil::PipelineStageFlagBits::FRAGMENT_SHADER_BIT | Anvil::PipelineStageFlagBits::ALL_GRAPHICS_BIT,
-                                                                        Anvil::AccessFlagBits::SHADER_WRITE_BIT | Anvil::AccessFlagBits::MEMORY_WRITE_BIT,
-                                                                        Anvil::AccessFlagBits::SHADER_READ_BIT | Anvil::AccessFlagBits::MEMORY_READ_BIT,
+                                                                        Anvil::PipelineStageFlagBits::FRAGMENT_SHADER_BIT,
+                                                                        Anvil::AccessFlagBits::SHADER_WRITE_BIT,
+                                                                        Anvil::AccessFlagBits::SHADER_READ_BIT,
                                                                         Anvil::DependencyFlagBits::BY_REGION_BIT);
 
         renderpass_create_info_uptr->add_color_attachment(vulkanAlignedFormat,
@@ -663,7 +663,7 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
                                                                         Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,
                                                                         Anvil::PipelineStageFlagBits::TRANSFER_BIT,
                                                                         Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,
-                                                                        Anvil::AccessFlagBits::TRANSFER_READ_BIT | Anvil::AccessFlagBits::MEMORY_READ_BIT,
+                                                                        Anvil::AccessFlagBits::TRANSFER_READ_BIT,
                                                                         Anvil::DependencyFlagBits::BY_REGION_BIT);
 
         renderpass_uptr = Anvil::RenderPass::create(std::move(renderpass_create_info_uptr), nullptr);
@@ -750,8 +750,8 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
             image_subresource_range.layer_count = 1;
             image_subresource_range.level_count = 1;
 
-            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::MEMORY_WRITE_BIT | Anvil::AccessFlagBits::SHADER_WRITE_BIT,   /* source_access_mask       */
-                                              Anvil::AccessFlagBits::MEMORY_READ_BIT | Anvil::AccessFlagBits::SHADER_READ_BIT,                   /* destination_access_mask  */
+            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::SHADER_WRITE_BIT,   /* source_access_mask       */
+                                              Anvil::AccessFlagBits::SHADER_READ_BIT,                   /* destination_access_mask  */
                                               Anvil::ImageLayout::GENERAL,                              /* old_image_layout */
                                               Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL,             /* new_image_layout */
                                               universal_queue_family_index,
@@ -779,10 +779,10 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
             // Start renderpass
             {
                 VkClearValue  clear_values[1];
-                clear_values[0].color.float32[0] = 0.0f;
-                clear_values[0].color.float32[1] = 0.0f;
-                clear_values[0].color.float32[2] = 0.0f;
-                clear_values[0].color.float32[3] = 0.0f;
+                clear_values[0].color.float32[0] = 1.0f;
+                clear_values[0].color.float32[1] = 1.0f;
+                clear_values[0].color.float32[2] = 1.0f;
+                clear_values[0].color.float32[3] = 1.0f;
 
                 VkRect2D  render_area;
                 render_area.extent.width = this_mipmap_width;
@@ -832,36 +832,6 @@ MipmapInfo MipmapsGenerator::GetMipmap(size_t mipmap_level)
 
             cmd_buffer_ptr->record_end_render_pass();
         }
-
-        {
-             Anvil::ImageSubresourceRange  image_subresource_range;
-             image_subresource_range.aspect_mask = Anvil::ImageAspectFlagBits::COLOR_BIT;
-             image_subresource_range.base_array_layer = 0;
-             image_subresource_range.base_mip_level = 0;
-             image_subresource_range.layer_count = 1;
-             image_subresource_range.level_count = 1;
-
-             Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,                  /* source_access_mask       */
-                                               Anvil::AccessFlagBits::TRANSFER_READ_BIT,                           /* destination_access_mask  */
-                                               Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,            /* old_image_layout */
-                                               Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,               /* new_image_layout */
-                                               universal_queue_family_index,
-                                               universal_queue_family_index,
-                                               mipmap_8bitPerChannel_image_uptr.get(),
-                                               image_subresource_range);
-
-//             cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,
-//                                                     Anvil::PipelineStageFlagBits::TRANSFER_BIT,
-//                                                     Anvil::DependencyFlagBits::BY_REGION_BIT,
-//                                                     0,
-//                                                     nullptr,
-//                                                     0,
-//                                                     nullptr,
-//                                                     1,
-//                                                     &image_barrier);
-
-        }
-
         {
             Anvil::BufferImageCopy this_copy;
             this_copy.buffer_offset = 0;

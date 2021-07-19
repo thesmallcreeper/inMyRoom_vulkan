@@ -5,13 +5,13 @@ layout( local_size_x = 4, local_size_y = 4 ) in;
 layout( set = 0, binding = 0) uniform sampler2D inTexture;
 
 #ifdef IS_R
-layout( set = 1, binding = 0, r16f) uniform image2D outImage;
+layout( set = 1, binding = 0, r16) uniform image2D outImage;
 #endif
-#ifdef IS_RG
-layout( set = 1, binding = 0, rg16f) uniform image2D outImage;
+#ifdef IS_RG0
+layout( set = 1, binding = 0, rg16) uniform image2D outImage;
 #endif
 #ifdef IS_RGBA
-layout( set = 1, binding = 0, rgba16f) uniform image2D outImage;
+layout( set = 1, binding = 0, rgba16) uniform image2D outImage;
 #endif
 
 void main()
@@ -26,7 +26,7 @@ void main()
                                     
                                     
     vec4 this_sample = texture( inTexture, position_normalized).rgba;
+    // vec4 this_sample = vec4(0.0f, 0.001f, 0.0f, 0.1f);
     
     imageStore( outImage, ivec2(gl_GlobalInvocationID.xy), this_sample);
-    
 }

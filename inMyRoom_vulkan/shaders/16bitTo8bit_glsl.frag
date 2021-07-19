@@ -24,5 +24,5 @@ void main() {
     #ifdef IS_RGBA
         frag_color = texture( inTexture, vert_texcoord).rgba;
     #endif
-    
+
 }
