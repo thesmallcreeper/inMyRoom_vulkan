@@ -26,9 +26,8 @@ Named after the mixtape of Greek hiphop artist 013, "In My Room". Project starte
   On Linux you will also need the X server dev packages.
   * On Ubuntu:
 `libxcb-xkb-dev libxcb-keysyms1-dev`
-* On Arch Linux :
+  * On Arch Linux :
 `xcb-util`
-
 
   Having environment set, download the repo and submodules by running the following command.
 ```
