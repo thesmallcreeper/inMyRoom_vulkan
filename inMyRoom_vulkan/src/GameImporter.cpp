@@ -54,7 +54,7 @@ void GameImporter::AddGameDLLcomponents()
     {
         printf("-Importing gameDLL\n");
         // TODO
-        std::string dll_path = folderName + "/" + gameConfig["gameDLL"]["path_win"].as_string();
+        std::string dll_path = folderName + "/" + gameConfig["gameDLL"]["path"].as_string();
 
         gameDLLimporter_uptr = std::make_unique<GameDLLimporter>(engine_ptr->GetECSwrapperPtr(), dll_path);
         gameDLLimporter_uptr->AddComponentsToECSwrapper();
