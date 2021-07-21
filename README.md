@@ -31,9 +31,9 @@ Named after the mixtape of Greek hiphop artist 013, "In My Room". Project starte
 
 
   Having environment set, download the repo and submodules by running the following command.
-  ```
+```
 git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/thesmallcreeper/inMyRoom_vulkan.git
-  ```
+```
  ## Windows using Visual Studio 2019
 
  #### Not maintained! Using CLion thesedays...
