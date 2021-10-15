@@ -15,7 +15,7 @@ class ECSwrapper;       // Forward declaration
 class ComponentBaseClass
 {
 public:
-    ComponentBaseClass(ECSwrapper* in_ecs_wrapper_ptr);
+    explicit ComponentBaseClass(ECSwrapper* in_ecs_wrapper_ptr);
     virtual ~ComponentBaseClass();
     virtual void Deinit() {};
 

@@ -12,9 +12,9 @@ class ModelCollisionComp final
     : public ComponentDataClass<ModelCollisionCompEntity, static_cast<componentID>(componentIDenum::ModelCollision), "ModelCollision", sparse_set>
 {
 public:
-    ModelCollisionComp(ECSwrapper* const in_ecs_wrapper_ptr,
-                       CollisionDetection* in_collisionDetection_ptr,
-                       class MeshesOfNodes* in_meshesOfNodes_ptr);
+    explicit ModelCollisionComp(ECSwrapper* const in_ecs_wrapper_ptr,
+                                CollisionDetection* in_collisionDetection_ptr,
+                                class MeshesOfNodes* in_meshesOfNodes_ptr);
     ~ModelCollisionComp() override;
 
     void Update() override;

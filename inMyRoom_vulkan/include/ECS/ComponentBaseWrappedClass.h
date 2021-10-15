@@ -16,8 +16,8 @@ class ComponentBaseWrappedClass :
     public ComponentBaseClass
 {
 public:
-    ComponentBaseWrappedClass(ECSwrapper* in_ecs_wrapper_ptr);
-    ~ComponentBaseWrappedClass();
+    explicit ComponentBaseWrappedClass(ECSwrapper* in_ecs_wrapper_ptr);
+    ~ComponentBaseWrappedClass() override;
 
     ComponentEntityType& GetComponentEntity(Entity this_entity);
     const ComponentEntityType& GetComponentEntity(Entity this_entity) const;

@@ -10,7 +10,7 @@ class CameraDefaultInputComp final
     :public ComponentDataClass<CameraDefaultInputCompEntity, static_cast<componentID>(componentIDenum::CameraDefaultInput), "CameraDefaultInput", sparse_set>
 {
 public:
-    CameraDefaultInputComp(ECSwrapper* const in_ecs_wrapper_ptr, float default_speed);
+    explicit CameraDefaultInputComp(ECSwrapper* const in_ecs_wrapper_ptr, float default_speed);
     ~CameraDefaultInputComp() override;
 
     void Update() override;

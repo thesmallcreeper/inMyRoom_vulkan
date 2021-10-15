@@ -19,12 +19,12 @@ class ModelDrawComp final
     : public ComponentDataClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw", sparse_set>
 {
 public:
-    ModelDrawComp(ECSwrapper* const in_ecs_wrapper_ptr);
+    explicit ModelDrawComp(ECSwrapper* const in_ecs_wrapper_ptr);
     ~ModelDrawComp() override;
 
     DrawRequestsBatch DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,
                                            PrimitivesOfMeshes* primitivesOfMeshes_ptr,
-                                           FrustumCulling* frustemCulling_ptr) const;
+                                           FrustumCulling* frustumCulling_ptr) const;
 
 };
 

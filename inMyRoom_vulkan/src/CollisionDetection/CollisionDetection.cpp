@@ -43,7 +43,7 @@ void CollisionDetection::ExecuteCollisionDetection()
     // at least one of the entries should have callback
     std::vector<std::pair<CollisionDetectionEntry, CollisionDetectionEntry>> broadPhaseResults = broadPhaseCollision_uptr->ExecuteSweepAndPrune(collisionDetectionEntries);
 
-    // Mid phase collision
+    // Mid phase collision (OBBtree vs OBBtree)
     std::vector<CDentriesPairTrianglesPairs> midPhaseResults;
     midPhaseResults.reserve(broadPhaseResults.size());
     for(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& this_pair: broadPhaseResults)
@@ -80,6 +80,7 @@ void CollisionDetection::ExecuteCollisionDetection()
         if(this_uncollideRaysResult.firstEntry.currentGlobalMatrix != this_uncollideRaysResult.firstEntry.previousGlobalMatrix ||
            this_uncollideRaysResult.secondEntry.currentGlobalMatrix != this_uncollideRaysResult.secondEntry.previousGlobalMatrix)
         {
+            // Shoot the rays!
             glm::vec3 delta = shootDeltaUncollide_uptr->ExecuteShootUncollideRays(this_uncollideRaysResult);
 
             float first_movement_between_frames = PointMovementBetweenFrames(this_uncollideRaysResult.average_point_first_modelspace,

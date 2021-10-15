@@ -75,7 +75,7 @@ public:
         pointer ptr_end_;
     };
 
-    dense_set() {}
+    dense_set() = default;
     dense_set(const dense_set& other, index_T offset) {add_elements(other, offset);}
     dense_set(dense_set&& other, index_T offset) {add_elements(std::move(other), offset);}
 

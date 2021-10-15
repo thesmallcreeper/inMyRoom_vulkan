@@ -11,8 +11,8 @@ class CameraComp final
     :public ComponentDataClass<CameraCompEntity, static_cast<componentID>(componentIDenum::Camera), "Camera", sparse_set>
 {
 public:
-    CameraComp(ECSwrapper* const in_ecs_wrapper_ptr,
-               float default_fovy, float default_aspect, float default_near, float default_far);
+    explicit CameraComp(ECSwrapper* const in_ecs_wrapper_ptr,
+                        float default_fovy, float default_aspect, float default_near, float default_far);
     ~CameraComp() override;
 
     void Update() override;

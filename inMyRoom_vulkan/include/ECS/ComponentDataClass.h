@@ -12,11 +12,11 @@ class ComponentDataClass :
     public ComponentBaseWrappedClass<ComponentEntityType, component_ID, component_name, data_set>
 {
 public:
-    ComponentDataClass(ECSwrapper* in_ecs_wrapper_ptr);
+    explicit ComponentDataClass(ECSwrapper* in_ecs_wrapper_ptr);
     ~ComponentDataClass() override;
     void Deinit() override;
 
-    void Update() override {} // TODO template tricks                                                                             
+    void Update() override { Update_impl(); }
     
     size_t PushBackNewFab() override;
     void AddCompEntityAtLatestFab(Entity entity, const std::string& fab_path, const CompEntityInitMap& init_map) override;
@@ -29,6 +29,9 @@ public:
 
 private:
     ComponentEntityPtr GetComponentEntityVoidPtr(Entity this_entity) override;
+
+    void Update_impl() requires TrivialUpdatable<ComponentEntityType>;
+    void Update_impl() { assert(not Updateable<ComponentEntityType>); };
 
 protected:
     data_set<Entity, ComponentEntityType, CompEntityBaseClass, &CompEntityBaseClass::thisEntity>  componentEntities;
@@ -102,7 +105,7 @@ std::pair<Entity, Entity> ComponentDataClass<ComponentEntityType, component_ID, 
     }
     else
     {
-        return std::pair<Entity, Entity>(-1, -1);
+        return std::make_pair<Entity, Entity>(-1, -1);
     }
 }
 
@@ -148,4 +151,18 @@ template<typename ComponentEntityType, componentID component_ID, FixedString com
 ComponentEntityPtr ComponentDataClass<ComponentEntityType, component_ID, component_name, data_set>::GetComponentEntityVoidPtr(Entity this_entity)
 {
     return static_cast<ComponentEntityPtr>(&componentEntities[this_entity]);
+}
+
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name,
+        template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
+void ComponentDataClass<ComponentEntityType, component_ID, component_name, data_set>::Update_impl() requires TrivialUpdatable<ComponentEntityType>
+{
+    auto component_ptrs = GetComponentPtrsOfArguments(ComponentBaseClass::ecsWrapper_ptr, &ComponentEntityType::Update);
+
+    for( auto& this_comp_entity: componentEntities)
+    {
+        auto arguments = TranslateComponentPtrsIntoArguments(static_cast<Entity>(this_comp_entity.thisEntity), component_ptrs);
+
+        std::apply(&ComponentEntityType::Update, std::tuple_cat(std::tie(this_comp_entity), arguments));
+    }
 }

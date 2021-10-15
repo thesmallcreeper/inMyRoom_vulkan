@@ -10,7 +10,7 @@ class NodeDataComp final
     : public ComponentDataClass<NodeDataCompEntity, static_cast<componentID>(componentIDenum::NodeData), "NodeData", dense_set>
 {
 public:
-    NodeDataComp(ECSwrapper* const in_ecs_wrapper_ptr);
+    explicit NodeDataComp(ECSwrapper* const in_ecs_wrapper_ptr);
     ~NodeDataComp() override;
 };
 

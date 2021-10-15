@@ -13,7 +13,7 @@ ModelDrawComp::~ModelDrawComp()
 
 DrawRequestsBatch ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,
                                                       PrimitivesOfMeshes* primitivesOfMeshes_ptr,                 
-                                                      FrustumCulling* frustemCulling_ptr) const
+                                                      FrustumCulling* frustumCulling_ptr) const
 {
     componentID nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);
     LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr = static_cast<LateNodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
@@ -30,9 +30,10 @@ DrawRequestsBatch ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNod
                                               skinComp_ptr,
                                               meshesOfNodes_ptr,
                                               primitivesOfMeshes_ptr,
-                                              frustemCulling_ptr,
+                                              frustumCulling_ptr,
                                               this_drawRequestsBatch.opaqueDrawRequests,
                                               this_drawRequestsBatch.transparentDrawRequests);
 
     return std::move(this_drawRequestsBatch);
 }
+

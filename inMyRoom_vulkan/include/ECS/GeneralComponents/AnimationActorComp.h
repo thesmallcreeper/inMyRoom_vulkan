@@ -12,7 +12,7 @@ class AnimationActorComp final
     :public ComponentDataClass<AnimationActorCompEntity, static_cast<componentID>(componentIDenum::AnimationActor), "AnimationActor", sparse_set>
 {
 public:
-    AnimationActorComp(ECSwrapper* const in_ecs_wrapper_ptr, AnimationsDataOfNodes* in_animationsDataOfNodes_ptr);
+    explicit AnimationActorComp(ECSwrapper* in_ecs_wrapper_ptr, AnimationsDataOfNodes* in_animationsDataOfNodes_ptr);
     ~AnimationActorComp() override;
 
     void Update() override;

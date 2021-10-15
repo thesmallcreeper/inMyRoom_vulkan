@@ -8,7 +8,7 @@ template<typename ComponentType>
 class CompEntityBaseWrappedClass : public CompEntityBaseClass
 {
 public:
-    CompEntityBaseWrappedClass(const Entity this_entity)
+    explicit CompEntityBaseWrappedClass(const Entity this_entity)
         :CompEntityBaseClass(this_entity)
     {
     }

@@ -29,7 +29,7 @@ public:
         assert(search != componentIDtoDataSetPtr_map.end());
 
         DataSetPtr data_set_ptr = search->second;
-        T_data_set* casted_data_set_ptr = static_cast<T_data_set*>(data_set_ptr);
+        auto casted_data_set_ptr = static_cast<T_data_set*>(data_set_ptr);
 
         return *casted_data_set_ptr;
     }
@@ -55,7 +55,7 @@ private:
 class ECSwrapper
 {
 public:
-    ECSwrapper(ExportedFunctions* in_enginesExportedFunctions_ptr);
+    explicit ECSwrapper(ExportedFunctions* in_enginesExportedFunctions_ptr);
     ~ECSwrapper();
 
     EntitiesHandler*    GetEntitiesHandler() const;

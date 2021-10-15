@@ -20,7 +20,7 @@ public:
         typedef dense_T* pointer;
         typedef std::forward_iterator_tag iterator_category;
         typedef int difference_type;
-        iterator(pointer ptr) : ptr_(ptr) { }
+        explicit iterator(pointer ptr) : ptr_(ptr) { }
         self_type& operator++() { ++ptr_; return *this;  }
         self_type operator++(int junk) { self_type i = *this; ++ptr_; return i; }
         reference operator*() { return *ptr_; }
@@ -40,7 +40,7 @@ public:
         typedef const dense_T* pointer;
         typedef std::forward_iterator_tag iterator_category;
         typedef int difference_type;
-        const_iterator(pointer ptr) : ptr_(ptr) { }
+        explicit const_iterator(pointer ptr) : ptr_(ptr) { }
         self_type& operator++() { ++ptr_; return *this;  }
         self_type operator++(int junk) { self_type i = *this; ++ptr_; return i; }
         reference operator*() { return *ptr_; }
@@ -51,7 +51,7 @@ public:
         pointer ptr_;
     };
 
-    sparse_set() {}
+    sparse_set() = default;
     sparse_set(const sparse_set& other, index_T offset) {add_elements(other, offset);}
     sparse_set(sparse_set&& other, index_T offset) {add_elements(std::move(other), offset);}
 
