@@ -4,7 +4,6 @@
 #include "ECS/TemplateHelpers.h"
 
 #include <vector>
-#include <list>
 
 template<typename ComponentEntityType, componentID component_ID, FixedString component_name,
          template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
@@ -26,20 +25,26 @@ public:
     void RemoveInstancesByRanges(const std::vector<std::pair<Entity, Entity>>& ranges) override;
 
     void AddInitializedFabs() override;
+    void NewUpdateSession() override;
+
+protected:
+    data_set<Entity, ComponentEntityType, CompEntityBaseClass, &CompEntityBaseClass::thisEntity>& GetContainerByIndex(size_t index);
+    size_t GetContainersCount() const;
 
 private:
-    ComponentEntityPtr GetComponentEntityVoidPtr(Entity this_entity) override;
+    ComponentEntityPtr GetComponentEntityVoidPtr(Entity this_entity, size_t index_hint) override;
 
     void Update_impl() requires TrivialUpdatable<ComponentEntityType>;
     void Update_impl() { assert(not Updateable<ComponentEntityType>); };
 
 protected:
     data_set<Entity, ComponentEntityType, CompEntityBaseClass, &CompEntityBaseClass::thisEntity>  componentEntities;
+    std::vector<data_set<Entity, ComponentEntityType, CompEntityBaseClass, &CompEntityBaseClass::thisEntity>> initialized_fabs;
+
+    size_t containersUpdated = 0;
 
 private:
     std::vector<data_set<Entity, ComponentEntityType, CompEntityBaseClass, &CompEntityBaseClass::thisEntity>> fabs;
-    std::list<data_set<Entity, ComponentEntityType, CompEntityBaseClass, &CompEntityBaseClass::thisEntity>> initialized_fabs;
-
 };
 
 
@@ -129,16 +134,15 @@ template<typename ComponentEntityType, componentID component_ID, FixedString com
          template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
 void ComponentDataClass<ComponentEntityType, component_ID, component_name, data_set>::AddInitializedFabs()
 {
-    if constexpr(HasInitMethod<ComponentEntityType>)
-    {
-        for(auto& this_range: initialized_fabs)
-        {
-            for(auto& _this: this_range)
-            {
-                _this.Init();
-            }
-        }
-    }
+    // Don't add deleted component entities
+    std::erase_if(initialized_fabs,
+                  [this](const auto& this_inited_fab)
+                  {
+                        if (this_inited_fab.size() && this->entitiesHandler_ptr->GetInstanceInfo(this_inited_fab.begin()->thisEntity))
+                            return false;
+                        else
+                            return true;
+                  });
 
     componentEntities.add_elements_list(std::make_move_iterator(initialized_fabs.begin()),
                                         std::make_move_iterator(initialized_fabs.end()));
@@ -148,9 +152,47 @@ void ComponentDataClass<ComponentEntityType, component_ID, component_name, data_
 
 template<typename ComponentEntityType, componentID component_ID, FixedString component_name,
          template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
-ComponentEntityPtr ComponentDataClass<ComponentEntityType, component_ID, component_name, data_set>::GetComponentEntityVoidPtr(Entity this_entity)
+ComponentEntityPtr ComponentDataClass<ComponentEntityType, component_ID, component_name, data_set>::GetComponentEntityVoidPtr(Entity this_entity, size_t index_hint)
 {
-    return static_cast<ComponentEntityPtr>(&componentEntities[this_entity]);
+    auto& container_by_hint = GetContainerByIndex(index_hint);
+    if(container_by_hint.does_exist(this_entity))
+        return static_cast<ComponentEntityPtr>(&container_by_hint[this_entity]);
+    else
+    {
+        size_t actual_index = this->entitiesHandler_ptr->GetContainerIndexOfEntity(this_entity);
+        auto& actual_container = GetContainerByIndex(actual_index);
+        return static_cast<ComponentEntityPtr>(&actual_container[this_entity]);
+    }
+}
+
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name,
+        template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
+data_set<Entity, ComponentEntityType, CompEntityBaseClass, &CompEntityBaseClass::thisEntity> &
+ComponentDataClass<ComponentEntityType, component_ID, component_name, data_set>::GetContainerByIndex(size_t index)
+{
+    if(index == 0)
+        return componentEntities;
+    else
+    {
+        size_t vector_index = index - 1;
+
+        assert(vector_index < initialized_fabs.size());
+        return initialized_fabs[vector_index];
+    }
+}
+
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name,
+        template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
+void ComponentDataClass<ComponentEntityType, component_ID, component_name, data_set>::NewUpdateSession()
+{
+    containersUpdated = 0;
+}
+
+template<typename ComponentEntityType, componentID component_ID, FixedString component_name,
+        template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
+size_t ComponentDataClass<ComponentEntityType, component_ID, component_name, data_set>::GetContainersCount() const
+{
+    return initialized_fabs.size() + 1;
 }
 
 template<typename ComponentEntityType, componentID component_ID, FixedString component_name,
@@ -159,10 +201,15 @@ void ComponentDataClass<ComponentEntityType, component_ID, component_name, data_
 {
     auto component_ptrs = GetComponentPtrsOfArguments(ComponentBaseClass::ecsWrapper_ptr, &ComponentEntityType::Update);
 
-    for( auto& this_comp_entity: componentEntities)
+    size_t containers_count_when_start = GetContainersCount();
+    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
     {
-        auto arguments = TranslateComponentPtrsIntoArguments(static_cast<Entity>(this_comp_entity.thisEntity), component_ptrs);
+        auto& this_container = GetContainerByIndex(containersUpdated);
+        for(auto& this_comp_entity: this_container)
+        {
+            auto arguments = TranslateComponentPtrsIntoArguments(static_cast<Entity>(this_comp_entity.thisEntity), containersUpdated, component_ptrs);
 
-        std::apply(&ComponentEntityType::Update, std::tuple_cat(std::tie(this_comp_entity), arguments));
+            std::apply(&ComponentEntityType::Update, std::tuple_cat(std::tie(this_comp_entity), arguments));
+        }
     }
 }

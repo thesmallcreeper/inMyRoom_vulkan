@@ -77,10 +77,6 @@ CameraDefaultInputCompEntity CameraDefaultInputCompEntity::CreateComponentEntity
     return this_defaultCameraInputCompEntity;
 }
 
-void CameraDefaultInputCompEntity::Init()
-{
-}
-
 void CameraDefaultInputCompEntity::Update(CameraComp* const cameraComp_ptr,
                                           const std::chrono::duration<float> durationOfLastState)
 {

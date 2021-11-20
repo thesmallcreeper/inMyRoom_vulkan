@@ -138,8 +138,4 @@ void ModelDrawCompEntity::DrawUsingFrustumCull(LateNodeGlobalMatrixComp* nodeGlo
     }
 }
 
-void ModelDrawCompEntity::Init()
-{
-}
-
 #endif

@@ -19,6 +19,11 @@ void AnimationActorComp::Update() //ComponentSparseBaseClass
 
     std::chrono::duration<float> delta_time = ecsWrapper_ptr->GetUpdateDeltaTime();
 
-    for (auto& this_entity : componentEntities)
-        this_entity.Update(positionComp_ptr, animationsDataOfNodes_ptr, delta_time);
+    size_t containers_count_when_start = GetContainersCount();
+    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
+    {
+        auto& this_container = GetContainerByIndex(containersUpdated);
+        for(auto& this_comp_entity: this_container)
+            this_comp_entity.Update(positionComp_ptr, animationsDataOfNodes_ptr, delta_time);
+    }
 }

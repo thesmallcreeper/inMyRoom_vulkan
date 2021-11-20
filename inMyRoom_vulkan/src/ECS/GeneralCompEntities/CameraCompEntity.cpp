@@ -106,10 +106,6 @@ CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_en
     return this_cameraCompEntity;
 }
 
-void CameraCompEntity::Init()
-{
-}
-
 void CameraCompEntity::Update(bool cull_debugging)
 {
     if (!cull_debugging)

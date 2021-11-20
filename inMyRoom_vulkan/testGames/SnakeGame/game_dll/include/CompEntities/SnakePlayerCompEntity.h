@@ -28,7 +28,6 @@ public:
     */
     static SnakePlayerCompEntity CreateComponentEntityByMap(Entity in_entity, const std::string& entity_name, const CompEntityInitMap& in_map);
 
-    void Init();
     void Update(NodeDataComp* nodeDataComp_ptr,
                 CameraComp* cameraComp_ptr,
                 AnimationActorComp* animationActorComp_ptr,
@@ -43,7 +42,7 @@ public:
                          CameraDefaultInputComp* cameraDefaultInputComp_ptr,
                          AnimationActorComp* animationActorComp_ptr,
                          AnimationComposerComp* animationComposerComp_ptr,
-                         const CollisionCallbackData& this_collisionCallbackData);
+                         const std::vector<CollisionCallbackData>& collisionCallbackData_vector);
 
 private:
     void CalculateSnap(const std::chrono::duration<float> durationOfLastState);
@@ -75,6 +74,7 @@ public: //data
     bool isGoingToDelete = false;
 
     bool shouldStartAnimation = true;
+    bool hasInitialed = false;
 
     Entity animationComposerRelativeEntity;
 };

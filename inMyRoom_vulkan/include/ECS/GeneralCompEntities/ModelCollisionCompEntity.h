@@ -23,8 +23,6 @@ public:
     */
     static ModelCollisionCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
-    void Init();
-
     void AddCollisionDetectionEntryToVector(EarlyNodeGlobalMatrixComp* thisFrameNodeGlobalMatrix_ptr,
                                             LateNodeGlobalMatrixComp* previousFrameNodeGlobalMatrix_ptr,
                                             class MeshesOfNodes* meshesOfNodes_ptr,

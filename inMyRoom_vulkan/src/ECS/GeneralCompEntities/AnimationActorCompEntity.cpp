@@ -50,10 +50,6 @@ AnimationActorCompEntity AnimationActorCompEntity::CreateComponentEntityByMap(co
     return this_animationActorCompEntity;
 }
 
-void AnimationActorCompEntity::Init()
-{
-}
-
 void AnimationActorCompEntity::Update(NodeDataComp* const positionComp_ptr,
                                       AnimationsDataOfNodes* const animationDataOfNodes_ptr, 
                                       const std::chrono::duration<float> deltaTime)

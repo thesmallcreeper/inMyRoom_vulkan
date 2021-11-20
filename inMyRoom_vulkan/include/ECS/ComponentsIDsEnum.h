@@ -19,5 +19,7 @@ enum class componentIDenum : componentID
     Skin                    =  7000,
     CameraDefaultInput      =  8000,
     Camera                  =  9000,
-    ModelDraw               = 10000  // is custom
+    ModelDraw               = 10000,  // is custom
+
+    DefaultLast             = componentID(-1)
 };

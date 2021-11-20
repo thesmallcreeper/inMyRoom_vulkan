@@ -19,8 +19,8 @@ public:
     explicit ComponentBaseWrappedClass(ECSwrapper* in_ecs_wrapper_ptr);
     ~ComponentBaseWrappedClass() override;
 
-    ComponentEntityType& GetComponentEntity(Entity this_entity);
-    const ComponentEntityType& GetComponentEntity(Entity this_entity) const;
+    ComponentEntityType& GetComponentEntity(Entity this_entity, size_t index_hint = 0);
+    const ComponentEntityType& GetComponentEntity(Entity this_entity, size_t index_hint = 0) const;
 
     static constexpr componentID component_ID = _component_ID;
     static constexpr FixedString component_name = _component_name;
@@ -52,16 +52,17 @@ ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name, d
 
 template<typename ComponentEntityType, componentID _component_ID, FixedString _component_name,
          template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
-ComponentEntityType& ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name, data_set>::GetComponentEntity(const Entity this_entity)
+ComponentEntityType& ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name, data_set>::GetComponentEntity(Entity this_entity, size_t index_hint)
 {
-    return *reinterpret_cast<ComponentEntityType*>(GetComponentEntityVoidPtr(this_entity));
+    return *reinterpret_cast<ComponentEntityType*>(GetComponentEntityVoidPtr(this_entity, index_hint));
 }
 
 template<typename ComponentEntityType, componentID _component_ID, FixedString _component_name,
          template<typename _I, typename _D, typename _D_B, _I _D_B::*> typename data_set>
-const ComponentEntityType& ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name, data_set>::GetComponentEntity(const Entity this_entity) const
+const ComponentEntityType& ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name, data_set>::GetComponentEntity(const Entity this_entity, size_t index_hint) const
 {
-    return *reinterpret_cast<const ComponentEntityType*>(const_cast<ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name, data_set>*>(this)->GetComponentEntityVoidPtr(this_entity));
+    return *reinterpret_cast<const ComponentEntityType*>(const_cast<ComponentBaseWrappedClass<ComponentEntityType, _component_ID, _component_name, data_set>*>(this)
+            ->GetComponentEntityVoidPtr(this_entity, index_hint));
 }
 
 template<typename ComponentEntityType, componentID _component_ID, FixedString _component_name,

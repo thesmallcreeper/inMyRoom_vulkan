@@ -3,7 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
-#include <set>
+#include <unordered_set>
 
 #include "ECS/ECStypes.h"
 
@@ -19,7 +19,8 @@ public:
     InstanceInfo* GetInstanceInfo(Entity entity);
     InstanceInfo* GetInstanceInfo(const std::string& name);
 
-    void RemoveInstancesEntities(const std::set<InstanceInfo*>& instance_to_remove_ptrs_set);
+    void RemoveInstancesEntities(const std::unordered_set<InstanceInfo*>& instance_to_remove_ptrs_set);
+    void AdditionsCompleted();
 
     Entity FindEntityByPath(const std::string& instance_name, const std::string& fab_path) const;
     Entity FindEntityByPath(const InstanceInfo* instance_ptr, const std::string& fab_path) const;
@@ -30,6 +31,8 @@ public:
     Entity GetParentOfEntity(Entity entity) const;
     void ChangeParentOfInstance(InstanceInfo* instance_ptr, Entity new_parent);
 
+    size_t GetContainerIndexOfEntity(Entity entity) const;
+
 private:
     std::pair<Entity, Entity> GetRange(size_t size);
     void AddAvailableRanges(std::vector<std::pair<Entity, Entity>>&& new_ranges);
@@ -39,11 +42,12 @@ private:
 private: // Data
     std::vector<Entity> parentOfEachEntity;
     std::vector<InstanceInfo*> instancePtrOfEachEntity;
+    std::vector<uint16_t> containerIndexOfEachEntity;
 
     std::multimap<size_t, std::pair<Entity, Entity>> availableRanges;
+    std::vector<std::pair<Entity, Entity>> additionsNotCompletedRanges;
 
     std::unordered_map<std::string, InstanceInfo*> nameToInstancePtr_umap;
-
     size_t noNameInstancesSoFar = 0;
 };
 

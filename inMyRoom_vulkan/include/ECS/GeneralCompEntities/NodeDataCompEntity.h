@@ -28,8 +28,6 @@ public:
 
     glm::mat4x4 GetGlobalMatrix(glm::mat4x4 parent_global_matrix) const;
 
-    void Init();
-
     void Update();
 
 #endif

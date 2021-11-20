@@ -32,13 +32,19 @@ void SnakePlayerComp::Update()
     componentID animationComposer_componentID = static_cast<componentID>(componentIDenum::AnimationComposer);
     AnimationComposerComp* const animationComposerComp_ptr = static_cast<AnimationComposerComp*>(ecsWrapper_ptr->GetComponentByID(animationComposer_componentID));
 
-    for (SnakePlayerCompEntity& this_componentEntity : componentEntities)
-        this_componentEntity.Update(nodeDataComp_ptr,
+
+    size_t containers_count_when_start = GetContainersCount();
+    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
+    {
+        auto& this_container = GetContainerByIndex(containersUpdated);
+        for(auto& this_comp_entity: this_container)
+            this_comp_entity.Update(nodeDataComp_ptr,
                                     cameraComp_ptr,
                                     animationActorComp_ptr,
                                     animationComposerComp_ptr,
                                     ecsWrapper_ptr->GetUpdateDeltaTime(),
                                     async_duration);
+    }
 
     lastSnapTimePoint = next_snap_timePoint;
 }
@@ -56,7 +62,7 @@ void SnakePlayerComp::AsyncInput(InputType input_type, void* struct_data)
     lastSnapTimePoint = next_snap_timePoint;
 }
 
-void SnakePlayerComp::CollisionCallback(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs)
+void SnakePlayerComp::CollisionCallback(const std::vector<std::pair<Entity, std::vector<CollisionCallbackData>>>& callback_entity_data_pairs)
 {
     componentID nodeData_componentID = static_cast<componentID>(componentIDenum::NodeData);
     NodeDataComp* const nodeDataComp_ptr = static_cast<NodeDataComp*>(ecsWrapper_ptr->GetComponentByID(nodeData_componentID));

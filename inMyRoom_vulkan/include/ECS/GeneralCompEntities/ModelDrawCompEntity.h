@@ -24,8 +24,6 @@ public:
     */
     static ModelDrawCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
-    void Init();
-
     void DrawUsingFrustumCull(LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
                               SkinComp* skin_ptr,
                               class MeshesOfNodes* meshesOfNodes_ptr,

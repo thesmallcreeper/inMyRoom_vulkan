@@ -44,7 +44,8 @@ private:
     std::unique_ptr<Node> ImportModelAnimationComposerAsNodes(Node* root_node, tinygltf::Model& model);
     void ImportNodeComponents(Node* this_node, Node* root_node, tinygltf::Model& this_model);
 
-    Node* GetFabNode(std::string fab_node);
+    Node* GetImportNode(std::string import_node_path);
+    Node* GetFabNode(std::string fab_node_path);
 
     static std::string GetFilePathFolder(const std::string& in_fileName);
     static std::string GetFilePathExtension(const std::string& in_fileName);

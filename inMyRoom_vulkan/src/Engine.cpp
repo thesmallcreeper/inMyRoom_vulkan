@@ -180,7 +180,7 @@ void Engine::Run()
             }
         }
 
-        ECSwrapper_uptr->Update(false);
+        ECSwrapper_uptr->Update();
         graphics_uptr->DrawFrame();
         ECSwrapper_uptr->CompleteAddsAndRemoves();
     }

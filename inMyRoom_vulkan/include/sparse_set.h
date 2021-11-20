@@ -25,8 +25,8 @@ public:
         self_type operator++(int junk) { self_type i = *this; ++ptr_; return i; }
         reference operator*() { return *ptr_; }
         pointer operator->() { return ptr_; }
-        bool operator==(const self_type& rhs) { return ptr_ == rhs.ptr_; }
-        bool operator!=(const self_type& rhs) { return ptr_ != rhs.ptr_; }
+        bool operator==(const self_type& rhs) const { return ptr_ == rhs.ptr_; }
+        bool operator!=(const self_type& rhs) const { return ptr_ != rhs.ptr_; }
     private:
         pointer ptr_;
     };
@@ -45,8 +45,8 @@ public:
         self_type operator++(int junk) { self_type i = *this; ++ptr_; return i; }
         reference operator*() { return *ptr_; }
         pointer operator->() { return ptr_; }
-        bool operator==(const self_type& rhs) { return ptr_ == rhs.ptr_; }
-        bool operator!=(const self_type& rhs) { return ptr_ != rhs.ptr_; }
+        bool operator==(const self_type& rhs) const { return ptr_ == rhs.ptr_; }
+        bool operator!=(const self_type& rhs) const { return ptr_ != rhs.ptr_; }
     private:
         pointer ptr_;
     };
@@ -69,6 +69,22 @@ public:
     const_iterator cbegin() const {return const_iterator(dense_array.data());}
     const_iterator cend() const {return const_iterator(dense_array.data() + dense_array.size());}
 
+    [[nodiscard]] std::pair<iterator, iterator> get_range_iterators(const std::pair<index_T, index_T>& range)
+    {
+        std::pair<iterator, iterator> range_iterators = {dense_array.data() + range.first - sparse_array_offset,
+                                                         dense_array.data() + range.second - sparse_array_offset + 1};
+
+        return range_iterators;
+    }
+
+    [[nodiscard]] std::pair<const_iterator, const_iterator> get_range_iterators(const std::pair<index_T, index_T>& range) const
+    {
+        std::pair<const_iterator, const_iterator> range_iterators = {dense_array.data() + range.first - sparse_array_offset,
+                                                                     dense_array.data() + range.second - sparse_array_offset + 1};
+
+        return range_iterators;
+    }
+
     [[nodiscard]] dense_T& operator[](index_T index)
     {
         assert(index != index_T(-1) && sparse_array_offset != index_T(-1));
@@ -78,12 +94,12 @@ public:
         size_t dense_index = sparse_array[index - sparse_array_offset];
         return dense_array[dense_index];
     }
-    const dense_T& operator[](index_T index) const
+    [[nodiscard]] const dense_T& operator[](index_T index) const
     {
         return const_cast<sparse_set>(this)->operator[](index);
     }
 
-    bool does_exist(index_T index) const
+    [[nodiscard]] bool does_exist(index_T index) const
     {
         return index >= sparse_array_offset &&
                index < sparse_array_offset + sparse_array.size() &&

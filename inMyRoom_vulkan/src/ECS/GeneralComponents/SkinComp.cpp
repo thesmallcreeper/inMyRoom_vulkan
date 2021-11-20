@@ -19,6 +19,11 @@ void SkinComp::Update() //ComponentSparseBaseClass
     componentID nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);
     LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr = static_cast<LateNodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
 
-    for (auto& this_comp_entity: componentEntities)
-        this_comp_entity.Update(nodeGlobalMatrixComp_ptr, skinsOfMeshes_ptr);
+    size_t containers_count_when_start = GetContainersCount();
+    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
+    {
+        auto& this_container = GetContainerByIndex(containersUpdated);
+        for(auto& this_comp_entity: this_container)
+            this_comp_entity.Update(nodeGlobalMatrixComp_ptr, skinsOfMeshes_ptr);
+    }
 }

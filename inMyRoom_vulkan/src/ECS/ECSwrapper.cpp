@@ -4,6 +4,7 @@ ECSwrapper::ECSwrapper(ExportedFunctions* in_enginesExportedFunctions_ptr)
     :exportedFunctions_ptr(in_enginesExportedFunctions_ptr)
 {
     componentIDtoComponentBaseClass_map.emplace(static_cast<componentID>(componentIDenum::Default), nullptr);
+    componentIDtoComponentBaseClass_map.emplace(static_cast<componentID>(componentIDenum::DefaultLast), nullptr);
     entitiesHandler_uptr = std::make_unique<EntitiesHandler>();
 }
 
@@ -297,21 +298,54 @@ AdditionInfo* ECSwrapper::AddInstance(const FabInfo* fab_info_ptr, const std::st
 
 void ECSwrapper::RemoveInstance(InstanceInfo* instance_info_ptr)
 {
-    instancesToBeRemoved.emplace_back(instance_info_ptr);
+    std::vector<InstanceInfo *> instances_to_remove;
+
+    instances_to_remove.emplace_back(instance_info_ptr);
+    GetChildrenInstanceTree(instance_info_ptr, instances_to_remove);
+
+    for(InstanceInfo* this_instance_ptr: instances_to_remove)
+    {
+        auto iterator_bool_pair = instancesToBeRemoved.emplace(this_instance_ptr);
+        if (iterator_bool_pair.second)
+            instancesToCallbackToBeRemoved.emplace_back(this_instance_ptr);
+    }
 }
 
-void ECSwrapper::Update(bool complete_adds_and_removes)
+void ECSwrapper::Update()
 {
     std::lock_guard<std::mutex> lock(controlMutex);
 
     RefreshUpdateDeltaTime();
 
+    // Restart updates
     for (auto& this_component : componentIDtoComponentBaseClass_map)
+    {
         if (this_component.second != nullptr)
-            this_component.second->Update();
+            this_component.second->NewUpdateSession();
+    }
 
-    if (complete_adds_and_removes)
-        CompleteAddsAndRemovesUnsafe();
+    // Update
+    size_t additionsUpdated = 0;
+    for (auto it = componentIDtoComponentBaseClass_map.begin(); it != componentIDtoComponentBaseClass_map.end(); ++it)
+    {
+        while (additionsUpdated != additionInfoUptrs.size())
+        {
+            additionsUpdated = additionInfoUptrs.size();
+            for (auto it_reupdate = componentIDtoComponentBaseClass_map.begin(); it_reupdate != it; ++it_reupdate)
+            {
+                if (it_reupdate->second != nullptr)
+                {
+                    it_reupdate->second->Update();
+                    MakeToBeRemovedCallbacks();
+                }
+            }
+        }
+        if (it->second != nullptr)
+        {
+            it->second->Update();
+            MakeToBeRemovedCallbacks();
+        }
+    }
 }
 
 void ECSwrapper::AsyncInput(InputType input_type, void* struct_data)
@@ -334,52 +368,74 @@ ExportedFunctions* ECSwrapper::GetEnginesExportedFunctions() const
     return exportedFunctions_ptr;
 }
 
+void ECSwrapper::MakeToBeRemovedCallbacks()
+{
+    std::map<ComponentBaseClass *, std::vector<std::pair<Entity, Entity>>> component_to_ranges_to_callback_toBeRemoved_map;
+    for (InstanceInfo *this_instance_ptr: instancesToCallbackToBeRemoved)
+    {
+        for (const auto &this_component_range_pair: this_instance_ptr->fabInfo->component_ranges)
+        {
+            std::pair<Entity, Entity> range_to_callback_toBeRemoved= std::pair<Entity, Entity>(
+                    this_instance_ptr->entityOffset + this_component_range_pair.second.first,
+                    this_instance_ptr->entityOffset + this_component_range_pair.second.second);
+
+            auto iterator_bool_pair = component_to_ranges_to_callback_toBeRemoved_map.try_emplace(this_component_range_pair.first);
+            iterator_bool_pair.first->second.emplace_back(range_to_callback_toBeRemoved);
+        }
+    }
+
+    for (const auto &this_component_vector_of_ranges_pair : component_to_ranges_to_callback_toBeRemoved_map)
+        if (this_component_vector_of_ranges_pair.first != nullptr)
+            this_component_vector_of_ranges_pair.first->ToBeRemovedCallback(this_component_vector_of_ranges_pair.second);
+
+    instancesToCallbackToBeRemoved.clear();
+}
+
+
 void ECSwrapper::CompleteAddsAndRemovesUnsafe()
 {
     CompleteRemovesUnsafe();
     CompleteAddsUnsafe();
 }
 
-void ECSwrapper::CompleteRemovesUnsafe()
-{
-    std::set<InstanceInfo*> instances_and_children_to_be_deleted;
-    for(InstanceInfo* this_instance_ptr: instancesToBeRemoved)
+void ECSwrapper::CompleteRemovesUnsafe() {
+    // Remove from components
+    std::map<ComponentBaseClass *, std::vector<std::pair<Entity, Entity>>> component_to_ranges_to_be_deleted_map;
+    for (InstanceInfo *this_instance_ptr: instancesToBeRemoved)
     {
-        instances_and_children_to_be_deleted.emplace(this_instance_ptr);
-        GetChildrenInstanceTree(this_instance_ptr, instances_and_children_to_be_deleted);
-    }
-
-    std::map<ComponentBaseClass*, std::vector<std::pair<Entity, Entity>>> component_to_ranges_to_be_deleted_map;
-    for(InstanceInfo* this_instance_ptr: instances_and_children_to_be_deleted)
-    {
-        for(const auto& this_component_range_pair:this_instance_ptr->fabInfo->component_ranges)
+        if (entitiesHandler_uptr->GetContainerIndexOfEntity(this_instance_ptr->entityOffset) == 0)
         {
-            std::pair<Entity, Entity> range_to_be_removed = std::pair<Entity, Entity>(this_instance_ptr->entityOffset + this_component_range_pair.second.first,
-                                                                                      this_instance_ptr->entityOffset + this_component_range_pair.second.second);
+            for (const auto &this_component_range_pair: this_instance_ptr->fabInfo->component_ranges)
+            {
+                std::pair<Entity, Entity> range_to_be_removed = std::pair<Entity, Entity>(
+                        this_instance_ptr->entityOffset + this_component_range_pair.second.first,
+                        this_instance_ptr->entityOffset + this_component_range_pair.second.second);
 
-            auto iterator_bool_pair = component_to_ranges_to_be_deleted_map.try_emplace(this_component_range_pair.first);
-            iterator_bool_pair.first->second.emplace_back(range_to_be_removed);
+                auto iterator_bool_pair = component_to_ranges_to_be_deleted_map.try_emplace(this_component_range_pair.first);
+                iterator_bool_pair.first->second.emplace_back(range_to_be_removed);
+            }
         }
     }
 
-    // Remove from components
-    for(const auto& this_component_vector_of_ranges_pair: component_to_ranges_to_be_deleted_map)
+
+    for (const auto &this_component_vector_of_ranges_pair: component_to_ranges_to_be_deleted_map)
     {
-        this_component_vector_of_ranges_pair.first->RemoveInstancesByRanges(this_component_vector_of_ranges_pair.second);
+        this_component_vector_of_ranges_pair.first->RemoveInstancesByRanges(
+                this_component_vector_of_ranges_pair.second);
     }
 
     // Remove from entities handler and free up these entities
-    entitiesHandler_uptr->RemoveInstancesEntities(instances_and_children_to_be_deleted);
+    entitiesHandler_uptr->RemoveInstancesEntities(instancesToBeRemoved);
 
     instancesToBeRemoved.clear();
 }
 
-void ECSwrapper::GetChildrenInstanceTree(InstanceInfo* instance_info_ptr, std::set<InstanceInfo*>& set_of_children)
+void ECSwrapper::GetChildrenInstanceTree(InstanceInfo* instance_info_ptr, std::vector<InstanceInfo*>& children)
 {
     for(InstanceInfo* this_instance_ptr: instance_info_ptr->instanceChildren)
     {
-        set_of_children.emplace(this_instance_ptr);
-        GetChildrenInstanceTree(this_instance_ptr, set_of_children);
+        children.emplace_back(this_instance_ptr);
+        GetChildrenInstanceTree(this_instance_ptr, children);
     }
 }
 
@@ -389,5 +445,7 @@ void ECSwrapper::CompleteAddsUnsafe()
         if (this_component.second != nullptr)
             this_component.second->AddInitializedFabs();
 
+    entitiesHandler_uptr->AdditionsCompleted();
     additionInfoUptrs.clear();
 }
+

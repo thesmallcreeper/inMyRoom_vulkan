@@ -19,7 +19,7 @@ public:
     void ExecuteCollisionDetection();
 
 private:
-    void MakeCallbacks(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs) const;
+    void MakeCallbacks(std::unordered_map<Entity, std::vector<CollisionCallbackData>>&& callbacks_to_be_made) const;
 
     float PointMovementBetweenFrames(glm::vec3 point, const glm::mat4& m_first, const glm::mat4& m_second);
 

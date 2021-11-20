@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <chrono>
+#include <unordered_set>
 
 #include "ECS/ECStypes.h"
 
@@ -82,7 +83,7 @@ public:
     AdditionInfo* AddInstance(const FabInfo* fab_info_ptr, const std::string& instance_name, Entity parent = 0);
     void RemoveInstance(InstanceInfo* instance_info_ptr);
 
-    void Update(bool complete_adds_and_removes);
+    void Update();
     void AsyncInput(InputType input_type, void* struct_data = nullptr);                         // Forbidden to add or remove anything
 
     void CompleteAddsAndRemoves();
@@ -93,14 +94,17 @@ private:
     void AddNodeExistence(FabInfo& fab_info, Node* this_node_ptr, Entity& entities_added, Entity parent, std::string parent_name);
     void AddFabsCompEntitiesToComponents(FabInfo& fab_info, Node* this_node_ptr, Entity& entities_processes);
 
+    void MakeToBeRemovedCallbacks();
+
     void CompleteAddsAndRemovesUnsafe();
     void CompleteRemovesUnsafe();
     void CompleteAddsUnsafe();
 
-    void GetChildrenInstanceTree(InstanceInfo* instance_info_ptr, std::set<InstanceInfo*>& set_of_children);
+    void GetChildrenInstanceTree(InstanceInfo* instance_info_ptr, std::vector<InstanceInfo*>& children);
 
 private:    // data
-    std::vector<InstanceInfo*> instancesToBeRemoved;
+    std::unordered_set<InstanceInfo*> instancesToBeRemoved;
+    std::vector<InstanceInfo*> instancesToCallbackToBeRemoved;
     std::vector<std::unique_ptr<AdditionInfo>> additionInfoUptrs;
 
     std::vector<FabInfo> fabsInfos;

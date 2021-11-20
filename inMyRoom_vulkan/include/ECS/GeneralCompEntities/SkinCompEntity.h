@@ -21,7 +21,6 @@ public:
     */
     static SkinCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
-    void Init();
     void Update(LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
                 class SkinsOfMeshes* skinsOfMeshes_ptr);
 

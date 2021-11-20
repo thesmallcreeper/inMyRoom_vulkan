@@ -52,9 +52,6 @@ SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity
     return this_skinCompEntity;
 }
 
-void SkinCompEntity::Init()
-{
-}
 
 void SkinCompEntity::Update(LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr, SkinsOfMeshes* skinsOfMeshes_ptr)
 {

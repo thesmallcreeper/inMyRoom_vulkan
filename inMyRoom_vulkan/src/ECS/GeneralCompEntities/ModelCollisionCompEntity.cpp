@@ -53,9 +53,6 @@ ModelCollisionCompEntity ModelCollisionCompEntity::CreateComponentEntityByMap(co
     return this_modelCollisionCompEntity;
 }
 
-void ModelCollisionCompEntity::Init()
-{}
-
 void ModelCollisionCompEntity::AddCollisionDetectionEntryToVector(EarlyNodeGlobalMatrixComp* thisFrameNodeGlobalMatrix_ptr,
                                                                   LateNodeGlobalMatrixComp* previousFrameNodeGlobalMatrix_ptr,
                                                                   MeshesOfNodes* meshesOfNodes_ptr,

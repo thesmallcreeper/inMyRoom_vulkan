@@ -12,6 +12,4 @@ class AnimationComposerComp final
 public:
     explicit AnimationComposerComp(ECSwrapper* in_ecs_wrapper_ptr);
     ~AnimationComposerComp() override;
-
-    void Update() override;
 };

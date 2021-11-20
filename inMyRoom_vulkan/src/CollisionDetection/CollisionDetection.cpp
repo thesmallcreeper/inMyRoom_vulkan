@@ -66,7 +66,7 @@ void CollisionDetection::ExecuteCollisionDetection()
         }
     }
 
-    std::vector<std::pair<Entity, CollisionCallbackData>> callbacks_to_be_made;
+    std::unordered_map<Entity, std::vector<CollisionCallbackData>> callbacks_to_be_made;
     for (CDentriesUncollideRays& this_uncollideRaysResult : createUncollideRaysResults)
     {
         CollisionCallbackData first_collisionCallbackData;
@@ -111,7 +111,7 @@ void CollisionDetection::ExecuteCollisionDetection()
             if(index >= second_ancestors.size() ||
                first_ancestors[index] != second_ancestors[index])
             {
-                callbacks_to_be_made.emplace_back(first_ancestors[index], first_collisionCallbackData);
+                callbacks_to_be_made[first_ancestors[index]].emplace_back(first_collisionCallbackData);
             }
         }
 
@@ -120,20 +120,23 @@ void CollisionDetection::ExecuteCollisionDetection()
             if(index >= first_ancestors.size() ||
                first_ancestors[index] != second_ancestors[index])
             {
-                callbacks_to_be_made.emplace_back(second_ancestors[index], second_collisionCallbackData);
+                callbacks_to_be_made[second_ancestors[index]].emplace_back(second_collisionCallbackData);
             }
         }
     }
 
-    MakeCallbacks(callbacks_to_be_made);
+    MakeCallbacks(std::move(callbacks_to_be_made));
 }
 
-void CollisionDetection::MakeCallbacks(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs) const
+void CollisionDetection::MakeCallbacks(std::unordered_map<Entity, std::vector<CollisionCallbackData>>&& callbacks_to_be_made) const
 {
+    std::vector<std::pair<Entity, std::vector<CollisionCallbackData>>> callbacks_to_be_made_vector(std::make_move_iterator(callbacks_to_be_made.begin()),
+                                                                                                   std::make_move_iterator(callbacks_to_be_made.end()));
+
     for(const auto& this_compID_component_ptr_pair: ECSwrapper_ptr->GetComponentIDtoComponentBaseClassMap())
     {
         if(this_compID_component_ptr_pair.second != nullptr)
-            this_compID_component_ptr_pair.second->CollisionCallback(callback_entity_data_pairs);
+            this_compID_component_ptr_pair.second->CollisionCallback(callbacks_to_be_made_vector);
     }
 }
 

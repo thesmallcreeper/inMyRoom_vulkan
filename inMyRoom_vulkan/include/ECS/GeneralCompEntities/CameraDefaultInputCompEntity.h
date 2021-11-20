@@ -26,7 +26,6 @@ public:
     */
     static CameraDefaultInputCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
-    void Init();
     void Update(CameraComp* cameraComp_ptr,
                 std::chrono::duration<float> durationOfLastState);
 

@@ -12,7 +12,5 @@ class LateNodeGlobalMatrixComp final
 public:
     explicit LateNodeGlobalMatrixComp(ECSwrapper* const in_ecs_wrapper_ptr);
     ~LateNodeGlobalMatrixComp() override;
-
-    void Update() override;
 };
 

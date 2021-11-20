@@ -24,7 +24,7 @@ public:
 
     DrawRequestsBatch DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,
                                            PrimitivesOfMeshes* primitivesOfMeshes_ptr,
-                                           FrustumCulling* frustumCulling_ptr) const;
+                                           FrustumCulling* frustumCulling_ptr);
 
 };
 

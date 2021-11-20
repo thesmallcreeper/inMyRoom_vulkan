@@ -81,8 +81,6 @@ struct InstanceInfo
 
     std::string instanceName;
 
-    size_t size;
-
     InstanceInfo* parent_instance = nullptr;
     std::set<InstanceInfo*> instanceChildren;
 };

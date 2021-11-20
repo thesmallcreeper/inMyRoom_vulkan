@@ -129,18 +129,7 @@ void GameImporter::AddFabs()
         std::string this_fab_name = this_iterator.key();
         std::string this_fab_import_path = this_iterator.value()["basedOn"].as_string();
 
-        auto search = imports_umap.find(this_fab_import_path.substr(0, this_fab_import_path.find_first_of("/")));
-        assert(search != imports_umap.end());
-
-        Node* this_import_ptr = search->second.get();
-
-        std::string rest_of_path;
-        if (this_fab_import_path.find_first_of("/") != std::string::npos)
-            rest_of_path = this_fab_import_path.substr(this_fab_import_path.find_first_of("/") + 1);
-        else
-            rest_of_path = "";
-
-        Node* this_node = FindNodeInTree(this_import_ptr, rest_of_path);
+        Node* this_node = GetImportNode(this_fab_import_path);
 
         std::unique_ptr<Node> this_fab = std::make_unique<Node>(*this_node);
         this_fab->nodeName = this_fab_name;
@@ -254,7 +243,7 @@ std::unique_ptr<Node> GameImporter::ImportModelAnimationComposerAsNodes(Node* ro
         this_map.stringMap.emplace(std::make_pair("AnimationName", this_animation_name));
 
         std::unordered_set<std::string> animation_actor_nodes_uset;
-        for (const tinygltf::AnimationChannel this_animationChannel : this_animation.channels)
+        for (const tinygltf::AnimationChannel& this_animationChannel : this_animation.channels)
         {
             std::string this_channel_target_node_path = GetPathUsingGLTFindex(root_node, this_animationChannel.target_node);
             std::string this_animation_composer_node_path = root_node->nodeName + "/" + return_node_uptr->nodeName + "/" + this_animation_name;
@@ -359,6 +348,7 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
                     if (!has_animation_init_on_actor)
                     {
                         animationData_index = engine_ptr->GetGraphicsPtr()->GetAnimationsDataOfNodesPtr()->RegistAnimationsDataAndGetIndex();
+
                         this_map.stringMap.emplace(std::make_pair("Animation_" + std::to_string(animations_count_of_actor), this_animation.name));
                         this_map.intMap.emplace(std::make_pair(this_animation.name + "_animationIndex", static_cast<int>(animationData_index)));
 
@@ -742,9 +732,29 @@ void GameImporter::AddTweaksToNode(Node* this_node, const configuru::Config& twe
     }
 }
 
-Node* GameImporter::GetFabNode(std::string fab_node)
+Node* GameImporter::GetImportNode(std::string import_node_path)
 {
-    std::string fab_name = fab_node.substr(0, fab_node.find_first_of("/"));
+    std::string import_name = import_node_path.substr(0, import_node_path.find_first_of("/"));
+
+    auto search = imports_umap.find(import_name);
+    assert(search != imports_umap.end());
+
+    Node* this_root_node = search->second.get();
+
+    std::string rest_of_path;
+    if (import_node_path.find_first_of("/") != std::string::npos)
+        rest_of_path = import_node_path.substr(import_node_path.find_first_of("/") + 1);
+    else
+        rest_of_path = "";
+
+    Node* requested_node = FindNodeInTree(this_root_node, rest_of_path);
+
+    return requested_node;
+}
+
+Node* GameImporter::GetFabNode(std::string fab_node_path)
+{
+    std::string fab_name = fab_node_path.substr(0, fab_node_path.find_first_of("/"));
 
     auto search = fabs_umap.find(fab_name);
     assert(search != fabs_umap.end());
@@ -752,8 +762,8 @@ Node* GameImporter::GetFabNode(std::string fab_node)
     Node* this_root_node = search->second.get();
 
     std::string rest_of_path;
-    if (fab_name.find_first_of("/") != std::string::npos)
-        rest_of_path = rest_of_path.substr(rest_of_path.find_first_of("/") + 1);
+    if (fab_node_path.find_first_of("/") != std::string::npos)
+        rest_of_path = fab_node_path.substr(fab_node_path.find_first_of("/") + 1);
     else
         rest_of_path = "";
 

@@ -20,16 +20,18 @@ public:
         typedef dense_T* pointer;
         typedef std::forward_iterator_tag iterator_category;
         typedef int difference_type;
-        iterator(pointer ptr, pointer ptr_end) : ptr_(ptr), ptr_end_(ptr_end) { go_to_valid_element(); }
+        explicit iterator(pointer ptr, pointer ptr_end) : ptr_(ptr), ptr_end_(ptr_end) { }
         self_type& operator++() { ++ptr_; go_to_valid_element(); return *this;  }
         self_type operator++(int junk) { self_type i = *this; ++ptr_; go_to_valid_element(); return i; }
         reference operator*() { return *ptr_; }
         pointer operator->() { return ptr_; }
-        bool operator==(const self_type& rhs) { return ptr_ == rhs.ptr_; }
-        bool operator!=(const self_type& rhs) { return ptr_ != rhs.ptr_; }
-    private:
+        bool operator==(const self_type& rhs) const { return ptr_ == rhs.ptr_; }
+        bool operator!=(const self_type& rhs) const { return ptr_ != rhs.ptr_; }
+
         void go_to_valid_element()
         {
+            assert(ptr_ <= ptr_end_);
+
             while(ptr_ != ptr_end_)
             {
                 if(*ptr_.*dense_T_index_ptr != index_T(-1))
@@ -39,6 +41,7 @@ public:
             }
         }
 
+    private:
         pointer ptr_;
         pointer ptr_end_;
     };
@@ -52,16 +55,18 @@ public:
         typedef const dense_T* pointer;
         typedef std::forward_iterator_tag iterator_category;
         typedef int difference_type;
-        const_iterator(pointer ptr, pointer ptr_end) : ptr_(ptr), ptr_end_(ptr_end) { go_to_valid_element(); }
+        explicit const_iterator(pointer ptr, pointer ptr_end) : ptr_(ptr), ptr_end_(ptr_end) { }
         self_type& operator++() { ++ptr_; go_to_valid_element(); return *this;  }
         self_type operator++(int junk) { self_type i = *this; ++ptr_; go_to_valid_element(); return i; }
         reference operator*() { return *ptr_; }
         pointer operator->() { return ptr_; }
-        bool operator==(const self_type& rhs) { return ptr_ == rhs.ptr_; }
-        bool operator!=(const self_type& rhs) { return ptr_ != rhs.ptr_; }
-    private:
+        bool operator==(const self_type& rhs) const { return ptr_ == rhs.ptr_; }
+        bool operator!=(const self_type& rhs) const { return ptr_ != rhs.ptr_; }
+
         void go_to_valid_element()
         {
+            assert(ptr_ <= ptr_end_);
+
             while(ptr_ != ptr_end_)
             {
                 if(*ptr_.*dense_T_index_ptr != index_T(-1))
@@ -71,6 +76,7 @@ public:
             }
         }
 
+    private:
         pointer ptr_;
         pointer ptr_end_;
     };
@@ -86,12 +92,28 @@ public:
     }
 
 
-    iterator begin() {return iterator(array.data(), array.data() + array.size());}
-    iterator end() {return iterator(array.data() + array.size(), array.data() + array.size());}
-    const_iterator begin() const {return const_iterator(array.data(), array.data() + array.size());}
-    const_iterator end() const {return const_iterator(array.data() + array.size(), array.data() + array.size());}
-    const_iterator cbegin() const {return const_iterator(array.data(), array.data() + array.size());}
-    const_iterator cend() const {return const_iterator(array.data() + array.size(), array.data() + array.size());}
+    iterator begin() {auto it = iterator(array.data(), array.data() + array.size()); it.go_to_valid_element(); return it;}
+    iterator end() {auto it = iterator(array.data() + array.size(), array.data() + array.size()); it.go_to_valid_element(); return it;}
+    const_iterator begin() const {auto it = const_iterator(array.data(), array.data() + array.size()); it.go_to_valid_element(); return it;}
+    const_iterator end() const {auto it = const_iterator(array.data() + array.size(), array.data() + array.size()); it.go_to_valid_element(); return it;}
+    const_iterator cbegin() const {auto it = const_iterator(array.data(), array.data() + array.size()); it.go_to_valid_element(); return it;}
+    const_iterator cend() const {auto it = const_iterator(array.data() + array.size(), array.data() + array.size()); it.go_to_valid_element(); return it;}
+
+    [[nodiscard]] std::pair<iterator, iterator> get_range_iterators(const std::pair<index_T, index_T>& range)
+    {
+        std::pair<iterator, iterator> range_iterators = {iterator(array.data() + range.first - array_offset     , array.data() + range.second - array_offset + 1),
+                                                         iterator(array.data() + range.second - array_offset + 1, array.data() + range.second - array_offset + 1)};
+
+        return range_iterators;
+    }
+
+    [[nodiscard]] std::pair<const_iterator, const_iterator> get_range_iterators(const std::pair<index_T, index_T>& range) const
+    {
+        std::pair<const_iterator, const_iterator> range_iterators = {const_iterator(array.data() + range.first - array_offset     , array.data() + range.second - array_offset + 1),
+                                                                     const_iterator(array.data() + range.second - array_offset + 1, array.data() + range.second - array_offset + 1)};
+
+        return range_iterators;
+    }
 
     [[nodiscard]] dense_T& operator[](index_T index)
     {

@@ -18,8 +18,13 @@ CameraComp::~CameraComp()
 
 void CameraComp::Update()
 {
-    for (CameraCompEntity& this_componentEntity : componentEntities)
-        this_componentEntity.Update(cullingDebugging);
+    size_t containers_count_when_start = GetContainersCount();
+    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
+    {
+        auto& this_container = GetContainerByIndex(containersUpdated);
+        for(auto& this_comp_entity: this_container)
+            this_comp_entity.Update(cullingDebugging);
+    }
 }
 
 void CameraComp::BindCameraEntity(Entity this_camera_entity)

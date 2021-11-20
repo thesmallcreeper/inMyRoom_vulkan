@@ -15,7 +15,7 @@ public:
     void Update() override;
     void AsyncInput(InputType input_type, void* struct_data = nullptr) override;
 
-    void CollisionCallback(const std::vector<std::pair<Entity, CollisionCallbackData>>& callback_entity_data_pairs) override;
+    void CollisionCallback(const std::vector<std::pair<Entity, std::vector<CollisionCallbackData>>>& callback_entity_data_pairs) override;
 
 private:
     std::chrono::steady_clock::time_point lastSnapTimePoint;

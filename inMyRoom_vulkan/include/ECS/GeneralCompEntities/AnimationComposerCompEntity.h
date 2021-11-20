@@ -11,7 +11,7 @@ class AnimationComposerCompEntity :
 {
 #ifndef GAME_DLL
 public:
-    AnimationComposerCompEntity(const Entity this_entity);
+    AnimationComposerCompEntity(Entity this_entity);
 
     static AnimationComposerCompEntity GetEmpty();
 

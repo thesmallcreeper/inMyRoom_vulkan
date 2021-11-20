@@ -7,9 +7,9 @@ EntitiesHandler::EntitiesHandler()
 {
     InstanceInfo* root_instance_ptr = new InstanceInfo();
     root_instance_ptr->instanceName = "_default";
-    root_instance_ptr->size = 1;
 
     parentOfEachEntity.emplace_back(0);
+    containerIndexOfEachEntity.emplace_back(0);
     instancePtrOfEachEntity.emplace_back(root_instance_ptr);
     nameToInstancePtr_umap.emplace(root_instance_ptr->instanceName, root_instance_ptr);
 
@@ -28,7 +28,7 @@ InstanceInfo* EntitiesHandler::AddInstanceEntities(const FabInfo* fab_info_ptr,
                                                    Entity parent)
 {
     std::string instance_name = fab_info_ptr->fabName + "_" + std::to_string(noNameInstancesSoFar++);
-    return AddInstanceEntities(fab_info_ptr, std::move(instance_name), parent);
+    return AddInstanceEntities(fab_info_ptr, instance_name, parent);
 }
 
 InstanceInfo* EntitiesHandler::AddInstanceEntities(const FabInfo* fab_info_ptr,
@@ -42,27 +42,32 @@ InstanceInfo* EntitiesHandler::AddInstanceEntities(const FabInfo* fab_info_ptr,
 
     instance_info_ptr->fabInfo = fab_info_ptr;
     instance_info_ptr->instanceName = instance_name;
-    instance_info_ptr->size = instance_info_ptr->fabInfo->size;
 
-    const std::pair<Entity, Entity> range = GetRange(instance_info_ptr->size);
+    const std::pair<Entity, Entity> range = GetRange(instance_info_ptr->fabInfo->size);
 
     instance_info_ptr->entityOffset = range.first;
 
     ExtentVectors(range.second);
 
-    InstanceInfo* const parent_instance_info_ptr = instancePtrOfEachEntity[parent];
+    InstanceInfo* const parent_instance_info_ptr = GetInstanceInfo(parent);
     parent_instance_info_ptr->instanceChildren.emplace(instance_info_ptr);
     instance_info_ptr->parent_instance = parent_instance_info_ptr;
 
     parentOfEachEntity[range.first] = parent;
-    for(size_t index = 1; index != instance_info_ptr->size; index++)
+    for(size_t index = 1; index != instance_info_ptr->fabInfo->size; index++)
     {
-        parentOfEachEntity[index + range.first] = instance_info_ptr->fabInfo->entitiesParents[index] + range.first;
+        parentOfEachEntity[index + instance_info_ptr->entityOffset] = instance_info_ptr->fabInfo->entitiesParents[index] + instance_info_ptr->entityOffset;
     }
 
-    for(size_t index = 0; index != instance_info_ptr->size; index++)
+    for(size_t index = 0; index != instance_info_ptr->fabInfo->size; index++)
     {
-        instancePtrOfEachEntity[index + range.first] = instance_info_ptr;
+        instancePtrOfEachEntity[index + instance_info_ptr->entityOffset] = instance_info_ptr;
+    }
+
+    additionsNotCompletedRanges.emplace_back(range);
+    for(size_t index = 0; index != instance_info_ptr->fabInfo->size; index++)
+    {
+        containerIndexOfEachEntity[index + instance_info_ptr->entityOffset] = additionsNotCompletedRanges.size();
     }
 
     nameToInstancePtr_umap.emplace(instance_name, instance_info_ptr);
@@ -73,8 +78,6 @@ InstanceInfo* EntitiesHandler::AddInstanceEntities(const FabInfo* fab_info_ptr,
 InstanceInfo* EntitiesHandler::GetInstanceInfo(Entity entity)
 {
     InstanceInfo* instance_ptr = instancePtrOfEachEntity[entity];
-    assert(instance_ptr != nullptr);
-
     return instance_ptr;
 }
 
@@ -86,7 +89,7 @@ InstanceInfo* EntitiesHandler::GetInstanceInfo(const std::string& name)
     return search->second;
 }
 
-void EntitiesHandler::RemoveInstancesEntities(const std::set<InstanceInfo*>& instance_to_remove_ptrs_set)
+void EntitiesHandler::RemoveInstancesEntities(const std::unordered_set<InstanceInfo*>& instance_to_remove_ptrs_set)
 {
     if(instance_to_remove_ptrs_set.empty())
         return;
@@ -105,10 +108,11 @@ void EntitiesHandler::RemoveInstancesEntities(const std::set<InstanceInfo*>& ins
             parent_instance_info_ptr->instanceChildren.erase(search);
         }
 
-        for(size_t index = this_instance_ptr->entityOffset; index != this_instance_ptr->entityOffset + this_instance_ptr->size; ++index)
+        for(size_t index = this_instance_ptr->entityOffset; index != this_instance_ptr->entityOffset + this_instance_ptr->fabInfo->size; ++index)
         {
             parentOfEachEntity[index] = -1;
             instancePtrOfEachEntity[index] = nullptr;
+            containerIndexOfEachEntity[index] = -1;
         }
 
         {
@@ -118,7 +122,7 @@ void EntitiesHandler::RemoveInstancesEntities(const std::set<InstanceInfo*>& ins
             nameToInstancePtr_umap.erase(search);
         }
 
-        ranges_to_become_available.emplace_back(Entity(this_instance_ptr->entityOffset), Entity(this_instance_ptr->entityOffset + this_instance_ptr->size - 1));     
+        ranges_to_become_available.emplace_back(Entity(this_instance_ptr->entityOffset), Entity(this_instance_ptr->entityOffset + this_instance_ptr->fabInfo->size - 1));
     }
 
     for(const auto& this_instance_ptr: instance_to_remove_ptrs_set)
@@ -129,6 +133,21 @@ void EntitiesHandler::RemoveInstancesEntities(const std::set<InstanceInfo*>& ins
 
     AddAvailableRanges(std::move(ranges_to_become_available));
 }
+
+void EntitiesHandler::AdditionsCompleted()
+{
+    for(const auto& this_range: additionsNotCompletedRanges)
+    {
+        for(size_t index = this_range.first; index <= this_range.second; ++index)
+        {
+            if(containerIndexOfEachEntity[index] != decltype(containerIndexOfEachEntity)::value_type(-1))
+                containerIndexOfEachEntity[index] = 0;
+        }
+    }
+
+    additionsNotCompletedRanges.clear();
+}
+
 
 Entity EntitiesHandler::FindEntityByPath(const std::string& instance_name, const std::string& fab_path) const
 {
@@ -210,6 +229,12 @@ void EntitiesHandler::ChangeParentOfInstance(InstanceInfo* instance_ptr, Entity 
     }
 }
 
+size_t EntitiesHandler::GetContainerIndexOfEntity(Entity entity) const
+{
+    assert(entity < containerIndexOfEachEntity.size());
+    return containerIndexOfEachEntity[entity];
+}
+
 std::pair<Entity, Entity> EntitiesHandler::GetRange(size_t size)
 {
     auto search_bigger_than_size = availableRanges.lower_bound(size);
@@ -270,5 +295,6 @@ void EntitiesHandler::ExtentVectors(size_t max_index)
     {
         parentOfEachEntity.resize(max_index + 1, -1);
         instancePtrOfEachEntity.resize(max_index + 1, nullptr);
+        containerIndexOfEachEntity.resize(max_index + 1, -1);
     }
 }

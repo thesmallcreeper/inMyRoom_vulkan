@@ -23,13 +23,15 @@ void ModelCollisionComp::Update()
     componentID earlyNodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::EarlyNodeGlobalMatrix);
     EarlyNodeGlobalMatrixComp* const this_frame_nodeGlobalMatrixComp_ptr = static_cast<EarlyNodeGlobalMatrixComp*> (ecsWrapper_ptr->GetComponentByID(earlyNodeGlobalMatrix_componentID));
 
-    for (auto& this_comp_entity: componentEntities)
+    size_t containers_count_when_start = GetContainersCount();
+    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
     {
-        this_comp_entity.AddCollisionDetectionEntryToVector(this_frame_nodeGlobalMatrixComp_ptr,
-                                                            previous_frame_nodeGlobalMatrixComp_ptr,
-                                                            meshesOfNodes_ptr,
-                                                            collisionDetection_ptr);
+        auto& this_container = GetContainerByIndex(containersUpdated);
+        for(auto& this_comp_entity: this_container)
+            this_comp_entity.AddCollisionDetectionEntryToVector(this_frame_nodeGlobalMatrixComp_ptr,
+                                                                previous_frame_nodeGlobalMatrixComp_ptr,
+                                                                meshesOfNodes_ptr,
+                                                                collisionDetection_ptr);
     }
-
     collisionDetection_ptr->ExecuteCollisionDetection();
 }

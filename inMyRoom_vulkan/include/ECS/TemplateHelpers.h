@@ -32,6 +32,23 @@ auto GetComponentPtr(const ECSwrapper* ECSwrapper_ptr)
         return std::pair(std::true_type(), static_cast<decltype(T::GetComponentType()) *>(this_component_base_class));
 }
 
+template <DeltaTime T>
+auto GetComponentPtr(const ECSwrapper* ECSwrapper_ptr)
+{
+    // It's not a component ptr but for sake of template overloading let's tell a lie ;)
+    return std::pair(std::false_type(), ECSwrapper_ptr->GetUpdateDeltaTime());
+}
+
+template <EntitiesHandlerType T>
+auto GetComponentPtr(const ECSwrapper* ECSwrapper_ptr)
+{
+    // Also not a component ptr
+    if constexpr (std::is_const<T>::value)
+        return std::pair(std::false_type(), static_cast<const T *>(ECSwrapper_ptr->GetEntitiesHandler()));
+    else
+        return std::pair(std::false_type(), static_cast<T *>(ECSwrapper_ptr->GetEntitiesHandler()));
+}
+
 
 // GET TUPLE OF PARAMETERS
 //
@@ -71,11 +88,11 @@ auto GetComponentPtrsOfArguments(const ECSwrapper* ECSwrapper_ptr, Ret(Class::* 
 // TRANSLATE COMPONENT PTRS INTO ARGUMENTS
 //
 template <typename BOOL, typename T>
-constexpr auto TranslateComponentPtrToCompEntityRef(const Entity entity, const std::pair<BOOL,T>& pair)
+constexpr auto TranslateComponentPtrToCompEntityRef(const Entity entity, size_t index_hint, const std::pair<BOOL,T>& pair)
 {
     if constexpr (BOOL::value == true)
     {
-        return std::ref(pair.second->GetComponentEntity(entity));
+        return std::ref(pair.second->GetComponentEntity(entity, index_hint));
     }
     else
     {
@@ -84,12 +101,12 @@ constexpr auto TranslateComponentPtrToCompEntityRef(const Entity entity, const s
 }
 
 template <unsigned i, typename Tuple>
-constexpr auto TranslateComponentPtrsIntoArgumentsRecursion(const Entity entity, const Tuple& tuple)
+constexpr auto TranslateComponentPtrsIntoArgumentsRecursion(Entity entity, size_t index_hint, const Tuple& tuple)
 {
     if constexpr (i < std::tuple_size<Tuple>::value)
     {
-        auto recursion_result = TranslateComponentPtrsIntoArgumentsRecursion<i + 1>(entity, tuple);
-        auto this_translation = TranslateComponentPtrToCompEntityRef(entity, std::get<i>(tuple));
+        auto recursion_result = TranslateComponentPtrsIntoArgumentsRecursion<i + 1>(entity, index_hint, tuple);
+        auto this_translation = TranslateComponentPtrToCompEntityRef(entity, index_hint, std::get<i>(tuple));
 
         return std::tuple_cat(std::make_tuple(this_translation), recursion_result);
     }
@@ -100,9 +117,9 @@ constexpr auto TranslateComponentPtrsIntoArgumentsRecursion(const Entity entity,
 }
 
 template <typename Tuple>
-auto TranslateComponentPtrsIntoArguments(const Entity entity, const Tuple& tuple)
+auto TranslateComponentPtrsIntoArguments(Entity entity, size_t index_hint, const Tuple& tuple)
 {
-    return TranslateComponentPtrsIntoArgumentsRecursion<0>(entity, tuple);
+    return TranslateComponentPtrsIntoArgumentsRecursion<0>(entity, index_hint, tuple);
 }
 
 
