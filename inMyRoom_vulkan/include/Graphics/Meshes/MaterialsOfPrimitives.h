@@ -2,10 +2,7 @@
 
 #include <string>
 
-#include "wrappers/descriptor_set.h"
-#include "wrappers/descriptor_set_group.h"
-#include "wrappers/buffer.h"
-
+#include "vulkan/vulkan.hpp"
 #include "tiny_gltf.h"
 
 #include "glm/vec4.hpp"
@@ -15,75 +12,63 @@
 
 struct MaterialParameters
 {
-    glm::vec4 baseColorFactors   = glm::vec4(1.f, 1.f, 1.f, 1.f);
-    glm::vec4 _placeholder       = glm::vec4(1.f, 1.f, 1.f, 1.f);
-};
+    glm::vec4 baseColorFactors = glm::vec4(1.f, 1.f, 1.f, 1.f);
+    uint32_t baseColorTexture = -1;
+    float alphaCutoff = 0.5f;
 
-struct MaterialMapsIndexes
-{
-    uint32_t baseColor = -1;
-    uint32_t metallic = -1;
-    uint32_t roughness = -1;
-    uint32_t normal = -1;
-    uint32_t occlusion = -1;
-    uint32_t emissive = -1;
+    uint32_t padding[2];
 };
 
 struct MaterialAbout
 {
-    bool twoSided;
-    bool transparent;
+    bool twoSided = false;
+    bool transparent = false;
+    std::vector<std::pair<std::string, std::string>> definitionStringPairs;
 };
 
 class MaterialsOfPrimitives
 {
 public: // functions
-    MaterialsOfPrimitives(TexturesOfMaterials* in_texturesOfMaterials_ptr,
-                          Anvil::BaseDevice* const in_device_ptr);
+    MaterialsOfPrimitives(TexturesOfMaterials* texturesOfMaterials_ptr,
+                          vk::Device device,
+                          vma::Allocator allocator);
 
-    void AddMaterialsOfModel(const tinygltf::Model& in_model);
-    size_t GetMaterialIndexOffsetOfModel(const tinygltf::Model& in_model);
+    ~MaterialsOfPrimitives();
 
-    void FlashDevice();
+    void AddMaterialsOfModel(const tinygltf::Model& model, const std::string& model_folder);
+    size_t GetMaterialIndexOffsetOfModel(const tinygltf::Model& in_model) const;
 
-    MaterialMapsIndexes GetMaterialMapsIndexes(size_t in_material_index);
+    size_t GetMaterialsCount() const {return materialsAbout.size();}
+    const MaterialAbout& GetMaterialAbout(size_t index) const {return materialsAbout[index];}
 
-    ShadersSpecs GetShaderSpecsNeededForMaterial(size_t in_material_index);
+    void FlashDevice(std::pair<vk::Queue, uint32_t> queue);
 
-    MaterialAbout GetMaterialAbout(size_t in_material_index);
-
-    const Anvil::DescriptorSetCreateInfo* GetDescriptorSetCreateInfoPtr();
-    Anvil::DescriptorSet* GetDescriptorSetPtr();
+    vk::DescriptorSet GetDescriptorSet() const {return descriptorSet;}
+    vk::DescriptorSetLayout GetDescriptorSetLayout() const {return descriptorSetLayout;}
 
 private: // functions
-    Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
-                                                            Anvil::BufferUsageFlagBits in_bufferusageflag,
-                                                            std::string buffers_name) const;
-
     void InformShadersSpecsAboutRanges(size_t textures_count, size_t materials_count);
+    size_t GetMaterialParametersBufferSize() const;
 
 private: // data
-    size_t materialsSoFar = 0;
-
-    std::vector<MaterialMapsIndexes> materialsMapsIndexes;
-
-    std::vector<ShadersSpecs> materialsShadersSpecs;
-
+    std::vector<MaterialParameters> materialsParameters;
     std::vector<MaterialAbout> materialsAbout;
 
     // set: 0, bind: 0, UBO with material parameters
     // set: 0, bind: 1, array Sampler+Image
-    Anvil::DescriptorSetGroupUniquePtr descriptorSetGroup_uptr;
-
-    Anvil::BufferUniquePtr materialsParametersBuffer_uptr;
-    std::vector<unsigned char> localMaterialsParametersBuffer;
-
-    std::vector<Anvil::DescriptorSet::CombinedImageSamplerBindingElement> texturesBindings;
+    vk::DescriptorPool descriptorPool;
+    vk::DescriptorSet descriptorSet;
+    vk::DescriptorSetLayout descriptorSetLayout;
 
     std::unordered_map<tinygltf::Model*, size_t> modelToMaterialIndexOffset_umap;
 
     TexturesOfMaterials* texturesOfMaterials_ptr;
 
-    Anvil::BaseDevice* const device_ptr;
-    bool hasBeenFlased = false;
+    vk::Device device;
+    vma::Allocator vma_allocator;
+
+    vk::Buffer materialParametersBuffer;
+    vma::Allocation materialParametersAllocation;
+    bool hasBeenFlashed = false;
+
 };

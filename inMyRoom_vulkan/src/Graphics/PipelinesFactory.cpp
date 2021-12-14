@@ -1,389 +1,308 @@
 #include "Graphics/PipelinesFactory.h"
 
+#include <iostream>
 #include <cassert>
 
-PipelinesFactory::PipelinesFactory(Anvil::BaseDevice* const in_device_ptr)
-    : device_ptr(in_device_ptr)
+//
+// PipelineLayoutCache
+PipelinesFactory::PipelineLayoutCache::PipelineLayoutCache(vk::Device in_device)
+    :device(in_device)
 {
 }
 
-PipelinesFactory::~PipelinesFactory()
+PipelinesFactory::PipelineLayoutCache::~PipelineLayoutCache()
 {
-    {
-        auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
-        for (Anvil::PipelineID thisPipelineID : graphicsPipelineIDs)
-            gfx_manager_ptr->delete_pipeline(thisPipelineID);
-    }
-    {
-        auto compute_manager_ptr(device_ptr->get_compute_pipeline_manager());
-        for (Anvil::PipelineID thisPipelineID : computePipelineIDs)
-            compute_manager_ptr->delete_pipeline(thisPipelineID);
+    for (auto& this_pair: infoToHandle_umap) {
+        device.destroyPipelineLayout(this_pair.second);
     }
 }
 
-Anvil::PipelineID PipelinesFactory::GetGraphicsPipelineID(const GraphicsPipelineSpecs in_pipelineSpecs)
+std::pair<vk::PipelineLayout, const vk::PipelineLayoutCreateInfo *>
+    PipelinesFactory::PipelineLayoutCache::GetPipelineLayout(const vk::PipelineLayoutCreateInfo &create_info)
 {
-    auto search = graphicsPipelineSpecsToPipelineID_umap.find(in_pipelineSpecs);
-	if (search != graphicsPipelineSpecsToPipelineID_umap.end())
-	{
-		return search->second;
-	}
-	else
-	{
-		Anvil::PipelineID new_pipelineID = CreateGraphicsPipeline(in_pipelineSpecs);
-		graphicsPipelineSpecsToPipelineID_umap.emplace(in_pipelineSpecs, new_pipelineID);
-		return new_pipelineID;
-	}
-}
+    vk::PipelineLayoutCreateInfo this_info;
+    assert(create_info.pNext == nullptr);
 
-Anvil::PipelineID PipelinesFactory::GetComputePipelineID(const ComputePipelineSpecs in_pipelineSpecs)
-{
-    auto search = computePipelineSpecsToPipelineID_umap.find(in_pipelineSpecs);
-    if (search != computePipelineSpecsToPipelineID_umap.end())
-    {
-        return search->second;
-    }
-    else
-    {
-        Anvil::PipelineID new_pipelineID = CreateComputePipeline(in_pipelineSpecs);
-        computePipelineSpecsToPipelineID_umap.emplace(in_pipelineSpecs, new_pipelineID);
-        return new_pipelineID;
-    }
-}
+    // .flags
+    this_info.flags = create_info.flags;
 
-VkPipeline PipelinesFactory::GetPipelineVkHandle(Anvil::PipelineBindPoint in_pipeline_bind_point,
-                                                 Anvil::PipelineID in_pipeline_id) const
-{
-    VkPipeline pipeline_vk = (in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE) ? device_ptr->get_compute_pipeline_manager()->get_pipeline(in_pipeline_id)
-                                                                                           : device_ptr->get_graphics_pipeline_manager()->get_pipeline(in_pipeline_id);
+    // .layouts
+    std::vector<vk::DescriptorSetLayout> data_info_layouts(create_info.pSetLayouts,
+                                                          create_info.pSetLayouts + create_info.setLayoutCount);
+    auto data_info_layouts_it = descriptorSetsLayout_uset.emplace(std::move(data_info_layouts)).first;
+    this_info.setSetLayouts(*data_info_layouts_it);
 
-    return pipeline_vk;
-}
+    // .pushConstantRanges
+    std::vector<vk::PushConstantRange> data_info_pushConstantRanges(create_info.pPushConstantRanges,
+                                                                    create_info.pPushConstantRanges + create_info.pushConstantRangeCount);
+    auto data_info_pushConstantRanges_it = pushConstantRanges_uset.emplace(std::move(data_info_pushConstantRanges)).first;
+    this_info.setPushConstantRanges(*data_info_pushConstantRanges_it);
 
-Anvil::PipelineLayout* PipelinesFactory::GetPipelineLayout(Anvil::PipelineBindPoint in_pipeline_bind_point,
-                                                                 Anvil::PipelineID in_pipeline_id) const
-{
-    Anvil::PipelineLayout* pipeline_layout = (in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE) ? device_ptr->get_compute_pipeline_manager()->get_pipeline_layout(in_pipeline_id)
-                                                                                                           : device_ptr->get_graphics_pipeline_manager()->get_pipeline_layout(in_pipeline_id);
 
-    return pipeline_layout;
-}
-
-Anvil::PipelineID PipelinesFactory::CreateGraphicsPipeline(GraphicsPipelineSpecs in_pipelineSpecs)
-{
-    auto gfx_manager_ptr(device_ptr->get_graphics_pipeline_manager());
-
-    auto pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
-                                                                              in_pipelineSpecs.renderpass_ptr,
-                                                                              in_pipelineSpecs.subpassID,
-                                                                              in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr!= nullptr
-                                                                                  ? *in_pipelineSpecs.pipelineShaders.fragmentShaderModule_ptr
-                                                                                  : Anvil::ShaderModuleStageEntryPoint(),
-                                                                              in_pipelineSpecs.pipelineShaders.geometryShaderModule_ptr!= nullptr
-                                                                                  ? *in_pipelineSpecs.pipelineShaders.geometryShaderModule_ptr
-                                                                                  : Anvil::ShaderModuleStageEntryPoint(),
-                                                                              in_pipelineSpecs.pipelineShaders.tessControlShaderModule_ptr != nullptr
-                                                                                  ? *in_pipelineSpecs.pipelineShaders.tessControlShaderModule_ptr
-                                                                                  : Anvil::ShaderModuleStageEntryPoint(),
-                                                                              in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr != nullptr
-                                                                                  ? *in_pipelineSpecs.pipelineShaders.tessEvaluationShaderModule_ptr
-                                                                                  : Anvil::ShaderModuleStageEntryPoint(),
-                                                                              in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr != nullptr
-                                                                                  ? *in_pipelineSpecs.pipelineShaders.vertexShaderModule_ptr
-                                                                                  : Anvil::ShaderModuleStageEntryPoint());
-
-    for (auto this_push_constant_spec : in_pipelineSpecs.pushConstantSpecs)
-    {
-        pipeline_create_info_ptr->attach_push_constant_range(this_push_constant_spec.offset           /*in_offset*/,
-                                                             this_push_constant_spec.size             /*in_size*/,
-                                                             this_push_constant_spec.shader_flags     /*in_stages*/);
-    }
-
-    if (in_pipelineSpecs.descriptorSetsCreateInfo_ptrs.size())
-    {
-        pipeline_create_info_ptr->set_descriptor_set_create_info(&in_pipelineSpecs.descriptorSetsCreateInfo_ptrs);
-    }
-
-    uint32_t location = 0;
-
-    // vertex attribute
-
-    if (in_pipelineSpecs.positionComponentType == glTFcomponentType::type_float)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R32G32B32_SFLOAT,
-                                                       0,
-                                                       sizeof(float) * 3,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-
-    // normal attribute
-
-    if (in_pipelineSpecs.normalComponentType == glTFcomponentType::type_float)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R32G32B32_SFLOAT,
-                                                       0,
-                                                       sizeof(float) * 3,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-
-    // tangent attribute
-
-    if (in_pipelineSpecs.tangentComponentType == glTFcomponentType::type_float)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R32G32B32A32_SFLOAT,
-                                                       0,
-                                                       sizeof(float) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-
-    // texcoord_0 attribute
-
-    if (in_pipelineSpecs.texcoord0ComponentType == glTFcomponentType::type_float)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R32G32_SFLOAT,
-                                                       0,
-                                                       sizeof(float) * 2,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.texcoord0ComponentType == glTFcomponentType::type_unsigned_byte)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R8G8_UNORM,
-                                                       0,
-                                                       sizeof(uint8_t) * 2,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.texcoord0ComponentType == glTFcomponentType::type_unsigned_short)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R16G16_UNORM,
-                                                       0,
-                                                       sizeof(uint16_t) * 2,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-
-    // texcoord_1 attribute
-
-    if (in_pipelineSpecs.texcoord1ComponentType == glTFcomponentType::type_float)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R32G32_SFLOAT,
-                                                       0,
-                                                       sizeof(float) * 2,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.texcoord1ComponentType == glTFcomponentType::type_unsigned_byte)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R8G8_UNORM,
-                                                       0,
-                                                       sizeof(uint8_t) * 2,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.texcoord1ComponentType == glTFcomponentType::type_unsigned_short)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R16G16_UNORM,
-                                                       0,
-                                                       sizeof(uint16_t) * 2,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-
-    // color_0 attribute
-
-    if (in_pipelineSpecs.color0ComponentType == glTFcomponentType::type_float)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R32G32B32A32_SFLOAT,
-                                                       0,
-                                                       sizeof(float) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.color0ComponentType == glTFcomponentType::type_unsigned_byte)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R8G8B8A8_UNORM,
-                                                       0,
-                                                       sizeof(uint8_t) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.color0ComponentType == glTFcomponentType::type_unsigned_short)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R16G16B16A16_UNORM,
-                                                       0,
-                                                       sizeof(uint16_t) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-
-    // joints_0 attribute
-
-    if (in_pipelineSpecs.joints0ComponentType == glTFcomponentType::type_unsigned_short)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R16G16B16A16_UINT,
-                                                       0,
-                                                       sizeof(uint16_t) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.joints0ComponentType == glTFcomponentType::type_unsigned_byte)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R8G8B8A8_UINT,
-                                                       0,
-                                                       sizeof(uint8_t) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-
-    // weights_0 attribute
-
-    if (in_pipelineSpecs.weights0ComponentType == glTFcomponentType::type_float)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R32G32B32A32_SFLOAT,
-                                                       0,
-                                                       sizeof(float) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.weights0ComponentType == glTFcomponentType::type_unsigned_short)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R16G16B16A16_UNORM,
-                                                       0,
-                                                       sizeof(uint16_t) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-    else if (in_pipelineSpecs.weights0ComponentType == glTFcomponentType::type_unsigned_byte)
-    {
-        pipeline_create_info_ptr->add_vertex_attribute(location,
-                                                       Anvil::Format::R8G8B8A8_UNORM,
-                                                       0,
-                                                       sizeof(uint8_t) * 4,
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       location);
-
-        location++;
-    }
-
-    Anvil::PrimitiveTopology thisPrimitiveTopology;
-    {
-        auto search = glTFmodeToPrimitiveTopology_map.find(in_pipelineSpecs.drawMode);
-        thisPrimitiveTopology = search->second;
-    }
-
-    pipeline_create_info_ptr->set_primitive_topology(thisPrimitiveTopology);
-    pipeline_create_info_ptr->set_rasterization_properties(Anvil::PolygonMode::FILL,
-                                                           (in_pipelineSpecs.twoSided == false ? Anvil::CullModeFlagBits::BACK_BIT
-                                                                                               : Anvil::CullModeFlagBits::NONE),
-                                                           Anvil::FrontFace::COUNTER_CLOCKWISE,
-                                                           1.0f); /* line_width */
-
-    if (in_pipelineSpecs.viewportAndScissorSpecs.width != -1 && in_pipelineSpecs.viewportAndScissorSpecs.height != -1)
-    {
-        {
-            float width = static_cast<float>(in_pipelineSpecs.viewportAndScissorSpecs.width);
-            float height = static_cast<float>(in_pipelineSpecs.viewportAndScissorSpecs.height);
-            pipeline_create_info_ptr->set_viewport_properties(0, 0.0f, 0.f, width, height, 0.f, 1.f);
-        }
-
-        {
-            int width = in_pipelineSpecs.viewportAndScissorSpecs.width;
-            int height = in_pipelineSpecs.viewportAndScissorSpecs.height;
-            pipeline_create_info_ptr->set_scissor_box_properties(0, 0, 0, width, height);
+    // Get the pipeline layout
+    vk::PipelineLayout return_layout;
+    const vk::PipelineLayoutCreateInfo* return_info_ptr;
+    auto search = infoToHandle_umap.find(this_info);
+    if (search != infoToHandle_umap.end()) {
+        return_layout = search->second;
+        return_info_ptr = &search->first;
+    } else {
+        auto layout_opt = device.createPipelineLayout(this_info);
+        if (layout_opt.result == vk::Result::eSuccess) {
+            auto it = infoToHandle_umap.emplace(this_info, layout_opt.value).first;
+            return_layout = it->second;
+            return_info_ptr = &it->first;
+        } else {
+            std::cerr << "Failed to create pipeline layout. \n";
+            std::terminate();
         }
     }
 
-
-    if (in_pipelineSpecs.depthCompare != Anvil::CompareOp::NEVER)
-    {
-        pipeline_create_info_ptr->toggle_depth_test(true,
-                                                    in_pipelineSpecs.depthCompare);
-    }
-    else
-    {
-        pipeline_create_info_ptr->toggle_depth_test(false,
-                                                    Anvil::CompareOp::NEVER);
-    }
-    pipeline_create_info_ptr->toggle_depth_writes(in_pipelineSpecs.depthWriteEnable);
-
-    Anvil::PipelineID pipelineID;
-    gfx_manager_ptr->add_pipeline(std::move(pipeline_create_info_ptr),
-                                  &pipelineID);
-
-	graphicsPipelineIDs.push_back(pipelineID);
-
-    return pipelineID;
+    return {return_layout, return_info_ptr};
 }
 
-Anvil::PipelineID PipelinesFactory::CreateComputePipeline(ComputePipelineSpecs in_pipelineSpecs)
+//
+// GraphicsPipelineCache
+PipelinesFactory::GraphicsPipelineCache::GraphicsPipelineCache(vk::Device in_device)
+    :device(in_device)
 {
-    auto compute_manager_ptr(device_ptr->get_compute_pipeline_manager());
+}
 
-    auto pipeline_create_info_ptr = Anvil::ComputePipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
-                                                                             *in_pipelineSpecs.pipelineShaders.computeShaderModule_ptr);
+PipelinesFactory::GraphicsPipelineCache::~GraphicsPipelineCache()
+{
+    for (auto& this_pair: infoToHandle_umap) {
+        device.destroyPipeline(this_pair.second);
+    }
+}
 
-    if (in_pipelineSpecs.descriptorSetsCreateInfo_ptrs.size())
-    {
-        pipeline_create_info_ptr->set_descriptor_set_create_info(&in_pipelineSpecs.descriptorSetsCreateInfo_ptrs);
+std::pair<vk::Pipeline, const vk::GraphicsPipelineCreateInfo *>
+PipelinesFactory::GraphicsPipelineCache::GetGraphicsPipeline(const vk::GraphicsPipelineCreateInfo &create_info)
+{
+    vk::GraphicsPipelineCreateInfo this_info;
+
+    // .pNext
+    assert(create_info.pNext == nullptr);
+
+    // .flags
+    this_info.flags = create_info.flags;
+
+    // .stages
+    assert(create_info.pStages);
+    std::vector<vk::PipelineShaderStageCreateInfo> data_info_stages(create_info.pStages,
+                                                                    create_info.pStages + create_info.stageCount);
+    for(auto& this_stage: data_info_stages) {
+        assert(this_stage.pNext == nullptr);
+        assert(std::string(this_stage.pName) == "main");
+        assert(this_stage.pSpecializationInfo == nullptr);
+    }
+    auto data_info_stages_it = pipelineShaderStagesCreateInfo_uset.emplace(data_info_stages).first;
+    this_info.setStages(*data_info_stages_it);
+
+    // .pVertexInputState
+    if (create_info.pVertexInputState != nullptr) {
+        vk::PipelineVertexInputStateCreateInfo data_info_vertexInputState;
+        {
+            assert(create_info.pVertexInputState->pNext == nullptr);
+
+            //.pVertexInputState.flags
+            data_info_vertexInputState = create_info.pVertexInputState->flags;
+
+            //.pVertexInputState.vertexBindingDescriptions
+            std::vector<vk::VertexInputBindingDescription> data_subinfo_vertexBindings(create_info.pVertexInputState->pVertexBindingDescriptions,
+                                                                                    create_info.pVertexInputState->pVertexBindingDescriptions
+                                                                                     + create_info.pVertexInputState->vertexBindingDescriptionCount);
+            auto data_subinfo_vertexBindings_it = vertexInputBindingDescriptions_uset.emplace(data_subinfo_vertexBindings).first;
+            data_info_vertexInputState.setVertexBindingDescriptions(*data_subinfo_vertexBindings_it);
+
+            //.pVertexInputState.vertexAttributeDescriptions
+            std::vector<vk::VertexInputAttributeDescription> data_subinfo_vertexAttributes(create_info.pVertexInputState->pVertexAttributeDescriptions,
+                                                                                          create_info.pVertexInputState->pVertexAttributeDescriptions
+                                                                                           + create_info.pVertexInputState->vertexAttributeDescriptionCount);
+            auto data_subinfo_vertexAttributes_it = vertexInputAttributeDescriptions_uset.emplace(data_subinfo_vertexAttributes).first;
+            data_info_vertexInputState.setVertexAttributeDescriptions(*data_subinfo_vertexAttributes_it);
+        }
+        auto data_info_vertexInputState_it = pipelineVertexInputStateCreateInfo_uset.emplace(data_info_vertexInputState).first;
+        this_info.pVertexInputState = &*data_info_vertexInputState_it;
     }
 
-    Anvil::PipelineID pipelineID;
-    compute_manager_ptr->add_pipeline(std::move(pipeline_create_info_ptr),
-                                      &pipelineID);
+    // .pInputAssemblyState
+    if (create_info.pInputAssemblyState != nullptr) {
+        vk::PipelineInputAssemblyStateCreateInfo data_info_inputAssemblyState = *create_info.pInputAssemblyState;
+        {
+            assert(data_info_inputAssemblyState.pNext == nullptr);
+        }
+        auto data_info_inputAssemblyState_it = pipelineInputAssemblyStateCreateInfo_uset.emplace(
+                data_info_inputAssemblyState).first;
+        this_info.pInputAssemblyState = &*data_info_inputAssemblyState_it;
+    }
 
-    computePipelineIDs.push_back(pipelineID);
+    // .pTesselationState
+    if (create_info.pTessellationState != nullptr) {
+        vk::PipelineTessellationStateCreateInfo data_info_tesselationState = *create_info.pTessellationState;
+        {
+            assert(data_info_tesselationState.pNext == nullptr);
+        }
+        auto data_info_tesselationState_it = pipelineTesselationStateCreateInfo_uset.emplace(data_info_tesselationState).first;
+        this_info.pTessellationState = &*data_info_tesselationState_it;
+    }
 
-    return pipelineID;
+    // .pViewportState
+    if (create_info.pViewportState != nullptr) {
+        vk::PipelineViewportStateCreateInfo data_info_viewportState;
+        {
+            assert(create_info.pViewportState->pNext == nullptr);
+
+            // .pPipelineViewport.flags
+            data_info_viewportState.flags = create_info.pViewportState->flags;
+
+            // .pPipelineViewport.viewports
+            std::vector<vk::Viewport> data_subinfo_vieports(create_info.pViewportState->pViewports,
+                                                           create_info.pViewportState->pViewports + create_info.pViewportState->viewportCount);
+            auto data_subinfo_vieports_it = viewports_uset.emplace(data_subinfo_vieports).first;
+            data_info_viewportState.setViewports(*data_subinfo_vieports_it);
+
+            // .pPipelineViewport.scissors
+            std::vector<vk::Rect2D> data_subinfo_scissors(create_info.pViewportState->pScissors,
+                                                          create_info.pViewportState->pScissors + create_info.pViewportState->scissorCount);
+            auto data_subinfo_scissors_it = scissors_uset.emplace(data_subinfo_scissors).first;
+            data_info_viewportState.setScissors(*data_subinfo_scissors_it);
+        }
+        auto data_info_viewportState_it = pipelineViewportStatesCreateInfo_uset.emplace(data_info_viewportState).first;
+        this_info.pViewportState = &*data_info_viewportState_it;
+    }
+
+    // .pRasterizationState
+    assert(create_info.pRasterizationState);
+    vk::PipelineRasterizationStateCreateInfo data_info_rasterizationState = *create_info.pRasterizationState;
+    {
+        assert(data_info_rasterizationState.pNext == nullptr);
+    }
+    auto data_info_rasterizationState_it = pipelineRasterizationStateCreateInfo_uset.emplace(data_info_rasterizationState).first;
+    this_info.pRasterizationState = &*data_info_rasterizationState_it;
+
+    // .pMultisampleState
+    if (create_info.pMultisampleState != nullptr) {
+        vk::PipelineMultisampleStateCreateInfo data_info_multisampleState = *create_info.pMultisampleState;
+        {
+            assert(data_info_multisampleState.pNext == nullptr);
+        }
+        auto data_info_multisampleState_it = pipelineMultisampleStateCreateInfo_uset.emplace(data_info_multisampleState).first;
+        this_info.pMultisampleState = &*data_info_multisampleState_it;
+    }
+
+    // .pDepthStencilState
+    if (create_info.pDepthStencilState != nullptr) {
+        vk::PipelineDepthStencilStateCreateInfo data_info_depthStencilState = *create_info.pDepthStencilState;
+        {
+            assert(data_info_depthStencilState.pNext == nullptr);
+        }
+        auto data_info_depthStencilState_it = pipelineDepthStencilStateCreateInfo_uset.emplace(data_info_depthStencilState).first;
+        this_info.pDepthStencilState = &*data_info_depthStencilState_it;
+    }
+
+    // .pColorBlendState
+    if (create_info.pColorBlendState != nullptr) {
+        vk::PipelineColorBlendStateCreateInfo data_info_colorBlendState;
+        {
+            assert(create_info.pColorBlendState->pNext == nullptr);
+
+            // .pColorBlendState.flags
+            data_info_colorBlendState.flags = create_info.pColorBlendState->flags;
+
+            // .pColorBlendState.logicOpEnable
+            data_info_colorBlendState.logicOpEnable = create_info.pColorBlendState->logicOpEnable;
+
+            // .pColorBlendState.logicOp
+            data_info_colorBlendState.logicOp = create_info.pColorBlendState->logicOp;
+
+            // .pColorBlendState.attachments
+            std::vector<vk::PipelineColorBlendAttachmentState> data_subinfo_colorBlendState(create_info.pColorBlendState->pAttachments,
+                                                                                            create_info.pColorBlendState->pAttachments
+                                                                                             + create_info.pColorBlendState->attachmentCount);
+            auto data_subinfo_colorBlendState_it = pipelineColorBlendAttachmentStates_uset.emplace(data_subinfo_colorBlendState).first;
+            data_info_colorBlendState.setAttachments(*data_subinfo_colorBlendState_it);
+
+            // .pColorBlendState.blendConstants
+            std::array<float, 4> data_subinfo_blendConstant = {create_info.pColorBlendState->blendConstants[0],
+                                                               create_info.pColorBlendState->blendConstants[1],
+                                                               create_info.pColorBlendState->blendConstants[2],
+                                                               create_info.pColorBlendState->blendConstants[3]};
+            auto data_subinfo_blendConstants_it = pipelineColorBlendConstants_uset.emplace(data_subinfo_blendConstant).first;
+            data_info_colorBlendState.setBlendConstants(*data_subinfo_blendConstants_it);
+        }
+        auto data_info_colorBlendState_it = pipelineColorBlendStateCreateInfo_uset.emplace(data_info_colorBlendState).first;
+        this_info.pColorBlendState = &*data_info_colorBlendState_it;
+    }
+
+    // .pDynamicState
+    if (create_info.pDynamicState) {
+        vk::PipelineDynamicStateCreateInfo data_info_dynamicState;
+        {
+            assert(create_info.pDynamicState->pNext == nullptr);
+
+            // .pDynamicState.flags
+            data_info_dynamicState.flags = create_info.pDynamicState->flags;
+
+            // .pDynamicState.dynamicStates
+            std::vector<vk::DynamicState> data_subinfo_dynamicState(create_info.pDynamicState->pDynamicStates,
+                                                                    create_info.pDynamicState->pDynamicStates
+                                                                     + create_info.pDynamicState->dynamicStateCount);
+            auto data_subinfo_dynamicState_it = dynamicStates_uset.emplace(data_subinfo_dynamicState).first;
+            data_info_dynamicState.setDynamicStates(*data_subinfo_dynamicState_it);
+        }
+        auto data_info_dynamicState_it = pipelineDynamicStatesCreateInfo_uset.emplace(data_info_dynamicState).first;
+        this_info.pDynamicState = &*data_info_dynamicState_it;
+    }
+
+    // .layout
+    this_info.layout = create_info.layout;
+
+    // .renderPass
+    this_info.renderPass = create_info.renderPass;
+    this_info.subpass = create_info.subpass;
+
+    // .basePipelineHandle
+    this_info.basePipelineHandle = create_info.basePipelineHandle;
+
+    // .basePipelineIndex
+    this_info.basePipelineIndex = create_info.basePipelineIndex;
+
+    // Get Pipeline
+    vk::Pipeline return_pipeline;
+    const vk::GraphicsPipelineCreateInfo* return_info_ptr;
+    auto search = infoToHandle_umap.find(this_info);
+    if (search != infoToHandle_umap.end()) {
+        return_pipeline = search->second;
+        return_info_ptr = &search->first;
+    } else {
+        auto pipeline_opt = device.createGraphicsPipeline( VK_NULL_HANDLE, this_info);
+        if (pipeline_opt.result == vk::Result::eSuccess) {
+            auto it = infoToHandle_umap.emplace(this_info, pipeline_opt.value).first;
+            return_pipeline = it->second;
+            return_info_ptr = &it->first;
+        } else {
+            std::cerr << "Failed to create pipeline. \n";
+            std::terminate();
+        }
+    }
+
+    return {return_pipeline, return_info_ptr};
+}
+
+PipelinesFactory::PipelinesFactory(vk::Device in_device)
+    :pipelineLayoutCache(in_device),
+     graphicsPipelineCache(in_device)
+{
+}
+
+std::pair<vk::PipelineLayout, const vk::PipelineLayoutCreateInfo *>
+    PipelinesFactory::GetPipelineLayout(const vk::PipelineLayoutCreateInfo &create_info)
+{
+    return pipelineLayoutCache.GetPipelineLayout(create_info);
+}
+
+std::pair<vk::Pipeline, const vk::GraphicsPipelineCreateInfo *>
+    PipelinesFactory::GetPipeline(const vk::GraphicsPipelineCreateInfo &create_info)
+{
+    return graphicsPipelineCache.GetGraphicsPipeline(create_info);
 }

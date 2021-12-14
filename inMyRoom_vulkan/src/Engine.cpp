@@ -1,5 +1,7 @@
 #include "Engine.h"
 
+#include <iostream>
+
 #include "InputManager.h"
 #include "configuru.hpp"
 
@@ -40,9 +42,8 @@ Engine::Engine(configuru::Config& in_cfgFile)
 
     }
 
-    {   // Initializing graphics which add some specific components to ECS
-        graphics_uptr = std::make_unique<Graphics>(this, cfgFile, device_uptr.get(), swapchain_uptr.get(),
-                                                   windowWidth, windowHeight, swapchainImagesCount);
+    {   // Initializing graphics which add some specific componentsCount to ECS
+        graphics_uptr = std::make_unique<Graphics>(this, cfgFile, device, vma_allocator);
     }
 
     {   // Initializing collision detection
@@ -62,51 +63,17 @@ Engine::Engine(configuru::Config& in_cfgFile)
     }
 
     {   // Enabling mouse/keyboard input
-        windowAsync_uptr->GetWindowPtr()->register_for_callbacks(Anvil::WINDOW_CALLBACK_ID_CLOSE_EVENT,
-                                                                 std::bind(&Engine::CallbackFunction_on_close_event,
-                                                                           this,
-                                                                           std::placeholders::_1),
-                                                                 this);
-        windowAsync_uptr->GetWindowPtr()->register_for_callbacks(Anvil::WINDOW_CALLBACK_ID_KEYPRESS_PRESSED_WAS_UP,
-                                                                 std::bind(&Engine::CallbackFunction_on_keypress_was_up,
-                                                                           this,
-                                                                           std::placeholders::_1),
-                                                                 this);
-        windowAsync_uptr->GetWindowPtr()->register_for_callbacks(Anvil::WINDOW_CALLBACK_ID_KEYPRESS_RELEASED,
-                                                                 std::bind(&Engine::CallbackFunction_on_keypress_released,
-                                                                           this,
-                                                                           std::placeholders::_1),
-                                                                 this);
-        windowAsync_uptr->GetWindowPtr()->register_for_callbacks(Anvil::WINDOW_CALLBACK_ID_MOUSE_MOVED,
-                                                                 std::bind(&Engine::CallbackFunction_on_mouse_movement,
-                                                                           this,
-                                                                           std::placeholders::_1),
-                                                                 this);
+        GetWindowPtr()->AddCallbackKeyPressLambda([this](int key) {this->inputManager_uptr->KeyPressed(key);});
+        GetWindowPtr()->AddCallbackKeyReleaseLambda([this](int key) {this->inputManager_uptr->KeyReleased(key);});
+        GetWindowPtr()->AddCallbackMouseMoveLambda([this](long dx, long dy) {this->inputManager_uptr->MouseMoved(dx, dy);});
     }
+
+    std::cout << "Live!\n";
 }
 
 Engine::~Engine()
 {
-    windowAsync_uptr->GetWindowPtr()->unregister_from_callbacks(Anvil::WINDOW_CALLBACK_ID_CLOSE_EVENT,
-                                                                std::bind(&Engine::CallbackFunction_on_close_event,
-                                                                          this,
-                                                                          std::placeholders::_1),
-                                                                this);
-    windowAsync_uptr->GetWindowPtr()->unregister_from_callbacks(Anvil::WINDOW_CALLBACK_ID_KEYPRESS_PRESSED_WAS_UP,
-                                                                std::bind(&Engine::CallbackFunction_on_keypress_was_up,
-                                                                          this,
-                                                                          std::placeholders::_1),
-                                                                this);
-    windowAsync_uptr->GetWindowPtr()->unregister_from_callbacks(Anvil::WINDOW_CALLBACK_ID_KEYPRESS_RELEASED,
-                                                                std::bind(&Engine::CallbackFunction_on_keypress_released,
-                                                                          this,
-                                                                          std::placeholders::_1),
-                                                                this);
-    windowAsync_uptr->GetWindowPtr()->unregister_from_callbacks(Anvil::WINDOW_CALLBACK_ID_MOUSE_MOVED,
-                                                                std::bind(&Engine::CallbackFunction_on_mouse_movement,
-                                                                          this,
-                                                                          std::placeholders::_1),
-                                                                this);
+    GetWindowPtr()->DeleteCallbacks();
 
     inputManager_uptr.reset();
     ECSwrapper_uptr.reset();
@@ -114,32 +81,6 @@ Engine::~Engine()
     graphics_uptr.reset();
     collisionDetection_uptr.reset();
     exportedFunctionsConstructor_uptr.reset();
-}
-
-void Engine::CallbackFunction_on_close_event(Anvil::CallbackArgument*   in_callback_data_raw_ptr)
-{
-    breakMainLoop = true;
-}
-
-void Engine::CallbackFunction_on_keypress_was_up(Anvil::CallbackArgument*   in_callback_data_raw_ptr)
-{
-    auto callback_data_ptr = static_cast<Anvil::OnKeypressPressedWasUpCallbackArgument*>(in_callback_data_raw_ptr);
-
-    inputManager_uptr->KeyPressed(callback_data_ptr->pressed_key_id);
-}
-
-void Engine::CallbackFunction_on_keypress_released(Anvil::CallbackArgument*   in_callback_data_raw_ptr)
-{
-    auto callback_data_ptr = static_cast<Anvil::OnKeypressReleasedCallbackArgument*>(in_callback_data_raw_ptr);
-
-    inputManager_uptr->KeyReleased(callback_data_ptr->released_key_id);
-}
-
-void Engine::CallbackFunction_on_mouse_movement(Anvil::CallbackArgument*   in_callback_data_raw_ptr)
-{
-    auto callback_data_ptr = static_cast<Anvil::OnMouseMovementCallbackArgument*>(in_callback_data_raw_ptr);
-
-    inputManager_uptr->MouseMoved(callback_data_ptr->xOffset, callback_data_ptr->yOffset);
 }
 
 Graphics* Engine::GetGraphicsPtr()
@@ -167,7 +108,7 @@ void Engine::Run()
         {
             switch (this_event)
             {
-             case eventInputIDenums::SHOULD_CLOSE:
+            case eventInputIDenums::SHOULD_CLOSE:
                 {
                     breakMainLoop = true;
                     break;
@@ -178,6 +119,10 @@ void Engine::Run()
                     break;
                 }
             }
+        }
+
+        if (this->GetWindowPtr()->ShouldClose()) {
+            breakMainLoop = true;
         }
 
         ECSwrapper_uptr->Update();

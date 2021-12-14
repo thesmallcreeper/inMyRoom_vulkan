@@ -22,6 +22,14 @@ void CameraDefaultInputComp::Update()
     componentID camera_componentID = static_cast<componentID>(componentIDenum::Camera);
     CameraComp* const cameraComp_ptr = static_cast<CameraComp*>(ecsWrapper_ptr->GetComponentByID(camera_componentID));
 
+    size_t containers_count_when_start = GetContainersCount();
+    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
+    {
+        auto& this_container = GetContainerByIndex(containersUpdated);
+        for(auto& this_comp_entity: this_container)
+            this_comp_entity.Update(cameraComp_ptr, duration);
+    }
+
     lastSnapTimePoint = next_snap_timePoint;
 }
 

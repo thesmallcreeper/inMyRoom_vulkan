@@ -160,18 +160,13 @@ struct CollisionCallbackData
 };
 
 // used a lot in: Drawing
-struct DrawRequest
+struct DrawInfo
 {
-    bool isSkin;
-    uint32_t objectID;
-    size_t primitiveIndex;
-    union
-    {
-        glm::mat4x4 TRSmatrix;
-        struct
-        {
-            uint32_t inverseBindMatricesOffset;
-            uint32_t nodesMatricesOffset;
-        };
-    } vertexData;
+    size_t meshIndex = -1;
+    size_t matricesOffset = -1;
+
+    bool isSkin = false;
+    size_t inverseMatricesOffset = -1;
+
+    bool dontCull = false;
 };

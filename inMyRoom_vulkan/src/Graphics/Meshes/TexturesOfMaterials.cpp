@@ -1,346 +1,183 @@
 #include "Graphics/Meshes/TexturesOfMaterials.h"
 
-#include <cstring>
-#include <iostream>
-#include <utility>
-#include <cassert>
-#include <algorithm>
+#include "Graphics/HelperUtils.h"
 
-#include "stb_image.h"
-#include "stb_image_write.h"
-
-#include "misc/image_create_info.h"
-#include "misc/image_view_create_info.h"
-#include "misc/sampler_create_info.h"
-
-TexturesOfMaterials::TexturesOfMaterials(bool use_mipmaps,
-                                         ImagesAboutOfTextures* in_imagesAboutOfTextures_ptr,
-                                         MipmapsGenerator* in_mipmapsGenerator_ptr,
-                                         Anvil::BaseDevice* const in_device_ptr)
-    :imageAboutOfTextures_ptr(in_imagesAboutOfTextures_ptr),
-     mipmapsGenerator_ptr(in_mipmapsGenerator_ptr),
-     device_ptr(in_device_ptr),
-     useMipmaps(use_mipmaps)
+TexturesOfMaterials::TexturesOfMaterials(vk::Device in_device,
+                                         vma::Allocator in_vma_allocator,
+                                         std::pair<vk::Queue, uint32_t> graphics_queue)
+    :device(in_device),
+     vma_allocator(in_vma_allocator),
+     transferQueue(graphics_queue)
 {
-    // Default sampler ( its index is 0 )
-
-    Anvil::SamplerUniquePtr image_sampler_ptr;
-
-    auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
-                                                            Anvil::Filter::LINEAR,
-                                                            Anvil::Filter::LINEAR,
-                                                            Anvil::SamplerMipmapMode::LINEAR,
-                                                            Anvil::SamplerAddressMode::REPEAT,
-                                                            Anvil::SamplerAddressMode::REPEAT,
-                                                            Anvil::SamplerAddressMode::REPEAT,
-                                                            0.0f, /* in_lod_bias        */
-                                                            16.0f, /* in_max_anisotropy  */
-                                                            false, /* in_compare_enable  */
-                                                            Anvil::CompareOp::NEVER, /* in_compare_enable  */
-                                                            0.0f, /* in_min_lod         */
-                                                            16.0f, /* in_max_lod         */
-                                                            Anvil::BorderColor::INT_OPAQUE_BLACK,
-                                                            false); /* in_use_unnormalized_coordinates */
-
-    image_sampler_ptr = Anvil::Sampler::create(std::move(create_info_ptr));
-
-    samplers_uptrs.emplace_back(std::move(image_sampler_ptr));
-
 }
-
 
 TexturesOfMaterials::~TexturesOfMaterials()
 {
-    samplers_uptrs.clear();
-    imagesViews_upts.clear();
-    images_uptrs.clear();
+    for(auto& this_pair: samplerSpecToSampler_umap) {
+        device.destroy(this_pair.second);
+    }
+    for(auto& this_pair: textures) {
+        device.destroy(this_pair.first);
+    }
+    for(auto& this_pair: vkImagesAndAllocations) {
+        vma_allocator.destroyImage(this_pair.first, this_pair.second);
+    }
 }
 
-void TexturesOfMaterials::AddTexturesOfModel(const tinygltf::Model& in_model, const std::string in_imagesFolder)
+size_t TexturesOfMaterials::AddTextureAndMipmaps(const std::vector<ImageData> &images_data, vk::Format format)
 {
-    size_t thisModel_imagesFlashedSoFar = 0;
-    size_t thisModel_imagesglTFcountSoFar = 0;
-    std::unordered_map<size_t, size_t> imagesByglTFindex_to_imagesByFlashedIndex_umap;
+    // Create image
+    vk::ImageCreateInfo image_create_info;
+    image_create_info.imageType = vk::ImageType::e2D;
+    image_create_info.format = format;
+    image_create_info.extent = vk::Extent3D(images_data[0].GetWidth(), images_data[0].GetHeight(), 1);
+    image_create_info.mipLevels = images_data.size();
+    image_create_info.arrayLayers = 1;
+    image_create_info.samples = vk::SampleCountFlagBits::e1;
+    image_create_info.sharingMode = vk::SharingMode::eExclusive;
+    image_create_info.tiling = vk::ImageTiling::eOptimal;
+    image_create_info.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+    image_create_info.initialLayout = vk::ImageLayout::eUndefined;
 
-    for (const tinygltf::Image& this_image : in_model.images)
-    {
-        ImageAbout this_image_about = imageAboutOfTextures_ptr->GetImageAbout(this_image);
-        // because occlusion map will be baked with roughnessMetallic we ignore its texture
-        if ( this_image_about.map != ImageMap::occlusion ||
-            (this_image_about.map == ImageMap::occlusion && this_image_about.sibling_metallicRoughness_image_ptr == nullptr))
-        {
-            std::unique_ptr<uint8_t[]> local_original_image_buffer;
+    vma::AllocationCreateInfo image_allocation_info;
+    image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
 
-            fs::path path_to_mipmap_folder;
+    auto createImage_result = vma_allocator.createImage(image_create_info, image_allocation_info).value;
+    vk::Image image = createImage_result.first;
+    vma::Allocation allocation = createImage_result.second;
 
-            if (!this_image.uri.empty())
-            {
-                path_to_mipmap_folder = in_imagesFolder + "//" + this_image.uri.substr(0, this_image.uri.find_last_of('.')) + "_mipmaps";
-                fs::create_directory(path_to_mipmap_folder);
-            }
-            else // TODO: gotta support that
-            {
-                assert(0);
-            }
+    vkImagesAndAllocations.emplace_back(image, allocation);
 
-            mipmapsGenerator_ptr->BindNewImage(this_image, in_imagesFolder);
-            MipmapInfo original_info = mipmapsGenerator_ptr->GetUnalignedInfo();
+    // Imageview
+    vk::ImageViewCreateInfo imageView_create_info;
+    imageView_create_info.image = image;
+    imageView_create_info.viewType = vk::ImageViewType::e2D;
+    imageView_create_info.format = format;
+    imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                        images_data[0].GetComponentsCount() >= 2 ? vk::ComponentSwizzle::eIdentity : vk::ComponentSwizzle::eZero,
+                                        images_data[0].GetComponentsCount() >= 3 ? vk::ComponentSwizzle::eIdentity : vk::ComponentSwizzle::eZero,
+                                        images_data[0].GetComponentsCount() == 4 ? vk::ComponentSwizzle::eIdentity : vk::ComponentSwizzle::eOne};
+    imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                              0, uint32_t(images_data.size()),
+                                              0, 1};
 
-            size_t mipmaps_levels_over_4x4;
-            if (useMipmaps)
-            {
-                mipmaps_levels_over_4x4 = mipmapsGenerator_ptr->GetMipmaps_levels_over_4x4();
-            }
-            else
-            {
-                mipmaps_levels_over_4x4 = 1;
-            }
+    vk::ImageView imageView = device.createImageView(imageView_create_info).value;
 
-            std::vector<Anvil::MipmapRawData> compressed_mipmaps_raw_data;
-            std::vector<void*> garbage_collector;
+    // Pick sampler
+    vk::Sampler sampler = GetSampler({images_data[0].GetWrapS(), images_data[0].GetWrapT()});
 
-            for (size_t this_mipmap_level = 0; this_mipmap_level < mipmaps_levels_over_4x4; this_mipmap_level++)
-            {
-                std::string this_mipmap_filename = path_to_mipmap_folder.string() + "//mipmap_" + std::to_string(this_mipmap_level) + ".DDS";
-                {
-                    CMP_MipSet this_compressed_mipmap; // it gotta delete at some point
-                    memset(&this_compressed_mipmap, 0, sizeof(CMP_MipSet));
+    // Transfer data
+    std::vector<std::byte> data_of_images;
+    std::vector<vk::BufferImageCopy> regions;
 
-                    if (CMP_LoadTexture(this_mipmap_filename.c_str(), &this_compressed_mipmap) != CMP_OK)
-                    {
-                        std::cout << "---" << this_image.uri << " , creating mipmap level: " << this_mipmap_level
-                            << " ,width= " << (original_info.width >> this_mipmap_level)
-                            << " ,height= " << (original_info.height >> this_mipmap_level) << "\n";
+    for(size_t i = 0; i != images_data.size(); ++i) {
+        std::vector<std::byte> this_image_data = GetImageFromImageData(images_data[i], format);
+        vk::BufferImageCopy region = {data_of_images.size(),
+                                      0, 0,
+                                      {vk::ImageAspectFlagBits::eColor, uint32_t(i), 0, 1},
+                                      {0, 0 ,0},
+                                      {uint32_t(images_data[i].GetWidth()), uint32_t(images_data[i].GetHeight()), 1}};
 
-                        std::cout << "----Creating mipmap\n";
-
-                        MipmapInfo this_mipmap;
-
-                        if (this_mipmap_level == 0)
-                            this_mipmap = mipmapsGenerator_ptr->GetAlignedOriginal();
-                        else
-                            this_mipmap = mipmapsGenerator_ptr->GetMipmap(this_mipmap_level);
-
-                        std::cout << "----Compressing mipmap\n";
-
-                        KernelOptions   kernel_options;
-                        memset(&kernel_options, 0, sizeof(KernelOptions));
-
-                        kernel_options.encodeWith = CMP_HPC;
-                         Anvil::Format texture_target_compressed_format = vulkanFormatToCompressedFormat_map.find(this_mipmap.aligned_image_vulkan_format)->second;
-                        kernel_options.format = vulkanFormatToCompressonatorFormat_map.find(texture_target_compressed_format)->second;
-                        kernel_options.fquality = 0.8f;
-                        kernel_options.threads = 0;
-
-                        CMP_MipSet srcTexture;
-                        CMP_MipLevel srcMipLevel;
-                        memset(&srcTexture, 0, sizeof(CMP_MipSet));
-                        memset(&srcMipLevel, 0, sizeof(CMP_MipLevel));
-
-                        CMP_MipSet dstTexture;
-                        memset(&dstTexture, 0, sizeof(CMP_MipSet));
-
-                        srcTexture.m_nWidth = this_mipmap.width;
-                        srcTexture.m_nHeight = this_mipmap.height;
-                        srcTexture.m_nDepth = 1;
-                        srcTexture.m_format = vulkanFormatToCompressonatorFormat_map.find(this_mipmap.aligned_image_vulkan_format)->second;
-                        srcTexture.m_ChannelFormat = CF_8bit;
-                        srcTexture.m_TextureDataType = this_mipmap.defaultCompCount == 3 ? TDT_XRGB : TDT_ARGB;
-                        srcTexture.m_TextureType = TT_2D;
-                        srcTexture.m_nMipLevels = 1;
-
-                         CMP_MipLevelTable srcMipLevel_ptr = &srcMipLevel;
-                        srcTexture.m_pMipLevelTable = &srcMipLevel_ptr;
-                        srcMipLevel.m_nWidth = this_mipmap.width; 
-                        srcMipLevel.m_nHeight = this_mipmap.height;
-                        srcMipLevel.m_dwLinearSize = static_cast<CMP_DWORD>(this_mipmap.size);
-                        srcMipLevel.m_pbData = this_mipmap.data_uptr.get();
-
-                        {
-                            CMP_ERROR cmp_status;
-                            cmp_status = CMP_ProcessTexture(&srcTexture, &dstTexture, kernel_options, nullptr);
-                            assert(cmp_status == CMP_OK);
-                        }
-
-                        CMP_SaveTexture(this_mipmap_filename.c_str(), &dstTexture);
-
-                        this_compressed_mipmap = dstTexture;
-                    }
-
-                    garbage_collector.emplace_back((*this_compressed_mipmap.m_pMipLevelTable)->m_pbData);
-
-                    compressed_mipmaps_raw_data.emplace_back(Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                                                            static_cast<uint32_t>(this_mipmap_level),
-                                                                                                            (*this_compressed_mipmap.m_pMipLevelTable)->m_pbData,
-                                                                                                            (*this_compressed_mipmap.m_pMipLevelTable)->m_dwLinearSize,
-                                                                                                            (*this_compressed_mipmap.m_pMipLevelTable)->m_dwLinearSize / (*this_compressed_mipmap.m_pMipLevelTable)->m_nHeight));
-                }
-            }
-
-            Anvil::ImageUniquePtr image_ptr;
-            Anvil::ImageViewUniquePtr image_view_ptr;
-
-            Anvil::Format texture_target_compressed_format = vulkanFormatToCompressedFormat_map.find(original_info.aligned_image_vulkan_format)->second;
-
-            {
-                auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
-                                                                            Anvil::ImageType::_2D,
-                                                                            texture_target_compressed_format,
-                                                                            Anvil::ImageTiling::OPTIMAL,
-                                                                            Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT | Anvil::ImageUsageFlagBits::SAMPLED_BIT,
-                                                                            static_cast<uint32_t>(original_info.width),
-                                                                            static_cast<uint32_t>(original_info.height),
-                                                                            1, /* base_mipmap_depth */
-                                                                            1, /* n_layers */
-                                                                            Anvil::SampleCountFlagBits::_1_BIT,
-                                                                            Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                            Anvil::SharingMode::EXCLUSIVE,
-                                                                            useMipmaps, /* in_use_full_mipmap_chain */
-                                                                            Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT,
-                                                                            Anvil::ImageCreateFlagBits::NONE,
-                                                                            Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL, /* in_final_image_layout    */
-                                                                            &compressed_mipmaps_raw_data);
-
-                image_ptr = Anvil::Image::create(std::move(create_info_ptr));
-            }
-
-            for (void* this_garbage : garbage_collector)
-                std::free(this_garbage);
-
-            {
-                auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(device_ptr,
-                                                                             image_ptr.get(),
-                                                                             0,                                                /* n_base_layer        */
-                                                                             0,                                                /* n_base_mipmap_level */
-                                                                             static_cast<uint32_t>(mipmaps_levels_over_4x4),   /* n_mipmaps           */
-                                                                             Anvil::ImageAspectFlagBits::COLOR_BIT,
-                                                                             texture_target_compressed_format,
-                                                                             Anvil::ComponentSwizzle::R,
-                                                                             (original_info.defaultCompCount >= 2)
-                                                                             ? Anvil::ComponentSwizzle::G
-                                                                             : Anvil::ComponentSwizzle::ZERO,
-                                                                             (original_info.defaultCompCount >= 3)
-                                                                             ? Anvil::ComponentSwizzle::B
-                                                                             : Anvil::ComponentSwizzle::ZERO,
-                                                                             (original_info.defaultCompCount >= 4)
-                                                                             ? Anvil::ComponentSwizzle::A
-                                                                             : Anvil::ComponentSwizzle::ONE);
-
-                image_view_ptr = Anvil::ImageView::create(std::move(create_info_ptr));
-            }
-
-            images_uptrs.emplace_back(std::move(image_ptr));
-            imagesViews_upts.emplace_back(std::move(image_view_ptr));
-
-            imagesByglTFindex_to_imagesByFlashedIndex_umap.emplace(thisModel_imagesglTFcountSoFar, thisModel_imagesFlashedSoFar);
-            thisModel_imagesFlashedSoFar++;
-        }
-
-        thisModel_imagesglTFcountSoFar++;
+        std::copy(this_image_data.begin(), this_image_data.end(), std::back_inserter(data_of_images));
+        regions.emplace_back(region);
     }
 
-    mipmapsGenerator_ptr->Reset();
+    StagingBuffer staging_buffer(device, vma_allocator, data_of_images.size());
+    memcpy(staging_buffer.GetDstPtr(), data_of_images.data(), data_of_images.size());
 
-    for (const tinygltf::Texture& this_texture : in_model.textures)
     {
-        TextureInfo this_texture_info;
+        vk::CommandBuffer command_buffer = staging_buffer.BeginCommandRecord(transferQueue);
 
-        auto search_imagesFlashed_index = imagesByglTFindex_to_imagesByFlashedIndex_umap.find(this_texture.source);
-        if (search_imagesFlashed_index != imagesByglTFindex_to_imagesByFlashedIndex_umap.end())
-        {
-            this_texture_info.imageIndex  = imagesFlashedSoFar + search_imagesFlashed_index->second;
-        }
-        else
-        {
-            this_texture_info.imageIndex = -1; // won't be used because materials will use occlusion map via metallicRoughness
-        }
-         
-        if (this_texture.sampler != -1)
-        {
-            const tinygltf::Sampler& this_sampler = in_model.samplers[this_texture.sampler];
+        vk::ImageMemoryBarrier init_image_barrier;
+        init_image_barrier.image = image;
+        init_image_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
+        init_image_barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+        init_image_barrier.oldLayout = vk::ImageLayout::eUndefined;
+        init_image_barrier.newLayout = vk::ImageLayout::eTransferDstOptimal;
+        init_image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        init_image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        init_image_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                 0, uint32_t(images_data.size()), 0, 1};
 
-            SamplerSpecs this_sampler_specs;
-            this_sampler_specs.magFilter = static_cast<glTFsamplerMagFilter>(this_sampler.magFilter);
-            this_sampler_specs.minFilter = static_cast<glTFsamplerMinFilter>(this_sampler.minFilter);
-            this_sampler_specs.wrapS = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
-            this_sampler_specs.wrapT = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eBottomOfPipe,
+                                       vk::PipelineStageFlagBits::eTransfer,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       0, nullptr,
+                                       0, nullptr,
+                                       1, &init_image_barrier);
 
-            this_texture_info.samplerIndex = GetSamplerIndex(this_sampler_specs);
-        }
-        else
-            this_texture_info.samplerIndex = 0;
+        command_buffer.copyBufferToImage(staging_buffer.GetBuffer(), image, vk::ImageLayout::eTransferDstOptimal, regions);
 
-        texturesInfos.emplace_back(this_texture_info);
+        vk::ImageMemoryBarrier sample_image_barrier;
+        sample_image_barrier.image = image;
+        sample_image_barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        sample_image_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+        sample_image_barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        sample_image_barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        sample_image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        sample_image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        sample_image_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                 0, uint32_t(images_data.size()), 0, 1};
 
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                       vk::PipelineStageFlagBits::eFragmentShader,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       0, nullptr,
+                                       0, nullptr,
+                                       1, &sample_image_barrier);
+
+        staging_buffer.EndAndSubmitCommands();
     }
 
-
-    imagesFlashedSoFar += thisModel_imagesFlashedSoFar;
-    imagesglTFcountSoFar += thisModel_imagesglTFcountSoFar;
-    
-    modelToTextureIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), texturesSoFar);
-    texturesSoFar += in_model.textures.size();
+    textures.emplace_back(imageView, sampler);
+    return textures.size() - 1;
 }
 
-size_t TexturesOfMaterials::GetSamplerIndex(SamplerSpecs in_samplerSpecs)
+vk::Sampler TexturesOfMaterials::GetSampler(SamplerSpecs samplerSpecs)
 {
-    auto search = samplerSpecsToSamplerIndex_umap.find(in_samplerSpecs);
-    if (search != samplerSpecsToSamplerIndex_umap.end())
-    {
+    auto search = samplerSpecToSampler_umap.find(samplerSpecs);
+    if (search != samplerSpecToSampler_umap.end()) {
         return search->second;
-    }
-    else
-    {
-        Anvil::SamplerUniquePtr image_sampler_uptr;
+    } else {
+        vk::SamplerAddressMode sampler_vk_wrapS= glTFsamplerWrapToAddressMode_map.find(samplerSpecs.wrap_S)->second;
+        vk::SamplerAddressMode sampler_vk_wrapT= glTFsamplerWrapToAddressMode_map.find(samplerSpecs.wrap_T)->second;
 
-        auto create_info_ptr = Anvil::SamplerCreateInfo::create(device_ptr,
-                                                                glTFsamplerMagFilterToFilter_map.find(static_cast<glTFsamplerMagFilter>(in_samplerSpecs.magFilter))->second,
-                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map.find(static_cast<glTFsamplerMinFilter>(in_samplerSpecs.minFilter))->second.first,
-                                                                glTFsamplerMinFilterToFilterAndMipmapMode_map.find(static_cast<glTFsamplerMinFilter>(in_samplerSpecs.minFilter))->second.second,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(in_samplerSpecs.wrapS))->second,
-                                                                glTFsamplerWrapToAddressMode_map.find(static_cast<glTFsamplerWrap>(in_samplerSpecs.wrapT))->second,
-                                                                Anvil::SamplerAddressMode::REPEAT,
-                                                                0.0f, /* in_lod_bias        */
-                                                                16.0f, /* in_max_anisotropy  */
-                                                                false, /* in_compare_enable  */
-                                                                Anvil::CompareOp::NEVER,    /* in_compare_enable  */
-                                                                0.0f, /* in_min_lod         */
-                                                                16.0f, /* in_min_lod         */
-                                                                Anvil::BorderColor::INT_OPAQUE_BLACK,
-                                                                false); /* in_use_unnormalized_coordinates */
+        vk::SamplerCreateInfo sampler_create_info;
+        sampler_create_info.magFilter = vk::Filter::eLinear;
+        sampler_create_info.minFilter = vk::Filter::eLinear;
+        sampler_create_info.mipmapMode = vk::SamplerMipmapMode::eLinear;
+        sampler_create_info.addressModeU = sampler_vk_wrapS;
+        sampler_create_info.addressModeV = sampler_vk_wrapT;
+        sampler_create_info.mipLodBias = 0.f;
+        sampler_create_info.anisotropyEnable = VK_TRUE;
+        sampler_create_info.maxAnisotropy = 16.f;
+        sampler_create_info.compareEnable = VK_FALSE;
+        sampler_create_info.compareOp = vk::CompareOp::eAlways;
+        sampler_create_info.minLod = 0.f;
+        sampler_create_info.maxLod = VK_LOD_CLAMP_NONE;
+        sampler_create_info.borderColor = vk::BorderColor::eIntOpaqueBlack;
+        sampler_create_info.unnormalizedCoordinates = VK_FALSE;
 
-        image_sampler_uptr = Anvil::Sampler::create(std::move(create_info_ptr));
+        vk::Sampler sampler = device.createSampler(sampler_create_info).value;
+        samplerSpecToSampler_umap.emplace(samplerSpecs, sampler);
 
-        samplers_uptrs.emplace_back(std::move(image_sampler_uptr));
-
-        size_t index_in_vector = samplers_uptrs.size() - 1;
-        samplerSpecsToSamplerIndex_umap.emplace(in_samplerSpecs, index_in_vector);
-
-        return index_in_vector;
+        return sampler;
     }
 }
 
-size_t TexturesOfMaterials::GetTextureIndexOffsetOfModel(const tinygltf::Model& in_model)
+std::vector<std::byte> TexturesOfMaterials::GetImageFromImageData(const ImageData &image_data, vk::Format format)
 {
-    auto search = modelToTextureIndexOffset_umap.find(const_cast<tinygltf::Model*>(&in_model));
-
-    assert(search != modelToTextureIndexOffset_umap.end());
-
-    return search->second;
-}
-
-Anvil::ImageView* TexturesOfMaterials::GetImageView(size_t in_texture_index)
-{
-    TextureInfo& this_textureInfo = texturesInfos[in_texture_index];
-    assert(this_textureInfo.imageIndex != -1);
-
-    return  imagesViews_upts[this_textureInfo.imageIndex].get();
-}
-
-Anvil::Sampler* TexturesOfMaterials::GetSampler(size_t in_texture_index)
-{
-    TextureInfo& this_textureInfo = texturesInfos[in_texture_index];
-    assert(this_textureInfo.imageIndex != -1);
-
-    return  samplers_uptrs[this_textureInfo.samplerIndex].get();
+    if (image_data.GetComponentsCount() == 1 && format==vk::Format::eR8Srgb ||
+       image_data.GetComponentsCount() == 2 && format==vk::Format::eR8G8Srgb ||
+       image_data.GetComponentsCount() == 4 && format==vk::Format::eR8G8B8A8Srgb) {
+        return image_data.GetImage(true, false);
+    } else if (image_data.GetComponentsCount() == 1 && format==vk::Format::eR8Unorm ||
+              image_data.GetComponentsCount() == 2 && format==vk::Format::eR8G8Unorm ||
+              image_data.GetComponentsCount() == 4 && format==vk::Format::eR8G8B8A8Unorm) {
+        return image_data.GetImage(false, false);
+    } else if (image_data.GetComponentsCount() == 1 && format==vk::Format::eR16Unorm ||
+              image_data.GetComponentsCount() == 2 && format==vk::Format::eR16G16Unorm ||
+              image_data.GetComponentsCount() == 4 && format==vk::Format::eR16G16B16A16Unorm)  {
+        return image_data.GetImage(false, true);
+    } else {assert(0); return {};}
 }

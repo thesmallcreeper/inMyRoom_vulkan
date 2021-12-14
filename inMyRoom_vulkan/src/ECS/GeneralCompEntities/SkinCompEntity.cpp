@@ -52,18 +52,4 @@ SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity
     return this_skinCompEntity;
 }
 
-
-void SkinCompEntity::Update(LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr, SkinsOfMeshes* skinsOfMeshes_ptr)
-{
-    lastNodesMatricesOffset = static_cast<uint32_t>(skinsOfMeshes_ptr->GetNodesRecordSize());
-
-    for (const Entity this_jointEntity : jointRelativeEntities)
-    {
-        LateNodeGlobalMatrixCompEntity& this_nodeGlobalMatrixCompEntity_ptr = nodeGlobalMatrixComp_ptr->GetComponentEntity(this_jointEntity + thisEntity);
-        glm::mat4 joint_global_matrix = this_nodeGlobalMatrixCompEntity_ptr.globalMatrix;
-            
-        skinsOfMeshes_ptr->AddNodeMatrix(joint_global_matrix);
-    }
-}
-
 #endif

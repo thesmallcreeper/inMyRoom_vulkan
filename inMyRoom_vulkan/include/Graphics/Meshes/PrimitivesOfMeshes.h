@@ -1,176 +1,151 @@
 #pragma once
 
-#include "wrappers/device.h"
-#include "wrappers/buffer.h"
+#include "vulkan/vulkan.hpp"
+#include "vk_mem_alloc.hpp"
 
 #include "tiny_gltf.h"
 
 #include "Geometry/OBBtree.h"
 #include "Geometry/Triangle.h"
 
-#include "Graphics/PipelinesFactory.h"
-#include "Graphics/ShadersSetsFamiliesCache.h"
 #include "Graphics/Meshes/MaterialsOfPrimitives.h"
 
-struct PrimitiveGeneralInfo
+struct PrimitiveInfo
 {
-    Anvil::IndexType indexBufferType;
-    uint32_t indicesCount = 0;
+    vk::PrimitiveTopology drawMode = vk::PrimitiveTopology::eTriangleList;
 
-    VkDeviceSize indexBufferOffset = -1;
-    VkDeviceSize positionBufferOffset = -1;
-    VkDeviceSize normalBufferOffset = -1;
-    VkDeviceSize tangentBufferOffset = -1;
-    VkDeviceSize texcoord0BufferOffset = -1;
-    VkDeviceSize texcoord1BufferOffset = -1;
-    VkDeviceSize color0BufferOffset = -1;
-    VkDeviceSize joints0BufferOffset = -1;
-    VkDeviceSize weights0BufferOffset = -1;
+    size_t material             =  0;
 
-    GraphicsPipelineSpecs commonGraphicsPipelineSpecs;
+    size_t indicesCount         =  0;
+    size_t verticesCount        =  0;
 
-    uint32_t materialIndex = -1;
-    MaterialMapsIndexes materialMaps;
-};
+    VkDeviceSize indicesOffset  = -1;
 
-struct PrimitiveCPUdata
-{
-    std::vector<glm::vec3> points;
-    std::vector<glm::vec3> normals;
-    std::vector<uint32_t> indices;
-    glTFmode drawMode;
-    bool isSkin = false;
-};
+    int positionMorphTargets    =  0;
+    VkDeviceSize positionOffset = -1;
 
-struct PrimitiveSpecificSetInfo
-{
-    Anvil::IndexType indexBufferType;
-    uint32_t indicesCount = 0;
+    int normalMorphTargets      =  0;
+    VkDeviceSize normalOffset   = -1;
 
-    VkDeviceSize indexBufferOffset = -1;
-    VkDeviceSize positionBufferOffset = -1;
-    VkDeviceSize normalBufferOffset = -1;
-    VkDeviceSize tangentBufferOffset = -1;
-    VkDeviceSize texcoord0BufferOffset = -1;
-    glTFcomponentType texcoord0ComponentType = static_cast<glTFcomponentType>(-1);
-    VkDeviceSize texcoord1BufferOffset = -1;
-    glTFcomponentType texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
-    VkDeviceSize color0BufferOffset = -1;
-    glTFcomponentType color0ComponentType = static_cast<glTFcomponentType>(-1);
-    VkDeviceSize joints0BufferOffset = -1;
-    glTFcomponentType joints0ComponentType = static_cast<glTFcomponentType>(-1);
-    VkDeviceSize weights0BufferOffset = -1;
-    glTFcomponentType weights0ComponentType = static_cast<glTFcomponentType>(-1);
+    int tangentMorphTargets     =  0;
+    VkDeviceSize tangentOffset  = -1;
 
-    VkPipeline vkGraphicsPipeline;
-    Anvil::PipelineLayout* pipelineLayout_ptr;
+    int texcoordsCount          =  0;
+    int texcoordsMorphTargets   =  0;
+    VkDeviceSize texcoordsOffset= -1;
 
-    uint32_t materialIndex = -1;
-    MaterialMapsIndexes materialMaps;
-};
+    int colorMorphTargets       =  0;
+    VkDeviceSize colorOffset    = -1;
 
-struct PrimitivesSetSpecs
-{
-    std::string primitivesSetName;
+    int jointsCount             =  0;
+    VkDeviceSize jointsOffset   = -1;
 
-    ShadersSpecs shaderSpecs;
-    bool useMaterial;
-    bool useDepthWrite;
-    Anvil::CompareOp depthCompare;
-};
-
-struct DescriptorSetsCreateInfosPtrsCollection
-{
-    const Anvil::DescriptorSetCreateInfo* camera_description_set_create_info_ptr;
-    const Anvil::DescriptorSetCreateInfo* skins_description_set_create_info_ptr;
-    const Anvil::DescriptorSetCreateInfo* materials_description_set_create_info_ptr;
+    int weightsCount            =  0;
+    VkDeviceSize weightsOffset  = -1;
 };
 
 class PrimitivesOfMeshes
 {
-public: // functions
-    PrimitivesOfMeshes(PipelinesFactory* in_pipelinesFactory_ptr,
-                       ShadersSetsFamiliesCache* in_shadersSetsFamiliesCache_ptr,
-                       MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
-                       Anvil::BaseDevice* const in_device_ptr);
+    struct PrimitiveOBBtreeData
+    {
+        bool isSkinOrMorph = false;
 
+        std::vector<glm::vec3> points;
+        std::vector<glm::vec3> normals;
+        std::vector<uint32_t> indices;
+        glTFmode drawMode;
+    };
+
+    class PrimitiveInitializationData
+    {
+    public:
+        glTFmode drawMode       = glTFmode::triangles;
+        std::vector<uint32_t>   indices;
+
+        int positionMorphTargets= 0;
+        std::vector<float>      position;   // glm::vec3
+
+        int normalMorphTargets  = 0;
+        std::vector<float>      normal;     // glm::vec3
+
+        int tangentMorphTargets = 0;
+        std::vector<float>      tangent;    // glm::vec4
+
+        int texcoordsCount      = 0;
+        int texcoordsMorphTargets = 0;
+        std::vector<float>      texcoords;  // glm::vec2
+
+        // Maximum 1 color
+        int colorMorphTargets   = 0;
+        std::vector<float>      color;      // glm::vec4
+
+        int jointsCount         = 0;
+        std::vector<uint16_t>   joints;     // uint16_t[4]
+
+        int weightsCount        = 0;
+        std::vector<float>      weights;    // glm::vec4
+
+        size_t material         = 0;
+
+    public:
+        PrimitiveInitializationData() = default;
+        PrimitiveInitializationData(const tinygltf::Model& model,
+                                    const tinygltf::Primitive& primitive,
+                                    const MaterialsOfPrimitives* materialsOfPrimitives_ptr);
+
+        PrimitiveOBBtreeData GetPrimitiveOBBtreeData() const;
+
+        size_t IndicesBufferSize() const;
+        size_t VerticesBufferSize() const;
+
+    private:
+        static std::pair<const std::byte*, const std::byte*> GetAccessorBeginEndPtrs(const tinygltf::Model& model,
+                                                                                     const tinygltf::Accessor& accessor);
+    };
+public:
+    PrimitivesOfMeshes(MaterialsOfPrimitives* materialsOfPrimitives_ptr,
+                       vk::Device device,
+                       vma::Allocator allocator);
     ~PrimitivesOfMeshes();
 
-    void AddPrimitive(const tinygltf::Model& in_model,
-                      const tinygltf::Primitive& in_primitive);
+    size_t AddPrimitive(const tinygltf::Model& model,
+                        const tinygltf::Primitive& primitive);
 
-    void FlashDevice();
-
-    void InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_specs,
-                           DescriptorSetsCreateInfosPtrsCollection in_descriptor_sets_create_infos_ptrs_collection,
-                           Anvil::RenderPass* renderpass_ptr,
-                           Anvil::SubPassID subpassID);
-
-    size_t GetPrimitivesCount();
-    bool IsPrimitiveTransparent(size_t primitive_index);
+    void FlashDevice(std::pair<vk::Queue, uint32_t> queue);
 
     void StartRecordOBBtree();
-
     OBBtree GetOBBtreeAndReset();
 
-    const std::vector<PrimitiveSpecificSetInfo>& GetPrimitivesSetInfos(std::string in_primitives_set_name) const;
-    const std::vector<PrimitiveGeneralInfo>& GetPrimitivesGeneralInfos() const;
+    size_t GetPrimitivesCount() const {return primitivesInfo.size();}
+    const PrimitiveInfo& GetPrimitiveInfo(size_t index) const {return primitivesInfo[index];}
+    vk::Buffer GetIndicesBuffer() const {return indicesBuffer;}
+    vk::Buffer GetVerticesBuffer() const {return verticesBuffer;}
 
-    Anvil::Buffer* GetIndexBufferPtr() { return indexBuffer_uptr.get(); }
-    Anvil::Buffer* GetPositionBufferPtr() { return positionBuffer_uptr.get(); }
-    Anvil::Buffer* GetNormalBufferPtr() { return normalBuffer_uptr.get(); }
-    Anvil::Buffer* GetTangentBufferPtr() { return tangentBuffer_uptr.get(); }
-    Anvil::Buffer* GetTexcoord0BufferPtr() { return texcoord0Buffer_uptr.get(); }
-    Anvil::Buffer* GetTexcoord1BufferPtr() { return texcoord1Buffer_uptr.get(); }
-    Anvil::Buffer* GetColor0BufferPtr() { return color0Buffer_uptr.get(); }
-    Anvil::Buffer* GetJoints0BufferPtr() { return joints0Buffer_uptr.get(); }
-    Anvil::Buffer* GetWeights0BufferPtr() { return weights0Buffer_uptr.get(); }
+private:
+    size_t GetIndicesBufferSize() const;
+    size_t GetVerticesBufferSize() const;
 
-private: // functions
-    void AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref,
-                                      bool shouldFlipYZ_position,
-                                      bool vec3_to_vec4,
-                                      size_t alignment,
-                                      const tinygltf::Model& in_model,
-                                      const tinygltf::Accessor& in_accessor) const;
+    void InitializePrimitivesInfo();
+    void CopyIndicesToBuffer(std::byte* ptr);
+    void CopyVerticesToBuffer(std::byte* ptr);
+    void FinishInitializePrimitivesInfo();
 
-    Anvil::BufferUniquePtr CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
-                                                            Anvil::BufferUsageFlagBits in_bufferusageflag,
-                                                            std::string buffers_name) const;
 private: // data
-    Anvil::BufferUniquePtr indexBuffer_uptr;
-    Anvil::BufferUniquePtr positionBuffer_uptr;
-    Anvil::BufferUniquePtr normalBuffer_uptr;
-    Anvil::BufferUniquePtr tangentBuffer_uptr;
-    Anvil::BufferUniquePtr texcoord0Buffer_uptr;
-    Anvil::BufferUniquePtr texcoord1Buffer_uptr;
-    Anvil::BufferUniquePtr color0Buffer_uptr;
-    Anvil::BufferUniquePtr joints0Buffer_uptr;
-    Anvil::BufferUniquePtr weights0Buffer_uptr;
+    std::vector<PrimitiveInfo> primitivesInfo;
+    std::vector<PrimitiveInitializationData> primitivesInitializationData;
 
-    std::vector<unsigned char> localIndexBuffer;
-    std::vector<unsigned char> localPositionBuffer;
-    std::vector<unsigned char> localNormalBuffer;
-    std::vector<unsigned char> localTangentBuffer;
-    std::vector<unsigned char> localTexcoord0Buffer;
-    std::vector<unsigned char> localTexcoord1Buffer;
-    std::vector<unsigned char> localColor0Buffer;
-    std::vector<unsigned char> localJoints0Buffer;
-    std::vector<unsigned char> localWeights0Buffer;
-
-    std::vector<PrimitiveCPUdata> recorderPrimitivesCPUdatas;
+    std::vector<PrimitiveOBBtreeData> recorderPrimitivesOBBtreeDatas;
     bool recordingOBBtree = false;
 
-    std::unordered_map<std::string, std::vector<PrimitiveSpecificSetInfo>> primitivesSetsNameToVector_umap;
-    std::vector<PrimitiveGeneralInfo> primitivesGeneralInfos;
+    vk::Device device;
+    vma::Allocator vma_allocator;
 
-    std::vector<bool> primitivesTransparencyFlags;
-
-    PipelinesFactory* pipelinesFactory_ptr;
-    ShadersSetsFamiliesCache* shadersSetsFamiliesCache_ptr;
-    MaterialsOfPrimitives* materialsOfPrimitives_ptr;
-
-    Anvil::BaseDevice* const device_ptr;
+    vk::Buffer indicesBuffer;
+    vma::Allocation indicesAllocation;
+    vk::Buffer verticesBuffer;
+    vma::Allocation verticesAllocation;
     bool hasBeenFlashed = false;
+
+    MaterialsOfPrimitives* materialsOfPrimitives_ptr;
 };
 

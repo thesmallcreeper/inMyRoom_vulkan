@@ -12,9 +12,7 @@ class SkinComp final
 {
 public:
     explicit SkinComp(ECSwrapper* const in_ecs_wrapper_ptr, SkinsOfMeshes* in_skinsOfMeshes_ptr);
-    ~SkinComp();
 
-    void Update() override;
 private:
     SkinsOfMeshes* skinsOfMeshes_ptr;
 };

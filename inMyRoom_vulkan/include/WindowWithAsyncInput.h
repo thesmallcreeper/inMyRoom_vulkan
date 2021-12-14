@@ -1,43 +1,54 @@
 #pragma once
 
-#include <memory>
+#include <vector>
+#include <string>
 #include <functional>
+#include <mutex>
 #include <thread>
-#include <future>
 
-#include "misc/window_factory.h"
-
-#ifdef _WIN32
-    typedef DWORD THREADID_T;
-#else
-    typedef pthread_t THREADID_T;
-#endif
-
-class WindowWithAsyncInput;
-
-typedef std::unique_ptr<WindowWithAsyncInput, std::function<void(WindowWithAsyncInput*)> > WindowWithAsyncInputUniquePtr;
+#include "vulkan/vulkan.hpp"
+#include "GLFW/glfw3.h"
 
 class WindowWithAsyncInput
 {
 public:
-    WindowWithAsyncInput(const Anvil::WindowPlatform	platform,
-                         const std::string&             in_title,
+    WindowWithAsyncInput(const std::string&             in_title,
                          unsigned int                   in_width,
-                         unsigned int                   in_height,
-                         bool                           in_closable);
+                         unsigned int                   in_height);
     ~WindowWithAsyncInput();
 
-    Anvil::Window* GetWindowPtr() const
-    {
-        return m_window_ptr.get();
-    }
+    void CallbackKeyPressRelease(int key, int action);
+    void CallbackMouseMovement(double xpos, double ypos);
+
+    void AddCallbackKeyPressLambda(std::function<void(int)> lambda);
+    void AddCallbackKeyReleaseLambda(std::function<void(int)> lambda);
+    void AddCallbackMouseMoveLambda(std::function<void(long,long)> lambda);
+    void DeleteCallbacks();
+
+    bool ShouldClose() const;
+
+    GLFWwindow* GetGlfwWindow() const {return window;}
+    static std::vector<std::string> GetRequiredInstanceExtensions();
 
 private:
+    std::vector<std::function<void(int)>> callbackListOnKeyPress;
+    std::vector<std::function<void(int)>> callbackListOnKeyRelease;
+    std::vector<std::function<void(long,long)>> callbackListOnMouseMove;
 
-    Anvil::WindowUniquePtr m_window_ptr;
-    std::unique_ptr<std::thread> window_thread_ptr;
-    THREADID_T threadID;
+    std::pair<double, double> lastMousePosition;
+    std::pair<double, double> moduloOfMousePosition;
 
-    volatile bool should_thread_close;
+    std::unique_ptr<std::thread> inputThread_uptr;
+    std::mutex controlMutex;
+    bool closeInputThread = false;
+
+    GLFWwindow* window = nullptr;
+
+    static void InitGlfw();
+    inline static bool hasGlfwInit = false;
 };
+
+void key_glfw_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void mouse_button_glfw_callback(GLFWwindow* window, int button, int action, int mods);
+void mouse_cursor_glfw_callback(GLFWwindow* window, double xpos, double ypos);
 

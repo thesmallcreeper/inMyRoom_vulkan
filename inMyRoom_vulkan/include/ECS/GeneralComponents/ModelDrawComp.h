@@ -9,12 +9,6 @@
 #include "Graphics/Meshes/PrimitivesOfMeshes.h"
 #include "Geometry/FrustumCulling.h"
 
-struct DrawRequestsBatch
-{
-    std::vector<DrawRequest> opaqueDrawRequests;
-    std::vector<DrawRequest> transparentDrawRequests;
-};
-
 class ModelDrawComp final
     : public ComponentDataClass<ModelDrawCompEntity, static_cast<componentID>(componentIDenum::ModelDraw), "ModelDraw", sparse_set>
 {
@@ -22,9 +16,7 @@ public:
     explicit ModelDrawComp(ECSwrapper* const in_ecs_wrapper_ptr);
     ~ModelDrawComp() override;
 
-    DrawRequestsBatch DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,
-                                           PrimitivesOfMeshes* primitivesOfMeshes_ptr,
-                                           FrustumCulling* frustumCulling_ptr);
-
+    void AddDrawInfos(std::vector<glm::mat4>& matrices,
+                      std::vector<DrawInfo>& draw_infos);
 };
 

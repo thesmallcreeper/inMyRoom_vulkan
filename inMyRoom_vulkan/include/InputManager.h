@@ -6,9 +6,10 @@
 
 #include "configuru.hpp"
 
-#include "misc/io.h"
-
 #include "ECS/ECStypes.h"
+
+#include "vulkan/vulkan.hpp"
+#include "GLFW/glfw3.h"
 
 enum class eventInputIDenums
 {
@@ -28,8 +29,8 @@ public:
 
     std::vector<eventInputIDenums> GrabAndResetEventVector();
 
-    void KeyPressed(Anvil::KeyID in_key);
-    void KeyReleased(Anvil::KeyID in_key);
+    void KeyPressed(int key);
+    void KeyReleased(int key);
 
     void MouseMoved(long xOffset, long yOffset);
 
@@ -63,8 +64,8 @@ private:
 
     float mouseSensitivity;
 
-    std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyPressed_umap;
-    std::unordered_map<Anvil::KeyID, std::function<void()>> keyToFunction_onKeyReleased_umap;
+    std::unordered_map<int, std::function<void()>> keyToFunction_onKeyPressed_umap;
+    std::unordered_map<int, std::function<void()>> keyToFunction_onKeyReleased_umap;
 
     std::vector<eventInputIDenums> eventVector;
 
@@ -94,12 +95,12 @@ private:
         {"CullingDebug", std::make_pair(std::bind(&InputManager::AddToQueue, this, eventInputIDenums::TOGGLE_CULLING_DEBUG), nullptr)}
     };
 
-    std::unordered_map<std::string, Anvil::KeyID> buttomAliasToKey_map =
+    std::unordered_map<std::string, int> buttomAliasToKey_map =
     {
-        {"SPACE", Anvil::KEY_ID_SPACE}, {"ESCAPE", Anvil::KEY_ID_ESCAPE}, {"TAB", Anvil::KEY_ID_TAB},
-        {"LEFT_MOUSE", Anvil::KEY_ID_LBUTTON}, {"MIDDLE_MOUSE", Anvil::KEY_ID_MBUTTON}, {"RIGHT_MOUSE", Anvil::KEY_ID_RBUTTON}, 
-        {"UP", Anvil::KEY_ID_UP}, {"DOWN", Anvil::KEY_ID_DOWN},
-        {"LEFT", Anvil::KEY_ID_LEFT}, {"RIGHT", Anvil::KEY_ID_RIGHT}
+        {"SPACE", GLFW_KEY_SPACE}, {"ESCAPE", GLFW_KEY_ESCAPE}, {"TAB", GLFW_KEY_TAB},
+        {"LEFT_MOUSE", GLFW_MOUSE_BUTTON_LEFT}, {"MIDDLE_MOUSE", GLFW_MOUSE_BUTTON_MIDDLE}, {"RIGHT_MOUSE", GLFW_MOUSE_BUTTON_RIGHT},
+        {"UP", GLFW_KEY_UP}, {"DOWN", GLFW_KEY_DOWN},
+        {"LEFT", GLFW_KEY_LEFT}, {"RIGHT", GLFW_KEY_RIGHT}
     };
 
     Engine* engine_ptr;

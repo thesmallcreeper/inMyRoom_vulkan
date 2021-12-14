@@ -12,7 +12,7 @@ InputManager::InputManager(Engine* engine_ptr, configuru::Config& in_cfgFile)
     {
         for (const configuru::Config& arrayIterator : cfgFile["inputSettings"]["keybinds"][bind.first.c_str()].as_array())
         {
-            Anvil::KeyID keyID;
+            int keyID;
 
             std::string keyName = arrayIterator.as_string();
             auto search = buttomAliasToKey_map.find(keyName);
@@ -20,7 +20,7 @@ InputManager::InputManager(Engine* engine_ptr, configuru::Config& in_cfgFile)
             if (search != buttomAliasToKey_map.end())
                 keyID = search->second;
             else
-                keyID = static_cast<Anvil::KeyID>(keyName[0]);
+                keyID = static_cast<int>(keyName[0]);
 
             if (std::get<0>(bind.second) != nullptr)
                 keyToFunction_onKeyPressed_umap.try_emplace(keyID, std::get<0>(bind.second));
@@ -63,21 +63,21 @@ void InputManager::MouseMoved(const long xOffset, const long yOffset)
     engine_ptr->GetECSwrapperPtr()->AsyncInput(InputType::MouseMove, reinterpret_cast<void*>(&this_input_data));
 }
 
-void InputManager::KeyPressed(const Anvil::KeyID in_key)
+void InputManager::KeyPressed(int key)
 {
     std::lock_guard<std::mutex> lock(controlMutex);
 
-    auto search = keyToFunction_onKeyPressed_umap.find(in_key);
+    auto search = keyToFunction_onKeyPressed_umap.find(key);
     if (search != keyToFunction_onKeyPressed_umap.end())
         search->second();
 }
 
 
-void InputManager::KeyReleased(const Anvil::KeyID in_key)
+void InputManager::KeyReleased(int key)
 {
     std::lock_guard<std::mutex> lock(controlMutex);
 
-    auto search = keyToFunction_onKeyReleased_umap.find(in_key);
+    auto search = keyToFunction_onKeyReleased_umap.find(key);
     if (search != keyToFunction_onKeyReleased_umap.end())
         search->second();
 }

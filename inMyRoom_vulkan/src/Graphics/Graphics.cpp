@@ -4,39 +4,26 @@
 
 #include <utility>
 #include <cassert>
+#include <array>
 
-#include "misc/swapchain_create_info.h"
-#include "misc/memory_allocator.h"
-#include "misc/buffer_create_info.h"
-#include "misc/image_create_info.h"
-#include "misc/image_view_create_info.h"
-#include "misc/semaphore_create_info.h"
-#include "misc/fence_create_info.h"
-#include "misc/framebuffer_create_info.h"
-#include "misc/render_pass_create_info.h"
-
-Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
-                   uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount)
-    :
-    cfgFile(in_cfgFile),
-    swapchainImagesCount(swapchainImagesCount),
-    lastSemaphoreUsed(0),
-    engine_ptr(in_engine_ptr),
-    device_ptr(in_device_ptr),
-    swapchain_ptr(in_swapchain_ptr),
-    windowWidth(windowWidth),
-    windowHeight(windowHeight)
+Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, vk::Device in_device, vma::Allocator in_vma_allocator)
+    :engine_ptr(in_engine_ptr),
+     cfgFile(in_cfgFile),
+     device(in_device),
+     vma_allocator(in_vma_allocator)
 {
+    graphicsQueue = engine_ptr->GetQueuesList().graphicsQueues[0];
+
     printf("Initializing camera buffers\n");
-    InitCameraBuffers();
+    InitBuffers();
     printf("Initializing camera descriptor set\n");
-    InitCameraDsg();
+    InitDescriptors();
     printf("Initializing GPU images (z-buffers etc)\n");
     InitImages();
-    printf("Initializing framebuffers\n");
-    InitFramebuffers();
     printf("Initializing renderpasses\n");
     InitRenderpasses();
+    printf("Initializing framebuffers\n");
+    InitFramebuffers();
     printf("Initializing semaphores\n");
     InitSemaphoresAndFences();
     printf("Initializing command buffers\n");
@@ -47,464 +34,544 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::
     InitShadersSetsFamiliesCache();
     printf("Initializing meshes tree\n");
     InitMeshesTree();
-    printf("Initializing graphics oriented components\n");
+    printf("Initializing graphics oriented componentsCount\n");
     InitGraphicsComponents();
 }
 
 Graphics::~Graphics()
 {
-    Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());
+    device.waitIdle();
 
-    cmdBuffers_uptrs.clear();
+    device.destroy(commandPool);
 
-    frameSignalSemaphores_uptrs.clear();
-    frameWaitSemaphores_uptrs.clear();
-    framebuffers_uptrs.clear();
+    device.destroy(imageAvailableSemaphore);
+    device.destroy(renderFinishSemaphore);
 
-    renderpass_uptr.reset();
-    depthImage_uptr.reset();
-    depthImageView_uptr.reset();
+    for(auto& this_framebuffer : framebuffers) {
+        device.destroy(this_framebuffer);
+    }
+
+    device.destroy(renderpass);
+
+    device.destroy(depthImageView);
+    vma_allocator.destroyImage(depthImage, depthAllocation);
+
+    device.destroy(descriptorPool);
+    device.destroy(cameraDescriptorSetLayout);
+    device.destroy(matricesDescriptorSetLayout);
+
+    vma_allocator.destroyBuffer(cameraBuffer, cameraAllocation);
+    vma_allocator.destroyBuffer(matricesBuffer, matricesAllocation);
 
     meshesOfNodes_uptr.reset();
-    texturesOfMaterials_uptr.reset();
+    skinsOfMeshes_uptr.reset();
     materialsOfPrimitives_uptr.reset();
+    texturesOfMaterials_uptr.reset();
     shadersSetsFamiliesCache_uptr.reset();
     pipelinesFactory_uptr.reset();
     primitivesOfMeshes_uptr.reset();
-
-    cameraDescriptorSetGroup_uptr.reset();
-
-    cameraBuffer_uptrs.clear();
 }
 
 void Graphics::DrawFrame()
 {
-    Anvil::Semaphore*               curr_frame_signal_semaphore_ptr = nullptr;
-    Anvil::Semaphore*               curr_frame_wait_semaphore_ptr = nullptr;
-    static size_t                   n_frames_rendered = 0;
-    uint32_t                        n_swapchain_image;
-    Anvil::Queue*                   present_queue_ptr = device_ptr->get_universal_queue(0);
-    const Anvil::PipelineStageFlags wait_stage_mask = Anvil::PipelineStageFlagBits::ALL_COMMANDS_BIT;
+    size_t bufferIndex = frameCount % 2;
 
-    /* Determine the signal + wait semaphores to use for drawing this frame */
-    lastSemaphoreUsed = (lastSemaphoreUsed + 1) % swapchainImagesCount;
+    std::vector<glm::mat4> matrices;
+    std::vector<DrawInfo> draw_infos;
 
-    curr_frame_signal_semaphore_ptr = frameSignalSemaphores_uptrs[lastSemaphoreUsed].get();
-    curr_frame_wait_semaphore_ptr = frameWaitSemaphores_uptrs[lastSemaphoreUsed].get();
+    modelDrawComp_uptr->AddDrawInfos(matrices, draw_infos);
 
-    /* Determine the semaphore which the swapchain image */
+    ViewportFrustum camera_viewport = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
+
+    // Update camera matrix
     {
-        const auto acquire_result = swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
-                                                                 &n_swapchain_image,
-                                                                 false); /* in_should_block */
+        glm::mat4x4 camera_matrix = camera_viewport.GetCombinedMatrix();
 
-        ANVIL_REDUNDANT_VARIABLE_CONST(acquire_result);
-        anvil_assert(acquire_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
+        memcpy((std::byte*)(cameraAllocInfo.pMappedData) + bufferIndex * sizeof(glm::mat4),
+               &camera_matrix,
+               sizeof(glm::mat4));
+        vma_allocator.invalidateAllocation(cameraAllocation, bufferIndex * sizeof(glm::mat4), sizeof(glm::mat4));
     }
 
-    // TODO: better waiting
-    Anvil::Vulkan::vkDeviceWaitIdle(device_ptr->get_device_vk());
-
+    // Update matrices
     {
-        ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
+        memcpy((std::byte*)(matricesAllocInfo.pMappedData) + bufferIndex * maxInstances * sizeof(glm::mat4),
+               matrices.data(),
+               matrices.size() * sizeof(glm::mat4));
 
-        struct
-        {
-            glm::mat4 perspective_matrix;
-            glm::mat4 view_matrix;
-        } data;
-
-        data.perspective_matrix = camera_viewport_frustum.GetPerspectiveMatrix();
-        data.view_matrix = camera_viewport_frustum.GetViewMatrix();
-
-        cameraBuffer_uptrs[n_swapchain_image]->write(0,
-                                                     2 * sizeof(glm::mat4x4),
-                                                     &data,
-                                                     present_queue_ptr);
+        vma_allocator.invalidateAllocation(matricesAllocation, bufferIndex * maxInstances * sizeof(glm::mat4), matrices.size() * sizeof(glm::mat4));
     }
 
-    {
-        skinsOfMeshes_uptr->EndRecodingAndFlash(n_swapchain_image, present_queue_ptr);
-    }
+    uint32_t swapchainIndex = device.acquireNextImageKHR(engine_ptr->GetSwapchain(),
+                                                         uint64_t(-1),
+                                                         imageAvailableSemaphore).value;
 
+    ViewportFrustum culling_viewport = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
 
-    RecordCommandBuffer(n_swapchain_image);
+    FrustumCulling frustum_culling;
+    frustum_culling.SetFrustumPlanes(culling_viewport.GetWorldSpacePlanesOfFrustum());
 
-    present_queue_ptr->submit(
-        Anvil::SubmitInfo::create(cmdBuffers_uptrs[n_swapchain_image].get(),
-                                  1,
-                                  &curr_frame_signal_semaphore_ptr,
-                                  1,
-                                  &curr_frame_wait_semaphore_ptr,
-                                  &wait_stage_mask,
-                                  false /* should_block */));
+    commandBuffer.reset();
+    RecordCommandBuffer(commandBuffer, bufferIndex, swapchainIndex,  draw_infos, frustum_culling);
 
-    {
-        Anvil::SwapchainOperationErrorCode present_result = Anvil::SwapchainOperationErrorCode::DEVICE_LOST;
-        present_queue_ptr->present(swapchain_ptr,
-                                   n_swapchain_image,
-                                   1, /* n_wait_semaphores */
-                                   &curr_frame_signal_semaphore_ptr,
-                                   &present_result);
+    vk::SubmitInfo submit_info;
+    vk::PipelineStageFlags wait_semaphore_stage_flag = vk::PipelineStageFlagBits::eTopOfPipe;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &imageAvailableSemaphore;
+    submit_info.pWaitDstStageMask = &wait_semaphore_stage_flag;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &commandBuffer;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &renderFinishSemaphore;
 
-        anvil_assert(present_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
-    }
+    std::vector<vk::SubmitInfo> submit_infos;
+    submit_infos.emplace_back(submit_info);
 
-    n_frames_rendered++;
+    graphicsQueue.first.submit(submit_infos);
+    graphicsQueue.first.waitIdle();
+
+    vk::PresentInfoKHR present_info;
+    vk::SwapchainKHR swapchain = engine_ptr->GetSwapchain();
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &renderFinishSemaphore;
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swapchain;
+    present_info.pImageIndices = &swapchainIndex;
+
+    graphicsQueue.first.presentKHR(present_info);
+
+    ++frameCount;
 }
 
-void Graphics::RecordCommandBuffer(uint32_t swapchainImageIndex)
+void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
+                                   uint32_t buffer_index,
+                                   uint32_t swapchain_index,
+                                   std::vector<DrawInfo>& draw_infos,
+                                   const FrustumCulling& frustum_culling)
 {
-    const uint32_t                 universal_queue_family_index = device_ptr->get_universal_queue(0)->get_queue_family_index();
+    command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
-    Anvil::PrimaryCommandBuffer* cmd_buffer_ptr = cmdBuffers_uptrs[swapchainImageIndex].get();
+    vk::RenderPassBeginInfo render_pass_begin_info;
+    vk::ClearValue clear_values[2];
+    render_pass_begin_info.renderPass = renderpass;
+    render_pass_begin_info.framebuffer = framebuffers[swapchain_index];
+    render_pass_begin_info.renderArea.offset = vk::Offset2D(0, 0);
+    render_pass_begin_info.renderArea.extent = engine_ptr->GetSwapchainCreateInfo().imageExtent;
 
-    /* Reset command buffer*/
-    cmd_buffer_ptr->reset(false);
+    std::array<float, 4> color_clear = {0.f, 0.2f, 0.f, 1.f};
+    clear_values[0].color.float32 = color_clear;
+    clear_values[1].depthStencil.depth = 1.f;
+    render_pass_begin_info.clearValueCount = 2;
+    render_pass_begin_info.pClearValues = clear_values;
 
-    /* Start recording commands */
-    cmd_buffer_ptr->start_recording(true,  /* one_time_submit          */
-                                    false); /* simultaneous_use_allowed */
+    command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
-    {
-        /* Switch the swap-chain image to the color_attachment_optimal image layout */
-        Anvil::ImageSubresourceRange  image_subresource_range;
-        image_subresource_range.aspect_mask = Anvil::ImageAspectFlagBits::COLOR_BIT;
-        image_subresource_range.base_array_layer = 0;
-        image_subresource_range.base_mip_level = 0;
-        image_subresource_range.layer_count = 1;
-        image_subresource_range.level_count = 1;
+    for (const DrawInfo& this_draw: draw_infos) {
+        for (size_t primitive_index : meshesOfNodes_uptr->GetMeshInfoPtr(this_draw.meshIndex)->primitivesIndex) {
+            const PrimitiveInfo& primitive_info = primitivesOfMeshes_uptr->GetPrimitiveInfo(primitive_index);
 
-        Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::NONE,                              /* source_access_mask       */
-                                          Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT,        /* destination_access_mask  */
-                                          Anvil::ImageLayout::UNDEFINED,                            /* old_image_layout */
-                                          Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,             /* new_image_layout */
-                                          universal_queue_family_index,
-                                          universal_queue_family_index,
-                                          swapchain_ptr->get_image(swapchainImageIndex),
-                                          image_subresource_range);
+            vk::Pipeline pipeline = primitivesPipelines[primitive_index];
+            command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
-        cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT,              /* src_stage_mask                 */
-                                                Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,  /* dst_stage_mask                 */
-                                                Anvil::DependencyFlagBits::NONE,
-                                                0,                                                          /* in_memory_barrier_count        */
-                                                nullptr,                                                    /* in_memory_barrier_ptrs         */
-                                                0,                                                          /* in_buffer_memory_barrier_count */
-                                                nullptr,                                                    /* in_buffer_memory_barrier_ptrs  */
-                                                1,                                                          /* in_image_memory_barrier_count  */
-                                                &image_barrier);
+            vk::PipelineLayout pipeline_layout = primitivesPipelineLayouts[primitive_index];
+            std::vector<vk::DescriptorSet> descriptor_sets;
+            descriptor_sets.emplace_back(cameraDescriptorSets[buffer_index]);
+            descriptor_sets.emplace_back(matricesDescriptorSets[buffer_index]);
+            if (this_draw.isSkin)
+                descriptor_sets.emplace_back(skinsOfMeshes_uptr->GetDescriptorSet());
+            descriptor_sets.emplace_back(materialsOfPrimitives_uptr->GetDescriptorSet());
+            command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                              pipeline_layout,
+                                              0,
+                                              descriptor_sets,
+                                              {});
+
+            std::array<uint32_t, 2> data_vertex = {uint32_t(this_draw.matricesOffset), uint32_t(this_draw.inverseMatricesOffset)};
+            command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, 8, data_vertex.data());
+
+            std::array<uint32_t, 1> data_frag = {uint32_t(primitive_info.material)};
+            command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, 8, 4, data_frag.data());
+
+            vk::Buffer vertexBuffer = primitivesOfMeshes_uptr->GetVerticesBuffer();
+            std::vector<vk::Buffer> buffers;
+            std::vector<vk::DeviceSize> offsets;
+
+            // Position
+            buffers.emplace_back(vertexBuffer);
+            offsets.emplace_back(primitive_info.positionOffset);
+
+            // Normal
+            if (primitive_info.normalOffset != -1) {
+                buffers.emplace_back(vertexBuffer);
+                offsets.emplace_back(primitive_info.normalOffset);
+            }
+
+            // Tangent
+            if (primitive_info.tangentOffset != -1) {
+                buffers.emplace_back(vertexBuffer);
+                offsets.emplace_back(primitive_info.tangentOffset);
+            }
+
+            // Texcoords
+            if (primitive_info.texcoordsOffset != -1) {
+                buffers.emplace_back(vertexBuffer);
+                offsets.emplace_back(primitive_info.texcoordsOffset);
+            }
+
+            // Color
+            if (primitive_info.colorOffset != -1) {
+                buffers.emplace_back(vertexBuffer);
+                offsets.emplace_back(primitive_info.colorOffset);
+            }
+
+            // Joint
+            if (primitive_info.jointsOffset != -1) {
+                buffers.emplace_back(vertexBuffer);
+                offsets.emplace_back(primitive_info.jointsOffset);
+            }
+
+            // Weight
+            if (primitive_info.weightsOffset != -1) {
+                buffers.emplace_back(vertexBuffer);
+                offsets.emplace_back(primitive_info.weightsOffset);
+            }
+
+            command_buffer.bindVertexBuffers(0, buffers, offsets);
+
+            if (primitive_info.indicesOffset != -1) {
+                command_buffer.bindIndexBuffer(primitivesOfMeshes_uptr->GetIndicesBuffer(),
+                                               primitive_info.indicesOffset,
+                                               vk::IndexType::eUint32);
+
+                command_buffer.drawIndexed(primitive_info.indicesCount, 1, 0, 0, 0);
+            } else {
+                command_buffer.draw(primitive_info.verticesCount, 1, 0, 0);
+            }
+        }
     }
 
-    {
-        VkClearValue  clear_values[2];
-        clear_values[0].color.float32[0] = 0.0f;
-        clear_values[0].color.float32[1] = 0.0f;
-        clear_values[0].color.float32[2] = 0.0f;
-        clear_values[0].color.float32[3] = 1.0f;
-        clear_values[1].depthStencil.depth = 1.0f;
+    command_buffer.endRenderPass();
 
-        VkRect2D  render_area;
-        render_area.extent.width = windowWidth;
-        render_area.extent.height = windowHeight;
-        render_area.offset.x = 0;
-        render_area.offset.y = 0;
-
-        cmd_buffer_ptr->record_begin_render_pass(sizeof(clear_values) / sizeof(clear_values[0]),
-                                                 clear_values,
-                                                 framebuffers_uptrs[swapchainImageIndex].get(),
-                                                 render_area,
-                                                 renderpass_uptr.get(),
-                                                 Anvil::SubpassContents::INLINE);
-
-        Drawer opaque_drawer("Texture-Pass",
-                             primitivesOfMeshes_uptr.get(),
-                             device_ptr);
-
-        Drawer transparent_drawer("Texture-Pass",
-                                  primitivesOfMeshes_uptr.get(),
-                                  device_ptr);
-
-        {
-            ViewportFrustum camera_viewport_frustum = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
-
-            FrustumCulling frustum_culling;
-            frustum_culling.SetFrustumPlanes(camera_viewport_frustum.GetWorldSpacePlanesOfFrustum());
-
-            DrawRequestsBatch draw_requests = modelDrawComp_uptr->DrawUsingFrustumCull(meshesOfNodes_uptr.get(),
-                                                                                       primitivesOfMeshes_uptr.get(),
-                                                                                       &frustum_culling);
-
-            opaque_drawer.AddDrawRequests(draw_requests.opaqueDrawRequests);
-            transparent_drawer.AddDrawRequests(draw_requests.transparentDrawRequests);
-        }
-
-        {
-            DescriptorSetsPtrsCollection this_description_set_collection;
-            this_description_set_collection.camera_description_set_ptr = cameraDescriptorSetGroup_uptr->get_descriptor_set(swapchainImageIndex);
-            this_description_set_collection.skin_description_set_ptr = skinsOfMeshes_uptr->GetDescriptorSetPtr(swapchainImageIndex);
-            this_description_set_collection.materials_description_set_ptr = materialsOfPrimitives_uptr->GetDescriptorSetPtr();
-
-            opaque_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", this_description_set_collection);
-            transparent_drawer.DrawCallRequests(cmd_buffer_ptr, "Texture-Pass", this_description_set_collection);
-        }
-
-       
-
-        cmd_buffer_ptr->record_end_render_pass();
-    }
-
-    cmd_buffer_ptr->stop_recording();
+    command_buffer.end();
 }
 
-void Graphics::InitCameraBuffers()
+void Graphics::InitBuffers()
 {
-    Anvil::MemoryAllocatorUniquePtr   allocator_ptr;
-
-    const Anvil::MemoryFeatureFlags   required_feature_flags = Anvil::MemoryFeatureFlagBits::NONE;
-
-    allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
-
-    cameraBuffer_uptrs.resize(swapchainImagesCount);
-
-    for (uint32_t i = 0; i < swapchainImagesCount; i++)
+    // Create camera buffer
     {
-        {
-            auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                2 * sizeof(glm::mat4),
-                Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                Anvil::SharingMode::EXCLUSIVE,
-                Anvil::BufferCreateFlagBits::NONE,
-                Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = sizeof(glm::mat4) * 2;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
-            cameraBuffer_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
+        vma::AllocationCreateInfo buffer_allocation_create_info;
+        buffer_allocation_create_info.usage = vma::MemoryUsage::eCpuToGpu;
+        buffer_allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
 
-            cameraBuffer_uptrs[i]->set_name("Camera matrix buffer " + std::to_string(i));
-        }
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info,
+                                                              buffer_allocation_create_info,
+                                                              cameraAllocInfo);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        cameraBuffer = createBuffer_result.value.first;
+        cameraAllocation = createBuffer_result.value.second;
+    }
 
-        allocator_ptr->add_buffer(cameraBuffer_uptrs[i].get(),
-                                  required_feature_flags);
+    // Create matrices buffer
+    {
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = sizeof(glm::mat4) * maxInstances * 2;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo buffer_allocation_create_info;
+        buffer_allocation_create_info.usage = vma::MemoryUsage::eCpuToGpu;
+        buffer_allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
+
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info,
+                                                              buffer_allocation_create_info,
+                                                              matricesAllocInfo);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        matricesBuffer = createBuffer_result.value.first;
+        matricesAllocation = createBuffer_result.value.second;
     }
 }
 
-void Graphics::InitCameraDsg()
+void Graphics::InitDescriptors()
 {
-    Anvil::DescriptorSetGroupUniquePtr new_dsg_ptr;
+    {   // Create descriptor pool
+        std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eUniformBuffer, 2);
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 2);
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 4,
+                                                                 descriptor_pool_sizes);
 
-    std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> new_dsg_create_info_ptr;
-    new_dsg_create_info_ptr.resize(swapchainImagesCount);
-
-    for(uint32_t i = 0; i < swapchainImagesCount; i++)
-    {
-        new_dsg_create_info_ptr[i] = Anvil::DescriptorSetCreateInfo::create();
-
-        new_dsg_create_info_ptr[i]->add_binding(0, /* in_binding */
-                                                Anvil::DescriptorType::UNIFORM_BUFFER,
-                                                1, /* in_n_elements */
-                                                Anvil::ShaderStageFlagBits::VERTEX_BIT);
-
-        new_dsg_create_info_ptr[i]->add_binding(1, /* in_binding */
-                                                Anvil::DescriptorType::UNIFORM_BUFFER,
-                                                1, /* in_n_elements */
-                                                Anvil::ShaderStageFlagBits::VERTEX_BIT);
+        descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
     }
 
+    {   // Create camera layout
+        vk::DescriptorSetLayoutBinding buffer_binding;
+        buffer_binding.binding = 0;
+        buffer_binding.descriptorType = vk::DescriptorType::eUniformBuffer;
+        buffer_binding.descriptorCount = 1;
+        buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
 
-    new_dsg_ptr = Anvil::DescriptorSetGroup::create(device_ptr,
-                                                    { new_dsg_create_info_ptr },
-                                                    false); /* in_releaseable_sets */
-
-    for (uint32_t i = 0; i < swapchainImagesCount; i++)
-    {
-        new_dsg_ptr->set_binding_item(i, /* n_set         */
-                                      0, /* binding_index */
-                                      Anvil::DescriptorSet::UniformBufferBindingElement(cameraBuffer_uptrs[i].get(),
-                                                                                        0,
-                                                                                        sizeof(glm::mat4)));
-
-        new_dsg_ptr->set_binding_item(i, /* n_set         */
-                                      1, /* binding_index */
-                                      Anvil::DescriptorSet::UniformBufferBindingElement(cameraBuffer_uptrs[i].get(),
-                                                                                        sizeof(glm::mat4),
-                                                                                        sizeof(glm::mat4)));
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &buffer_binding);
+        cameraDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
     }
 
-    cameraDescriptorSetGroup_uptr = std::move(new_dsg_ptr);
+    {   // Create matrices layout
+        vk::DescriptorSetLayoutBinding buffer_binding;
+        buffer_binding.binding = 0;
+        buffer_binding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        buffer_binding.descriptorCount = 1;
+        buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &buffer_binding);
+        matricesDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+    }
+
+    {   // Allocate descriptor sets
+        std::vector<vk::DescriptorSetLayout> layouts;
+        layouts.emplace_back(cameraDescriptorSetLayout);
+        layouts.emplace_back(cameraDescriptorSetLayout);
+        layouts.emplace_back(matricesDescriptorSetLayout);
+        layouts.emplace_back(matricesDescriptorSetLayout);
+
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
+        std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
+        cameraDescriptorSets[0] = descriptor_sets[0];
+        cameraDescriptorSets[1] = descriptor_sets[1];
+        matricesDescriptorSets[0] = descriptor_sets[2];
+        matricesDescriptorSets[1] = descriptor_sets[3];
+    }
+
+    {   // Writing descriptor set
+        std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
+        std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> descriptor_buffer_infos_uptrs;
+
+        {
+            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+            descriptor_buffer_info_uptr->buffer = cameraBuffer;
+            descriptor_buffer_info_uptr->offset = 0;
+            descriptor_buffer_info_uptr->range  = sizeof(glm::mat4);
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = cameraDescriptorSets[0];
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eUniformBuffer;
+            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+
+            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+        {
+            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+            descriptor_buffer_info_uptr->buffer = cameraBuffer;
+            descriptor_buffer_info_uptr->offset = sizeof(glm::mat4);
+            descriptor_buffer_info_uptr->range  = sizeof(glm::mat4);
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = cameraDescriptorSets[1];
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eUniformBuffer;
+            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+
+            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+        {
+            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+            descriptor_buffer_info_uptr->buffer = matricesBuffer;
+            descriptor_buffer_info_uptr->offset = 0;
+            descriptor_buffer_info_uptr->range  = sizeof(glm::mat4) * maxInstances;
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = matricesDescriptorSets[0];
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+
+            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+        {
+            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+            descriptor_buffer_info_uptr->buffer = matricesBuffer;
+            descriptor_buffer_info_uptr->offset = sizeof(glm::mat4) * maxInstances;
+            descriptor_buffer_info_uptr->range  = sizeof(glm::mat4) * maxInstances;
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = matricesDescriptorSets[1];
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+
+            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+
+        device.updateDescriptorSets(writes_descriptor_set, {});
+    }
 }
 
 void Graphics::InitImages()
 {
+    // z-buffer buffer
     {
-        auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
-                                                                    Anvil::ImageType::_2D,
-                                                                    Anvil::Format::D32_SFLOAT,
-                                                                    Anvil::ImageTiling::OPTIMAL,
-                                                                    Anvil::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT_BIT,
-                                                                    windowWidth,
-                                                                    windowHeight,
-                                                                    1, /* base_mipmap_depth */
-                                                                    1, /* n_layers */
-                                                                    Anvil::SampleCountFlagBits::_1_BIT,
-                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                    Anvil::SharingMode::EXCLUSIVE,
-                                                                    false, /* in_use_full_mipmap_chain */
-                                                                    Anvil::MemoryFeatureFlagBits::NONE,
-                                                                    Anvil::ImageCreateFlagBits::NONE,
-                                                                    Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* in_final_image_layout */
-                                                                    nullptr); /* in_mipmaps_ptr */
+        depthImageCreateInfo.imageType = vk::ImageType::e2D;
+        depthImageCreateInfo.format = vk::Format::eD32Sfloat;
+        depthImageCreateInfo.extent.width = engine_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        depthImageCreateInfo.extent.height = engine_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        depthImageCreateInfo.extent.depth = 1;
+        depthImageCreateInfo.mipLevels = 1;
+        depthImageCreateInfo.arrayLayers = 1;
+        depthImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        depthImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        depthImageCreateInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+        depthImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        depthImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
 
-        depthImage_uptr = Anvil::Image::create(std::move(create_info_ptr));
-    }
-    {
-        auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(device_ptr,
-                                                                     depthImage_uptr.get(),
-                                                                     0, /* n_base_layer */
-                                                                     0, /* n_base_mipmap_level */
-                                                                     1, /* n_mipmaps */
-                                                                     Anvil::ImageAspectFlagBits::DEPTH_BIT,
-                                                                     depthImage_uptr->get_create_info_ptr()->get_format(),
-                                                                     Anvil::ComponentSwizzle::IDENTITY,
-                                                                     Anvil::ComponentSwizzle::IDENTITY,
-                                                                     Anvil::ComponentSwizzle::IDENTITY,
-                                                                     Anvil::ComponentSwizzle::IDENTITY);
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
 
-        depthImageView_uptr = Anvil::ImageView::create(std::move(create_info_ptr));
-    }
-}
+        auto createImage_result = vma_allocator.createImage(depthImageCreateInfo, image_allocation_info).value;
+        depthImage = createImage_result.first;
+        depthAllocation = createImage_result.second;
 
-void Graphics::InitFramebuffers()
-{
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = depthImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = depthImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eDepth,
+                                                  0, 1,
+                                                  0, 1};
 
-    for (uint32_t n_swapchain_image = 0;
-         n_swapchain_image < swapchainImagesCount;
-         ++n_swapchain_image)
-    {
-        Anvil::FramebufferUniquePtr framebuffer_ptr;
-
-        {
-            auto create_info_ptr = Anvil::FramebufferCreateInfo::create(device_ptr,
-                                                                        windowWidth,
-                                                                        windowHeight,
-                                                                        1); /* n_layers */
-
-            create_info_ptr->add_attachment(swapchain_ptr->get_image_view(n_swapchain_image),
-                                            nullptr);
-
-            create_info_ptr->add_attachment(depthImageView_uptr.get(),
-                                            nullptr);
-
-            framebuffer_ptr = Anvil::Framebuffer::create(std::move(create_info_ptr));
-        }
-
-        framebuffer_ptr->set_name("Main framebuffer");
-
-
-        framebuffers_uptrs.push_back(
-            std::move(framebuffer_ptr)
-        );
-
+        depthImageView = device.createImageView(imageView_create_info).value;
     }
 }
 
 void Graphics::InitRenderpasses()
 {
-        Anvil::RenderPassAttachmentID color_attachment_id;
-        Anvil::RenderPassAttachmentID depth_attachment_id;
+    // Attachments
+    vk::AttachmentDescription attachment_descriptions[2];
 
-        Anvil::RenderPassCreateInfoUniquePtr renderpass_create_info_ptr(new Anvil::RenderPassCreateInfo(device_ptr));
+    attachment_descriptions[0].format = engine_ptr->GetSwapchainCreateInfo().imageFormat;
+    attachment_descriptions[0].samples = vk::SampleCountFlagBits::e1;
+    attachment_descriptions[0].loadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[0].storeOp = vk::AttachmentStoreOp::eStore;
+    attachment_descriptions[0].stencilLoadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    attachment_descriptions[0].initialLayout = vk::ImageLayout::eUndefined;
+    attachment_descriptions[0].finalLayout = vk::ImageLayout::ePresentSrcKHR;
 
-        renderpass_create_info_ptr->add_color_attachment(swapchain_ptr->get_create_info_ptr()->get_format(),
-                                                         Anvil::SampleCountFlagBits::_1_BIT,
-                                                         Anvil::AttachmentLoadOp::CLEAR,
-                                                         Anvil::AttachmentStoreOp::STORE,
-                                                         Anvil::ImageLayout::UNDEFINED,
-                                                         Anvil::ImageLayout::PRESENT_SRC_KHR,
-                                                         false, /* may_alias */
-                                                         &color_attachment_id);
+    attachment_descriptions[1].format = depthImageCreateInfo.format;
+    attachment_descriptions[1].samples = vk::SampleCountFlagBits::e1;
+    attachment_descriptions[1].loadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[1].storeOp = vk::AttachmentStoreOp::eDontCare;
+    attachment_descriptions[1].stencilLoadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[1].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    attachment_descriptions[1].initialLayout = vk::ImageLayout::eUndefined;
+    attachment_descriptions[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
-        renderpass_create_info_ptr->add_depth_stencil_attachment(depthImage_uptr->get_create_info_ptr()->get_format(),
-                                                                 Anvil::SampleCountFlagBits::_1_BIT,
-                                                                 Anvil::AttachmentLoadOp::CLEAR,
-                                                                 Anvil::AttachmentStoreOp::DONT_CARE,
-                                                                 Anvil::AttachmentLoadOp::DONT_CARE,
-                                                                 Anvil::AttachmentStoreOp::DONT_CARE,
-                                                                 Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                 Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                 false, /* may_alias */
-                                                                 &depth_attachment_id);
+    // Subpass
+    vk::AttachmentReference colorAttach_ref;
+    colorAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+    colorAttach_ref.attachment = 0;
 
-        // texture pass
-        renderpass_create_info_ptr->add_subpass(&textureSubpassID);
-        renderpass_create_info_ptr->add_subpass_color_attachment(textureSubpassID,
-                                                                 Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                                                                 color_attachment_id,
-                                                                 0,        /* in_location                      */
-                                                                 nullptr); /* in_opt_attachment_resolve_id_ptr */
-        renderpass_create_info_ptr->add_subpass_depth_stencil_attachment(textureSubpassID,
-                                                                         Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                         depth_attachment_id);
+    vk::AttachmentReference depthAttach_ref;
+    depthAttach_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    depthAttach_ref.attachment = 1;
 
+    vk::SubpassDescription subpass_description;
+    subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    subpass_description.colorAttachmentCount = 1;
+    subpass_description.pColorAttachments = &colorAttach_ref;
+    subpass_description.pDepthStencilAttachment = &depthAttach_ref;
 
-        renderpass_uptr = Anvil::RenderPass::create(std::move(renderpass_create_info_ptr),
-                                                    swapchain_ptr);
+    vk::SubpassDependency subpass_dependency;
+    subpass_dependency.srcSubpass = 0;
+    subpass_dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+    subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
+    subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+    subpass_dependency.dstAccessMask = vk::AccessFlagBits::eNoneKHR;
 
-        renderpass_uptr->set_name("Renderpass for swapchain images");
+    // Renderpass
+    vk::RenderPassCreateInfo renderpass_create_info;
+    renderpass_create_info.attachmentCount = 2;
+    renderpass_create_info.pAttachments = attachment_descriptions;
+    renderpass_create_info.subpassCount = 1;
+    renderpass_create_info.pSubpasses = &subpass_description;
+    renderpass_create_info.dependencyCount = 1;
+    renderpass_create_info.pDependencies = &subpass_dependency;
+
+    renderpass = device.createRenderPass(renderpass_create_info).value;
 }
+
+void Graphics::InitFramebuffers()
+{
+    for (const auto& swapchain_imageview : engine_ptr->GetSwapchainImageViews())
+    {
+        std::vector<vk::ImageView> attachments;
+        attachments.emplace_back(swapchain_imageview);
+        attachments.emplace_back(depthImageView);
+
+        vk::FramebufferCreateInfo framebuffer_createInfo;
+        framebuffer_createInfo.renderPass = renderpass;
+        framebuffer_createInfo.setAttachments(attachments);
+        framebuffer_createInfo.width = engine_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        framebuffer_createInfo.height = engine_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        framebuffer_createInfo.layers = 1;
+
+        framebuffers.emplace_back(device.createFramebuffer(framebuffer_createInfo).value);
+    }
+}
+
 
 void Graphics::InitSemaphoresAndFences()
 {
-    for (uint32_t n_semaphore = 0;
-         n_semaphore < swapchainImagesCount;
-         ++n_semaphore)
-    {
-        Anvil::SemaphoreUniquePtr new_signal_semaphore_ptr;
-        Anvil::SemaphoreUniquePtr new_wait_semaphore_ptr;
+    vk::SemaphoreCreateInfo semaphore_create_info;
 
-        {
-            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(device_ptr);
-
-            new_signal_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr));
-
-            new_signal_semaphore_ptr->set_name_formatted("Signal semaphore [%d]",
-                                                         n_semaphore);
-        }
-
-        {
-            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(device_ptr);
-
-            new_wait_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr));
-
-            new_wait_semaphore_ptr->set_name_formatted("Wait semaphore [%d]",
-                                                       n_semaphore);
-        }
-
-        frameSignalSemaphores_uptrs.push_back(std::move(new_signal_semaphore_ptr));
-        frameWaitSemaphores_uptrs.push_back(std::move(new_wait_semaphore_ptr));
-    }
+    imageAvailableSemaphore = device.createSemaphore(semaphore_create_info).value;
+    renderFinishSemaphore = device.createSemaphore(semaphore_create_info).value;
 }
 
 void Graphics::InitCommandBuffers()
 {
-    const Anvil::DeviceType        device_type = device_ptr->get_type();
+    vk::CommandPoolCreateInfo command_pool_create_info;
+    command_pool_create_info.flags = vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+    command_pool_create_info.queueFamilyIndex = graphicsQueue.second;
 
-    const uint32_t                 universal_queue_family_index = device_ptr->get_universal_queue(0)->get_queue_family_index();
+    commandPool = device.createCommandPool(command_pool_create_info).value;
 
-    for (size_t i = 0; i < swapchainImagesCount; i++)
-    {
-        Anvil::PrimaryCommandBufferUniquePtr cmd_buffer_uptr;
-        cmd_buffer_uptr = device_ptr->get_command_pool_for_queue_family_index(universal_queue_family_index)->alloc_primary_level_command_buffer();
+    vk::CommandBufferAllocateInfo command_buffer_alloc_info;
+    command_buffer_alloc_info.commandPool = commandPool;
+    command_buffer_alloc_info.level = vk::CommandBufferLevel::ePrimary;
+    command_buffer_alloc_info.commandBufferCount = 1;
 
-        cmdBuffers_uptrs.emplace_back(std::move(cmd_buffer_uptr));
-    }
+    commandBuffer = device.allocateCommandBuffers(command_buffer_alloc_info).value[0];
 }
 
 void Graphics::InitPipelinesFactory()
 {
-    pipelinesFactory_uptr = std::make_unique<PipelinesFactory>(device_ptr);
+    pipelinesFactory_uptr = std::make_unique<PipelinesFactory>(device);
 }
 
 void Graphics::InitShadersSetsFamiliesCache()
 {
-    shadersSetsFamiliesCache_uptr = std::make_unique<ShadersSetsFamiliesCache>(device_ptr);
+    shadersSetsFamiliesCache_uptr = std::make_unique<ShadersSetsFamiliesCache>(device, "shaders");
 
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
@@ -513,48 +580,21 @@ void Graphics::InitShadersSetsFamiliesCache()
         this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
-    {
-        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "General Mipmap Compute Shader";
-        this_shaderSetInitInfo.computeShaderSourceFilename = "generalMipmap_glsl.comp";
-        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
-    }
-    {
-        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "Image 16bit To 8bit Pass";
-        this_shaderSetInitInfo.fragmentShaderSourceFilename = "16bitTo8bit_glsl.frag";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "16bitTo8bit_glsl.vert";
-        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
-    }
 }
 
 void Graphics::InitMeshesTree()
 {
-    // Find out how each texture is being used (color, normal, etc..)
-    imagesAboutOfTextures_uptr = std::make_unique<ImagesAboutOfTextures>();                                                                                                         //useless afterwards
-
-    mipmapsGenerator_uptr = std::make_unique<MipmapsGenerator>(pipelinesFactory_uptr.get(),                                                                                         //useless afterwards
-                                                               shadersSetsFamiliesCache_uptr.get(),
-                                                               imagesAboutOfTextures_uptr.get(),
-                                                               "Image 16bit To 8bit Pass",
-                                                               "General Mipmap Compute Shader", /* baseColor_shadername */
-                                                               "General Mipmap Compute Shader", /* occlusionMetallicRoughness_shadername */
-                                                               "General Mipmap Compute Shader", /* normal_shadername */
-                                                               "General Mipmap Compute Shader", /* emissive_shadername */
-                                                               cmdBuffers_uptrs[0].get(),
-                                                               device_ptr);
-
     animationsDataOfNodes_uptr = std::make_unique<AnimationsDataOfNodes>();
 
-    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(cfgFile["graphicsSettings"]["useMipmaps"].as_bool(), imagesAboutOfTextures_uptr.get(), mipmapsGenerator_uptr.get(), device_ptr);
+    texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(device, vma_allocator, engine_ptr->GetQueuesList().graphicsQueues[0]);
 
-    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device_ptr);                                                               //needs flash
+    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device, vma_allocator);                                                               //needs flash
 
-    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(pipelinesFactory_uptr.get(), shadersSetsFamiliesCache_uptr.get(), materialsOfPrimitives_uptr.get(), device_ptr); //needs flash
+    primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(materialsOfPrimitives_uptr.get(), device, vma_allocator);
 
-    skinsOfMeshes_uptr = std::make_unique<SkinsOfMeshes>(device_ptr, swapchainImagesCount, 64 * 1024);
+    skinsOfMeshes_uptr = std::make_unique<SkinsOfMeshes>(device, vma_allocator);
 
-    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get(), device_ptr);
+    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get());
 }
 
 void Graphics::InitGraphicsComponents()
@@ -565,9 +605,12 @@ void Graphics::InitGraphicsComponents()
         engine_ptr->GetECSwrapperPtr()->AddComponent(animationActorComp_uptr.get());
     }
     {
+        uint32_t width = engine_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        uint32_t height = engine_ptr->GetSwapchainCreateInfo().imageExtent.height;
+
         cameraComp_uptr = std::make_unique<CameraComp>(engine_ptr->GetECSwrapperPtr(),
                                                        glm::radians(cfgFile["graphicsSettings"]["FOV"].as_float()),
-                                                       static_cast<float>(windowWidth) / static_cast<float>(windowHeight),
+                                                       float(width) / float(height),
                                                        cfgFile["graphicsSettings"]["nearPlaneDistance"].as_float(),
                                                        cfgFile["graphicsSettings"]["farPlaneDistance"].as_float());
         engine_ptr->GetECSwrapperPtr()->AddComponent(cameraComp_uptr.get());
@@ -585,85 +628,293 @@ void Graphics::InitGraphicsComponents()
     }
 }
 
-void Graphics::LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder)
+void Graphics::LoadModel(const tinygltf::Model& in_model, std::string model_images_folder)
 {
-    // Find out how each texture is being used (color, normal, etc..)
-    printf("--Adding model to ImagesAboutOfTextures\n");
-    imagesAboutOfTextures_uptr->AddImagesUsageOfModel(in_model);
+    printf("--Adding model textures and materials\n");
+    materialsOfPrimitives_uptr->AddMaterialsOfModel(in_model, model_images_folder);
 
-    // Edit textures and copy to GPU
-    printf("--Adding model to TexturesOfMaterials\n");
-    texturesOfMaterials_uptr->AddTexturesOfModel(in_model, in_model_images_folder);
-
-    // Create materials description sets
-    printf("--Adding model to MaterialsOfPrimitives\n");
-    materialsOfPrimitives_uptr->AddMaterialsOfModel(in_model);
-
-    // Initialize models-primtives handler to GPU
-    printf("--Adding model to PrimitivesOfMeshes\n");
-  //primitivesOfMeshes_uptr-> collects primitives from meshesOfNodes_uptr
-
-    printf("--Adding model to SkinsOfMeshes\n");
+    printf("--Adding model skins\n");
     skinsOfMeshes_uptr->AddSkinsOfModel(in_model);
 
-    // For every mesh copy primitives of it to GPU
-    printf("--Adding model to MeshesOfNodes\n");
+    printf("--Adding model meshes\n");
     meshesOfNodes_uptr->AddMeshesOfModel(in_model);
 }
 
 void Graphics::EndModelsLoad()
 {
-    imagesAboutOfTextures_uptr.reset();
-    mipmapsGenerator_uptr.reset();
-
     // Flashing device
-    primitivesOfMeshes_uptr->FlashDevice();
-    materialsOfPrimitives_uptr->FlashDevice();
-    skinsOfMeshes_uptr->FlashDevice();
-
-    DescriptorSetsCreateInfosPtrsCollection this_descriptor_sets_create_infos_ptrs_collection;
-    this_descriptor_sets_create_infos_ptrs_collection.camera_description_set_create_info_ptr = cameraDescriptorSetGroup_uptr->get_descriptor_set_create_info(0);    // All camera sets are the same from create info standpoint
-    this_descriptor_sets_create_infos_ptrs_collection.skins_description_set_create_info_ptr = skinsOfMeshes_uptr->GetDescriptorSetCreateInfoPtr();
-    this_descriptor_sets_create_infos_ptrs_collection.materials_description_set_create_info_ptr = materialsOfPrimitives_uptr->GetDescriptorSetCreateInfoPtr();
+    materialsOfPrimitives_uptr->FlashDevice(graphicsQueue);
+    primitivesOfMeshes_uptr->FlashDevice(graphicsQueue);
+    skinsOfMeshes_uptr->FlashDevice(graphicsQueue);
 
     // Create primitives sets (shaders-pipelines for each kind of primitive)
+    printf("-Initializing \"Texture Pass\" primitives set\n");
+    for(size_t i = 0; i != primitivesOfMeshes_uptr->GetPrimitivesCount(); ++i)
     {
-        printf("-Initializing \"Texture Pass\" primitives set\n");
+        const PrimitiveInfo& this_primitiveInfo = primitivesOfMeshes_uptr->GetPrimitiveInfo(i);
+        const MaterialAbout& this_material = materialsOfPrimitives_uptr->GetMaterialAbout(this_primitiveInfo.material);
 
-        PrimitivesSetSpecs this_primitives_set_specs;
-        this_primitives_set_specs.primitivesSetName = "Texture-Pass";
-        this_primitives_set_specs.useDepthWrite = true;
-        this_primitives_set_specs.depthCompare = Anvil::CompareOp::LESS;
-        this_primitives_set_specs.useMaterial = true;
-        this_primitives_set_specs.shaderSpecs.shadersSetFamilyName = "Texture-Pass Shaders";
+        bool is_skin = this_primitiveInfo.jointsCount != 0;
 
-        this_primitives_set_specs.shaderSpecs.definitionValuePairs.emplace_back(std::pair("INVERSE_BIND_COUNT", static_cast<int>(skinsOfMeshes_uptr->GetMaxCountOfInverseBindMatrices())));
-        this_primitives_set_specs.shaderSpecs.definitionValuePairs.emplace_back(std::pair("NODES_MATRICES_COUNT", static_cast<int>(skinsOfMeshes_uptr->GetMaxCountOfNodesMatrices())));
+        std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs = this_material.definitionStringPairs;
+        shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(maxInstances));
 
-        primitivesOfMeshes_uptr->InitPrimitivesSet(this_primitives_set_specs, this_descriptor_sets_create_infos_ptrs_collection, renderpass_uptr.get(), textureSubpassID);
+        // Pipeline layout
+        vk::PipelineLayout this_pipeline_layout;
+        {
+            vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
 
+            std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
+            descriptor_sets_layouts.emplace_back(cameraDescriptorSetLayout);
+            descriptor_sets_layouts.emplace_back(matricesDescriptorSetLayout);
+            if (is_skin) {
+                descriptor_sets_layouts.emplace_back(skinsOfMeshes_uptr->GetDescriptorSetLayout());
+                shadersDefinitionStringPairs.emplace_back("USE_SKIN", "");
+                shadersDefinitionStringPairs.emplace_back("INVERSE_MATRICES_COUNT", std::to_string(skinsOfMeshes_uptr->GetCountOfInverseBindMatrices()));
+                shadersDefinitionStringPairs.emplace_back("MATERIAL_DS_INDEX", "3");
+            } else {
+                shadersDefinitionStringPairs.emplace_back("MATERIAL_DS_INDEX", "2");
+            }
+            descriptor_sets_layouts.emplace_back(materialsOfPrimitives_uptr->GetDescriptorSetLayout());
+            pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
+
+            std::vector<vk::PushConstantRange> push_constant_range;
+            push_constant_range.emplace_back(vk::ShaderStageFlagBits::eVertex, 0, 8);
+            push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 8, 4);
+            pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
+
+            this_pipeline_layout = pipelinesFactory_uptr->GetPipelineLayout(pipeline_layout_create_info).first;
+        }
+
+        // Pipeline
+        vk::Pipeline this_pipeline;
+        {
+            vk::GraphicsPipelineCreateInfo pipeline_create_info;
+
+            // PipelineVertexInputStateCreateInfo
+            vk::PipelineVertexInputStateCreateInfo vertex_input_state_create_info;
+            std::vector<vk::VertexInputBindingDescription> vertex_input_binding_descriptions;
+            std::vector<vk::VertexInputAttributeDescription> vertex_input_attribute_descriptions;
+
+            size_t binding_index = 0;
+            size_t location_index = 0;
+
+            vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                           (this_primitiveInfo.positionMorphTargets + 1) * 3 * sizeof(float),
+                                                           vk::VertexInputRate::eVertex);
+            vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
+                                                             vk::Format::eR32G32B32Sfloat,
+                                                             0);
+            ++binding_index; ++location_index;
+
+            if (this_primitiveInfo.normalOffset != -1) {
+                vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                               (this_primitiveInfo.normalMorphTargets + 1) * 3 * sizeof(float),
+                                                               vk::VertexInputRate::eVertex);
+                vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
+                                                                 vk::Format::eR32G32B32Sfloat,
+                                                                 0);
+
+                shadersDefinitionStringPairs.emplace_back("VERT_NORMAL", "");
+                shadersDefinitionStringPairs.emplace_back("VERT_NORMAL_LOCATION", std::to_string(location_index));
+                ++binding_index; ++location_index;
+            }
+
+            if (this_primitiveInfo.tangentOffset != -1) {
+                vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                               (this_primitiveInfo.tangentMorphTargets + 1) * 4 * sizeof(float),
+                                                               vk::VertexInputRate::eVertex);
+                vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
+                                                                 vk::Format::eR32G32B32A32Sfloat,
+                                                                 0);
+
+                shadersDefinitionStringPairs.emplace_back("VERT_TANGENT", "");
+                shadersDefinitionStringPairs.emplace_back("VERT_TANGENT_LOCATION", std::to_string(location_index));
+                ++binding_index; ++location_index;
+            }
+
+            if (this_primitiveInfo.texcoordsOffset != -1) {
+                vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                               (this_primitiveInfo.texcoordsMorphTargets + 1) * this_primitiveInfo.texcoordsCount * 2 * sizeof(float),
+                                                               vk::VertexInputRate::eVertex);
+
+                for (size_t index = 0; index != this_primitiveInfo.texcoordsCount; ++index) {
+                    vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
+                                                                     vk::Format::eR32G32Sfloat,
+                                                                     (this_primitiveInfo.texcoordsMorphTargets + 1) * index * 2 * sizeof(float));
+                    shadersDefinitionStringPairs.emplace_back("VERT_TEXCOORD" + std::to_string(index), "");
+                    shadersDefinitionStringPairs.emplace_back("VERT_TEXCOORD" + std::to_string(index) + "_LOCATION", std::to_string(location_index));
+                    ++location_index;
+                }
+                ++binding_index;
+            }
+
+            if (this_primitiveInfo.colorOffset != -1) {
+                vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                               (this_primitiveInfo.colorMorphTargets + 1) * 4 * sizeof(float),
+                                                               vk::VertexInputRate::eVertex);
+                vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
+                                                                 vk::Format::eR32G32B32A32Sfloat,
+                                                                 0);
+                shadersDefinitionStringPairs.emplace_back("VERT_COLOR0", "");
+                shadersDefinitionStringPairs.emplace_back("VERT_COLOR0_LOCATION", std::to_string(location_index));
+                ++binding_index; ++location_index;
+            }
+
+            if(this_primitiveInfo.jointsOffset != -1) {
+                vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                               this_primitiveInfo.jointsCount * 4 * sizeof(uint16_t),
+                                                               vk::VertexInputRate::eVertex);
+                for (size_t index = 0; index != this_primitiveInfo.jointsCount; ++index) {
+                    vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
+                                                                     vk::Format::eR16G16B16A16Uint,
+                                                                     index * 4 * sizeof(uint16_t));
+                    shadersDefinitionStringPairs.emplace_back("VERT_JOINTS" + std::to_string(index), "");
+                    shadersDefinitionStringPairs.emplace_back("VERT_JOINTS" + std::to_string(index) + "_LOCATION", std::to_string(location_index));
+                    ++location_index;
+                }
+                ++binding_index;
+            }
+
+            if(this_primitiveInfo.weightsOffset != -1) {
+                vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                               this_primitiveInfo.weightsCount * 4 * sizeof(float),
+                                                               vk::VertexInputRate::eVertex);
+                for (size_t index = 0; index != this_primitiveInfo.weightsCount; ++index) {
+                    vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
+                                                                     vk::Format::eR32G32B32A32Sfloat,
+                                                                     index * 4 * sizeof(float));
+                    shadersDefinitionStringPairs.emplace_back("VERT_WEIGHTS" + std::to_string(index), "");
+                    shadersDefinitionStringPairs.emplace_back("VERT_WEIGHTS" + std::to_string(index) + "_LOCATION", std::to_string(location_index));
+                    ++location_index;
+                }
+                ++binding_index;
+            }
+
+            vertex_input_state_create_info.setVertexBindingDescriptions(vertex_input_binding_descriptions);
+            vertex_input_state_create_info.setVertexAttributeDescriptions(vertex_input_attribute_descriptions);
+
+            pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
+
+            // PipelineInputAssemblyStateCreateInfo
+            vk::PipelineInputAssemblyStateCreateInfo input_assembly_state_create_info;
+            input_assembly_state_create_info.topology = this_primitiveInfo.drawMode;
+
+            pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info;
+
+            // TODO? tesselation
+            pipeline_create_info.pTessellationState = nullptr;
+
+            // PipelineViewportStateCreateInfo
+            vk::PipelineViewportStateCreateInfo viewport_state_create_info;
+
+            uint32_t width = engine_ptr->GetSwapchainCreateInfo().imageExtent.width;
+            uint32_t height = engine_ptr->GetSwapchainCreateInfo().imageExtent.height;
+
+            vk::Viewport viewport {0.f, 0.f,
+                                   float(width), float(height),
+                                   0.f, 1.f};
+            viewport_state_create_info.viewportCount = 1;
+            viewport_state_create_info.pViewports = &viewport;
+
+            vk::Rect2D scissor {{0, 0}, {width, height}};
+            viewport_state_create_info.scissorCount = 1;
+            viewport_state_create_info.pScissors = &scissor;
+
+            pipeline_create_info.pViewportState = &viewport_state_create_info;
+
+            // PipelineRasterizationStateCreateInfo
+            vk::PipelineRasterizationStateCreateInfo rasterization_state_create_info;
+            rasterization_state_create_info.depthBiasClamp = VK_FALSE;
+            rasterization_state_create_info.rasterizerDiscardEnable = VK_FALSE;
+            rasterization_state_create_info.polygonMode = vk::PolygonMode::eFill;
+            rasterization_state_create_info.cullMode = this_material.twoSided ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
+            rasterization_state_create_info.frontFace = vk::FrontFace::eCounterClockwise;
+            rasterization_state_create_info.lineWidth = 1.f;
+
+            pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
+
+            // PipelineMultisampleStateCreateInfo
+            vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
+            multisample_state_create_info.sampleShadingEnable = VK_FALSE;
+            multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
+            multisample_state_create_info.minSampleShading = 1.0f;
+            multisample_state_create_info.pSampleMask = nullptr;
+            multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
+            multisample_state_create_info.alphaToOneEnable = VK_FALSE;
+
+            pipeline_create_info.pMultisampleState = &multisample_state_create_info;
+
+            // PipelineDepthStencilStateCreateInfo
+            vk::PipelineDepthStencilStateCreateInfo depth_state_create_info;
+            depth_state_create_info.depthTestEnable = VK_TRUE;
+            depth_state_create_info.depthWriteEnable = VK_TRUE;
+            depth_state_create_info.depthCompareOp = vk::CompareOp::eLess;
+            depth_state_create_info.depthBoundsTestEnable = VK_FALSE;
+            depth_state_create_info.stencilTestEnable = VK_FALSE;
+            depth_state_create_info.minDepthBounds = 0.f;
+            depth_state_create_info.maxDepthBounds = 1.f;
+
+            pipeline_create_info.pDepthStencilState = &depth_state_create_info;
+
+            // PipelineColorBlendAttachmentState
+            vk::PipelineColorBlendStateCreateInfo color_blend_create_info;
+            vk::PipelineColorBlendAttachmentState color_blend_attachment;
+            color_blend_attachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                    vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+            color_blend_attachment.blendEnable = VK_FALSE;
+            color_blend_attachment.srcColorBlendFactor = vk::BlendFactor::eOne;
+            color_blend_attachment.dstColorBlendFactor = vk::BlendFactor::eZero;
+            color_blend_attachment.colorBlendOp = vk::BlendOp::eAdd;
+            color_blend_attachment.srcAlphaBlendFactor = vk::BlendFactor::eOne;
+            color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+            color_blend_attachment.alphaBlendOp = vk::BlendOp::eAdd;
+
+            color_blend_create_info.logicOpEnable = VK_FALSE;
+            color_blend_create_info.attachmentCount = 1;
+            color_blend_create_info.pAttachments = &color_blend_attachment;
+
+            pipeline_create_info.pColorBlendState = &color_blend_create_info;
+
+            // PipelineShaderStageCreateInfo
+            std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
+
+            ShadersSpecs shaders_specs {"Texture-Pass Shaders", shadersDefinitionStringPairs};
+            ShadersSet shader_set = shadersSetsFamiliesCache_uptr->GetShadersSet(shaders_specs);
+
+            assert(shader_set.abortedDueToDefinition == false);
+
+            vk::PipelineShaderStageCreateInfo vertex_shader_stage;
+            vertex_shader_stage.stage = vk::ShaderStageFlagBits::eVertex;
+            vertex_shader_stage.module = shader_set.vertexShaderModule;
+            vertex_shader_stage.pName = "main";
+            shaders_stage_create_infos.emplace_back(vertex_shader_stage);
+
+            vk::PipelineShaderStageCreateInfo fragment_shader_stage;
+            fragment_shader_stage.stage = vk::ShaderStageFlagBits::eFragment;
+            fragment_shader_stage.module = shader_set.fragmentShaderModule;
+            fragment_shader_stage.pName = "main";
+            shaders_stage_create_infos.emplace_back(fragment_shader_stage);
+
+            pipeline_create_info.setStages(shaders_stage_create_infos);
+
+            // etc
+            pipeline_create_info.layout = this_pipeline_layout;
+            pipeline_create_info.renderPass = renderpass;
+            pipeline_create_info.subpass = 0;
+
+            this_pipeline = pipelinesFactory_uptr->GetPipeline(pipeline_create_info).first;
+        }
+
+        primitivesPipelineLayouts.emplace_back(this_pipeline_layout);
+        primitivesPipelines.emplace_back(this_pipeline);
     }
-}
-
-MeshesOfNodes* Graphics::GetMeshesOfNodesPtr()
-{
-    assert(meshesOfNodes_uptr.get());
-    return meshesOfNodes_uptr.get();
-}
-
-SkinsOfMeshes* Graphics::GetSkinsOfMeshesPtr()
-{
-    assert(skinsOfMeshes_uptr.get());
-    return skinsOfMeshes_uptr.get();
-}
-
-AnimationsDataOfNodes* Graphics::GetAnimationsDataOfNodesPtr()
-{
-    assert(animationsDataOfNodes_uptr.get());
-    return animationsDataOfNodes_uptr.get();
 }
 
 void Graphics::ToggleCullingDebugging()
 {
     cameraComp_uptr->ToggleCullingDebugging();
 }
+
+
+

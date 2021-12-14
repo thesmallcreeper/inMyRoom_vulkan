@@ -24,13 +24,10 @@ public:
     */
     static ModelDrawCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
-    void DrawUsingFrustumCull(LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
-                              SkinComp* skin_ptr,
-                              class MeshesOfNodes* meshesOfNodes_ptr,
-                              class PrimitivesOfMeshes* primitivesOfMeshes_ptr,
-                              class FrustumCulling* frustumCulling_ptr,
-                              std::vector<DrawRequest>& opaque_draw_requests,
-                              std::vector<DrawRequest>& transparent_draw_requests) const;
+    void AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
+                     const SkinComp* skinEntity_ptr,
+                     std::vector<glm::mat4>& matrices,
+                     std::vector<DrawInfo>& draw_infos) const;
 
 #endif
 public: // data

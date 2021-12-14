@@ -1,29 +1,13 @@
 #pragma once
 
-#include <memory>
-
 #include "configuru.hpp"
 
+#include "vulkan/vulkan.hpp"
 #include "tiny_gltf.h"
-
-#include "wrappers/rendering_surface.h"
-#include "wrappers/buffer.h"
-#include "wrappers/command_buffer.h"
-#include "wrappers/command_pool.h"
-#include "wrappers/descriptor_set_group.h"
-#include "wrappers/framebuffer.h"
-#include "wrappers/image.h"
-#include "wrappers/image_view.h"
-#include "wrappers/swapchain.h"
-#include "wrappers/render_pass.h"
-#include "wrappers/semaphore.h"
-#include "wrappers/fence.h"
 
 #include "WindowWithAsyncInput.h"
 
-#include "PipelinesFactory.h"
-#include "MipmapsGenerator.h"
-#include "Drawer.h"
+#include "Graphics/PipelinesFactory.h"
 
 #include "ECS/GeneralComponents/AnimationActorComp.h"
 #include "ECS/GeneralComponents/CameraComp.h"
@@ -34,7 +18,6 @@
 
 #include "Graphics/ShadersSetsFamiliesCache.h"
 #include "Graphics/Meshes/AnimationsDataOfNodes.h"
-#include "Graphics/Meshes/ImagesAboutOfTextures.h"
 #include "Graphics/Meshes/TexturesOfMaterials.h"
 #include "Graphics/Meshes/MaterialsOfPrimitives.h"
 #include "Graphics/Meshes/MeshesOfNodes.h"
@@ -47,13 +30,12 @@ class Engine;       // Forward declaration
 class Graphics
 {
 public:
-    Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, Anvil::BaseDevice* in_device_ptr, Anvil::Swapchain* in_swapchain_ptr,
-             uint32_t windowWidth, uint32_t windowHeight, uint32_t swapchainImagesCount);
+    Graphics(Engine* engine_ptr, configuru::Config& cfgFile, vk::Device device, vma::Allocator vma_allocator);
     ~Graphics();
 
-    MeshesOfNodes* GetMeshesOfNodesPtr();
-    SkinsOfMeshes* GetSkinsOfMeshesPtr();
-    AnimationsDataOfNodes* GetAnimationsDataOfNodesPtr();
+    MeshesOfNodes* GetMeshesOfNodesPtr() const {return meshesOfNodes_uptr.get();};
+    SkinsOfMeshes* GetSkinsOfMeshesPtr() const {return skinsOfMeshes_uptr.get();};
+    AnimationsDataOfNodes* GetAnimationsDataOfNodesPtr() {return animationsDataOfNodes_uptr.get();};
 
     void LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder);
     void EndModelsLoad();
@@ -63,13 +45,11 @@ public:
     void ToggleCullingDebugging();
 
 private:
-
-
-    void InitCameraBuffers();
+    void InitBuffers();
+    void InitDescriptors();
     void InitImages();
     void InitFramebuffers();
     void InitRenderpasses();
-    void InitCameraDsg();
     void InitSemaphoresAndFences();
     void InitCommandBuffers();
     void InitPipelinesFactory();
@@ -77,16 +57,52 @@ private:
     void InitMeshesTree();
     void InitGraphicsComponents();
 
-    void RecordCommandBuffer(uint32_t swapchainImageIndex);
+    void RecordCommandBuffer(vk::CommandBuffer command_buffer,
+                             uint32_t buffer_index,
+                             uint32_t swapchain_index,
+                             std::vector<DrawInfo>& draw_infos,
+                             const FrustumCulling& frustum_culling);
 
 private:
+    std::pair<vk::Queue, uint32_t> graphicsQueue;
+    size_t                  frameCount = 0;
+
+    vk::Buffer              cameraBuffer;
+    vma::Allocation         cameraAllocation;
+    vma::AllocationInfo     cameraAllocInfo;
+
+    vk::Buffer              matricesBuffer;
+    vma::Allocation         matricesAllocation;
+    vma::AllocationInfo     matricesAllocInfo;
+
+    vk::DescriptorPool      descriptorPool;
+    vk::DescriptorSet       cameraDescriptorSets[2];
+    vk::DescriptorSetLayout cameraDescriptorSetLayout;
+    vk::DescriptorSet       matricesDescriptorSets[2];
+    vk::DescriptorSetLayout matricesDescriptorSetLayout;
+
+    vk::Image               depthImage;
+    vma::Allocation         depthAllocation;
+    vk::ImageCreateInfo     depthImageCreateInfo;
+    vk::ImageView           depthImageView;
+
+    vk::RenderPass          renderpass;
+
+    std::vector<vk::Framebuffer> framebuffers;
+
+    vk::Semaphore           imageAvailableSemaphore;
+    vk::Semaphore           renderFinishSemaphore;
+
+    vk::CommandPool         commandPool;
+    vk::CommandBuffer       commandBuffer;
+
+    std::vector<vk::Pipeline>       primitivesPipelines;
+    std::vector<vk::PipelineLayout> primitivesPipelineLayouts;
+
     std::unique_ptr<AnimationActorComp> animationActorComp_uptr;
     std::unique_ptr<CameraComp> cameraComp_uptr;
     std::unique_ptr<ModelDrawComp> modelDrawComp_uptr;
     std::unique_ptr<SkinComp> skinComp_uptr;
-
-    std::unique_ptr<MipmapsGenerator> mipmapsGenerator_uptr;
-    std::unique_ptr<ImagesAboutOfTextures> imagesAboutOfTextures_uptr;
 
     std::unique_ptr<AnimationsDataOfNodes> animationsDataOfNodes_uptr;
     std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;
@@ -98,37 +114,11 @@ private:
     std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;
     std::unique_ptr<PipelinesFactory> pipelinesFactory_uptr;
 
-    const uint32_t              swapchainImagesCount;
-    const uint32_t              windowWidth;
-    const uint32_t              windowHeight;
+    vk::Device              device;
+    vma::Allocator          vma_allocator;
 
-    std::vector<Anvil::BufferUniquePtr>          cameraBuffer_uptrs;
+    Engine* const           engine_ptr;
+    configuru::Config&      cfgFile;
 
-    Anvil::DescriptorSetGroupUniquePtr	cameraDescriptorSetGroup_uptr;
-
-    Anvil::ImageUniquePtr           depthImage_uptr;
-    Anvil::ImageViewUniquePtr       depthImageView_uptr;
-
-    std::vector<Anvil::SemaphoreUniquePtr> frameSignalSemaphores_uptrs;
-    std::vector<Anvil::SemaphoreUniquePtr> frameWaitSemaphores_uptrs;
-
-    std::vector<Anvil::FramebufferUniquePtr>        framebuffers_uptrs;
-
-    Anvil::RenderPassUniquePtr                      renderpass_uptr;
-
-    uint32_t                      lastSemaphoreUsed;
-
-    Anvil::SubPassID              textureSubpassID;
-
-    size_t zprepassPassSetIndex;
-    size_t texturePassSetIndex;
- 
-    std::vector<Anvil::PrimaryCommandBufferUniquePtr> cmdBuffers_uptrs;
-
-    const configuru::Config& cfgFile;
-
-    Anvil::BaseDevice* const     device_ptr;
-    Anvil::Swapchain* const      swapchain_ptr;
-
-    Engine* const          engine_ptr;
+    const size_t maxInstances = std::numeric_limits<uint16_t>::max();
 };

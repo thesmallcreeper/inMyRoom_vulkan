@@ -11,34 +11,24 @@ ModelDrawComp::~ModelDrawComp()
 {
 }
 
-DrawRequestsBatch ModelDrawComp::DrawUsingFrustumCull(MeshesOfNodes* meshesOfNodes_ptr,
-                                                      PrimitivesOfMeshes* primitivesOfMeshes_ptr,                 
-                                                      FrustumCulling* frustumCulling_ptr)
+void ModelDrawComp::AddDrawInfos(std::vector<glm::mat4>& matrices,
+                                 std::vector<DrawInfo>& draw_infos)
 {
-    componentID nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);
-    LateNodeGlobalMatrixComp* const nodeGlobalMatrixComp_ptr = static_cast<LateNodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
+    auto nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);
+    auto nodeGlobalMatrixComp_ptr = static_cast<const LateNodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
 
-    componentID skin_componentID = static_cast<componentID>(componentIDenum::Skin);
-    SkinComp* const skinComp_ptr = static_cast<SkinComp*>(ecsWrapper_ptr->GetComponentByID(skin_componentID));
+    auto skin_componentID = static_cast<componentID>(componentIDenum::Skin);
+    auto skinComp_ptr = static_cast<const SkinComp*>(ecsWrapper_ptr->GetComponentByID(skin_componentID));
 
-    DrawRequestsBatch this_drawRequestsBatch;
-    this_drawRequestsBatch.opaqueDrawRequests.reserve(componentEntities.size());
-    this_drawRequestsBatch.transparentDrawRequests.reserve(componentEntities.size() / 6 + 4);
-
-    size_t containers_count_when_start = GetContainersCount();
-    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
+    size_t containers_count = GetContainersCount();
+    for(size_t i = 0; i != containers_count; ++i)
     {
         auto& this_container = GetContainerByIndex(containersUpdated);
         for(auto& this_comp_entity: this_container)
-            this_comp_entity.DrawUsingFrustumCull(nodeGlobalMatrixComp_ptr,
-                                                  skinComp_ptr,
-                                                  meshesOfNodes_ptr,
-                                                  primitivesOfMeshes_ptr,
-                                                  frustumCulling_ptr,
-                                                  this_drawRequestsBatch.opaqueDrawRequests,
-                                                  this_drawRequestsBatch.transparentDrawRequests);
+            this_comp_entity.AddDrawInfo(nodeGlobalMatrixComp_ptr,
+                                         skinComp_ptr,
+                                         matrices,
+                                         draw_infos);
     }
-
-    return std::move(this_drawRequestsBatch);
 }
 

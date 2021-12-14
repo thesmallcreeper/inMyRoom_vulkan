@@ -157,3 +157,6 @@ glslangValidator
 spirv-remap
 inMyRoom_vulkan
 *.exe
+
+# Mipmaps
+**/mipmaps/

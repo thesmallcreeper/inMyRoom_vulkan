@@ -399,7 +399,7 @@ void ECSwrapper::CompleteAddsAndRemovesUnsafe()
 }
 
 void ECSwrapper::CompleteRemovesUnsafe() {
-    // Remove from components
+    // Remove from componentsCount
     std::map<ComponentBaseClass *, std::vector<std::pair<Entity, Entity>>> component_to_ranges_to_be_deleted_map;
     for (InstanceInfo *this_instance_ptr: instancesToBeRemoved)
     {

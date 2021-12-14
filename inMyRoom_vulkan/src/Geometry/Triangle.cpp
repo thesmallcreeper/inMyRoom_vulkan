@@ -783,7 +783,7 @@ inline void isect2(float VTX0[3], float VTX1[3], float VTX2[3], float VV0, float
               isect0=VV0+(VV1-VV0)*tmp;          \
 	      SUB(diff,VTX1,VTX0);               \
 	      MULT(diff,diff,tmp);               \
-              ADD(isectpoint0,diff,VTX0);        \ 
+              ADD(isectpoint0,diff,VTX0);        \
 tmp = D0 / (D0 - D2);
 /*              isect1=VV0+(VV2-VV0)*tmp;          \ */
 /*              SUB(diff,VTX2,VTX0);               \     */

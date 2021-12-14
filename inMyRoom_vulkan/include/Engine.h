@@ -5,8 +5,6 @@
 
 #include "configuru.hpp"
 
-#include "misc/window_factory.h"
-
 #include "GameImporter.h"
 #include "ExportedFunctionsConstructor.h"
 #include "InputManager.h"
@@ -33,11 +31,6 @@ public:
 private: // data
 
     configuru::Config& cfgFile;
-
-    void CallbackFunction_on_close_event(Anvil::CallbackArgument*       in_callback_data_raw_ptr);
-    void CallbackFunction_on_keypress_was_up(Anvil::CallbackArgument*   in_callback_data_raw_ptr);
-    void CallbackFunction_on_keypress_released(Anvil::CallbackArgument* in_callback_data_raw_ptr);
-    void CallbackFunction_on_mouse_movement(Anvil::CallbackArgument*    in_callback_data_raw_ptr);
 
     std::unique_ptr<GameImporter> gameImporter_uptr;
     std::unique_ptr<Graphics> graphics_uptr;

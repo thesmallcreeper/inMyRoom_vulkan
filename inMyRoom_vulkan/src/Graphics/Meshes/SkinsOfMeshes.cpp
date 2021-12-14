@@ -3,57 +3,34 @@
 #include <cassert>
 #include <iterator>
 
-#include "misc/memory_allocator.h"
-#include "misc/buffer_create_info.h"
-
 #include "glm/gtc/type_ptr.hpp"
 
 #include "glTFenum.h"
+#include "Graphics/HelperUtils.h"
 
-SkinsOfMeshes::SkinsOfMeshes(Anvil::BaseDevice* const in_device_ptr, size_t in_swapchain_size, size_t in_nodes_buffer_size)
-    :swapchainSize(in_swapchain_size),
-     nodesMatricesBufferSize(in_nodes_buffer_size),
-     device_ptr(in_device_ptr)
+SkinsOfMeshes::SkinsOfMeshes(vk::Device in_device, vma::Allocator in_vma_allocator)
+    :device(in_device),
+     vma_allocator(in_vma_allocator)
 {
-    Anvil::MemoryAllocatorUniquePtr   allocator_ptr;
-
-    const Anvil::MemoryFeatureFlags   required_feature_flags = Anvil::MemoryFeatureFlagBits::NONE;
-
-    allocator_ptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
-
-    nodesMatricesBuffers_uptrs.resize(swapchainSize);
-
-    for (size_t i = 0; i < swapchainSize; i++)
-    {
-        {
-            auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                            nodesMatricesBufferSize,
-                                                                            Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                            Anvil::SharingMode::EXCLUSIVE,
-                                                                            Anvil::BufferCreateFlagBits::NONE,
-                                                                            Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
-
-            nodesMatricesBuffers_uptrs[i] = Anvil::Buffer::create(std::move(create_info_ptr));
-
-
-            nodesMatricesBuffers_uptrs[i]->set_name("Node's matrices buffer " + std::to_string(i));
-        }   
-    
-
-        allocator_ptr->add_buffer(nodesMatricesBuffers_uptrs[i].get(),
-                                  required_feature_flags);
-    }
+    // Padding
+    glm::mat4 identity(1.f);
+    AddMatrixToInverseBindMatricesBuffer(identity);
 }
+
 
 SkinsOfMeshes::~SkinsOfMeshes()
 {
-    nodesMatricesBuffers_uptrs.clear();
-    inverseBindMatricesBuffer_uptr.reset();
+    device.destroy(descriptorSetLayout);
+    device.destroy(descriptorPool);
+
+    vma_allocator.destroyBuffer(inverseBindBuffer, inverseBindAllocation);
 }
 
 void SkinsOfMeshes::AddSkinsOfModel(const tinygltf::Model& in_model)
 {
-    assert(!hasInitFlashed);
+    assert(!hasBeenFlashed);
+
+    modelToSkinIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), skinInfos.size());
 
     for (const tinygltf::Skin& this_skin : in_model.skins)
     {
@@ -70,84 +47,88 @@ void SkinsOfMeshes::AddSkinsOfModel(const tinygltf::Model& in_model)
             AddMatrixToInverseBindMatricesBuffer(this_joint_inverseBindMatrix);
         }
 
-        skins.emplace_back(this_skinInfo);
+        skinInfos.emplace_back(this_skinInfo);
     }
-
-    modelToSkinIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&in_model), skinsSoFar);
-
-    skinsSoFar += in_model.skins.size();
 }
 
-void SkinsOfMeshes::FlashDevice()
+void SkinsOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
 {
-    assert(!hasInitFlashed);
+    assert(!hasBeenFlashed);
 
-    if (localInverseBindMatricesBuffer.empty())             // In case model has no skin
-        localInverseBindMatricesBuffer.emplace_back(0);
+    // Create and flash buffer
+    size_t buffer_size_bytes = GetInverseBindMatricesBufferSize();
+    {   // Create buffer
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = buffer_size_bytes;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
-    inverseBindMatricesBuffer_uptr = CreateDeviceBufferForLocalBuffer(localInverseBindMatricesBuffer,
-                                                                      Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT,
-                                                                      "Inverse bind matrices buffer");
+        vma::AllocationCreateInfo buffer_allocation_create_info;
+        buffer_allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
 
-    // Create DescriptorSetGroup
-    {
-        std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> dsg_create_infos_uptrs;
-        for (size_t i = 0; i < swapchainSize; i++)
-        {
-            // Create description set
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, buffer_allocation_create_info);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        inverseBindBuffer = createBuffer_result.value.first;
+        inverseBindAllocation = createBuffer_result.value.second;
+    }
+    {   // Transfer
+        StagingBuffer staging_buffer(device, vma_allocator, buffer_size_bytes);
+        std::byte *dst_ptr = staging_buffer.GetDstPtr();
 
-            Anvil::DescriptorSetCreateInfoUniquePtr this_description_set_create_info_uptr = Anvil::DescriptorSetCreateInfo::create();
+        memcpy(dst_ptr, inverseBindMatrices.data(), buffer_size_bytes);
 
-            // Add inverse binding matrices (bind: 0)
+        vk::CommandBuffer command_buffer = staging_buffer.BeginCommandRecord(queue);
+        vk::Buffer copy_buffer = staging_buffer.GetBuffer();
 
-            this_description_set_create_info_uptr->add_binding(0 /*in_binding_index*/,
-                                                               Anvil::DescriptorType::UNIFORM_BUFFER,
-                                                               1 /*in_descriptor_array_size*/,
-                                                               Anvil::ShaderStageFlagBits::VERTEX_BIT);
+        vk::BufferCopy copy_region;
+        copy_region.srcOffset = 0;
+        copy_region.dstOffset = 0;
+        copy_region.size = buffer_size_bytes;
+        command_buffer.copyBuffer(copy_buffer, inverseBindBuffer, 1, &copy_region);
 
-            // Add nodes Matrices buffer (bind: 1)
+        staging_buffer.EndAndSubmitCommands();
 
-            this_description_set_create_info_uptr->add_binding(1, /*in_binding_index*/
-                                                               Anvil::DescriptorType::UNIFORM_BUFFER,
-                                                               1, /*in_descriptor_array_size*/
-                                                               Anvil::ShaderStageFlagBits::VERTEX_BIT);
-
-            dsg_create_infos_uptrs.emplace_back(std::move(this_description_set_create_info_uptr));
-
-        }
-
-        descriptorSetGroup_uptr = Anvil::DescriptorSetGroup::create(device_ptr,
-                                                                    dsg_create_infos_uptrs,
-                                                                    false);
-
-        for (size_t i = 0; i < swapchainSize; i++)
-        {
-            // Bind inverse binding matrices (to bind: 0)
-            {
-                Anvil::DescriptorSet::UniformBufferBindingElement this_uniform_bind(inverseBindMatricesBuffer_uptr.get(),
-                                                                                    0, /*in_start_offset*/
-                                                                                    inverseBindMatricesBuffer_uptr->get_create_info_ptr()->get_size());
-
-                descriptorSetGroup_uptr->set_binding_item(static_cast<uint32_t>(i), /*in_n_set*/
-                                                          0, /*in_binding_index*/
-                                                          this_uniform_bind);
-            }
-
-            // Bind nodes Matrices buffer (to bind: 1)
-            {
-                Anvil::DescriptorSet::UniformBufferBindingElement this_uniform_bind(nodesMatricesBuffers_uptrs[i].get(),
-                                                                                    0, /*in_start_offset*/
-                                                                                    nodesMatricesBuffers_uptrs[i]->get_create_info_ptr()->get_size());
-
-                descriptorSetGroup_uptr->set_binding_item(static_cast<uint32_t>(i), /*in_n_set*/
-                                                          1, /*in_binding_index*/
-                                                          this_uniform_bind);
-            }
-        }
+        inverseBindMatricesCount = GetCountOfInverseBindMatrices();
+        hasBeenFlashed = true;
+        inverseBindMatrices.clear();
     }
 
-    hasInitFlashed = true;
-    assert(hasInitFlashed);
+    // Create and write descriptor set
+    {   // Create descriptor set
+        vk::DescriptorPoolSize descriptor_pool_size(vk::DescriptorType::eStorageBuffer, 1);
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({},1,
+                                                                 1,&descriptor_pool_size);
+
+        descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
+
+        vk::DescriptorSetLayoutBinding descriptor_set_layout_binding;
+        descriptor_set_layout_binding.binding = 0;
+        descriptor_set_layout_binding.descriptorType = vk::DescriptorType::eStorageBuffer;
+        descriptor_set_layout_binding.descriptorCount = 1;
+        descriptor_set_layout_binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({},1, &descriptor_set_layout_binding);
+        descriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, 1, &descriptorSetLayout);
+        descriptorSet = device.allocateDescriptorSets(descriptor_set_allocate_info).value[0];
+    }
+    {   // Write descriptor set
+        vk::DescriptorBufferInfo descriptor_buffer_info;
+        descriptor_buffer_info.buffer = inverseBindBuffer;
+        descriptor_buffer_info.offset = 0;
+        descriptor_buffer_info.range = VK_WHOLE_SIZE;
+
+        vk::WriteDescriptorSet write_descriptor_set;
+        write_descriptor_set.dstSet = descriptorSet;
+        write_descriptor_set.dstBinding = 0;
+        write_descriptor_set.dstArrayElement = 0;
+        write_descriptor_set.descriptorCount = 1;
+        write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+        write_descriptor_set.pBufferInfo = &descriptor_buffer_info;
+
+        device.updateDescriptorSets(1, &write_descriptor_set, 0, nullptr);
+    }
 }
 
 size_t SkinsOfMeshes::GetSkinIndexOffsetOfModel(const tinygltf::Model& in_model) const
@@ -157,79 +138,6 @@ size_t SkinsOfMeshes::GetSkinIndexOffsetOfModel(const tinygltf::Model& in_model)
     assert(search != modelToSkinIndexOffset_umap.end());
 
     return search->second;
-}
-
-SkinInfo SkinsOfMeshes::GetSkin(size_t this_skin_index) const
-{
-    return skins[this_skin_index];
-}
-
-void SkinsOfMeshes::StartRecordingNodesMatrices()
-{
-    assert(!isRecording);
-    isRecording = true;
-
-    localCurrectSwapchainNodesMatricesBuffer.clear();
-
-    assert(isRecording);
-}
-
-void SkinsOfMeshes::AddNodeMatrix(glm::mat4 in_node_matrix)
-{
-    assert(isRecording);
-
-    std::copy(reinterpret_cast<unsigned char*>(&in_node_matrix),
-              reinterpret_cast<unsigned char*>(&in_node_matrix) + sizeof(glm::mat4),
-              std::back_inserter(localCurrectSwapchainNodesMatricesBuffer));
-
-    assert(localCurrectSwapchainNodesMatricesBuffer.size() <= nodesMatricesBufferSize);
-}
-
-size_t SkinsOfMeshes::GetNodesRecordSize() const
-{
-    return localCurrectSwapchainNodesMatricesBuffer.size() / sizeof(glm::mat4);
-}
-
-void SkinsOfMeshes::EndRecodingAndFlash(size_t in_swapchain, Anvil::Queue* in_opt_flash_queue)
-{
-    assert(isRecording);
-
-    if (localCurrectSwapchainNodesMatricesBuffer.size())
-    {
-
-        nodesMatricesBuffers_uptrs[in_swapchain]->write(0,
-                                                        localCurrectSwapchainNodesMatricesBuffer.size(),
-                                                        localCurrectSwapchainNodesMatricesBuffer.data(),
-                                                        in_opt_flash_queue);
-    }
-
-    isRecording = false;
-    assert(!isRecording);
-}
-
-const Anvil::DescriptorSetCreateInfo* SkinsOfMeshes::GetDescriptorSetCreateInfoPtr()
-{
-    assert(hasInitFlashed);
-
-    return descriptorSetGroup_uptr->get_descriptor_set_create_info(0);
-}
-
-Anvil::DescriptorSet* SkinsOfMeshes::GetDescriptorSetPtr(size_t in_swapchain)
-{
-    assert(hasInitFlashed);
-
-    return descriptorSetGroup_uptr->get_descriptor_set(static_cast<uint32_t>(in_swapchain));
-}
-
-size_t SkinsOfMeshes::GetMaxCountOfNodesMatrices() const
-{
-    return nodesMatricesBufferSize / sizeof(glm::mat4);
-}
-
-size_t SkinsOfMeshes::GetMaxCountOfInverseBindMatrices() const
-{
-    assert(hasInitFlashed);
-    return inverseBindMatricesBuffer_uptr->get_create_info_ptr()->get_size() / sizeof(glm::mat4);
 }
 
 glm::mat4 SkinsOfMeshes::GetAccessorMatrix(const size_t index, const tinygltf::Model& in_model, const tinygltf::Accessor& in_accessor)
@@ -253,16 +161,16 @@ glm::mat4 SkinsOfMeshes::GetAccessorMatrix(const size_t index, const tinygltf::M
                   std::back_inserter(raw_data));
     }
 
-    std::array<float, 16>  matrix_data;
+    std::array<float, 16>  matrix_data = {};
     if (isDouble)
     {
-        double* double_raw_data_ptr = reinterpret_cast<double*>(raw_data.data());
+        auto double_raw_data_ptr = reinterpret_cast<double*>(raw_data.data());
         for (size_t index = 0; index < matrix_data.size(); index++)
             matrix_data[index] = static_cast<float>(double_raw_data_ptr[index]);
     }
     else
     {
-        float* float_raw_data_ptr = reinterpret_cast<float*>(raw_data.data());
+        auto float_raw_data_ptr = reinterpret_cast<float*>(raw_data.data());
         for (size_t index = 0; index < matrix_data.size(); index++)
             matrix_data[index] = static_cast<float>(float_raw_data_ptr[index]);
     }
@@ -281,44 +189,25 @@ glm::mat4 SkinsOfMeshes::GetAccessorMatrix(const size_t index, const tinygltf::M
     return return_matrix;
 }
 
-void SkinsOfMeshes::AddMatrixToInverseBindMatricesBuffer(const glm::mat4 this_matrix)
+void SkinsOfMeshes::AddMatrixToInverseBindMatricesBuffer(glm::mat4 this_matrix)
 {
-    const unsigned char* this_matrix_raw_ptr = reinterpret_cast<const unsigned char*>(&this_matrix);
+    auto this_matrix_raw_ptr = reinterpret_cast<float*>(&this_matrix);
 
     std::copy(this_matrix_raw_ptr,
-              this_matrix_raw_ptr + sizeof(glm::mat4),
-              std::back_inserter(localInverseBindMatricesBuffer));
+              this_matrix_raw_ptr + 16,
+              std::back_inserter(inverseBindMatrices));
 }
 
 size_t SkinsOfMeshes::GetCountOfInverseBindMatrices() const
 {
-    return localInverseBindMatricesBuffer.size() / sizeof(glm::mat4);
+    if( not hasBeenFlashed)
+        return inverseBindMatrices.size() * sizeof(float) / sizeof(glm::mat4);
+    else
+        return inverseBindMatricesCount;
 }
 
-Anvil::BufferUniquePtr SkinsOfMeshes::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
-                                                                       Anvil::BufferUsageFlagBits in_bufferusageflag,
-                                                                       std::string buffers_name) const
+size_t SkinsOfMeshes::GetInverseBindMatricesBufferSize() const
 {
-    auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                    in_localBuffer.size(),
-                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                    Anvil::SharingMode::EXCLUSIVE,
-                                                                    Anvil::BufferCreateFlagBits::NONE,
-                                                                    in_bufferusageflag);
-
-    Anvil::BufferUniquePtr buffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-    buffer_uptr->set_name(buffers_name);
-
-    auto allocator_uptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
-
-    allocator_uptr->add_buffer(buffer_uptr.get(),
-                               Anvil::MemoryFeatureFlagBits::NONE);
-
-    buffer_uptr->write(0,
-                       in_localBuffer.size(),
-                       in_localBuffer.data());
-
-    return std::move(buffer_uptr);
+    return GetCountOfInverseBindMatrices()*sizeof(glm::mat4);
 }
 

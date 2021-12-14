@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 
 project(inMyRoom_vulkan)
 
-add_subdirectory(../Anvil "${CMAKE_CURRENT_BINARY_DIR}/anvil")
-add_subdirectory(../Compressonator/Compressonator/CMP_Framework "${CMAKE_CURRENT_BINARY_DIR}/compressonator")
+add_subdirectory(../glfw "${CMAKE_CURRENT_BINARY_DIR}/glfw")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,24 +27,31 @@ else ()
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_FLAGS}  ${OPT_FLAGS}")
 endif()
 
-add_compile_definitions(TINYGLTF_NO_INCLUDE_STB_IMAGE)
-add_compile_definitions(TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE)
-add_compile_definitions(TINYGLTF_NO_EXTERNAL_IMAGE)
-add_compile_definitions(TINYGLTF_NO_STB_IMAGE)
-add_compile_definitions(TINYGLTF_NO_STB_IMAGE_WRITE)
+add_compile_definitions(TINYGLTF_NOEXCEPTION)
+
+add_compile_definitions(VK_NO_PROTOTYPES)
+add_compile_definitions(VULKAN_HPP_NO_NODISCARD_WARNINGS=1)
+
+add_compile_definitions(VULKAN_HPP_NO_EXCEPTIONS=1)
+
+add_compile_definitions(VMA_STATIC_VULKAN_FUNCTIONS=0)
+add_compile_definitions(VMA_DYNAMIC_VULKAN_FUNCTIONS=1)
+
+add_compile_definitions(SHADERC_SHAREDLIB)
+
+add_compile_definitions(GLFW_INCLUDE_NONE)
 
 find_package(Threads REQUIRED)
 
 include_directories(
-        ../Anvil/include                                                   #Include Anvil
-        ../Compressonator/Compressonator                                   #Include Compressonator
+        $ENV{VULKAN_SDK}/include                                           #Include Vulkan Sdk
+        ../VulkanMemoryAllocator-Hpp                                       #Include VMA
+        ../glfw/include                                                    #Include glfw
         ../tinygltf                                                        #Include tinyglTF
         ../Configuru                                                       #Include configuru
         ../glm                                                             #Include glm
         ../DiTO                                                            #include DiTO
         ${inMyRoom_vulkan_SOURCE_DIR}/include)
-
-target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
 
 SET(SRC #external .h
         "${inMyRoom_vulkan_SOURCE_DIR}/../DiTO/dito.h"
@@ -112,14 +118,13 @@ SET(SRC #external .h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Geometry/Ray.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Geometry/Triangle.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Geometry/ViewportFrustum.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Drawer.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Graphics.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/MipmapsGenerator.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/PipelinesFactory.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/ShadersSetsFamiliesCache.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/VulkanInit.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/HelperUtils.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/ImagesInterfaces.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/AnimationsDataOfNodes.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/ImagesAboutOfTextures.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/MaterialsOfPrimitives.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/MeshesOfNodes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/PrimitivesOfMeshes.h"
@@ -171,20 +176,19 @@ SET(SRC #external .h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Geometry/Ray.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Geometry/Triangle.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Geometry/ViewportFrustum.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Drawer.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Graphics.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/MipmapsGenerator.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/PipelinesFactory.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/ShadersSetsFamiliesCache.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/VulkanInit.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/HelperUtils.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/ImagesInterfaces.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/AnimationsDataOfNodes.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/ImagesAboutOfTextures.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/MaterialsOfPrimitives.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/MeshesOfNodes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/PrimitivesOfMeshes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/SkinsOfMeshes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/TexturesOfMaterials.cpp"
-    )
+        )
 
 add_executable(inMyRoom_vulkan ${SRC})
 
@@ -192,15 +196,15 @@ if (MSVC)
     set_target_properties(inMyRoom_vulkan PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${inMyRoom_vulkan_SOURCE_DIR}")
 endif()
 
-add_dependencies(inMyRoom_vulkan Anvil)
-add_dependencies(inMyRoom_vulkan CMP_Framework)
+add_dependencies(inMyRoom_vulkan glfw)
 
 if (WIN32)
-    target_link_libraries(inMyRoom_vulkan Anvil)
-    target_link_libraries(inMyRoom_vulkan CMP_Framework)
+    target_link_libraries(inMyRoom_vulkan glfw)
+    #target_link_libraries(inMyRoom_vulkan ${LIB_SHADERC})
 else ()
-    target_link_libraries(inMyRoom_vulkan Anvil dl)
-    target_link_libraries(inMyRoom_vulkan CMP_Framework dl)
+    target_link_libraries(inMyRoom_vulkan dl)
+    target_link_libraries(inMyRoom_vulkan glfw)
+    target_link_libraries(inMyRoom_vulkan $ENV{VULKAN_SDK}/lib/libshaderc_combined.a)
 endif ()
 
 if (UNIX)

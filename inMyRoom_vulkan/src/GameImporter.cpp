@@ -175,7 +175,7 @@ std::unique_ptr<Node> GameImporter::ImportModel(std::string model_name, tinygltf
             scene_node->children.emplace_back(std::move(this_scene_node_uptr));
         }
 
-        // Add components
+        // Add componentsCount
         for (size_t index = 0; index < scene_node->children.size(); index++)
             ImportNodeComponents(scene_node->children[index].get(), scene_node.get(), this_model);
 

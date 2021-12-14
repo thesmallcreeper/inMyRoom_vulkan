@@ -2,46 +2,39 @@
 
 #include <vector>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include <unordered_map>
 #include "hash_combine.h"
 
-#include "misc/glsl_to_spirv.h"
-#include "wrappers/shader_module.h"
-#include "wrappers/device.h"
+#include "vulkan/vulkan.hpp"
+#include "shaderc/shaderc.hpp"
 
 struct ShadersSet
 {
-    Anvil::ShaderModuleStageEntryPoint* fragmentShaderModule_ptr = nullptr;
-    Anvil::ShaderModuleStageEntryPoint* geometryShaderModule_ptr = nullptr;
-    Anvil::ShaderModuleStageEntryPoint* tessControlShaderModule_ptr = nullptr;
-    Anvil::ShaderModuleStageEntryPoint* tessEvaluationShaderModule_ptr = nullptr;
-    Anvil::ShaderModuleStageEntryPoint* vertexShaderModule_ptr = nullptr;
-    Anvil::ShaderModuleStageEntryPoint* computeShaderModule_ptr = nullptr;
+    vk::ShaderModule fragmentShaderModule;
+    vk::ShaderModule geometryShaderModule;
+    vk::ShaderModule tessControlShaderModule;
+    vk::ShaderModule tessEvaluationShaderModule;
+    vk::ShaderModule vertexShaderModule;
+    vk::ShaderModule computeShaderModule;
 
-    bool operator==(const ShadersSet& rhs)
-    {
-        bool isEqual = (fragmentShaderModule_ptr == rhs.fragmentShaderModule_ptr) &&
-            (geometryShaderModule_ptr == rhs.geometryShaderModule_ptr) &&
-            (tessControlShaderModule_ptr == rhs.tessControlShaderModule_ptr) &&
-            (tessEvaluationShaderModule_ptr == rhs.tessEvaluationShaderModule_ptr) &&
-            (vertexShaderModule_ptr == rhs.vertexShaderModule_ptr) &&
-            (computeShaderModule_ptr == rhs.computeShaderModule_ptr);
-
-        return isEqual;
-    }
+    bool abortedDueToDefinition = false;
 };
 
 struct ShadersSetsFamilyInitInfo
 {
     std::string shadersSetFamilyName;
+
     std::string fragmentShaderSourceFilename;
     std::string geometryShaderSourceFilename;
     std::string tessControlShaderSourceFilename;
     std::string tessEvaluationShaderSourceFilename;
     std::string vertexShaderSourceFilename;
     std::string computeShaderSourceFilename;
+
+    std::unordered_set<std::string> abortShaderIfDefinitionFound;
 };
 
 struct ShadersSetsFamilySourceStrings
@@ -52,13 +45,13 @@ struct ShadersSetsFamilySourceStrings
     std::string tessEvaluationShaderSourceString;
     std::string vertexShaderSourceString;
     std::string computeShaderSourceString;
+
+    std::unordered_set<std::string> abortShaderIfDefinitionFound;
 };
 
 struct ShadersSpecs
 {
     std::string shadersSetFamilyName;
-    std::vector<std::string> emptyDefinition;
-    std::vector<std::pair<std::string, int32_t>> definitionValuePairs;
     std::vector<std::pair<std::string, std::string>> definitionStringPairs;
 };
 
@@ -72,16 +65,6 @@ namespace std
             std::size_t result = 0;
             hash_combine(result, in_pipelineSpecs.shadersSetFamilyName);
 
-            for (const auto& this_emptyDefinition : in_pipelineSpecs.emptyDefinition)
-            {
-                hash_combine(result, this_emptyDefinition);
-            }
-
-            for (const auto& this_definitionValuePair : in_pipelineSpecs.definitionValuePairs)
-            {
-                hash_combine(result, this_definitionValuePair.first);
-                hash_combine(result, this_definitionValuePair.second);
-            }
             for (const auto& this_definitionStringPair : in_pipelineSpecs.definitionStringPairs)
             {
                 hash_combine(result, this_definitionStringPair.first);
@@ -99,21 +82,6 @@ namespace std
         {
             bool isEqual = lhs.shadersSetFamilyName == rhs.shadersSetFamilyName;
 
-            if (lhs.emptyDefinition.size() == rhs.emptyDefinition.size() && isEqual)
-                for (size_t i = 0; i < lhs.emptyDefinition.size() && isEqual; i++)
-                {
-                    isEqual &= lhs.emptyDefinition[i] == rhs.emptyDefinition[i];
-                }
-            else
-                return false;
-
-            if (lhs.definitionValuePairs.size() == rhs.definitionValuePairs.size() && isEqual)
-                for (size_t i = 0; i < lhs.definitionValuePairs.size() && isEqual; i++)
-                {
-                    isEqual &= lhs.definitionValuePairs[i] == rhs.definitionValuePairs[i];
-                }
-            else
-                return false;
             if (lhs.definitionStringPairs.size() == rhs.definitionStringPairs.size() && isEqual)
                 for (size_t i = 0; i < lhs.definitionStringPairs.size() && isEqual; i++)
                 {
@@ -129,23 +97,32 @@ namespace std
 
 class ShadersSetsFamiliesCache
 {
-public: //functions
-    ShadersSetsFamiliesCache(Anvil::BaseDevice* const in_device_ptr);
+public:
+    ShadersSetsFamiliesCache(vk::Device device,
+                             std::string shaders_folder);
+    ~ShadersSetsFamiliesCache();
+    ShadersSetsFamiliesCache (const ShadersSetsFamiliesCache&) = delete;
+    ShadersSetsFamiliesCache& operator= (const ShadersSetsFamiliesCache&) = delete;
 
-    void AddShadersSetsFamily(ShadersSetsFamilyInitInfo in_shadersSetsFamilyInitInfos);
+    void AddShadersSetsFamily(const ShadersSetsFamilyInitInfo& shadersSetsFamilyInitInfos);
+    ShadersSet GetShadersSet(const ShadersSpecs& shaderSpecs);
 
-    ShadersSet GetShadersSet(ShadersSpecs in_shaderSpecs);
+private:
+    ShadersSet CreateShadersSet(const ShadersSpecs& shaderSpecs);
 
-private: //functions
-    ShadersSet CreateShadersSet(ShadersSpecs in_shaderSpecs);
+    std::vector<uint32_t> CompileGLSLtoSPIRv(const std::string& shader_source,
+                                             const std::string& family_name,
+                                             const std::vector<std::pair<std::string, std::string>>& definition_pairs,
+                                             vk::ShaderStageFlagBits shader_stage);
 
-private: // data
-    Anvil::BaseDevice* const device_ptr;
+    vk::ShaderModule GetShaderModule(std::vector<uint32_t>&& spirv_binary,
+                                     const std::string& message_on_fail);
 
-    std::vector<ShadersSet> shadersSets;
-
-    std::vector<std::unique_ptr<Anvil::ShaderModuleStageEntryPoint>> shaderModulesStageEntryPoints_uptrs;
+private:
+    const vk::Device device;
+    const std::string shadersFolder;
 
     std::unordered_map<std::string, ShadersSetsFamilySourceStrings> shadersSetFamilyNameToShadersSetFamilySourceStrings_umap;
-    std::unordered_map<ShadersSpecs, size_t> shaderSpecsToShadersSetIndex_umap;
+    std::unordered_map<ShadersSpecs, ShadersSet> shaderSpecsToShadersSet_umap;
+    std::unordered_map<std::vector<uint32_t>, vk::ShaderModule> spirvToShaderModule_umap;
 };

@@ -13,3 +13,9 @@
 [submodule "Compressonator"]
 	path = Compressonator
 	url = https://github.com/thesmallcreeper/Compressonator
+[submodule "glfw"]
+	path = glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "VulkanMemoryAllocator-Hpp"]
+	path = VulkanMemoryAllocator-Hpp
+	url = https://github.com/YaaZ/VulkanMemoryAllocator-Hpp.git

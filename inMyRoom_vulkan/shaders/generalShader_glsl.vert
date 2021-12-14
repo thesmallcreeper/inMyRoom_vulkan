@@ -1,5 +1,7 @@
 #version 450
 
+// In
+
 layout( location = 0 ) in vec4 app_position;
 
 #ifdef VERT_NORMAL
@@ -30,56 +32,40 @@ layout( location = VERT_JOINTS0_LOCATION ) in uvec4 app_joints0;
 layout( location = VERT_WEIGHTS0_LOCATION ) in vec4 app_weights0;
 #endif
 
-
-layout( location = 0 ) out vec3 vert_position;
-
+// Out
 
 #ifdef VERT_TEXCOORD0
-layout( location = 1 ) out vec2 vert_texcoord0;
-#endif
-
-#ifdef VERT_TEXCOORD1
-layout( location = 2 ) out vec2 vert_texcoord1;
+layout( location = 0 ) out vec2 vert_texcoord0;
 #endif
 
 #ifdef VERT_COLOR0
-layout( location = 3 ) out vec4 vert_color0;
+layout( location = 1 ) out vec4 vert_color0;
 #endif
 
-// Push constants (0 byte->63 byte)
+// Push constant
 
-#ifndef USE_SKIN
 layout (push_constant) uniform PushConstants
 {
-     layout(offset = 0) mat4 TRSmatrix;
+     layout(offset = 0) uint matrixOffset;
+     layout(offset = 4) uint inverseMatricesOffset;
 };
-#else
-layout (push_constant) uniform PushConstants
-{
-     layout(offset = 0) uint inverseBindMatricesOffset;
-	 layout(offset = 4) uint nodesMatricesOffset;
-};
-#endif
 
 // Descriptor Sets
 
 layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
 {
-    mat4 projectionMatrix;
-};
-layout( set = 0 , binding = 1 ) uniform cameraMatrixBuffer
-{
     mat4 cameraMatrix;
 };
 
-#ifdef USE_SKIN
-layout( set = 1 , binding = 0 ) uniform inverseMatricesBuffer
+layout( std140, set = 1 , binding = 0 ) readonly buffer projectionMatrixBuffer
 {
-    mat4 inverseMatrices[INVERSE_BIND_COUNT];
+    mat4 matrices[MATRICES_COUNT];
 };
-layout( set = 1 , binding = 1 ) uniform nodesMatricesBuffer
+
+#ifdef USE_SKIN
+layout( std140, set = 2 , binding = 0 ) readonly buffer inverseMatricesBuffer
 {
-    mat4 nodesMatrices[NODES_MATRICES_COUNT];
+    mat4 inverseMatrices[INVERSE_MATRICES_COUNT];
 };
 #endif
 
@@ -87,35 +73,26 @@ layout( set = 1 , binding = 1 ) uniform nodesMatricesBuffer
 void main()
 {
 	#ifndef USE_SKIN
-    vec4 world_position = TRSmatrix * app_position;
+    vec4 world_position = matrices[matrixOffset] * app_position;
     #else
 	mat4 skin_matrix = mat4(0.f);
 	
-	skin_matrix += app_weights0.x * nodesMatrices[app_joints0.x+nodesMatricesOffset] * inverseMatrices[app_joints0.x+inverseBindMatricesOffset]; 
-	skin_matrix += app_weights0.y * nodesMatrices[app_joints0.y+nodesMatricesOffset] * inverseMatrices[app_joints0.y+inverseBindMatricesOffset]; 
-	skin_matrix += app_weights0.z * nodesMatrices[app_joints0.z+nodesMatricesOffset] * inverseMatrices[app_joints0.z+inverseBindMatricesOffset];
-	skin_matrix += app_weights0.w * nodesMatrices[app_joints0.w+nodesMatricesOffset] * inverseMatrices[app_joints0.w+inverseBindMatricesOffset];
+	skin_matrix += app_weights0.x * matrices[app_joints0.x+matrixOffset] * inverseMatrices[app_joints0.x+inverseMatricesOffset];
+	skin_matrix += app_weights0.y * matrices[app_joints0.y+matrixOffset] * inverseMatrices[app_joints0.y+inverseMatricesOffset];
+	skin_matrix += app_weights0.z * matrices[app_joints0.z+matrixOffset] * inverseMatrices[app_joints0.z+inverseMatricesOffset];
+	skin_matrix += app_weights0.w * matrices[app_joints0.w+matrixOffset] * inverseMatrices[app_joints0.w+inverseMatricesOffset];
 	
 	vec4 world_position = skin_matrix * app_position;
 	#endif
 	
-	vec4 camera_position = cameraMatrix * world_position;
-	
-    gl_Position = projectionMatrix * camera_position;    
-    vert_position = camera_position.xyz;
-    
+    gl_Position = cameraMatrix * world_position;
+
     #ifdef VERT_TEXCOORD0 
     {
         vert_texcoord0 = vec2(app_texcoord0.x, app_texcoord0.y);
     }
     #endif
-    
-    #ifdef VERT_TEXCOORD1
-    {
-        vert_texcoord1 = vec2(app_texcoord1.x, app_texcoord1.y);
-    } 
-    #endif
-    
+
     #ifdef VERT_COLOR0 
     {
         vert_color0 = app_color0;

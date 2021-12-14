@@ -1,133 +1,184 @@
 #include "WindowWithAsyncInput.h"
+#include <iostream>
+#include <cmath>
 
+static WindowWithAsyncInput* windowWithAsyncInput_static_ptr = nullptr;
 
-WindowWithAsyncInput::WindowWithAsyncInput(const Anvil::WindowPlatform	  platform,
-                                           const std::string&             in_title,
+WindowWithAsyncInput::WindowWithAsyncInput(const std::string&             in_title,
                                            unsigned int                   in_width,
-                                           unsigned int                   in_height,
-                                           bool                           in_closable)
-    :should_thread_close(false)
+                                           unsigned int                   in_height)
 {
-    std::promise<Anvil::WindowUniquePtr> prom_m_window_ptr;
-    std::future<Anvil::WindowUniquePtr> fut_m_window_ptr = prom_m_window_ptr.get_future();
+    if (not hasGlfwInit)
+        InitGlfw();
 
-    std::promise<THREADID_T> prom_threadID;
-    std::future<THREADID_T> fut_threadID = prom_threadID.get_future();
+    assert(windowWithAsyncInput_static_ptr == nullptr);
+    windowWithAsyncInput_static_ptr = this;
 
-#ifdef _WIN32
+    glfwWindowHint( GLFW_CLIENT_API, GLFW_NO_API );
+    window = glfwCreateWindow( in_width, in_height, in_title.c_str(), nullptr, nullptr );
 
-    window_thread_ptr = std::make_unique<std::thread>([=, &prom_m_window_ptr, &prom_threadID]()
-    {
-        /* Create a window */
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-        // Disable scaling
-        ::SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
+    glfwSetKeyCallback(window, key_glfw_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_glfw_callback);
+    glfwSetCursorPosCallback(window, mouse_cursor_glfw_callback);
 
-        Anvil::WindowUniquePtr m_window_ptr = Anvil::WindowFactory::create_window(platform,
-                                                                                  in_title,
-                                                                                  in_width,
-                                                                                  in_height,
-                                                                                  in_closable, /* in_closable */
-                                                                                  nullptr);
+    if (glfwRawMouseMotionSupported())
+        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
-        prom_m_window_ptr.set_value(std::move(m_window_ptr));
-        prom_threadID.set_value(::GetCurrentThreadId());
+    glfwGetCursorPos(window, &lastMousePosition.first, &lastMousePosition.second);
+    moduloOfMousePosition = std::make_pair(0.f, 0.f);
 
-        ::ShowCursor(FALSE);
-
-        RAWINPUTDEVICE Rid[1];
-        Rid[0].usUsagePage = 0x01;
-        Rid[0].usUsage = 0x02;
-        Rid[0].dwFlags = RIDEV_NOLEGACY;	// adds HID mouse and also ignores legacy mouse messages
-        Rid[0].hwndTarget = 0;
-
-        ::RegisterRawInputDevices(Rid, 1, sizeof(Rid[0]));
-
-        while (true)
-        {
-
-            MSG msg;
-
-
-            ::GetMessage(&msg,
-                         0,
-                         0,
-                         0);
-
-            if (should_thread_close)
-                break;
-
-            ::TranslateMessage(&msg);
-            ::DispatchMessage(&msg);
-        }
-
-    });
-
-#else
-
-    window_thread_ptr = std::make_unique<std::thread>([=, this, &prom_m_window_ptr, &prom_threadID]()
-    {
-        /* Create a window */
-
-        Anvil::WindowUniquePtr m_window_ptr = Anvil::WindowFactory::create_window(platform,
-                                                                                  in_title,
-                                                                                  in_width,
-                                                                                  in_height,
-                                                                                  in_closable, /* in_closable */
-                                                                                  nullptr);
-
-        Anvil::Window* window_ptr = m_window_ptr.get();
-
-        prom_m_window_ptr.set_value(std::move(m_window_ptr));
-        prom_threadID.set_value(pthread_self());
-
-        while(true)
-        {
-            xcb_generic_event_t* event_ptr = static_cast<XCBLoader*>(window_ptr->get_XCBLoader())->get_procs_table()->pfn_xcbWaitForEvent(static_cast<xcb_connection_t*>(window_ptr->get_connection()));
-
-            if (should_thread_close)
-                break;
-
-            window_ptr->msg_callback(event_ptr);
-        }
-    });
-
-#endif
-
-    m_window_ptr = fut_m_window_ptr.get();
-    threadID = fut_threadID.get();
+    inputThread_uptr = std::make_unique<std::thread>(
+            [this]() {
+                bool breakLoop = false;
+                while(not breakLoop)
+                {
+                    glfwWaitEvents();
+                    {
+                        std::lock_guard guard(controlMutex);
+                        breakLoop = closeInputThread;
+                    }
+                }
+            });
 }
 
 WindowWithAsyncInput::~WindowWithAsyncInput()
 {
-    should_thread_close = true;
+    {
+        std::lock_guard guard(controlMutex);
+        closeInputThread = true;
+    }
 
-#ifdef _WIN32
+    glfwPostEmptyEvent();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    ::PostThreadMessage(
-        threadID,
-        WM_NULL,
-        0,
-        0
-    );
-#else
-    xcb_configure_notify_event_t event;
-    event.response_type = XCB_DESTROY_NOTIFY;
+    inputThread_uptr->join();
+    inputThread_uptr.reset();
 
-    static_cast<XCBLoader*>(m_window_ptr->get_XCBLoader())->get_procs_table()->pfn_xcbSendEvent(static_cast<xcb_connection_t*>(m_window_ptr->get_connection()),
-                                                                                                true,
-                                                                                                m_window_ptr->m_window,
-                                                                                                XCB_EVENT_MASK_STRUCTURE_NOTIFY,
-                                                                                                (char*)&event);
+    if (hasGlfwInit)
+        glfwTerminate();
 
+    hasGlfwInit = false;
+}
 
-    static_cast<XCBLoader*>(m_window_ptr->get_XCBLoader())->get_procs_table()->pfn_xcbFlush(static_cast<xcb_connection_t*>(m_window_ptr->get_connection()));
-#endif
+std::vector<std::string> WindowWithAsyncInput::GetRequiredInstanceExtensions()
+{
+    if (not hasGlfwInit)
+        InitGlfw();
 
-    std::this_thread::sleep_for(std::chrono::microseconds(10));
+    uint32_t count;
+    const char** extensions = glfwGetRequiredInstanceExtensions(&count);
 
-    window_thread_ptr->join();
-    window_thread_ptr.reset();
+    std::vector<std::string> return_vector;
+    for(size_t i=0; i != count; ++i) {
+        const char* this_extension_cstr = extensions[i];
+        return_vector.emplace_back(this_extension_cstr);
+    }
 
-    m_window_ptr.reset();
+    return return_vector;
+}
+
+void WindowWithAsyncInput::InitGlfw()
+{
+    assert(hasGlfwInit == false);
+
+    glfwInit();
+    glfwSetErrorCallback([]( int error_code, const char * str )
+                         { std::cerr << "GLFW: " << error_code << " : " << str;});
+
+    hasGlfwInit = true;
+}
+
+bool WindowWithAsyncInput::ShouldClose() const
+{
+    return glfwWindowShouldClose(window);
+}
+
+void WindowWithAsyncInput::CallbackKeyPressRelease(int key, int action)
+{
+    std::lock_guard guard(controlMutex);
+    if (action == GLFW_PRESS) {
+        for( const auto& this_lambda : callbackListOnKeyPress)   this_lambda(key);
+    } else if (action == GLFW_RELEASE) {
+        for( const auto& this_lambda : callbackListOnKeyRelease) this_lambda(key);
+    }
+}
+
+void WindowWithAsyncInput::CallbackMouseMovement(double xpos, double ypos)
+{
+    double dx, dy;
+    dx = xpos - lastMousePosition.first;
+    dy = ypos - lastMousePosition.second;
+
+    double summed_dx, summed_dy;
+    summed_dx = dx + moduloOfMousePosition.first;
+    summed_dy = dy + moduloOfMousePosition.second;
+
+    double summed_dx_floored, summed_dy_floored;
+    summed_dx_floored = (summed_dx >= 0.0) ? std::floor(summed_dx) : std::ceil(summed_dx);
+    summed_dy_floored = (summed_dy >= 0.0) ? std::floor(summed_dy) : std::ceil(summed_dy);
+
+    long int_dx, int_dy;
+    int_dx = long(summed_dx_floored);
+    int_dy = long(summed_dy_floored);
+
+    {
+        std::lock_guard guard(controlMutex);
+        for (const auto &this_lambda: callbackListOnMouseMove) {
+            this_lambda(int_dx, int_dy);
+        }
+    }
+
+    lastMousePosition.first = xpos;
+    lastMousePosition.second = ypos;
+
+    moduloOfMousePosition.first = summed_dx - summed_dx_floored;
+    moduloOfMousePosition.second = summed_dy - summed_dy_floored;
+
+    assert(std::abs(moduloOfMousePosition.first) < 1.f && std::abs(moduloOfMousePosition.second) < 1.f);
+}
+
+void WindowWithAsyncInput::AddCallbackKeyPressLambda(std::function<void(int)> lambda)
+{
+    std::lock_guard guard(controlMutex);
+    callbackListOnKeyPress.emplace_back(lambda);
+}
+
+void WindowWithAsyncInput::AddCallbackKeyReleaseLambda(std::function<void(int)> lambda)
+{
+    std::lock_guard guard(controlMutex);
+    callbackListOnKeyRelease.emplace_back(lambda);
+}
+
+void WindowWithAsyncInput::AddCallbackMouseMoveLambda(std::function<void(long, long)> lambda)
+{
+    std::lock_guard guard(controlMutex);
+    callbackListOnMouseMove.emplace_back(lambda);
+}
+
+void WindowWithAsyncInput::DeleteCallbacks()
+{
+    std::lock_guard guard(controlMutex);
+    callbackListOnKeyPress.clear();
+    callbackListOnKeyRelease.clear();
+    callbackListOnMouseMove.clear();
+}
+
+void key_glfw_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    assert(windowWithAsyncInput_static_ptr != nullptr);
+    windowWithAsyncInput_static_ptr->CallbackKeyPressRelease(key, action);
+}
+
+void mouse_button_glfw_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    assert(windowWithAsyncInput_static_ptr != nullptr);
+    windowWithAsyncInput_static_ptr->CallbackKeyPressRelease(button, action);
+}
+
+void mouse_cursor_glfw_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    assert(windowWithAsyncInput_static_ptr != nullptr);
+    windowWithAsyncInput_static_ptr->CallbackMouseMovement(xpos, ypos);
 }

@@ -1,506 +1,708 @@
 #include "Graphics/Meshes/PrimitivesOfMeshes.h"
 
-#include <limits>
 #include <cassert>
 #include <algorithm>
-#include <iterator>
+#include <numeric>
 
-#include "misc/memory_allocator.h"
-#include "misc/buffer_create_info.h"
-#include "misc/base_pipeline_manager.h"
+#include "Graphics/HelperUtils.h"
+#include "const_maps.h"
 
-PrimitivesOfMeshes::PrimitivesOfMeshes(PipelinesFactory* in_pipelinesFactory_ptr,
-                                       ShadersSetsFamiliesCache* in_shadersSetsFamiliesCache_ptr,
-                                       MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
-                                       Anvil::BaseDevice* const in_device_ptr)
+template<typename T_data,
+         typename T_out, std::size_t bunch_out_size,
+         typename T_in, std::size_t bunch_in_size>
+std::vector<T_out> transformRange(const std::byte* begin, const std::byte* end,
+                                  std::array<T_out, bunch_out_size> (*trans) (const std::array<T_in, bunch_in_size>&) )
+{
+    auto ptr = reinterpret_cast<const T_data*>(begin);
+    auto ptr_end = reinterpret_cast<const T_data*>(end);
+    assert((ptr_end - ptr) % bunch_in_size == 0);
+
+    std::vector<T_out> ret_vec;
+    while (ptr != ptr_end)
+    {
+        std::array<T_in, bunch_in_size> bunch;
+        std::copy(ptr, ptr + bunch_in_size, bunch.data());
+
+        if constexpr(std::is_integral_v<T_data> && std::is_floating_point_v<T_in>) {
+            T_in divider = std::numeric_limits<T_data>::max();
+            for(auto& this_ : bunch) {
+                this_ /= divider;
+                this_ = std::max(this_, T_in(-1.0));
+            }
+        }
+
+        std::array<T_out, bunch_out_size> out_bunch = trans(bunch);
+        std::copy(out_bunch.begin(), out_bunch.end(), std::back_inserter(ret_vec));
+
+        ptr += bunch_in_size;
+    }
+
+    return ret_vec;
+}
+
+PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(const tinygltf::Model &model,
+                                                                             const tinygltf::Primitive &primitive,
+                                                                             const MaterialsOfPrimitives* materialsOfPrimitives_ptr)
+{
+    // Draw mode
+    if (primitive.mode != -1) {
+        drawMode = static_cast<glTFmode>(primitive.mode);
+    }
+
+    // Indices
+    if (primitive.indices != -1) {
+        const tinygltf::Accessor& accessor = model.accessors[primitive.indices];
+        std::pair<const std::byte*, const std::byte*> pair_begin_end_ptr = GetAccessorBeginEndPtrs(model, accessor);
+
+        if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short))
+            indices = transformRange<uint16_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                               +[](const std::array<uint32_t,1>& in) -> std::array<uint32_t,1> {return in;});
+        else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_int))
+            indices = transformRange<uint32_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                               +[](const std::array<uint32_t,1>& in) -> std::array<uint32_t,1> {return in;});
+        else assert(0);
+    }
+
+    {// Position
+        auto search = primitive.attributes.find("POSITION");
+        assert(search != primitive.attributes.end());
+        {
+            std::vector<std::vector<float>> attributeAndTargets;
+
+            const tinygltf::Accessor &accessor = model.accessors[search->second];
+            std::pair<const std::byte *, const std::byte *> pair_begin_end_ptr = GetAccessorBeginEndPtrs(model, accessor);
+
+            if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                              +[](const std::array<float, 3> &in) -> std::array<float, 3> {
+                                                              std::array<float, 3> out;
+                                                              out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2];
+                                                              return out; });
+
+                attributeAndTargets.emplace_back(std::move(attribute));
+            } else
+                assert (0);
+
+            bool has_targets = primitive.targets.size() && primitive.targets[0].find("POSITION") != primitive.targets[0].end();
+            if (has_targets) {
+                for (const auto &this_target: primitive.targets) {
+                    const tinygltf::Accessor &target_accessor = model.accessors[this_target.find("POSITION")->second];
+                    std::pair<const std::byte *, const std::byte *> target_begin_end_ptr = GetAccessorBeginEndPtrs(
+                            model, target_accessor);
+
+                    if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                        std::vector target = transformRange<float>(target_begin_end_ptr.first,target_begin_end_ptr.second,
+                                                                   +[](const std::array<float, 3> &in) -> std::array<float, 3> {
+                                                                   std::array<float, 3> out;
+                                                                   out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2];
+                                                                   return out; });
+
+                        attributeAndTargets.emplace_back(std::move(target));
+                    }
+                }
+            }
+
+            positionMorphTargets = attributeAndTargets.size() - 1;
+
+            size_t components_count = attributeAndTargets[0].size() / 3;
+            for (size_t i = 0; i != components_count; ++i) {
+                for (const auto &this_vec: attributeAndTargets) {
+                    position.emplace_back(this_vec[3 * i]);
+                    position.emplace_back(this_vec[3 * i + 1]);
+                    position.emplace_back(this_vec[3 * i + 2]);
+                }
+            }
+        }
+    }
+
+
+    {// Normal
+        auto search = primitive.attributes.find("NORMAL");
+        if (search != primitive.attributes.end()) {
+            std::vector<std::vector<float>> attributeAndTargets;
+
+            const tinygltf::Accessor &accessor = model.accessors[search->second];
+            std::pair<const std::byte *, const std::byte *> pair_begin_end_ptr = GetAccessorBeginEndPtrs(model, accessor);
+
+            if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                              +[](const std::array<float, 3> &in) -> std::array<float, 3> {
+                                                              std::array<float, 3> out;
+                                                              out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2];
+                                                              return out;
+                                                              });
+
+                attributeAndTargets.emplace_back(std::move(attribute));
+            } else
+                assert (0);
+
+            bool has_targets = primitive.targets.size() && primitive.targets[0].find("NORMAL") != primitive.targets[0].end();
+            if (has_targets) {
+                for (const auto &this_target: primitive.targets) {
+                    const tinygltf::Accessor &target_accessor = model.accessors[this_target.find("NORMAL")->second];
+                    std::pair<const std::byte *, const std::byte *> target_begin_end_ptr = GetAccessorBeginEndPtrs(model, target_accessor);
+
+                    if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                        std::vector target = transformRange<float>(target_begin_end_ptr.first,target_begin_end_ptr.second,
+                                                                   +[](const std::array<float, 3> &in) -> std::array<float, 3> {
+                                                                    std::array<float, 3> out;
+                                                                    out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2];
+                                                                    return out;
+                                                                   });
+
+                        attributeAndTargets.emplace_back(std::move(target));
+                    }
+                }
+            }
+
+            normalMorphTargets = attributeAndTargets.size() - 1;
+
+            size_t components_count = attributeAndTargets[0].size() / 3;
+            for (size_t i = 0; i != components_count; ++i) {
+                for (const auto &this_vec: attributeAndTargets) {
+                    normal.emplace_back(this_vec[3 * i]);
+                    normal.emplace_back(this_vec[3 * i + 1]);
+                    normal.emplace_back(this_vec[3 * i + 2]);
+                }
+            }
+        }
+    }
+
+    {// Tangent
+        auto search = primitive.attributes.find("TANGENT");
+        if (search != primitive.attributes.end()) {
+            std::vector<std::vector<float>> attributeAndTargets;
+
+            const tinygltf::Accessor &accessor = model.accessors[search->second];
+            std::pair<const std::byte *, const std::byte *> pair_begin_end_ptr = GetAccessorBeginEndPtrs(model, accessor);
+
+            if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                              +[](const std::array<float, 4> &in) -> std::array<float, 4> { return in; });
+
+                attributeAndTargets.emplace_back(std::move(attribute));
+            } else
+                assert (0);
+
+            bool has_targets = primitive.targets.size() && primitive.targets[0].find("TANGENT") != primitive.targets[0].end();
+            if (has_targets) {
+                for (const auto &this_target: primitive.targets) {
+                    const tinygltf::Accessor &target_accessor = model.accessors[this_target.find("TANGENT")->second];
+                    std::pair<const std::byte *, const std::byte *> target_begin_end_ptr = GetAccessorBeginEndPtrs(model, target_accessor);
+
+                    if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                        std::vector target = transformRange<float>(target_begin_end_ptr.first,target_begin_end_ptr.second,
+                                                                   +[](const std::array<float, 3> &in) -> std::array<float, 3> { return in;});
+
+                        attributeAndTargets.emplace_back(std::move(target));
+                    }
+                }
+            }
+
+            tangentMorphTargets = attributeAndTargets.size() - 1;
+
+            size_t components_count = attributeAndTargets[0].size() / 4;
+            for (size_t i = 0; i != components_count; ++i) {
+                for (size_t vec_i = 0; vec_i != attributeAndTargets.size(); ++vec_i) {
+                    if (vec_i == 0) {
+                        tangent.emplace_back(attributeAndTargets[0][4 * i]);
+                        tangent.emplace_back(attributeAndTargets[0][4 * i + 1]);
+                        tangent.emplace_back(attributeAndTargets[0][4 * i + 2]);
+                        tangent.emplace_back(attributeAndTargets[0][4 * i + 3]);
+                    } else {
+                        tangent.emplace_back(attributeAndTargets[vec_i][3 * i]);
+                        tangent.emplace_back(attributeAndTargets[vec_i][3 * i + 1]);
+                        tangent.emplace_back(attributeAndTargets[vec_i][3 * i + 2]);
+                        tangent.emplace_back(attributeAndTargets[0][4 * i + 3]);
+                    }
+                }
+            }
+        }
+    }
+
+    {// Texcoords
+        if (primitive.targets.size()) {
+            auto target_upper_bound = primitive.targets[0].upper_bound("TEXCOORD_");
+            if (target_upper_bound != primitive.targets[0].end() && target_upper_bound->first.starts_with("TEXCOORD_")) {
+                texcoordsMorphTargets = primitive.targets.size();
+            }
+        }
+
+        std::vector<std::vector<float>> texcoords_vec;
+        while (true)
+        {
+            auto search = primitive.attributes.find("TEXCOORD_" + std::to_string(texcoordsCount));
+            if (search != primitive.attributes.end()) {
+                std::vector<std::vector<float>> attributeAndTargets;
+
+                const tinygltf::Accessor &accessor = model.accessors[search->second];
+                std::pair<const std::byte *, const std::byte *> pair_begin_end_ptr = GetAccessorBeginEndPtrs(model, accessor);
+
+                if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                    std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                  +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
+                    std::vector attribute = transformRange<uint8_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                    +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
+                    std::vector attribute = transformRange<uint16_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                     +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else assert (0);
+
+                bool this_has_targets = primitive.targets.size()
+                        && primitive.targets[0].find("TEXCOORD_" + std::to_string(texcoordsCount)) != primitive.targets[0].end();
+                if (this_has_targets) {
+                    for (const auto &this_target: primitive.targets) {
+                        const tinygltf::Accessor &target_accessor = model.accessors[this_target.find("TEXCOORD_" + std::to_string(texcoordsCount))->second];
+                        std::pair<const std::byte *, const std::byte *> target_begin_end_ptr = GetAccessorBeginEndPtrs(
+                                model, target_accessor);
+
+                        if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                            std::vector target = transformRange<float>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                          +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
+                            std::vector target = transformRange<uint8_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                            +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
+                            std::vector target = transformRange<uint16_t>(target_begin_end_ptr.first,target_begin_end_ptr.second,
+                                                                          +[](const std::array<float, 2> &in) -> std::array<float, 2> { return in; });
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_byte)) {
+                            std::vector target = transformRange<int8_t>(target_begin_end_ptr.first,target_begin_end_ptr.second,
+                                                                        +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_short)) {
+                            std::vector target = transformRange<int16_t>(target_begin_end_ptr.first,target_begin_end_ptr.second,
+                                                                         +[](const std::array<float, 2> &in) -> std::array<float, 2> { return in; });
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else assert(0);
+                    }
+                } else if (texcoordsMorphTargets) {
+                    for(size_t i = 0; i != texcoordsMorphTargets; ++i)
+                        attributeAndTargets.emplace_back(attributeAndTargets[0]);
+                }
+
+                texcoords_vec.emplace_back();
+                size_t components_count = attributeAndTargets[0].size() / 2;
+                for (size_t i = 0; i != components_count; ++i) {
+                    for (const auto &this_vec: attributeAndTargets) {
+                        texcoords_vec.back().emplace_back(this_vec[2 * i]);
+                        texcoords_vec.back().emplace_back(this_vec[2 * i + 1]);
+                    }
+                }
+
+                texcoordsCount++;
+            } else break;
+        }
+
+        if (texcoords_vec.size()) {
+            size_t components_count = texcoords_vec[0].size() / (2 * (1+texcoordsMorphTargets));
+            for (size_t i = 0; i != components_count; ++i) {
+                for (const auto &this_vec: texcoords_vec) {
+                    std::copy(this_vec.data()+ 2*i*(1+texcoordsMorphTargets),
+                              this_vec.data()+ 2*(i+1)*(1+texcoordsMorphTargets),
+                              std::back_inserter(texcoords));
+                }
+            }
+        }
+    }
+
+    {// Color (only COLOR_0)
+        auto search = primitive.attributes.find("COLOR_0");
+        if (search != primitive.attributes.end()) {
+            std::vector<std::vector<float>> attributeAndTargets;
+
+            const tinygltf::Accessor &accessor = model.accessors[search->second];
+            std::pair<const std::byte *, const std::byte *> pair_begin_end_ptr = GetAccessorBeginEndPtrs(model, accessor);
+
+            if (accessor.type == static_cast<int>(glTFtype::type_vec3)) {
+                if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                    std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                  +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                  std::array<float,4> out;
+                                                                  out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
+                                                                  return out;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
+                    std::vector attribute = transformRange<uint8_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                    +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                    std::array<float,4> out;
+                                                                    out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
+                                                                    return out;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
+                    std::vector attribute = transformRange<uint16_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                     +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                     std::array<float,4> out;
+                                                                     out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
+                                                                     return out;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else assert (0);
+            } else if (accessor.type == static_cast<int>(glTFtype::type_vec4)) {
+                if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                    std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                  +[](const std::array<float, 4> &in) -> std::array<float, 4> { return in;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
+                    std::vector attribute = transformRange<uint8_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                    +[](const std::array<float, 4> &in) -> std::array<float, 4> {return in;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
+                    std::vector attribute = transformRange<uint16_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                                     +[](const std::array<float, 4> &in) -> std::array<float, 4> {return in;});
+
+                    attributeAndTargets.emplace_back(std::move(attribute));
+                } else assert (0);
+            } else assert(0);
+
+            bool has_targets = primitive.targets.size() && primitive.targets[0].find("COLOR_0") != primitive.targets[0].end();
+            if (has_targets) {
+                for (const auto &this_target: primitive.targets) {
+                    const tinygltf::Accessor &target_accessor = model.accessors[this_target.find("COLOR_0")->second];
+                    std::pair<const std::byte *, const std::byte *> target_begin_end_ptr = GetAccessorBeginEndPtrs(model, target_accessor);
+
+                    if (target_accessor.type == static_cast<int>(glTFtype::type_vec3)) {
+                        if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                            std::vector target = transformRange<float>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                       +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                        std::array<float,4> out;
+                                                                        out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
+                                                                        return out;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
+                            std::vector target = transformRange<uint8_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                         +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                          std::array<float,4> out;
+                                                                          out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
+                                                                          return out;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
+                            std::vector target = transformRange<uint16_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                          +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                           std::array<float,4> out;
+                                                                           out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
+                                                                           return out;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_byte)) {
+                            std::vector target = transformRange<int8_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                        +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                         std::array<float,4> out;
+                                                                         out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
+                                                                         return out;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_short)) {
+                            std::vector target = transformRange<int16_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                         +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                          std::array<float,4> out;
+                                                                          out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
+                                                                          return out;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else assert (0);
+                    } else if (target_accessor.type == static_cast<int>(glTFtype::type_vec4)) {
+                        if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                            std::vector target = transformRange<float>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                       +[](const std::array<float, 4> &in) -> std::array<float, 4> { return in;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
+                            std::vector target = transformRange<uint8_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                         +[](const std::array<float, 4> &in) -> std::array<float, 4> {return in;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
+                            std::vector target = transformRange<uint16_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                          +[](const std::array<float, 4> &in) -> std::array<float, 4> {return in;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_byte)) {
+                            std::vector target = transformRange<int8_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                        +[](const std::array<float, 4> &in) -> std::array<float, 4> {return in;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_short)) {
+                            std::vector target = transformRange<int16_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
+                                                                         +[](const std::array<float, 4> &in) -> std::array<float, 4> {return in;});
+
+                            attributeAndTargets.emplace_back(std::move(target));
+                        } else assert (0);
+                    } else assert(0);
+                }
+            }
+
+            colorMorphTargets = attributeAndTargets.size() - 1;
+
+            size_t components_count = attributeAndTargets[0].size() / 4;
+            for (size_t i = 0; i != components_count; ++i) {
+                for (const auto &this_vec: attributeAndTargets) {
+                    color.emplace_back(this_vec[4 * i]);
+                    color.emplace_back(this_vec[4 * i + 1]);
+                    color.emplace_back(this_vec[4 * i + 2]);
+                    color.emplace_back(this_vec[4 * i + 3]);
+                }
+            }
+        }
+    }
+
+    { // Joints
+        std::vector<std::vector<uint16_t>> joints_vec;
+        while (true) {
+            auto search = primitive.attributes.find("JOINTS_" + std::to_string(jointsCount));
+            if (search != primitive.attributes.end()) {
+                std::vector<uint16_t> attribute;
+
+                const tinygltf::Accessor &accessor = model.accessors[search->second];
+                std::pair<const std::byte *, const std::byte *> pair_begin_end_ptr = GetAccessorBeginEndPtrs(model, accessor);
+
+                if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
+                    attribute = transformRange<uint8_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                        +[](const std::array<uint16_t, 4> &in) -> std::array<uint16_t, 4> { return in; });
+
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
+                    attribute = transformRange<uint16_t>(pair_begin_end_ptr.first,
+                                                         pair_begin_end_ptr.second,
+                                                         +[](const std::array<uint16_t, 4> &in) -> std::array<uint16_t, 4> { return in; });
+                } else
+                    assert (0);
+
+                joints_vec.emplace_back(std::move(attribute));
+                jointsCount++;
+            } else break;
+        }
+
+        if (joints_vec.size()) {
+            size_t components_count = joints_vec[0].size() / 4;
+            for (size_t i = 0; i != components_count; ++i) {
+                for (const auto &this_vec: joints_vec) {
+                    std::copy(this_vec.data() + 4*i,
+                              this_vec.data() + 4*(i+1),
+                              std::back_inserter(joints));
+                }
+            }
+        }
+    }
+
+    { // Weight
+        std::vector<std::vector<float>> weights_vec;
+        while (true) {
+            auto search = primitive.attributes.find("WEIGHTS_" + std::to_string(weightsCount));
+            if (search != primitive.attributes.end()) {
+                std::vector<float> attribute;
+
+                const tinygltf::Accessor &accessor = model.accessors[search->second];
+                std::pair<const std::byte *, const std::byte *> pair_begin_end_ptr = GetAccessorBeginEndPtrs(model, accessor);
+
+                if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
+                    attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                        +[](const std::array<float, 4> &in) -> std::array<float, 4> { return in; });
+
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
+                    attribute = transformRange<uint8_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
+                                                        +[](const std::array<float, 4> &in) -> std::array<float, 4> { return in; });
+
+                } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
+                    attribute = transformRange<uint16_t>(pair_begin_end_ptr.first,
+                                                         pair_begin_end_ptr.second,
+                                                         +[](const std::array<float, 4> &in) -> std::array<float, 4> { return in; });
+                } else
+                    assert (0);
+
+                weights_vec.emplace_back(std::move(attribute));
+                weightsCount++;
+            } else break;
+        }
+
+        if (weights_vec.size()) {
+            size_t components_count = weights_vec[0].size() / 4;
+            for (size_t i = 0; i != components_count; ++i) {
+                for (const auto &this_vec: weights_vec) {
+                    std::copy(this_vec.data() + 4*i,
+                              this_vec.data() + 4*(i+1),
+                              std::back_inserter(weights));
+                }
+            }
+        }
+    }
+
+    assert(jointsCount == weightsCount);
+
+    // Material
+    if (primitive.material != -1)
+        material = primitive.material + materialsOfPrimitives_ptr->GetMaterialIndexOffsetOfModel(model);
+    else
+        material = 0;       // Default material
+}
+
+PrimitivesOfMeshes::PrimitiveOBBtreeData
+    PrimitivesOfMeshes::PrimitiveInitializationData::GetPrimitiveOBBtreeData() const
+{
+    PrimitivesOfMeshes::PrimitiveOBBtreeData return_data;
+
+    if (positionMorphTargets == 0 && jointsCount == 0) {
+        return_data.drawMode = drawMode;
+
+        assert(position.size() % 3 == 0);
+        for (auto it = position.begin(); it != position.end(); it += 3) {
+            glm::vec3 vec(*it, *(it + 1), *(it + 2));
+            return_data.points.emplace_back(vec);
+        }
+
+        if (normal.size()) {
+            assert(normal.size() % 3 == 0);
+            for (auto it = normal.begin(); it != normal.end(); it += 3) {
+                glm::vec3 vec(*it, *(it + 1), *(it + 2));
+                return_data.normals.emplace_back(vec);
+            }
+        }
+
+        if (indices.size()) {
+            return_data.indices = indices;
+        } else {
+            size_t indices_count = position.size();
+            return_data.indices.resize(indices_count);
+            std::iota(return_data.indices.begin(), return_data.indices.end(), 0);
+        }
+    } else {
+        return_data.isSkinOrMorph = true;
+    }
+
+    return return_data;
+}
+
+size_t PrimitivesOfMeshes::PrimitiveInitializationData::IndicesBufferSize() const
+{
+    size_t size_bytes = 0;
+    size_bytes += indices.size() * sizeof(uint32_t);
+
+    return size_bytes;
+}
+
+
+size_t PrimitivesOfMeshes::PrimitiveInitializationData::VerticesBufferSize() const
+{
+    size_t size_bytes = 0;
+    size_bytes += position.size()   * sizeof(float);
+    size_bytes += normal.size()     * sizeof(float);
+    size_bytes += tangent.size()    * sizeof(float);
+    size_bytes += texcoords.size()  * sizeof(float);
+    size_bytes += color.size()      * sizeof(float);
+    size_bytes += joints.size()     * sizeof(uint16_t);
+    size_bytes += weights.size()    * sizeof(float);
+
+    return size_bytes;
+}
+
+
+std::pair<const std::byte *, const std::byte *>
+PrimitivesOfMeshes::PrimitiveInitializationData::GetAccessorBeginEndPtrs(const tinygltf::Model &model,
+                                                                         const tinygltf::Accessor &accessor)
+{
+    size_t size_of_each_component_in_byte;
+    switch (static_cast<glTFcomponentType>(accessor.componentType))
+    {
+        default:
+        case glTFcomponentType::type_byte:
+        case glTFcomponentType::type_unsigned_byte:
+            size_of_each_component_in_byte = sizeof(int8_t);
+            break;
+        case glTFcomponentType::type_short:
+        case glTFcomponentType::type_unsigned_short:
+            size_of_each_component_in_byte = sizeof(int16_t);
+            break;
+        case glTFcomponentType::type_int:
+        case glTFcomponentType::type_unsigned_int:
+        case glTFcomponentType::type_float:
+            size_of_each_component_in_byte = sizeof(int32_t);
+            break;
+        case glTFcomponentType::type_double:
+            size_of_each_component_in_byte = sizeof(int64_t);
+            break;
+    }
+
+    size_t number_of_components_per_type;
+    switch (static_cast<glTFtype>(accessor.type))
+    {
+        default:
+        case glTFtype::type_scalar:
+            number_of_components_per_type = 1;
+            break;
+        case glTFtype::type_vec2:
+            number_of_components_per_type = 2;
+            break;
+        case glTFtype::type_vec3:
+            number_of_components_per_type = 3;
+            break;
+        case glTFtype::type_vec4:
+            number_of_components_per_type = 4;
+            break;
+    }
+
+    size_t count_of_elements = accessor.count;
+
+    size_t byte_offset = accessor.byteOffset;
+
+    const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+    byte_offset += bufferView.byteOffset;
+
+    const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+
+    auto begin_ptr = reinterpret_cast<const std::byte*>(&buffer.data[byte_offset]);
+    auto end_ptr = reinterpret_cast<const std::byte*>(&buffer.data[byte_offset] + count_of_elements * number_of_components_per_type * size_of_each_component_in_byte);
+
+    return {begin_ptr, end_ptr};
+}
+
+
+
+PrimitivesOfMeshes::PrimitivesOfMeshes(MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
+                                       vk::Device in_device,
+                                       vma::Allocator in_allocator)
     :
-    pipelinesFactory_ptr(in_pipelinesFactory_ptr),
-    shadersSetsFamiliesCache_ptr(in_shadersSetsFamiliesCache_ptr),
     materialsOfPrimitives_ptr(in_materialsOfPrimitives_ptr),
-    device_ptr(in_device_ptr)
+    device(in_device),
+    vma_allocator(in_allocator)
 {
 }
 
 PrimitivesOfMeshes::~PrimitivesOfMeshes()
 {
-    indexBuffer_uptr.reset();
-    positionBuffer_uptr.reset();
-    normalBuffer_uptr.reset();
-    tangentBuffer_uptr.reset();
-    texcoord0Buffer_uptr.reset();
-    texcoord1Buffer_uptr.reset();
-    color0Buffer_uptr.reset();
-    joints0Buffer_uptr.reset();
-    weights0Buffer_uptr.reset();
+    vma_allocator.destroyBuffer(indicesBuffer, indicesAllocation);
+    vma_allocator.destroyBuffer(verticesBuffer, verticesAllocation);
 }
 
-void PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& in_model,
-                                      const tinygltf::Primitive& in_primitive)
+size_t PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& model,
+                                        const tinygltf::Primitive& primitive)
 {
-    assert(hasBeenFlashed == false);
+    size_t index = primitivesInitializationData.size();
+    primitivesInitializationData.emplace_back(model, primitive, materialsOfPrimitives_ptr);
 
-    PrimitiveGeneralInfo this_primitiveInitInfo;
-    PrimitiveCPUdata this_primitiveCPUdata;
-
-    {
-        const tinygltf::Accessor& this_accessor = in_model.accessors[in_primitive.indices];
-
-        this_primitiveInitInfo.indicesCount = static_cast<uint32_t>(this_accessor.count);
-
-        if (this_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short))
-            this_primitiveInitInfo.indexBufferType = Anvil::IndexType::UINT16;
-        else if (this_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_int))
-            this_primitiveInitInfo.indexBufferType = Anvil::IndexType::UINT32;
-        else
-            assert(0);
-
-        this_primitiveInitInfo.indexBufferOffset = localIndexBuffer.size();
-        this_primitiveInitInfo.commonGraphicsPipelineSpecs.indexComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-        AddAccessorDataToLocalBuffer(localIndexBuffer, false, false, sizeof(uint32_t), in_model, this_accessor);
-
-        if (recordingOBBtree)
-        {
-            size_t begin_index_byte = this_primitiveInitInfo.indexBufferOffset;
-            size_t end_index_byte = localIndexBuffer.size();
-
-            if (this_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short))
-            {
-                unsigned short* begin_index = reinterpret_cast<unsigned short*>(localIndexBuffer.data() + begin_index_byte);
-                unsigned short* end_index = reinterpret_cast<unsigned short*>(localIndexBuffer.data() + end_index_byte);
-
-                for (unsigned short* this_ptr = begin_index; this_ptr != end_index; this_ptr++)
-                    this_primitiveCPUdata.indices.emplace_back(static_cast<uint32_t>(*this_ptr));
-            }
-            else if (this_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_int))
-            {
-                uint32_t* begin_index = reinterpret_cast<uint32_t*>(localIndexBuffer.data() + begin_index_byte);
-                uint32_t* end_index = reinterpret_cast<uint32_t*>(localIndexBuffer.data() + end_index_byte);
-
-                for (uint32_t* this_ptr = begin_index; this_ptr != end_index; this_ptr++)
-                    this_primitiveCPUdata.indices.emplace_back(static_cast<uint32_t>(*this_ptr));
-            }
-        }
+    if (recordingOBBtree) {
+        recorderPrimitivesOBBtreeDatas.emplace_back(primitivesInitializationData.back().GetPrimitiveOBBtreeData());
     }
 
-    {
-        auto search = in_primitive.attributes.find("POSITION");
-        if (search != in_primitive.attributes.end())
-        {
-            int this_positionAttribute = search->second;
-            const tinygltf::Accessor& this_accessor = in_model.accessors[this_positionAttribute];
-
-            this_primitiveInitInfo.positionBufferOffset = localPositionBuffer.size();
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.positionComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-            AddAccessorDataToLocalBuffer(localPositionBuffer, true, false, sizeof(float), in_model, this_accessor);
-
-            if (recordingOBBtree)
-            {
-                size_t begin_index_byte = this_primitiveInitInfo.positionBufferOffset;
-                size_t end_index_byte = localPositionBuffer.size();
-
-                float* begin_index = reinterpret_cast<float*>(localPositionBuffer.data() + begin_index_byte);
-                float* end_index = reinterpret_cast<float*>(localPositionBuffer.data() + end_index_byte);
-
-                for (float* this_ptr = begin_index; this_ptr != end_index; this_ptr += 3)
-                    this_primitiveCPUdata.points.emplace_back(glm::vec3(this_ptr[0], this_ptr[1], this_ptr[2]));
-            }
-        }
-    }
-
-    {
-        auto search = in_primitive.attributes.find("NORMAL");
-        if (search != in_primitive.attributes.end())
-        {
-            int this_normalAttribute = search->second;
-            const tinygltf::Accessor& this_accessor = in_model.accessors[this_normalAttribute];
-
-            this_primitiveInitInfo.normalBufferOffset = localNormalBuffer.size();
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.normalComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-            AddAccessorDataToLocalBuffer(localNormalBuffer, true, false, sizeof(float), in_model, this_accessor);
-
-            if (recordingOBBtree)
-            {
-                size_t begin_index_byte = this_primitiveInitInfo.normalBufferOffset;
-                size_t end_index_byte = localNormalBuffer.size();
-
-                float* begin_index = reinterpret_cast<float*>(localNormalBuffer.data() + begin_index_byte);
-                float* end_index = reinterpret_cast<float*>(localNormalBuffer.data() + end_index_byte);
-
-                for (float* this_ptr = begin_index; this_ptr != end_index; this_ptr += 3)
-                    this_primitiveCPUdata.normals.emplace_back(glm::vec3(this_ptr[0], this_ptr[1], this_ptr[2]));
-            }
-        }
-    }
-
-    {
-        auto search = in_primitive.attributes.find("TANGENT");
-        if (search != in_primitive.attributes.end())
-        {
-            int this_tangetAttribute = search->second;
-            const tinygltf::Accessor& this_accessor = in_model.accessors[this_tangetAttribute];
-
-            this_primitiveInitInfo.tangentBufferOffset = localTangentBuffer.size();
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.tangentComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-            AddAccessorDataToLocalBuffer(localTangentBuffer, false, false, sizeof(float), in_model, this_accessor);
-        }
-    }
-
-    {
-        auto search = in_primitive.attributes.find("TEXCOORD_0");
-        if (search != in_primitive.attributes.end())
-        {
-            int this_texcoord0Attribute = search->second;
-            const tinygltf::Accessor& this_accessor = in_model.accessors[this_texcoord0Attribute];
-
-            this_primitiveInitInfo.texcoord0BufferOffset = localTexcoord0Buffer.size();
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.texcoord0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-            AddAccessorDataToLocalBuffer(localTexcoord0Buffer, false, false, sizeof(float), in_model, this_accessor);
-        }
-    }
-
-    {
-        auto search = in_primitive.attributes.find("TEXCOORD_1");
-        if (search != in_primitive.attributes.end())
-        {
-            int this_texcoord1Attribute = search->second;
-            const tinygltf::Accessor& this_accessor = in_model.accessors[this_texcoord1Attribute];
-
-            this_primitiveInitInfo.texcoord1BufferOffset = localTexcoord1Buffer.size();
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.texcoord1ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-            AddAccessorDataToLocalBuffer(localTexcoord1Buffer, false, false, sizeof(float), in_model, this_accessor);
-        }
-    }
-
-    {
-        auto search = in_primitive.attributes.find("COLOR_0");
-        if (search != in_primitive.attributes.end())
-        {
-            int this_color0Attribute = search->second;
-            const tinygltf::Accessor& this_accessor = in_model.accessors[this_color0Attribute];
-
-            this_primitiveInitInfo.color0BufferOffset = localColor0Buffer.size();
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.color0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-            AddAccessorDataToLocalBuffer(localColor0Buffer, false, true, sizeof(float), in_model, this_accessor);
-        }
-    }
-
-    {
-        auto search = in_primitive.attributes.find("JOINTS_0");
-        if (search != in_primitive.attributes.end())
-        {
-            int this_joints0Attribute = search->second;
-            const tinygltf::Accessor& this_accessor = in_model.accessors[this_joints0Attribute];
-
-            this_primitiveInitInfo.joints0BufferOffset = localJoints0Buffer.size();
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.joints0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-            AddAccessorDataToLocalBuffer(localJoints0Buffer, false, false, sizeof(uint16_t), in_model, this_accessor);
-        }
-    }
-
-    {
-        auto search = in_primitive.attributes.find("WEIGHTS_0");
-        if (search != in_primitive.attributes.end())
-        {
-            int this_weights0Attribute = search->second;
-            const tinygltf::Accessor& this_accessor = in_model.accessors[this_weights0Attribute];
-
-            this_primitiveInitInfo.weights0BufferOffset = localWeights0Buffer.size();
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.weights0ComponentType = static_cast<glTFcomponentType>(this_accessor.componentType);
-
-            AddAccessorDataToLocalBuffer(localWeights0Buffer, false, false, sizeof(float), in_model, this_accessor);
-
-            if (recordingOBBtree)
-            {
-                this_primitiveCPUdata.isSkin = true;
-            }
-        }
-    }
-
-    {
-        this_primitiveInitInfo.commonGraphicsPipelineSpecs.drawMode = static_cast<glTFmode>(in_primitive.mode);
-
-        if (recordingOBBtree)
-        {
-            this_primitiveCPUdata.drawMode = static_cast<glTFmode>(in_primitive.mode);
-        }
-    }
-
-    if(in_primitive.material != -1)
-    {
-        this_primitiveInitInfo.materialIndex = static_cast<uint32_t>(in_primitive.material + materialsOfPrimitives_ptr->GetMaterialIndexOffsetOfModel(in_model));
-        this_primitiveInitInfo.materialMaps = materialsOfPrimitives_ptr->GetMaterialMapsIndexes(this_primitiveInitInfo.materialIndex);
-    }
-
-    
-    bool isTransparent = false;
-
-    if(this_primitiveInitInfo.materialIndex != -1)
-    {
-        MaterialAbout this_materialAbout = materialsOfPrimitives_ptr->GetMaterialAbout(this_primitiveInitInfo.materialIndex);
-
-        if(this_materialAbout.twoSided)
-            this_primitiveInitInfo.commonGraphicsPipelineSpecs.twoSided = true;
-
-        // TODO enable blending
-        if (this_materialAbout.transparent)
-            isTransparent = true;
-    }
-    
-
-    primitivesGeneralInfos.emplace_back(this_primitiveInitInfo);
-    primitivesTransparencyFlags.emplace_back(isTransparent);
-
-    if (recordingOBBtree)
-    {
-        recorderPrimitivesCPUdatas.emplace_back(this_primitiveCPUdata);
-    }
-}
-
-void PrimitivesOfMeshes::FlashDevice()
-{
-    assert(hasBeenFlashed == false);
-
-    if (!localIndexBuffer.empty())
-        indexBuffer_uptr = CreateDeviceBufferForLocalBuffer(localIndexBuffer, Anvil::BufferUsageFlagBits::INDEX_BUFFER_BIT, "Index Buffer");
-    if (!localPositionBuffer.empty())
-        positionBuffer_uptr = CreateDeviceBufferForLocalBuffer(localPositionBuffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Position Buffer");
-    if (!localNormalBuffer.empty())
-        normalBuffer_uptr = CreateDeviceBufferForLocalBuffer(localNormalBuffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Normal Buffer");
-    if (!localTangentBuffer.empty())
-        tangentBuffer_uptr = CreateDeviceBufferForLocalBuffer(localTangentBuffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Tangent Buffer");
-    if (!localTexcoord0Buffer.empty())
-        texcoord0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Texcoord0 Buffer");
-    if (!localTexcoord1Buffer.empty())
-        texcoord1Buffer_uptr = CreateDeviceBufferForLocalBuffer(localTexcoord1Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Texcoord1 Buffer");
-    if (!localColor0Buffer.empty())
-        color0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localColor0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Color0 Buffer");
-    if (!localJoints0Buffer.empty())
-        joints0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localJoints0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Joints0 Buffer");
-    if (!localWeights0Buffer.empty())
-        weights0Buffer_uptr = CreateDeviceBufferForLocalBuffer(localWeights0Buffer, Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT, "Weights0 Buffer");
-
-
-    localIndexBuffer.clear();
-    localPositionBuffer.clear();
-    localNormalBuffer.clear();
-    localTangentBuffer.clear();
-    localTexcoord0Buffer.clear();
-    localTexcoord1Buffer.clear();
-    localColor0Buffer.clear();
-    localJoints0Buffer.clear();
-    localWeights0Buffer.clear();
-
-    hasBeenFlashed = true;
-}
-
-size_t PrimitivesOfMeshes::GetPrimitivesCount()
-{
-    return primitivesGeneralInfos.size();
-}
-
-bool PrimitivesOfMeshes::IsPrimitiveTransparent(size_t primitive_index)
-{
-    return primitivesTransparencyFlags[primitive_index];
-}
-
-void PrimitivesOfMeshes::InitPrimitivesSet(PrimitivesSetSpecs in_primitives_set_specs,
-                                           DescriptorSetsCreateInfosPtrsCollection in_descriptor_sets_create_infos_ptrs_collection,
-                                           Anvil::RenderPass* renderpass_ptr,
-                                           Anvil::SubPassID subpassID)
-{
-    std::vector<PrimitiveSpecificSetInfo> this_set_primitiveSpecificSetInfo;
-
-    for (auto& this_primitivesGeneralInfo : primitivesGeneralInfos)
-    {
-        PrimitiveSpecificSetInfo this_primitiveSpecificSetInfo;
-
-        GraphicsPipelineSpecs this_set_graphicsPipelineSpecs = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs;        // It is getting filled up from the properties of the primitive
-        ShadersSpecs this_set_shaderSpecs = in_primitives_set_specs.shaderSpecs;                                              // It is getting filled up from the properties of the primitive
-
-        {   // Index data
-            this_primitiveSpecificSetInfo.indexBufferType = this_primitivesGeneralInfo.indexBufferType;
-            this_primitiveSpecificSetInfo.indicesCount = this_primitivesGeneralInfo.indicesCount;
-
-            this_primitiveSpecificSetInfo.indexBufferOffset = this_primitivesGeneralInfo.indexBufferOffset;
-        }
-        
-        {   // Description set 0 is always the camera location
-            this_set_graphicsPipelineSpecs.descriptorSetsCreateInfo_ptrs.emplace_back(in_descriptor_sets_create_infos_ptrs_collection.camera_description_set_create_info_ptr);
-        }
-
-        if (this_primitivesGeneralInfo.joints0BufferOffset != -1 && this_primitivesGeneralInfo.weights0BufferOffset != -1)
-        {
-            this_set_graphicsPipelineSpecs.descriptorSetsCreateInfo_ptrs.emplace_back(in_descriptor_sets_create_infos_ptrs_collection.skins_description_set_create_info_ptr);
-        }
-
-        {   // Push constants of pipeline
-            if(this_primitivesGeneralInfo.joints0BufferOffset == -1 || this_primitivesGeneralInfo.weights0BufferOffset == -1)
-            {
-                PushConstantSpecs TRSmatrixPushConstant;
-                TRSmatrixPushConstant.offset = 0;
-                TRSmatrixPushConstant.size = 64;
-                TRSmatrixPushConstant.shader_flags = Anvil::ShaderStageFlagBits::VERTEX_BIT;
-                this_set_graphicsPipelineSpecs.pushConstantSpecs.emplace_back(TRSmatrixPushConstant);
-            }
-            else
-            {
-                PushConstantSpecs SkinInfoPushConstant;
-                SkinInfoPushConstant.offset = 0;
-                SkinInfoPushConstant.size = 8;
-                SkinInfoPushConstant.shader_flags = Anvil::ShaderStageFlagBits::VERTEX_BIT;
-                this_set_graphicsPipelineSpecs.pushConstantSpecs.emplace_back(SkinInfoPushConstant);
-            }
-
-            if(in_primitives_set_specs.useMaterial && this_primitivesGeneralInfo.materialIndex != -1)
-            {
-                PushConstantSpecs materialPushConstant;
-                materialPushConstant.offset = 96;
-                materialPushConstant.size = 32;
-                materialPushConstant.shader_flags = Anvil::ShaderStageFlagBits::FRAGMENT_BIT;
-                this_set_graphicsPipelineSpecs.pushConstantSpecs.emplace_back(materialPushConstant);
-            }
-        }
-
-        {   // Vertex attributes
-            int32_t layout_location = 0;
-
-            {
-                layout_location++;      // position layout_location is 0
-                this_primitiveSpecificSetInfo.positionBufferOffset = this_primitivesGeneralInfo.positionBufferOffset;
-            }
-
-            if (in_primitives_set_specs.useMaterial)
-            {
-                if (this_primitivesGeneralInfo.normalBufferOffset != -1)
-                {
-                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_NORMAL");
-                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_NORMAL_LOCATION", layout_location++));
-                    this_primitiveSpecificSetInfo.normalBufferOffset = this_primitivesGeneralInfo.normalBufferOffset;
-                }
-                if (this_primitivesGeneralInfo.tangentBufferOffset != -1)
-                {
-                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_TANGENT");
-                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_TANGENT_LOCATION", layout_location++));
-                    this_primitiveSpecificSetInfo.tangentBufferOffset = this_primitivesGeneralInfo.tangentBufferOffset;
-                }
-                if (this_primitivesGeneralInfo.texcoord0BufferOffset != -1)
-                {
-                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_TEXCOORD0");
-                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_TEXCOORD0_LOCATION", layout_location++));
-                    this_primitiveSpecificSetInfo.texcoord0BufferOffset = this_primitivesGeneralInfo.texcoord0BufferOffset;
-
-                    this_primitiveSpecificSetInfo.texcoord0ComponentType = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs.texcoord0ComponentType;
-                }
-                if (this_primitivesGeneralInfo.texcoord1BufferOffset != -1)
-                {
-                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_TEXCOORD1");
-                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_TEXCOORD1_LOCATION", layout_location++));
-                    this_primitiveSpecificSetInfo.texcoord1BufferOffset = this_primitivesGeneralInfo.texcoord1BufferOffset;
-
-                    this_primitiveSpecificSetInfo.texcoord1ComponentType = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs.texcoord1ComponentType;
-                }
-                if (this_primitivesGeneralInfo.color0BufferOffset != -1)
-                {
-                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_COLOR0");
-                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_COLOR0_LOCATION", layout_location++));
-                    this_primitiveSpecificSetInfo.color0BufferOffset = this_primitivesGeneralInfo.color0BufferOffset;
-
-                    this_primitiveSpecificSetInfo.color0ComponentType = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs.color0ComponentType;
-                }
-                if (this_primitivesGeneralInfo.joints0BufferOffset != -1)
-                {
-                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_JOINTS0");
-                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_JOINTS0_LOCATION", layout_location++));
-                    this_primitiveSpecificSetInfo.joints0BufferOffset = this_primitivesGeneralInfo.joints0BufferOffset;
-
-                    this_primitiveSpecificSetInfo.joints0ComponentType = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs.joints0ComponentType;
-                }
-                if (this_primitivesGeneralInfo.weights0BufferOffset != -1)
-                {
-                    this_set_shaderSpecs.emptyDefinition.emplace_back("VERT_WEIGHTS0");
-                    this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("VERT_WEIGHTS0_LOCATION", layout_location++));
-                    this_primitiveSpecificSetInfo.weights0BufferOffset = this_primitivesGeneralInfo.weights0BufferOffset;
-
-                    this_primitiveSpecificSetInfo.weights0ComponentType = this_primitivesGeneralInfo.commonGraphicsPipelineSpecs.weights0ComponentType;
-                }
-                if (this_primitivesGeneralInfo.weights0BufferOffset != -1 && this_primitivesGeneralInfo.joints0BufferOffset != -1)
-                { 
-                    this_set_shaderSpecs.emptyDefinition.emplace_back("USE_SKIN");
-                }
-
-                {
-                    ShadersSpecs material_shader_specs = materialsOfPrimitives_ptr->GetShaderSpecsNeededForMaterial(this_primitivesGeneralInfo.materialIndex);
-
-                    std::copy(
-                        material_shader_specs.emptyDefinition.begin(),
-                        material_shader_specs.emptyDefinition.end(),
-                        std::back_inserter(this_set_shaderSpecs.emptyDefinition));
-
-                    std::copy(
-                        material_shader_specs.definitionValuePairs.begin(),
-                        material_shader_specs.definitionValuePairs.end(),
-                        std::back_inserter(this_set_shaderSpecs.definitionValuePairs));
-
-                    std::copy(
-                        material_shader_specs.definitionStringPairs.begin(),
-                        material_shader_specs.definitionStringPairs.end(),
-                        std::back_inserter(this_set_shaderSpecs.definitionStringPairs));
-                }
-
-
-                // Add material Description set
-                if (this_primitivesGeneralInfo.materialIndex != -1)
-                {
-                    this_set_graphicsPipelineSpecs.descriptorSetsCreateInfo_ptrs.emplace_back(in_descriptor_sets_create_infos_ptrs_collection.materials_description_set_create_info_ptr);
-                    if (this_primitivesGeneralInfo.joints0BufferOffset == -1 || this_primitivesGeneralInfo.weights0BufferOffset == -1)
-                        this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("MATERIAL_DS_INDEX", 1));
-                    else
-                        this_set_shaderSpecs.definitionValuePairs.emplace_back(std::make_pair("MATERIAL_DS_INDEX", 2));
-                }
-            }
-            else
-            {
-                this_set_graphicsPipelineSpecs.normalComponentType = static_cast<glTFcomponentType>(-1);
-                this_set_graphicsPipelineSpecs.tangentComponentType = static_cast<glTFcomponentType>(-1);
-                this_set_graphicsPipelineSpecs.texcoord0ComponentType = static_cast<glTFcomponentType>(-1);
-                this_set_graphicsPipelineSpecs.texcoord1ComponentType = static_cast<glTFcomponentType>(-1);
-                this_set_graphicsPipelineSpecs.color0ComponentType = static_cast<glTFcomponentType>(-1);
-            }
-        }
-
-        this_set_graphicsPipelineSpecs.pipelineShaders = shadersSetsFamiliesCache_ptr->GetShadersSet(this_set_shaderSpecs);
-
-        this_set_graphicsPipelineSpecs.depthCompare = in_primitives_set_specs.depthCompare;
-        this_set_graphicsPipelineSpecs.depthWriteEnable = in_primitives_set_specs.useDepthWrite;
-
-        this_set_graphicsPipelineSpecs.renderpass_ptr = renderpass_ptr;
-        this_set_graphicsPipelineSpecs.subpassID = subpassID;
-
-        Anvil::PipelineID this_pipelineID = pipelinesFactory_ptr->GetGraphicsPipelineID(this_set_graphicsPipelineSpecs);
-
-        this_primitiveSpecificSetInfo.vkGraphicsPipeline = pipelinesFactory_ptr->GetPipelineVkHandle(Anvil::PipelineBindPoint::GRAPHICS,
-                                                                                                     this_pipelineID);
-        this_primitiveSpecificSetInfo.pipelineLayout_ptr = pipelinesFactory_ptr->GetPipelineLayout(Anvil::PipelineBindPoint::GRAPHICS, 
-                                                                                                   this_pipelineID);
-        
-        if (in_primitives_set_specs.useMaterial)
-        {
-            this_primitiveSpecificSetInfo.materialIndex = this_primitivesGeneralInfo.materialIndex;
-            this_primitiveSpecificSetInfo.materialMaps = this_primitivesGeneralInfo.materialMaps;
-        }
-
-        this_set_primitiveSpecificSetInfo.emplace_back(this_primitiveSpecificSetInfo);
-    }
-
-    primitivesSetsNameToVector_umap.emplace(in_primitives_set_specs.primitivesSetName, std::move(this_set_primitiveSpecificSetInfo));
+    return index;
 }
 
 void PrimitivesOfMeshes::StartRecordOBBtree()
@@ -512,9 +714,9 @@ OBBtree PrimitivesOfMeshes::GetOBBtreeAndReset()
 {
     std::vector<Triangle> triangles;
 
-    for (PrimitiveCPUdata& this_primitiveCPUdata : recorderPrimitivesCPUdatas)
+    for (PrimitiveOBBtreeData& this_primitiveCPUdata : recorderPrimitivesOBBtreeDatas)
     {
-        if (this_primitiveCPUdata.isSkin == false)
+        if (not this_primitiveCPUdata.isSkinOrMorph)
         {
             std::vector<Triangle> this_triangles_list = Triangle::CreateTriangleList(this_primitiveCPUdata.points, this_primitiveCPUdata.normals,
                                                                                      this_primitiveCPUdata.indices, this_primitiveCPUdata.drawMode);
@@ -527,170 +729,217 @@ OBBtree PrimitivesOfMeshes::GetOBBtreeAndReset()
 
     OBBtree return_OBBtree(std::move(triangles));
 
-    recorderPrimitivesCPUdatas.clear();
+    recorderPrimitivesOBBtreeDatas.clear();
     recordingOBBtree = false;
 
     return return_OBBtree;
 }
 
-const std::vector<PrimitiveSpecificSetInfo>& PrimitivesOfMeshes::GetPrimitivesSetInfos(std::string in_primitives_set_name) const
+
+void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
 {
-    auto search = primitivesSetsNameToVector_umap.find(in_primitives_set_name);
+    assert(hasBeenFlashed == false);
 
-    assert(search != primitivesSetsNameToVector_umap.end());
+    size_t indices_size_bytes = GetIndicesBufferSize();
+    size_t vertices_size_bytes = GetVerticesBufferSize();
 
-    return search->second;
+    InitializePrimitivesInfo();
+
+    {
+        vk::BufferCreateInfo indices_buffer_create_info;
+        indices_buffer_create_info.size = indices_size_bytes;
+        indices_buffer_create_info.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        indices_buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo indices_allocation_create_info;
+        indices_allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createBuffer_result = vma_allocator.createBuffer(indices_buffer_create_info, indices_allocation_create_info);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        indicesBuffer = createBuffer_result.value.first;
+        indicesAllocation = createBuffer_result.value.second;
+    }
+    {
+        vk::BufferCreateInfo vertices_buffer_create_info;
+        vertices_buffer_create_info.size = vertices_size_bytes;
+        vertices_buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        vertices_buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo vertices_allocation_create_info;
+        vertices_allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createBuffer_result = vma_allocator.createBuffer(vertices_buffer_create_info, vertices_allocation_create_info);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        verticesBuffer = createBuffer_result.value.first;
+        verticesAllocation = createBuffer_result.value.second;
+    }
+
+    StagingBuffer staging_buffer(device, vma_allocator, indices_size_bytes + vertices_size_bytes);
+
+    std::byte* dst_ptr = staging_buffer.GetDstPtr();
+
+    CopyIndicesToBuffer(dst_ptr);
+    CopyVerticesToBuffer(dst_ptr + indices_size_bytes);
+
+    vk::CommandBuffer command_buffer = staging_buffer.BeginCommandRecord(queue);
+    vk::Buffer copy_buffer = staging_buffer.GetBuffer();
+
+    vk::BufferCopy indices_region;
+    indices_region.srcOffset = 0;
+    indices_region.dstOffset = 0;
+    indices_region.size = indices_size_bytes;
+    command_buffer.copyBuffer(copy_buffer, indicesBuffer, 1, &indices_region);
+
+    vk::BufferCopy vertices_region;
+    vertices_region.srcOffset = indices_size_bytes;
+    vertices_region.dstOffset = 0;
+    vertices_region.size = vertices_size_bytes;
+    command_buffer.copyBuffer(copy_buffer, verticesBuffer, 1, &vertices_region);
+
+    staging_buffer.EndAndSubmitCommands();
+
+    FinishInitializePrimitivesInfo();
+    hasBeenFlashed = true;
 }
 
-const std::vector<PrimitiveGeneralInfo>& PrimitivesOfMeshes::GetPrimitivesGeneralInfos() const
-{
-    return primitivesGeneralInfos;
+
+size_t PrimitivesOfMeshes::GetIndicesBufferSize() const {
+    size_t size_bytes = 0;
+    for (const auto& this_primitive: primitivesInitializationData) {
+        size_bytes += this_primitive.IndicesBufferSize();
+    }
+
+    return size_bytes;
 }
 
-// ultimate shitty coding below
-void PrimitivesOfMeshes::AddAccessorDataToLocalBuffer(std::vector<unsigned char>& localBuffer_ref,
-                                                      bool shouldFlipYZ_position,
-                                                      bool vec3_to_vec4_color,
-                                                      size_t allignBufferSize,
-                                                      const tinygltf::Model& in_model,
-                                                      const tinygltf::Accessor& in_accessor) const
+size_t PrimitivesOfMeshes::GetVerticesBufferSize() const {
+    size_t size_bytes = 0;
+    for (const auto& this_primitive: primitivesInitializationData) {
+        size_bytes += this_primitive.VerticesBufferSize();
+    }
+
+    return size_bytes;
+}
+
+void PrimitivesOfMeshes::InitializePrimitivesInfo()
 {
-    size_t count_of_elements = in_accessor.count;
-    size_t accessor_byte_offset = in_accessor.byteOffset;
+    for (const auto& this_initializeData:primitivesInitializationData) {
+        PrimitiveInfo this_info;
 
-    size_t size_of_each_component_in_byte;
-    switch (static_cast<glTFcomponentType>(in_accessor.componentType))
-    {
-    default:
-    case glTFcomponentType::type_byte:
-    case glTFcomponentType::type_unsigned_byte:
-        size_of_each_component_in_byte = sizeof(int8_t);
-        break;
-    case glTFcomponentType::type_short:
-    case glTFcomponentType::type_unsigned_short:
-        size_of_each_component_in_byte = sizeof(int16_t);
-        break;
-    case glTFcomponentType::type_int:
-    case glTFcomponentType::type_unsigned_int:
-    case glTFcomponentType::type_float:
-        size_of_each_component_in_byte = sizeof(int32_t);
-        break;
-    case glTFcomponentType::type_double:
-        size_of_each_component_in_byte = sizeof(int64_t);
-        break;
-    }
-
-    size_t number_of_components_per_type;
-    switch (static_cast<glTFtype>(in_accessor.type))
-    {
-    default:
-    case glTFtype::type_scalar:
-        number_of_components_per_type = 1;
-        break;
-    case glTFtype::type_vec2:
-        number_of_components_per_type = 2;
-        break;
-    case glTFtype::type_vec3:
-        number_of_components_per_type = 3;
-        break;
-    case glTFtype::type_vec4:
-        number_of_components_per_type = 4;
-        break;
-    }
-
-    const tinygltf::BufferView& this_bufferView = in_model.bufferViews[in_accessor.bufferView];
-    size_t bufferview_byte_offset = this_bufferView.byteOffset;
-
-    const tinygltf::Buffer& this_buffer = in_model.buffers[this_bufferView.buffer];
-
-    if (!shouldFlipYZ_position && !(vec3_to_vec4_color && number_of_components_per_type == 3))
-        std::copy(&this_buffer.data[bufferview_byte_offset + accessor_byte_offset],
-                  &this_buffer.data[bufferview_byte_offset + accessor_byte_offset] + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
-                  std::back_inserter(localBuffer_ref));
-
-    else if (shouldFlipYZ_position) // position can only be float
-    {
-        std::unique_ptr<float[]> temp_buffer_uptr;
-        temp_buffer_uptr.reset(new float[count_of_elements * number_of_components_per_type]);
-
-        uint8_t* temp_buffer_uint8_ptr;
-        temp_buffer_uint8_ptr = reinterpret_cast<unsigned char*>(temp_buffer_uptr.get());
-
-        std::memcpy(temp_buffer_uint8_ptr, &this_buffer.data[bufferview_byte_offset + accessor_byte_offset], count_of_elements * size_of_each_component_in_byte * number_of_components_per_type);
-
-        for (size_t i = 0; i < count_of_elements * number_of_components_per_type; i++)
-            if (i % number_of_components_per_type == 1 || i % number_of_components_per_type == 2)
-                temp_buffer_uptr[i] *= -1.f;
-
-        std::copy(temp_buffer_uint8_ptr,
-                  temp_buffer_uint8_ptr + count_of_elements * size_of_each_component_in_byte * number_of_components_per_type,
-                  std::back_inserter(localBuffer_ref));
-    }
-    else if (vec3_to_vec4_color && number_of_components_per_type == 3) // if color is vec3
-    {
-        std::unique_ptr<uint8_t[]> temp_buffer_uint8_uptr;
-        temp_buffer_uint8_uptr.reset(new uint8_t[count_of_elements * size_of_each_component_in_byte * 4]);
-
-        for (size_t i = 0; i < count_of_elements; i++)
         {
-            std::memcpy(temp_buffer_uint8_uptr.get() + size_of_each_component_in_byte * i * 4, &this_buffer.data[bufferview_byte_offset + accessor_byte_offset + i * size_of_each_component_in_byte * 3], size_of_each_component_in_byte * 3);
-            if (size_of_each_component_in_byte == 1)
-            {
-                uint8_t max = -1;
-                std::memcpy(temp_buffer_uint8_uptr.get() + size_of_each_component_in_byte * (i * 4 + 3), reinterpret_cast<unsigned char*> (&max), 1);
-            }
-            else if (size_of_each_component_in_byte == 2)
-            {
-                uint16_t max = -1;
-                std::memcpy(temp_buffer_uint8_uptr.get() + size_of_each_component_in_byte * (i * 4 + 3), reinterpret_cast<unsigned char*> (&max), 2);
-            }
-            else if (size_of_each_component_in_byte == 4)
-            {
-                float max = 1.f;
-                std::memcpy(temp_buffer_uint8_uptr.get() + size_of_each_component_in_byte * (i * 4 + 3), reinterpret_cast<unsigned char*> (&max), 4);
-            }
+            auto search = glTFmodeToPrimitiveTopology_map.find(this_initializeData.drawMode);
+            assert(search != glTFmodeToPrimitiveTopology_map.end());
+            this_info.drawMode = search->second;
         }
 
-        std::copy(temp_buffer_uint8_uptr.get(),
-                  temp_buffer_uint8_uptr.get() + count_of_elements * size_of_each_component_in_byte * 4,
-                  std::back_inserter(localBuffer_ref));
+        this_info.material = this_initializeData.material;
 
+        this_info.indicesCount  = this_initializeData.indices.size();
+        this_info.verticesCount = this_initializeData.position.size() / 3;
+
+        this_info.positionMorphTargets  = this_initializeData.positionMorphTargets;
+
+        this_info.normalMorphTargets    = this_initializeData.normalMorphTargets;
+
+        this_info.tangentMorphTargets   = this_initializeData.tangentMorphTargets;
+
+        this_info.texcoordsCount        = this_initializeData.texcoordsCount;
+        this_info.texcoordsMorphTargets = this_initializeData.texcoordsMorphTargets;
+
+        this_info.colorMorphTargets     = this_initializeData.colorMorphTargets;
+
+        this_info.jointsCount           = this_initializeData.jointsCount;
+
+        this_info.weightsCount          = this_initializeData.weightsCount;
+
+        primitivesInfo.emplace_back(this_info);
     }
-    else
-        assert(0);
-
-    if (allignBufferSize != -1)
-    {
-        const size_t loops_needed_to_align = localBuffer_ref.size() % allignBufferSize;
-        for (size_t i = 0; i < loops_needed_to_align; i++)
-            localBuffer_ref.emplace_back(0);
-    }
-
 }
 
-Anvil::BufferUniquePtr PrimitivesOfMeshes::CreateDeviceBufferForLocalBuffer(const std::vector<unsigned char>& in_localBuffer,
-                                                                            Anvil::BufferUsageFlagBits in_bufferusageflag,
-                                                                            std::string buffers_name) const
+void PrimitivesOfMeshes::FinishInitializePrimitivesInfo()
 {
-    auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(device_ptr,
-                                                                    in_localBuffer.size(),
-                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                    Anvil::SharingMode::EXCLUSIVE,
-                                                                    Anvil::BufferCreateFlagBits::NONE,
-                                                                    in_bufferusageflag);
-
-    Anvil::BufferUniquePtr buffer_uptr = Anvil::Buffer::create(std::move(create_info_ptr));
-
-    buffer_uptr->set_name(buffers_name);
-
-    auto allocator_uptr = Anvil::MemoryAllocator::create_oneshot(device_ptr);
-
-    allocator_uptr->add_buffer(buffer_uptr.get(),
-                              Anvil::MemoryFeatureFlagBits::NONE);
-
-    buffer_uptr->write(0,
-                      in_localBuffer.size(),
-                      in_localBuffer.data());
-
-    return std::move(buffer_uptr);
+    primitivesInitializationData.clear();
 }
+
+void PrimitivesOfMeshes::CopyIndicesToBuffer(std::byte *ptr)
+{
+    size_t offset = 0;
+
+    for(size_t i = 0; i != primitivesInitializationData.size(); ++i) {
+        const PrimitiveInitializationData& this_initializeData = primitivesInitializationData[i];
+        PrimitiveInfo& this_info = primitivesInfo[i];
+
+        size_t indices_byte_size = this_initializeData.IndicesBufferSize();
+        if (indices_byte_size) {
+            memcpy(ptr + offset, this_initializeData.indices.data(), indices_byte_size);
+            this_info.indicesOffset = offset;
+            offset += indices_byte_size;
+        }
+    }
+
+    assert(offset == GetIndicesBufferSize());
+}
+
+void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
+{
+    size_t offset = 0;
+
+    for(size_t i = 0; i != primitivesInitializationData.size(); ++i) {
+        const PrimitiveInitializationData& this_initializeData = primitivesInitializationData[i];
+        PrimitiveInfo& this_info = primitivesInfo[i];
+
+        size_t position_byte_size = this_initializeData.position.size() * sizeof(float);
+        if (position_byte_size) {
+            memcpy(ptr + offset, this_initializeData.position.data(), position_byte_size);
+            this_info.positionOffset = offset;
+            offset += position_byte_size;
+        }
+
+        size_t normal_byte_size = this_initializeData.normal.size() * sizeof(float);
+        if (normal_byte_size) {
+            memcpy(ptr + offset, this_initializeData.normal.data(), normal_byte_size);
+            this_info.normalOffset = offset;
+            offset += normal_byte_size;
+        }
+
+        size_t tangent_byte_size = this_initializeData.tangent.size() * sizeof(float);
+        if (tangent_byte_size) {
+            memcpy(ptr + offset, this_initializeData.tangent.data(), tangent_byte_size);
+            this_info.tangentOffset = offset;
+            offset += tangent_byte_size;
+        }
+
+        size_t texcoords_byte_size = this_initializeData.texcoords.size() * sizeof(float);
+        if (texcoords_byte_size) {
+            memcpy(ptr + offset, this_initializeData.texcoords.data(), texcoords_byte_size);
+            this_info.texcoordsOffset = offset;
+            offset += texcoords_byte_size;
+        }
+
+        size_t color_byte_size = this_initializeData.color.size() * sizeof(float);
+        if (color_byte_size) {
+            memcpy(ptr + offset, this_initializeData.color.data(), color_byte_size);
+            this_info.colorOffset = offset;
+            offset += color_byte_size;
+        }
+
+        size_t joints_byte_size = this_initializeData.joints.size() * sizeof(uint16_t);
+        if (joints_byte_size) {
+            memcpy(ptr + offset, this_initializeData.joints.data(), joints_byte_size);
+            this_info.jointsOffset = offset;
+            offset += joints_byte_size;
+        }
+
+        size_t weights_byte_size = this_initializeData.weights.size() * sizeof(float);
+        if (weights_byte_size) {
+            memcpy(ptr + offset, this_initializeData.weights.data(), weights_byte_size);
+            this_info.weightsOffset = offset;
+            offset += weights_byte_size;
+        }
+    }
+
+    assert(offset == GetVerticesBufferSize());
+}
+
+
+

@@ -21,15 +21,10 @@ public:
     */
     static SkinCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
-    void Update(LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
-                class SkinsOfMeshes* skinsOfMeshes_ptr);
-
 #endif
 public: // data
     std::vector<Entity> jointRelativeEntities;
-
     uint32_t inverseBindMatricesOffset;
-    uint32_t lastNodesMatricesOffset;
 };
 
 #ifdef GAME_DLL

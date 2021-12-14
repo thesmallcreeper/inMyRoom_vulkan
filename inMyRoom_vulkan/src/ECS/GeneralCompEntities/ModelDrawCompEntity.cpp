@@ -61,81 +61,34 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
     return this_modelDrawCompEntity;
 }
 
-void ModelDrawCompEntity::DrawUsingFrustumCull(LateNodeGlobalMatrixComp* nodeGlobalMatrixComp_ptr,
-                                               SkinComp* skin_ptr,
-                                               MeshesOfNodes* meshesOfNodes_ptr,
-                                               PrimitivesOfMeshes* primitivesOfMeshes_ptr,
-                                               FrustumCulling* frustumCulling_ptr,
-                                               std::vector<DrawRequest>& opaque_draw_requests,
-                                               std::vector<DrawRequest>& transparent_draw_requests) const
+void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
+                                      const SkinComp* skinEntity_ptr,
+                                      std::vector<glm::mat4>& matrices,
+                                      std::vector<DrawInfo>& draw_infos) const
 {
     if (shouldDraw)
     {
-        LateNodeGlobalMatrixCompEntity& this_meshGlobalMatrix_ptr = nodeGlobalMatrixComp_ptr->GetComponentEntity(thisEntity);
-        const glm::mat4x4 this_global_matrix = this_meshGlobalMatrix_ptr.globalMatrix;
+        DrawInfo this_draw_info;
+        this_draw_info.meshIndex = meshIndex;
+        this_draw_info.matricesOffset = matrices.size();
+        this_draw_info.dontCull = disableCulling;
 
-        const MeshInfo* this_mesh_info_ptr = meshesOfNodes_ptr->GetMeshInfoPtr(meshIndex);
+        if (not isSkin) {
+            this_draw_info.isSkin = false;
 
-        if(!disableCulling)
-        {
-            Paralgram this_paralgram = this_global_matrix * this_mesh_info_ptr->boundBoxTree.GetRootOBB();
+            glm::mat4x4 matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+            matrices.emplace_back(matrix);
+        } else {
+            this_draw_info.isSkin = true;
+            this_draw_info.inverseMatricesOffset = skinEntity_ptr->GetComponentEntity(thisEntity).inverseBindMatricesOffset;
 
-            if (frustumCulling_ptr->IsParalgramInsideFrustum(this_paralgram)) // per mesh-object OBB culling
-                for (size_t primitive_index = this_mesh_info_ptr->primitiveFirstOffset; primitive_index < this_mesh_info_ptr->primitiveFirstOffset + this_mesh_info_ptr->primitiveRangeSize; primitive_index++)
-                {
-                    DrawRequest this_draw_request;
-                    this_draw_request.primitiveIndex = primitive_index;
-                    this_draw_request.objectID = thisEntity;
-                    if (!isSkin)
-                    {                   
-                        this_draw_request.vertexData.TRSmatrix = this_global_matrix;
-
-                        this_draw_request.isSkin = false;
-                    }                       
-                    else
-                    {
-                        SkinCompEntity& this_skin_ptr = skin_ptr->GetComponentEntity(thisEntity);
-                        this_draw_request.vertexData.inverseBindMatricesOffset = this_skin_ptr.inverseBindMatricesOffset;
-                        this_draw_request.vertexData.nodesMatricesOffset = this_skin_ptr.lastNodesMatricesOffset;
-
-                        this_draw_request.isSkin = true;
-                    }
-
-                    if (primitivesOfMeshes_ptr->IsPrimitiveTransparent(primitive_index))
-                        transparent_draw_requests.emplace_back(this_draw_request);                   
-                    else
-                        opaque_draw_requests.emplace_back(this_draw_request);
-                }
-        }
-        else
-        {
-            for (size_t primitive_index = this_mesh_info_ptr->primitiveFirstOffset; primitive_index < this_mesh_info_ptr->primitiveFirstOffset + this_mesh_info_ptr->primitiveRangeSize; primitive_index++)
-            {
-                DrawRequest this_draw_request;
-                this_draw_request.primitiveIndex = primitive_index;
-                this_draw_request.objectID = thisEntity;
-                if (!isSkin)
-                {
-                    this_draw_request.vertexData.TRSmatrix = this_global_matrix;
-
-                    this_draw_request.isSkin = false;
-                }
-                else
-                {
-                    SkinCompEntity& this_skin_ptr = skin_ptr->GetComponentEntity(thisEntity);
-                    this_draw_request.vertexData.inverseBindMatricesOffset = this_skin_ptr.inverseBindMatricesOffset;
-                    this_draw_request.vertexData.nodesMatricesOffset = this_skin_ptr.lastNodesMatricesOffset;
-
-                    this_draw_request.isSkin = true;
-                }
-
-                if (primitivesOfMeshes_ptr->IsPrimitiveTransparent(primitive_index))
-                    transparent_draw_requests.emplace_back(this_draw_request);
-                else
-                    opaque_draw_requests.emplace_back(this_draw_request);
+            for(Entity relative_entity: skinEntity_ptr->GetComponentEntity(thisEntity).jointRelativeEntities) {
+                glm::mat4x4 joint_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
+                matrices.emplace_back(joint_matrix);
             }
         }
+
+        draw_infos.emplace_back(this_draw_info);
     }
 }
-
 #endif
