@@ -16,11 +16,11 @@ public:
 public:
     float GetSurface() const;
 
-    glm::vec3 GetCenter() const;
+    glm::vec3 GetCenter() const {return center;};
 
-    glm::vec3 GetSideDirectionU() const;
-    glm::vec3 GetSideDirectionV() const;
-    glm::vec3 GetSideDirectionW() const;
+    glm::vec3 GetSideDirectionU() const {return sideDirections.u;};
+    glm::vec3 GetSideDirectionV() const {return sideDirections.v;};
+    glm::vec3 GetSideDirectionW() const {return sideDirections.w;};
 
 private:
     static bool DoMinMaxProjectionsToAxisIntersept(const std::pair<float, float>& lhs, const std::pair<float, float>& rhs);

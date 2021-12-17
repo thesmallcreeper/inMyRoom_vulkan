@@ -10,16 +10,6 @@ Ray::Ray(const glm::vec3& in_origin, const glm::vec3& in_direction)
 {
 }
 
-glm::vec3 Ray::GetOrigin() const
-{
-    return origin;
-}
-
-glm::vec3 Ray::GetDirection() const
-{
-    return direction;
-}
-
 void Ray::MoveOriginEpsilonTowardsDirection(float factor)
 {
     float biggest_component_abs_value = std::max({std::abs(origin.x), std::abs(origin.y), std::abs(origin.z)});
