@@ -137,7 +137,7 @@ std::pair<float, float> TrianglePosition::GetMinMaxProjectionToAxis(const glm::v
     return std::make_pair(min, max);
 }
 
-glm::vec3 TrianglePosition::GetTriangleNormal() const
+glm::vec3 TrianglePosition::GetTriangleFaceNormal() const
 {
     glm::vec3 edge1 = GetP(1) - GetP(0);
     glm::vec3 edge2 = GetP(2) - GetP(0);
@@ -226,7 +226,8 @@ std::vector<TriangleNormal> TriangleNormal::CreateTriangleNormalList(const std::
 
         std::vector<TriangleNormal> return_vector;
         std::transform(triangle_positions.cbegin(), triangle_positions.cend(), std::back_inserter(return_vector),
-                       [](const TrianglePosition& triangle_pos) -> TriangleNormal {return TriangleNormal(triangle_pos.GetTriangleNormal());});
+                       [](const TrianglePosition& triangle_pos) -> TriangleNormal {return TriangleNormal(
+                               triangle_pos.GetTriangleFaceNormal());});
 
         return return_vector;
     }

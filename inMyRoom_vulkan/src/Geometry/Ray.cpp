@@ -45,91 +45,129 @@ RayTriangleIntersectInfo Ray::IntersectTriangle(const TrianglePosition& triange)
 
 std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram& paralgram) const
 {
-    // Code based on Realtime Rendering (RTR) 4th edition p. 960
+    // Code based on Eric Haines, "Fast Ray-Convex polyhedron intersection"
 
     float min_distance = -std::numeric_limits<float>::infinity();
     float max_distance = +std::numeric_limits<float>::infinity();
 
-    glm::vec3 _P = paralgram.GetCenter() - origin;
+    glm::vec3 ray_origin = origin - paralgram.GetCenter();
 
-    {  // 1. U test
-        float e = glm::dot(glm::normalize(paralgram.GetSideDirectionU()), _P);
-        float f = glm::dot(glm::normalize(paralgram.GetSideDirectionU()), direction);
+    // U test
+    {
+        glm::vec3 plane_dir = glm::normalize(glm::cross(paralgram.GetSideDirectionV(), paralgram.GetSideDirectionW()));
+        float d = - std::abs(glm::dot(plane_dir, paralgram.GetSideDirectionU()));
 
-        if (std::abs(f) > std::numeric_limits<float>::epsilon())
-        {
-            float t1 = (e + glm::length(paralgram.GetSideDirectionU())) / f;
-            float t2 = (e - glm::length(paralgram.GetSideDirectionU())) / f;
+        float plane_has_center_dist = glm::dot(plane_dir, ray_origin);
+        float v_n1 = + plane_has_center_dist + d;
+        float v_n2 = - plane_has_center_dist + d;
+
+        float vd = glm::dot(plane_dir, direction);
+
+        if (std::abs(vd) >= 0.e-15f) [[likely]] {
+
+            float vd_inv = 1.f / vd;
+            float t1 = - v_n1 * vd_inv;
+            float t2 = + v_n2 * vd_inv;
+
             if (t1 > t2) std::swap(t1, t2);
 
-            if (t1 > min_distance) min_distance = t1;
-            if (t2 < max_distance) max_distance = t2;
-
-            if(min_distance > max_distance || max_distance < 0.f)
-                return std::make_pair(false, std::make_pair(0.f, 0.f));
-        }
-        else if (-e - glm::length(paralgram.GetSideDirectionU()) > 0.f || -e + glm::length(paralgram.GetSideDirectionU()) < 0.f)
-            return std::make_pair(false, std::make_pair(0.f, 0.f));
-    }
-
-    {  // 2. V test
-        float e = glm::dot(glm::normalize(paralgram.GetSideDirectionV()), _P);
-        float f = glm::dot(glm::normalize(paralgram.GetSideDirectionV()), direction);
-
-        if (std::abs(f) > std::numeric_limits<float>::epsilon())
-        {
-            float t1 = (e + glm::length(paralgram.GetSideDirectionV())) / f;
-            float t2 = (e - glm::length(paralgram.GetSideDirectionV())) / f;
-            if (t1 > t2) std::swap(t1, t2);
-
-            if (t1 > min_distance) min_distance = t1;
-            if (t2 < max_distance) max_distance = t2;
+            min_distance = std::max(t1, min_distance);
+            max_distance = std::min(t2, max_distance);
 
             if (min_distance > max_distance || max_distance < 0.f)
-                return std::make_pair(false, std::make_pair(0.f, 0.f));
-        }
-        else if (-e - glm::length(paralgram.GetSideDirectionV()) > 0.f || -e + glm::length(paralgram.GetSideDirectionV()) < 0.f)
-            return std::make_pair(false, std::make_pair(0.f, 0.f));
+                return {false, {0.f, 0.f}};
+
+        } else if ( v_n1 > 0 || v_n2 > 0)
+            return {false, {0.f, 0.f}};
     }
 
-    {  // 3. W test
-        float e = glm::dot(glm::normalize(paralgram.GetSideDirectionW()), _P);
-        float f = glm::dot(glm::normalize(paralgram.GetSideDirectionW()), direction);
+    // V test
+    {
+        glm::vec3 plane_dir = glm::normalize(glm::cross(paralgram.GetSideDirectionW(), paralgram.GetSideDirectionU()));
+        float d = - std::abs(glm::dot(plane_dir, paralgram.GetSideDirectionV()));
 
-        if (std::abs(f) > std::numeric_limits<float>::epsilon())
-        {
-            float t1 = (e + glm::length(paralgram.GetSideDirectionW())) / f;
-            float t2 = (e - glm::length(paralgram.GetSideDirectionW())) / f;
+        float plane_has_center_dist = glm::dot(plane_dir, ray_origin);
+        float v_n1 = + plane_has_center_dist + d;
+        float v_n2 = - plane_has_center_dist + d;
+
+        float vd = glm::dot(plane_dir, direction);
+
+        if (std::abs(vd) >= 0.e-15f) [[likely]] {
+
+            float vd_inv = 1.f / vd;
+            float t1 = - v_n1 * vd_inv;
+            float t2 = + v_n2 * vd_inv;
+
             if (t1 > t2) std::swap(t1, t2);
 
-            if (t1 > min_distance) min_distance = t1;
-            if (t2 < max_distance) max_distance = t2;
+            min_distance = std::max(t1, min_distance);
+            max_distance = std::min(t2, max_distance);
 
             if (min_distance > max_distance || max_distance < 0.f)
-                return std::make_pair(false, std::make_pair(0.f, 0.f));
-        }
-        else if (-e - glm::length(paralgram.GetSideDirectionW()) > 0.f || -e + glm::length(paralgram.GetSideDirectionW()) < 0.f)
-            return std::make_pair(false, std::make_pair(0.f, 0.f));
+                return {false, {0.f, 0.f}};
+
+        } else if ( v_n1 > 0 || v_n2 > 0)
+            return {false, {0.f, 0.f}};
     }
 
-    return std::make_pair(true, std::make_pair(min_distance, max_distance));
+    // W test
+    {
+        glm::vec3 plane_dir = glm::normalize(glm::cross(paralgram.GetSideDirectionU(), paralgram.GetSideDirectionV()));
+        float d = - std::abs(glm::dot(plane_dir, paralgram.GetSideDirectionW()));
+
+        float plane_has_center_dist = glm::dot(plane_dir, ray_origin);
+        float v_n1 = + plane_has_center_dist + d;
+        float v_n2 = - plane_has_center_dist + d;
+
+        float vd = glm::dot(plane_dir, direction);
+
+        if (std::abs(vd) >= 0.e-15f) [[likely]] {
+
+            float vd_inv = 1.f / vd;
+            float t1 = - v_n1 * vd_inv;
+            float t2 = + v_n2 * vd_inv;
+
+            if (t1 > t2) std::swap(t1, t2);
+
+            min_distance = std::max(t1, min_distance);
+            max_distance = std::min(t2, max_distance);
+
+            if (min_distance > max_distance || max_distance < 0.f)
+                return {false, {0.f, 0.f}};
+
+        } else if ( v_n1 > 0 || v_n2 > 0)
+            return {false, {0.f, 0.f}};
+    }
+
+    return {true, {min_distance, max_distance}};
 }
 
 RayOBBtreeIntersectInfo Ray::IntersectOBBtree(const OBBtree& obb_tree, const glm::mat4x4& matrix) const
 {
-    RayOBBtreeIntersectInfo return_intersect_info;
 
-    OBBtree::OBBtreeTraveler root_traveler = obb_tree.GetRootTraveler();
+    if (origin == glm::vec3(0.f, 0.f, 0.f)) {
+        RayOBBtreeIntersectInfo return_intersect_info = {};
 
-    Paralgram root_paralgram = matrix * root_traveler.GetOBB();
-    std::pair<bool, std::pair<float, float>> root_paralgram_intersect = IntersectParalgram(root_paralgram);
+        OBBtree::OBBtreeTraveler root_traveler = obb_tree.GetRootTraveler();
 
-    if(root_paralgram_intersect.first == true && root_paralgram_intersect.second.second >= 0.f)
-    {
-        IntersectOBBtreeRecursive(root_traveler, obb_tree, matrix, return_intersect_info);
+        Paralgram root_paralgram = matrix * root_traveler.GetOBB();
+        std::pair<bool, std::pair<float, float>> root_paralgram_intersect = IntersectParalgram(root_paralgram);
+
+        if (root_paralgram_intersect.first && root_paralgram_intersect.second.second >= 0.f) {
+            IntersectOBBtreeRecursive(root_traveler, obb_tree, matrix, return_intersect_info);
+        }
+
+        return return_intersect_info;
+    } else {
+        Ray centered_ray = {glm::vec3(0.f, 0.f, 0.f) , direction};
+        glm::mat4x4 centered_matrix = matrix;
+        centered_matrix[3] -= glm::vec4(origin, 0.f);
+
+        return
+        centered_ray.IntersectOBBtree(obb_tree, centered_matrix);
     }
    
-    return return_intersect_info;
+
 }
 
 void Ray::IntersectOBBtreeRecursive(const OBBtree::OBBtreeTraveler& obb_tree_traveler,

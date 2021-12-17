@@ -24,7 +24,7 @@ public:
     explicit TrianglePosition(glm::vec3 in_p0, glm::vec3 in_p1, glm::vec3 in_p2);
 
     std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec3& in_axis) const;
-    glm::vec3 GetTriangleNormal() const;
+    glm::vec3 GetTriangleFaceNormal() const;
 
     glm::vec2 GetBarycentricOfPoint(glm::vec3 point) const;
 
@@ -34,7 +34,7 @@ public:
 protected:
     static std::vector<TrianglePosition> CreateTrianglePositionList(const std::vector<glm::vec3>& points,
                                                                     const std::vector<uint32_t>& indices,
-                                                                    const glTFmode triangleMode);
+                                                                    glTFmode triangleMode);
 
 public:
     glm::vec3 GetP(size_t index) const { return p_array[index]; }
@@ -66,7 +66,7 @@ protected:
     static std::vector<TriangleNormal> CreateTriangleNormalList(const std::vector<glm::vec3>& points,           // If no normal then fallback to triangles normal
                                                                 const std::vector<glm::vec3>& normals,
                                                                 const std::vector<uint32_t>& indices,
-                                                                const glTFmode triangleMode);
+                                                                glTFmode triangleMode);
 public:
     glm::vec3 GetN(size_t index) const { return n_array[index]; }
 
@@ -82,7 +82,7 @@ public:
 
 protected:
     static std::vector<TriangleIndices> CreateTriangleIndicesList(const std::vector<uint32_t>& indices,
-                                                                  const glTFmode triangleMode);
+                                                                  glTFmode triangleMode);
 public:
     uint32_t GetI(size_t index) const { return i_array[index]; }
 

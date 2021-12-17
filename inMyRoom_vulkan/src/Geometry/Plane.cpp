@@ -13,7 +13,7 @@ Plane::Plane(const glm::vec3 in_normal, const float in_d)
 
 Plane Plane::CreatePlaneFromTriangle(const TrianglePosition& in_triangle)
 {
-    glm::vec3 normal = in_triangle.GetTriangleNormal();
+    glm::vec3 normal = in_triangle.GetTriangleFaceNormal();
     float d = - glm::dot(in_triangle.GetP(0), normal);
 
     return Plane(normal, d);

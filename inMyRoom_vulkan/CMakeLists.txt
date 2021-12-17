@@ -50,15 +50,15 @@ include_directories(
         ../tinygltf                                                        #Include tinyglTF
         ../Configuru                                                       #Include configuru
         ../glm                                                             #Include glm
-        ../DiTO                                                            #include DiTO
+        ../eig3                                                            #Include eig3
         ${inMyRoom_vulkan_SOURCE_DIR}/include)
 
-SET(SRC #external .h
-        "${inMyRoom_vulkan_SOURCE_DIR}/../DiTO/dito.h"
-   
-        #external .cpp
-        "${inMyRoom_vulkan_SOURCE_DIR}/../DiTO/dito.cpp"
-        
+SET(SRC #eig3    .h
+        "${inMyRoom_vulkan_SOURCE_DIR}/../eig3/eig3.h"
+
+        #eig3    .cpp
+        "${inMyRoom_vulkan_SOURCE_DIR}/../eig3/eig3.cpp"
+
         #headers .h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/const_maps.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/dense_set.h"

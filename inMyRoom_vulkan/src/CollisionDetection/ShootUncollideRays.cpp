@@ -68,25 +68,39 @@ glm::vec3 ShootUncollideRays::ExecuteShootUncollideRays(const CDentriesUncollide
         }
     };
 
+    glm::vec3 sum_origin_succ_1 = glm::vec3(0., 0., 0.);
+    glm::vec3 sum_dir_succ_1 = glm::vec3(0., 0., 0.);
+    glm::vec3 sum_origin_refl_1 = glm::vec3(0., 0., 0.);
+    glm::vec3 sum_dir_refl_1 = glm::vec3(0., 0., 0.);
     for(const Ray& this_ray : entriesUncollideRaysPair.rays_from_first_to_second)
     {
         std::pair<bool, Ray> ray_1_result = first_to_second_ray_execute(this_ray);
         if(ray_1_result.first)
         {
+            sum_origin_succ_1 += this_ray.GetOrigin();
+            sum_dir_succ_1 += this_ray.GetDirection();
+            sum_origin_refl_1 += ray_1_result.second.GetOrigin();
+            sum_dir_refl_1 += ray_1_result.second.GetDirection();
             second_to_first_ray_execute(ray_1_result.second);
         }
     }
 
+    glm::vec3 sum_origin_succ_2 = glm::vec3(0., 0., 0.);
+    glm::vec3 sum_dir_succ_2 = glm::vec3(0., 0., 0.);
+    glm::vec3 sum_origin_refl_2 = glm::vec3(0., 0., 0.);
+    glm::vec3 sum_dir_refl_2 = glm::vec3(0., 0., 0.);
     for (const Ray& this_ray : entriesUncollideRaysPair.rays_from_second_to_first)
     {
         std::pair<bool, Ray> ray_1_result = second_to_first_ray_execute(this_ray);
         if (ray_1_result.first)
         {
+            sum_origin_succ_2 += this_ray.GetOrigin();
+            sum_dir_succ_2 += this_ray.GetDirection();
+            sum_origin_refl_2 += ray_1_result.second.GetOrigin();
+            sum_dir_refl_2 += ray_1_result.second.GetDirection();
             first_to_second_ray_execute(ray_1_result.second);
         }
     }
-
-
 
     if (average_force_responses != glm::vec3(0.f))
     {
@@ -106,7 +120,7 @@ Ray ShootUncollideRays::ReflectHermannResult(const HermannPassResult& hermann_pa
     glm::vec3 origin = ray.GetOrigin() + hermann_pass_result.response;
     glm::vec3 direction = - hermann_pass_result.point_objB_normal;
 
-    return Ray(origin, direction);
+    return {origin, direction};
 }
 
 glm::vec3 ShootUncollideRays::CalcForceResponse(const HermannPassResult& hermann_pass_result)
@@ -130,11 +144,12 @@ ShootUncollideRays::HermannPassResult ShootUncollideRays::HermannPass(const OBBt
     ShootUncollideRays::HermannPassResult return_result;
 
     RayOBBtreeIntersectInfo point2_ray_result = ray.IntersectOBBtree(*objB_OBBtree_ptr, objB_mat);
-    if (point2_ray_result.doIntersect == true && point2_ray_result.itBackfaces == true)
+    if (point2_ray_result.doIntersect && point2_ray_result.itBackfaces)
     {
+
         glm::vec3 original_ray_origin = ray.GetOrigin();
 
-        ray.MoveOriginEpsilonTowardsDirection(32.f);
+        ray.MoveOriginEpsilonTowardsDirection(4.f);
         float epsilon_distance = glm::length(ray.GetOrigin() - original_ray_origin);
 
         RayOBBtreeIntersectInfo point3_ray_result = ray.IntersectOBBtree(*objA_OBBtree_ptr, objA_mat);
