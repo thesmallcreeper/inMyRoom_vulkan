@@ -63,7 +63,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
 
         float vd = glm::dot(plane_dir, direction);
 
-        if (std::abs(vd) >= 0.e-15f) [[likely]] {
+        if (std::abs(vd) >= 0.e-8f) [[likely]] {
 
             float vd_inv = 1.f / vd;
             float t1 = - v_n1 * vd_inv;
@@ -92,7 +92,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
 
         float vd = glm::dot(plane_dir, direction);
 
-        if (std::abs(vd) >= 0.e-15f) [[likely]] {
+        if (std::abs(vd) >= 0.e-8f) [[likely]] {
 
             float vd_inv = 1.f / vd;
             float t1 = - v_n1 * vd_inv;
@@ -121,7 +121,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
 
         float vd = glm::dot(plane_dir, direction);
 
-        if (std::abs(vd) >= 0.e-15f) [[likely]] {
+        if (std::abs(vd) >= 0.e-8f) [[likely]] {
 
             float vd_inv = 1.f / vd;
             float t1 = - v_n1 * vd_inv;
@@ -163,8 +163,7 @@ RayOBBtreeIntersectInfo Ray::IntersectOBBtree(const OBBtree& obb_tree, const glm
         glm::mat4x4 centered_matrix = matrix;
         centered_matrix[3] -= glm::vec4(origin, 0.f);
 
-        return
-        centered_ray.IntersectOBBtree(obb_tree, centered_matrix);
+        return centered_ray.IntersectOBBtree(obb_tree, centered_matrix);
     }
    
 

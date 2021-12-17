@@ -33,7 +33,7 @@ glm::vec3 ShootUncollideRays::ExecuteShootUncollideRays(const CDentriesUncollide
                                                     second_to_first_space_normal_matrix,
                                                     ray);
 
-        if(pass_result.successful_ray == true)
+        if(pass_result.successful_ray)
         {
             average_force_responses -= CalcForceResponse(pass_result);
             ray_responses.emplace_back(-pass_result.response);
@@ -55,7 +55,7 @@ glm::vec3 ShootUncollideRays::ExecuteShootUncollideRays(const CDentriesUncollide
                                                     glm::mat3(1.f),
                                                     ray);
 
-        if (pass_result.successful_ray == true)
+        if (pass_result.successful_ray)
         {
             average_force_responses += CalcForceResponse(pass_result);
             ray_responses.emplace_back(pass_result.response);
@@ -68,36 +68,20 @@ glm::vec3 ShootUncollideRays::ExecuteShootUncollideRays(const CDentriesUncollide
         }
     };
 
-    glm::vec3 sum_origin_succ_1 = glm::vec3(0., 0., 0.);
-    glm::vec3 sum_dir_succ_1 = glm::vec3(0., 0., 0.);
-    glm::vec3 sum_origin_refl_1 = glm::vec3(0., 0., 0.);
-    glm::vec3 sum_dir_refl_1 = glm::vec3(0., 0., 0.);
     for(const Ray& this_ray : entriesUncollideRaysPair.rays_from_first_to_second)
     {
         std::pair<bool, Ray> ray_1_result = first_to_second_ray_execute(this_ray);
         if(ray_1_result.first)
         {
-            sum_origin_succ_1 += this_ray.GetOrigin();
-            sum_dir_succ_1 += this_ray.GetDirection();
-            sum_origin_refl_1 += ray_1_result.second.GetOrigin();
-            sum_dir_refl_1 += ray_1_result.second.GetDirection();
             second_to_first_ray_execute(ray_1_result.second);
         }
     }
 
-    glm::vec3 sum_origin_succ_2 = glm::vec3(0., 0., 0.);
-    glm::vec3 sum_dir_succ_2 = glm::vec3(0., 0., 0.);
-    glm::vec3 sum_origin_refl_2 = glm::vec3(0., 0., 0.);
-    glm::vec3 sum_dir_refl_2 = glm::vec3(0., 0., 0.);
     for (const Ray& this_ray : entriesUncollideRaysPair.rays_from_second_to_first)
     {
         std::pair<bool, Ray> ray_1_result = second_to_first_ray_execute(this_ray);
         if (ray_1_result.first)
         {
-            sum_origin_succ_2 += this_ray.GetOrigin();
-            sum_dir_succ_2 += this_ray.GetDirection();
-            sum_origin_refl_2 += ray_1_result.second.GetOrigin();
-            sum_dir_refl_2 += ray_1_result.second.GetDirection();
             first_to_second_ray_execute(ray_1_result.second);
         }
     }
@@ -107,7 +91,7 @@ glm::vec3 ShootUncollideRays::ExecuteShootUncollideRays(const CDentriesUncollide
         glm::vec3 normalized_average_force_responses = glm::normalize(average_force_responses);
 
         glm::vec3 localspace_response = ray_distance_bias_multiplier * FindResponse(ray_responses, normalized_average_force_responses);
-        return glm::vec3(entriesUncollideRaysPair.firstEntry.currentGlobalMatrix * glm::vec4(localspace_response, 0.f));
+        return {entriesUncollideRaysPair.firstEntry.currentGlobalMatrix * glm::vec4(localspace_response, 0.f)};
     }
     else
     {
