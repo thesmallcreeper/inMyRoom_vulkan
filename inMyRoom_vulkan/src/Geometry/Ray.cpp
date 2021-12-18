@@ -53,7 +53,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
 
         float vd = glm::dot(plane_dir, direction);
 
-        if (std::abs(vd) >= 0.e-8f) [[likely]] {
+        if (std::abs(vd) >= std::numeric_limits<float>::epsilon()) [[likely]] {
 
             float vd_inv = 1.f / vd;
             float t1 = - v_n1 * vd_inv;
@@ -82,7 +82,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
 
         float vd = glm::dot(plane_dir, direction);
 
-        if (std::abs(vd) >= 0.e-8f) [[likely]] {
+        if (std::abs(vd) >= std::numeric_limits<float>::epsilon()) [[likely]] {
 
             float vd_inv = 1.f / vd;
             float t1 = - v_n1 * vd_inv;
@@ -111,7 +111,7 @@ std::pair<bool, std::pair<float, float>> Ray::IntersectParalgram(const Paralgram
 
         float vd = glm::dot(plane_dir, direction);
 
-        if (std::abs(vd) >= 0.e-8f) [[likely]] {
+        if (std::abs(vd) >= std::numeric_limits<float>::epsilon()) [[likely]] {
 
             float vd_inv = 1.f / vd;
             float t1 = - v_n1 * vd_inv;

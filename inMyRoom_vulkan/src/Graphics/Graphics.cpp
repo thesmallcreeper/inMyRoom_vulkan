@@ -34,7 +34,7 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, vk::Dev
     InitShadersSetsFamiliesCache();
     printf("Initializing meshes tree\n");
     InitMeshesTree();
-    printf("Initializing graphics oriented componentsCount\n");
+    printf("Initializing graphics oriented components\n");
     InitGraphicsComponents();
 }
 
@@ -85,11 +85,11 @@ void Graphics::DrawFrame()
 
     // Update camera matrix
     {
-        glm::mat4x4 camera_matrix = camera_viewport.GetCombinedMatrix();
+        glm::mat4x4 view_projection_matrices[2] = {camera_viewport.GetViewMatrix(), camera_viewport.GetPerspectiveMatrix()};
 
-        memcpy((std::byte*)(cameraAllocInfo.pMappedData) + bufferIndex * sizeof(glm::mat4),
-               &camera_matrix,
-               sizeof(glm::mat4));
+        memcpy((std::byte*)(cameraAllocInfo.pMappedData) + bufferIndex * 2 * sizeof(glm::mat4),
+               view_projection_matrices,
+               2 * sizeof(glm::mat4));
         vma_allocator.invalidateAllocation(cameraAllocation, bufferIndex * sizeof(glm::mat4), sizeof(glm::mat4));
     }
 
@@ -158,7 +158,7 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
     render_pass_begin_info.renderArea.offset = vk::Offset2D(0, 0);
     render_pass_begin_info.renderArea.extent = engine_ptr->GetSwapchainCreateInfo().imageExtent;
 
-    std::array<float, 4> color_clear = {0.f, 0.2f, 0.f, 1.f};
+    std::array<float, 4> color_clear = {0.04f, 0.08f, 0.f, 1.f};
     clear_values[0].color.float32 = color_clear;
     clear_values[1].depthStencil.depth = 1.f;
     render_pass_begin_info.clearValueCount = 2;
@@ -260,7 +260,7 @@ void Graphics::InitBuffers()
     // Create camera buffer
     {
         vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = sizeof(glm::mat4) * 2;
+        buffer_create_info.size = sizeof(glm::mat4) * 4;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
@@ -353,7 +353,7 @@ void Graphics::InitDescriptors()
             auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
             descriptor_buffer_info_uptr->buffer = cameraBuffer;
             descriptor_buffer_info_uptr->offset = 0;
-            descriptor_buffer_info_uptr->range  = sizeof(glm::mat4);
+            descriptor_buffer_info_uptr->range  = 2 * sizeof(glm::mat4);
 
             vk::WriteDescriptorSet write_descriptor_set;
             write_descriptor_set.dstSet = cameraDescriptorSets[0];
@@ -369,8 +369,8 @@ void Graphics::InitDescriptors()
         {
             auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
             descriptor_buffer_info_uptr->buffer = cameraBuffer;
-            descriptor_buffer_info_uptr->offset = sizeof(glm::mat4);
-            descriptor_buffer_info_uptr->range  = sizeof(glm::mat4);
+            descriptor_buffer_info_uptr->offset = 2 * sizeof(glm::mat4);
+            descriptor_buffer_info_uptr->range  = 2 * sizeof(glm::mat4);
 
             vk::WriteDescriptorSet write_descriptor_set;
             write_descriptor_set.dstSet = cameraDescriptorSets[1];

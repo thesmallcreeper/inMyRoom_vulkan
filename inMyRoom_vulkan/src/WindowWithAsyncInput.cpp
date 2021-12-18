@@ -17,7 +17,9 @@ WindowWithAsyncInput::WindowWithAsyncInput(const std::string&             in_tit
     glfwWindowHint( GLFW_CLIENT_API, GLFW_NO_API );
     window = glfwCreateWindow( in_width, in_height, in_title.c_str(), nullptr, nullptr );
 
-    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+#ifdef NDEBUG
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+#endif
 
     glfwSetKeyCallback(window, key_glfw_callback);
     glfwSetMouseButtonCallback(window, mouse_button_glfw_callback);

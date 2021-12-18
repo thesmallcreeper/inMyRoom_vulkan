@@ -41,9 +41,9 @@ void CameraDefaultInputComp::AsyncInput(InputType input_type, void* struct_data)
     std::chrono::duration<float> duration = next_snap_timePoint - previous_snap_timePoint;
 
     size_t containers_count_when_start = GetContainersCount();
-    for(; containersUpdated != containers_count_when_start; ++containersUpdated)
+    for(size_t i = 0; i != containers_count_when_start; ++i)
     {
-        auto& this_container = GetContainerByIndex(containersUpdated);
+        auto& this_container = GetContainerByIndex(i);
         for(auto& this_comp_entity: this_container)
         {
             this_comp_entity.AsyncInput(input_type, struct_data, duration);

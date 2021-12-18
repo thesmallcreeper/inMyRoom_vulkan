@@ -54,7 +54,8 @@ layout (push_constant) uniform PushConstants
 
 layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
 {
-    mat4 cameraMatrix;
+    mat4 viewMatrix;
+    mat4 projectionMatrix;
 };
 
 layout( std140, set = 1 , binding = 0 ) readonly buffer projectionMatrixBuffer
@@ -84,8 +85,9 @@ void main()
 	
 	vec4 world_position = skin_matrix * app_position;
 	#endif
-	
-    gl_Position = cameraMatrix * world_position;
+
+    vec4 view_position = viewMatrix * world_position;
+    gl_Position = projectionMatrix * view_position;
 
     #ifdef VERT_TEXCOORD0 
     {
