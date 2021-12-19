@@ -78,12 +78,12 @@ void main()
     #else
 	mat4 skin_matrix = mat4(0.f);
 	
-	skin_matrix += app_weights0.x * matrices[app_joints0.x+matrixOffset] * inverseMatrices[app_joints0.x+inverseMatricesOffset];
-	skin_matrix += app_weights0.y * matrices[app_joints0.y+matrixOffset] * inverseMatrices[app_joints0.y+inverseMatricesOffset];
-	skin_matrix += app_weights0.z * matrices[app_joints0.z+matrixOffset] * inverseMatrices[app_joints0.z+inverseMatricesOffset];
-	skin_matrix += app_weights0.w * matrices[app_joints0.w+matrixOffset] * inverseMatrices[app_joints0.w+inverseMatricesOffset];
+	skin_matrix += app_weights0.x * matrices[app_joints0.x+matrixOffset+1] * inverseMatrices[app_joints0.x+inverseMatricesOffset];
+	skin_matrix += app_weights0.y * matrices[app_joints0.y+matrixOffset+1] * inverseMatrices[app_joints0.y+inverseMatricesOffset];
+	skin_matrix += app_weights0.z * matrices[app_joints0.z+matrixOffset+1] * inverseMatrices[app_joints0.z+inverseMatricesOffset];
+	skin_matrix += app_weights0.w * matrices[app_joints0.w+matrixOffset+1] * inverseMatrices[app_joints0.w+inverseMatricesOffset];
 	
-	vec4 world_position = skin_matrix * app_position;
+	vec4 world_position = matrices[matrixOffset]*skin_matrix * app_position;
 	#endif
 
     vec4 view_position = viewMatrix * world_position;

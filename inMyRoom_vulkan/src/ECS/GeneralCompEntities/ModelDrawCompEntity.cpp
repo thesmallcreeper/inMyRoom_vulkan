@@ -76,15 +76,19 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
         if (not isSkin) {
             this_draw_info.isSkin = false;
 
-            glm::mat4x4 matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+            glm::mat4 matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             matrices.emplace_back(matrix);
         } else {
             this_draw_info.isSkin = true;
             this_draw_info.inverseMatricesOffset = skinEntity_ptr->GetComponentEntity(thisEntity).inverseBindMatricesOffset;
 
+            glm::mat4 parent_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+            matrices.emplace_back(parent_matrix);
+
+            glm::mat4 inverse_parent_matrix = glm::inverse(parent_matrix);
             for(Entity relative_entity: skinEntity_ptr->GetComponentEntity(thisEntity).jointRelativeEntities) {
-                glm::mat4x4 joint_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
-                matrices.emplace_back(joint_matrix);
+                glm::mat4 joint_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
+                matrices.emplace_back(inverse_parent_matrix * joint_matrix);
             }
         }
 

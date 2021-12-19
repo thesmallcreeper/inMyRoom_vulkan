@@ -10,13 +10,11 @@
 #include "Graphics/ShadersSetsFamiliesCache.h"
 #include "Graphics/Meshes/TexturesOfMaterials.h"
 
-struct MaterialParameters
+struct alignas(16) MaterialParameters
 {
     glm::vec4 baseColorFactors = glm::vec4(1.f, 1.f, 1.f, 1.f);
     uint32_t baseColorTexture = -1;
     float alphaCutoff = 0.5f;
-
-    uint32_t padding[2];
 };
 
 struct MaterialAbout
