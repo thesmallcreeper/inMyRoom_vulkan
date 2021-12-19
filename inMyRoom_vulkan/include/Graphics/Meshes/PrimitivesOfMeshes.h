@@ -63,10 +63,10 @@ class PrimitivesOfMeshes
         std::vector<uint32_t>   indices;
 
         int positionMorphTargets= 0;
-        std::vector<float>      position;   // glm::vec3
+        std::vector<float>      position;   // glm::vec4
 
         int normalMorphTargets  = 0;
-        std::vector<float>      normal;     // glm::vec3
+        std::vector<float>      normal;     // glm::vec4
 
         int tangentMorphTargets = 0;
         std::vector<float>      tangent;    // glm::vec4
@@ -129,6 +129,9 @@ private:
     void CopyIndicesToBuffer(std::byte* ptr);
     void CopyVerticesToBuffer(std::byte* ptr);
     void FinishInitializePrimitivesInfo();
+
+    static std::vector<uint32_t> TransformIndicesStripToList(const std::vector<uint32_t>& indices);
+    static std::vector<uint32_t> TransformIndicesFansToList(const std::vector<uint32_t>& indices);
 
 private: // data
     std::vector<PrimitiveInfo> primitivesInfo;

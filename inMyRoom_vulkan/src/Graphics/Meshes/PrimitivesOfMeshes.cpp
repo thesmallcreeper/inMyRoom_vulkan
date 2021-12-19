@@ -3,6 +3,7 @@
 #include <cassert>
 #include <algorithm>
 #include <numeric>
+#include <iostream>
 
 #include "Graphics/HelperUtils.h"
 #include "const_maps.h"
@@ -47,6 +48,10 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
     // Draw mode
     if (primitive.mode != -1) {
         drawMode = static_cast<glTFmode>(primitive.mode);
+        if (drawMode == glTFmode::line_loop ) {
+            std::cout << "Line loop is not supported, fallback to line strip.\n";
+            drawMode == glTFmode::line_strip;
+        }
     }
 
     // Indices
@@ -74,9 +79,9 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
             if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
                 std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
-                                                              +[](const std::array<float, 3> &in) -> std::array<float, 3> {
-                                                              std::array<float, 3> out;
-                                                              out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2];
+                                                              +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                              std::array<float, 4> out;
+                                                              out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2]; out[3] = 1.f;
                                                               return out; });
 
                 attributeAndTargets.emplace_back(std::move(attribute));
@@ -92,9 +97,9 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
                     if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
                         std::vector target = transformRange<float>(target_begin_end_ptr.first,target_begin_end_ptr.second,
-                                                                   +[](const std::array<float, 3> &in) -> std::array<float, 3> {
-                                                                   std::array<float, 3> out;
-                                                                   out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2];
+                                                                   +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                   std::array<float, 4> out;
+                                                                   out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2]; out[2] = 1.f;
                                                                    return out; });
 
                         attributeAndTargets.emplace_back(std::move(target));
@@ -104,12 +109,13 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
             positionMorphTargets = attributeAndTargets.size() - 1;
 
-            size_t components_count = attributeAndTargets[0].size() / 3;
+            size_t components_count = attributeAndTargets[0].size() / 4;
             for (size_t i = 0; i != components_count; ++i) {
                 for (const auto &this_vec: attributeAndTargets) {
-                    position.emplace_back(this_vec[3 * i]);
-                    position.emplace_back(this_vec[3 * i + 1]);
-                    position.emplace_back(this_vec[3 * i + 2]);
+                    position.emplace_back(this_vec[4 * i]);
+                    position.emplace_back(this_vec[4 * i + 1]);
+                    position.emplace_back(this_vec[4 * i + 2]);
+                    position.emplace_back(this_vec[4 * i + 3]);
                 }
             }
         }
@@ -126,9 +132,9 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
             if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
                 std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
-                                                              +[](const std::array<float, 3> &in) -> std::array<float, 3> {
-                                                              std::array<float, 3> out;
-                                                              out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2];
+                                                              +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                              std::array<float, 4> out;
+                                                              out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2]; out[3] = 0.f;
                                                               return out;
                                                               });
 
@@ -144,9 +150,9 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
                     if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
                         std::vector target = transformRange<float>(target_begin_end_ptr.first,target_begin_end_ptr.second,
-                                                                   +[](const std::array<float, 3> &in) -> std::array<float, 3> {
-                                                                    std::array<float, 3> out;
-                                                                    out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2];
+                                                                   +[](const std::array<float, 3> &in) -> std::array<float, 4> {
+                                                                    std::array<float, 4> out;
+                                                                    out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2]; out[3] = 0.f;
                                                                     return out;
                                                                    });
 
@@ -157,12 +163,13 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
             normalMorphTargets = attributeAndTargets.size() - 1;
 
-            size_t components_count = attributeAndTargets[0].size() / 3;
+            size_t components_count = attributeAndTargets[0].size() / 4;
             for (size_t i = 0; i != components_count; ++i) {
                 for (const auto &this_vec: attributeAndTargets) {
-                    normal.emplace_back(this_vec[3 * i]);
-                    normal.emplace_back(this_vec[3 * i + 1]);
-                    normal.emplace_back(this_vec[3 * i + 2]);
+                    normal.emplace_back(this_vec[4 * i]);
+                    normal.emplace_back(this_vec[4 * i + 1]);
+                    normal.emplace_back(this_vec[4 * i + 2]);
+                    normal.emplace_back(this_vec[4 * i + 3]);
                 }
             }
         }
@@ -563,15 +570,15 @@ PrimitivesOfMeshes::PrimitiveOBBtreeData
     if (positionMorphTargets == 0 && jointsCount == 0) {
         return_data.drawMode = drawMode;
 
-        assert(position.size() % 3 == 0);
-        for (auto it = position.begin(); it != position.end(); it += 3) {
+        assert(position.size() % 4 == 0);
+        for (auto it = position.begin(); it != position.end(); it += 4) {
             glm::vec3 vec(*it, *(it + 1), *(it + 2));
             return_data.points.emplace_back(vec);
         }
 
         if (normal.size()) {
-            assert(normal.size() % 3 == 0);
-            for (auto it = normal.begin(); it != normal.end(); it += 3) {
+            assert(normal.size() % 4 == 0);
+            for (auto it = normal.begin(); it != normal.end(); it += 4) {
                 glm::vec3 vec(*it, *(it + 1), *(it + 2));
                 return_data.normals.emplace_back(vec);
             }
@@ -826,16 +833,9 @@ void PrimitivesOfMeshes::InitializePrimitivesInfo()
     for (const auto& this_initializeData:primitivesInitializationData) {
         PrimitiveInfo this_info;
 
-        {
-            auto search = glTFmodeToPrimitiveTopology_map.find(this_initializeData.drawMode);
-            assert(search != glTFmodeToPrimitiveTopology_map.end());
-            this_info.drawMode = search->second;
-        }
-
         this_info.material = this_initializeData.material;
 
-        this_info.indicesCount  = this_initializeData.indices.size();
-        this_info.verticesCount = this_initializeData.position.size() / 3;
+        this_info.verticesCount = this_initializeData.position.size() / 4;
 
         this_info.positionMorphTargets  = this_initializeData.positionMorphTargets;
 
@@ -863,17 +863,103 @@ void PrimitivesOfMeshes::FinishInitializePrimitivesInfo()
 
 void PrimitivesOfMeshes::CopyIndicesToBuffer(std::byte *ptr)
 {
+    // Create indices buffers for the primitives without one
+    size_t max_vertex_iota_list = 0;
+    size_t max_vertex_triangle_strip = 0;
+    size_t max_vertex_triangle_fan = 0;
+    for(const auto& this_initializeData : primitivesInitializationData) {
+        if (this_initializeData.indices.empty()) {
+            if (this_initializeData.drawMode == glTFmode::triangle_fan)
+                max_vertex_triangle_fan = std::max(this_initializeData.position.size() / 4, max_vertex_triangle_fan);
+            else if (this_initializeData.drawMode == glTFmode::line_strip)
+                max_vertex_triangle_strip = std::max(this_initializeData.position.size() / 4, max_vertex_triangle_strip);
+            else
+                max_vertex_iota_list = std::max(this_initializeData.position.size() / 4, max_vertex_iota_list);
+        }
+    }
+
     size_t offset = 0;
+
+    size_t iota_list_offset = offset;
+    if (max_vertex_iota_list > 0) {
+        std::vector<uint32_t> list_indices(max_vertex_iota_list);
+        std::iota(list_indices.begin(), list_indices.end(), 0);
+
+        size_t byte_size = list_indices.size() * sizeof(uint32_t);
+        memcpy(ptr, list_indices.data(), byte_size);
+        offset += byte_size;
+    }
+
+    size_t strip_list_offset = offset;
+    if (max_vertex_triangle_strip > 0) {
+        std::vector<uint32_t> list_strip_indices(max_vertex_triangle_strip);
+        std::iota(list_strip_indices.begin(), list_strip_indices.end(), 0);
+
+        std::vector<uint32_t> indices = TransformIndicesStripToList(list_strip_indices);
+
+        size_t byte_size = indices.size() * sizeof(uint32_t);
+        memcpy(ptr, indices.data(), byte_size);
+        offset += byte_size;
+    }
+
+    size_t fan_list_offset = offset;
+    if (max_vertex_triangle_fan > 0) {
+        std::vector<uint32_t> list_fan_indices(max_vertex_triangle_fan);
+        std::iota(list_fan_indices.begin(), list_fan_indices.end(), 0);
+
+        std::vector<uint32_t> indices = TransformIndicesStripToList(list_fan_indices);
+
+        size_t byte_size = indices.size() * sizeof(uint32_t);
+        memcpy(ptr, indices.data(), byte_size);
+        offset += byte_size;
+    }
 
     for(size_t i = 0; i != primitivesInitializationData.size(); ++i) {
         const PrimitiveInitializationData& this_initializeData = primitivesInitializationData[i];
         PrimitiveInfo& this_info = primitivesInfo[i];
 
-        size_t indices_byte_size = this_initializeData.IndicesBufferSize();
-        if (indices_byte_size) {
-            memcpy(ptr + offset, this_initializeData.indices.data(), indices_byte_size);
-            this_info.indicesOffset = offset;
-            offset += indices_byte_size;
+        if (this_initializeData.IndicesBufferSize()) {
+            if (this_initializeData.drawMode == glTFmode::triangle_fan) {
+                std::vector<uint32_t> indices = TransformIndicesFansToList(this_initializeData.indices);
+                size_t indices_byte_size = indices.size() * sizeof(uint32_t);
+                memcpy(ptr + offset, indices.data(), indices_byte_size);
+
+                this_info.drawMode = vk::PrimitiveTopology::eTriangleList;
+                this_info.indicesOffset = offset;
+                this_info.indicesCount = indices.size();
+                offset += indices_byte_size;
+            } else if (this_initializeData.drawMode == glTFmode::triangle_strip) {
+                std::vector<uint32_t> indices = TransformIndicesStripToList(this_initializeData.indices);
+                size_t indices_byte_size = indices.size() * sizeof(uint32_t);
+                memcpy(ptr + offset, indices.data(), indices_byte_size);
+
+                this_info.drawMode = vk::PrimitiveTopology::eTriangleList;
+                this_info.indicesOffset = offset;
+                this_info.indicesCount = indices.size();
+                offset += indices_byte_size;
+            } else {
+                size_t indices_byte_size = this_initializeData.IndicesBufferSize();
+                memcpy(ptr + offset, this_initializeData.indices.data(), indices_byte_size);
+
+                this_info.drawMode = glTFmodeToPrimitiveTopology_map.find(this_initializeData.drawMode)->second;
+                this_info.indicesOffset = offset;
+                this_info.indicesCount = this_initializeData.indices.size();
+                offset += indices_byte_size;
+            }
+        } else {
+            if (this_initializeData.drawMode == glTFmode::triangle_fan) {
+                this_info.indicesOffset = fan_list_offset;
+                this_info.indicesCount = (this_initializeData.position.size() / 4 - 2) * 3;
+                this_info.drawMode = vk::PrimitiveTopology::eTriangleList;
+            } else if (this_initializeData.drawMode == glTFmode::line_strip) {
+                this_info.indicesOffset = strip_list_offset;
+                this_info.indicesCount = (this_initializeData.position.size() / 4 - 2) * 3;
+                this_info.drawMode = vk::PrimitiveTopology::eTriangleList;
+            } else {
+                this_info.indicesOffset = iota_list_offset;
+                this_info.drawMode = glTFmodeToPrimitiveTopology_map.find(this_initializeData.drawMode)->second;
+                this_info.indicesCount = this_initializeData.position.size() / 4;
+            }
         }
     }
 
@@ -939,6 +1025,34 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
     }
 
     assert(offset == GetVerticesBufferSize());
+}
+
+std::vector<uint32_t> PrimitivesOfMeshes::TransformIndicesStripToList(const std::vector<uint32_t> &indices)
+{
+    std::vector<uint32_t> indices_list;
+
+    size_t triangles_count = indices.size() - 2;
+    for (size_t i = 0; i != triangles_count; ++i) {
+        indices_list.emplace_back(indices[i]);
+        indices_list.emplace_back(indices[i + (1+i%2)]);
+        indices_list.emplace_back(indices[i + (2-i%2)]);
+    }
+
+    return indices_list;
+}
+
+std::vector<uint32_t> PrimitivesOfMeshes::TransformIndicesFansToList(const std::vector<uint32_t> &indices)
+{
+    std::vector<uint32_t> indices_list;
+
+    size_t triangles_count = indices.size() - 2;
+    for (size_t i = 0; i != triangles_count; ++i) {
+        indices_list.emplace_back(indices[i]);
+        indices_list.emplace_back(indices[i + 1]);
+        indices_list.emplace_back(indices[i + 2]);
+    }
+
+    return indices_list;
 }
 
 

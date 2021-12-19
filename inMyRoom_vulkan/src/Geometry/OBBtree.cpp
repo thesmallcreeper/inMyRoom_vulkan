@@ -398,7 +398,7 @@ void OBBtree::IntersectOBBtrees(const OBBtree& first_tree,
                                 const glm::mat4x4& second_tree_matrix,
                                 OBBtreesIntersectInfo& intesection_info)
 {
-    intesection_info.candidateTriangleRangeCompinations.clear();
+    intesection_info.candidateTriangleRangeCombinations.clear();
 
     OBBtreeTraveler first_tree_traveler = first_tree.GetRootTraveler();
     OBBtreeTraveler second_tree_traveler = second_tree.GetRootTraveler();
@@ -470,7 +470,7 @@ void OBBtree::IntersectOBBtreesRecursive(const OBBtreeTraveler& first_tree_trave
         }
         else
         {
-            intesection_info.candidateTriangleRangeCompinations.emplace_back(first_tree_traveler.GetTrianglesOffset(), first_tree_traveler.GetTrianglesCount(),
+            intesection_info.candidateTriangleRangeCombinations.emplace_back(first_tree_traveler.GetTrianglesOffset(), first_tree_traveler.GetTrianglesCount(),
                                                                              second_tree_traveler.GetTrianglesOffset(), second_tree_traveler.GetTrianglesCount());
         }
     }

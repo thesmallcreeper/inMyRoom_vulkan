@@ -238,15 +238,11 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
 
             command_buffer.bindVertexBuffers(0, buffers, offsets);
 
-            if (primitive_info.indicesOffset != -1) {
-                command_buffer.bindIndexBuffer(primitivesOfMeshes_uptr->GetIndicesBuffer(),
-                                               primitive_info.indicesOffset,
-                                               vk::IndexType::eUint32);
+            command_buffer.bindIndexBuffer(primitivesOfMeshes_uptr->GetIndicesBuffer(),
+                                           primitive_info.indicesOffset,
+                                           vk::IndexType::eUint32);
 
-                command_buffer.drawIndexed(primitive_info.indicesCount, 1, 0, 0, 0);
-            } else {
-                command_buffer.draw(primitive_info.verticesCount, 1, 0, 0);
-            }
+            command_buffer.drawIndexed(primitive_info.indicesCount, 1, 0, 0, 0);
         }
     }
 
@@ -700,19 +696,19 @@ void Graphics::EndModelsLoad()
             size_t location_index = 0;
 
             vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                           (this_primitiveInfo.positionMorphTargets + 1) * 3 * sizeof(float),
+                                                           (this_primitiveInfo.positionMorphTargets + 1) * 4 * sizeof(float),
                                                            vk::VertexInputRate::eVertex);
             vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
-                                                             vk::Format::eR32G32B32Sfloat,
+                                                             vk::Format::eR32G32B32A32Sfloat,
                                                              0);
             ++binding_index; ++location_index;
 
             if (this_primitiveInfo.normalOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               (this_primitiveInfo.normalMorphTargets + 1) * 3 * sizeof(float),
+                                                               (this_primitiveInfo.normalMorphTargets + 1) * 4 * sizeof(float),
                                                                vk::VertexInputRate::eVertex);
                 vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
-                                                                 vk::Format::eR32G32B32Sfloat,
+                                                                 vk::Format::eR32G32B32A32Sfloat,
                                                                  0);
 
                 shadersDefinitionStringPairs.emplace_back("VERT_NORMAL", "");

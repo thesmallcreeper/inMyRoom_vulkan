@@ -15,7 +15,7 @@ struct OBBtreesIntersectInfo
         size_t second_obbtree_count = 0;
     };
 
-    std::vector<CandidateTriangleRangeCombination> candidateTriangleRangeCompinations;
+    std::vector<CandidateTriangleRangeCombination> candidateTriangleRangeCombinations;
 };
 
 class OBBtree

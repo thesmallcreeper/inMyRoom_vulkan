@@ -49,7 +49,7 @@ void CollisionDetection::ExecuteCollisionDetection()
     for(const std::pair<CollisionDetectionEntry, CollisionDetectionEntry>& this_pair: broadPhaseResults)
     {
         CDentriesPairTrianglesPairs this_result = midPhaseCollision_uptr->ExecuteOBBtreesCollision(this_pair);
-        if(this_result.OBBtreesIntersectInfoObj.candidateTriangleRangeCompinations.size())
+        if(this_result.OBBtreesIntersectInfoObj.candidateTriangleRangeCombinations.size())
         {
             midPhaseResults.emplace_back(std::move(this_result));
         }
