@@ -17,8 +17,8 @@ void ModelDrawComp::AddDrawInfos(std::vector<glm::mat4>& matrices,
     auto nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);
     auto nodeGlobalMatrixComp_ptr = static_cast<const LateNodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
 
-    auto skin_componentID = static_cast<componentID>(componentIDenum::Skin);
-    auto skinComp_ptr = static_cast<const SkinComp*>(ecsWrapper_ptr->GetComponentByID(skin_componentID));
+    auto skin_componentID = static_cast<componentID>(componentIDenum::DynamicMesh);
+    auto skinComp_ptr = static_cast<const DynamicMeshComp*>(ecsWrapper_ptr->GetComponentByID(skin_componentID));
 
     size_t containers_count = GetContainersCount();
     for(size_t i = 0; i != containers_count; ++i)

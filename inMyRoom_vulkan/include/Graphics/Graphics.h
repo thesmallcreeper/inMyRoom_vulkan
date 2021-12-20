@@ -12,7 +12,7 @@
 #include "ECS/GeneralComponents/AnimationActorComp.h"
 #include "ECS/GeneralComponents/CameraComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
-#include "ECS/GeneralComponents/SkinComp.h"
+#include "ECS/GeneralComponents/DynamicMeshComp.h"
 
 #include "Geometry/ViewportFrustum.h"
 
@@ -102,7 +102,7 @@ private:
     std::unique_ptr<AnimationActorComp> animationActorComp_uptr;
     std::unique_ptr<CameraComp> cameraComp_uptr;
     std::unique_ptr<ModelDrawComp> modelDrawComp_uptr;
-    std::unique_ptr<SkinComp> skinComp_uptr;
+    std::unique_ptr<DynamicMeshComp> skinComp_uptr;
 
     std::unique_ptr<AnimationsDataOfNodes> animationsDataOfNodes_uptr;
     std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;

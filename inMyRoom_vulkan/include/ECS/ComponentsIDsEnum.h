@@ -16,7 +16,7 @@ enum class componentIDenum : componentID
     EarlyNodeGlobalMatrix   =  4000,
     ModelCollision          =  5000,
     LateNodeGlobalMatrix    =  6000,
-    Skin                    =  7000,
+    DynamicMesh             =  7000,
     CameraDefaultInput      =  8000,
     Camera                  =  9000,
     ModelDraw               = 10000,  // is custom

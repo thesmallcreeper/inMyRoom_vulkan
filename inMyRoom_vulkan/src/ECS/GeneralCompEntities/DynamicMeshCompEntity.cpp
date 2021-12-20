@@ -1,24 +1,24 @@
-#include "ECS/GeneralCompEntities/SkinCompEntity.h"
+#include "ECS/GeneralCompEntities/DynamicMeshCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
 
-SkinCompEntity::SkinCompEntity(const Entity this_entity)
-    :CompEntityBaseWrappedClass<SkinComp>(this_entity)
+DynamicMeshCompEntity::DynamicMeshCompEntity(const Entity this_entity)
+    :CompEntityBaseWrappedClass<DynamicMeshComp>(this_entity)
 {
 }
 
-SkinCompEntity SkinCompEntity::GetEmpty()
+DynamicMeshCompEntity DynamicMeshCompEntity::GetEmpty()
 {
-    SkinCompEntity this_skinCompEntity(0);
+    DynamicMeshCompEntity this_skinCompEntity(0);
 
     return this_skinCompEntity;
 }
 
-SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map)
+DynamicMeshCompEntity DynamicMeshCompEntity::CreateComponentEntityByMap(const Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map)
 {
-    SkinCompEntity this_skinCompEntity(in_entity);
+    DynamicMeshCompEntity this_skinCompEntity(in_entity);
 
     // "InverseBindMatricesOffset", inverseBindMatricesOffset = int
     {
@@ -46,6 +46,22 @@ SkinCompEntity SkinCompEntity::CreateComponentEntityByMap(const Entity in_entity
             this_skinCompEntity.jointRelativeEntities.emplace_back(this_joint_entity);
 
             map_search_string = "JointRelativeName_" + std::to_string(++index);
+        }
+    }
+
+    // "DefaultWeight_X", morphTargetsWeights[X] = float
+    {
+        size_t index = 0;
+        std::string map_search_string = "DefaultWeight_" + std::to_string(index);
+
+        while (in_map.floatMap.find(map_search_string) != in_map.floatMap.end())
+        {
+            auto search = in_map.floatMap.find(map_search_string);
+            float this_weight = search->second;
+
+            this_skinCompEntity.morphTargetsWeights.emplace_back(this_weight);
+
+            map_search_string = "DefaultWeight_" + std::to_string(++index);
         }
     }
 

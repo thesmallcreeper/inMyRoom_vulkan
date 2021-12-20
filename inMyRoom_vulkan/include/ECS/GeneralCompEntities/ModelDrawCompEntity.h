@@ -5,7 +5,7 @@
 class ModelDrawComp;
 
 #include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
-#include "ECS/GeneralCompEntities/SkinCompEntity.h"
+#include "ECS/GeneralCompEntities/DynamicMeshCompEntity.h"
 
 class ModelDrawCompEntity :
     public CompEntityBaseWrappedClass<ModelDrawComp>
@@ -25,7 +25,7 @@ public:
     static ModelDrawCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
-                     const SkinComp* skinEntity_ptr,
+                     const DynamicMeshComp* skinEntity_ptr,
                      std::vector<glm::mat4>& matrices,
                      std::vector<DrawInfo>& draw_infos) const;
 

@@ -1069,5 +1069,31 @@ std::vector<uint32_t> PrimitivesOfMeshes::TransformIndicesFansToList(const std::
     return indices_list;
 }
 
+bool PrimitivesOfMeshes::IsPrimitiveSkinned(size_t index) const
+{
+    if (not hasBeenFlashed) {
+        const PrimitiveInitializationData& this_data = primitivesInitializationData[index];
+        return this_data.jointsCount || this_data.weightsCount;
+    } else {
+        const PrimitiveInfo& this_info = primitivesInfo[index];
+        return this_info.jointsCount || this_info.weightsCount;
+    }
+}
+
+size_t PrimitivesOfMeshes::PrimitiveMorphTargetsCount(size_t index) const
+{
+    if (not hasBeenFlashed) {
+        const PrimitiveInitializationData& this_data = primitivesInitializationData[index];
+        return std::max({this_data.positionMorphTargets, this_data.normalMorphTargets,
+                         this_data.tangentMorphTargets, this_data.texcoordsMorphTargets,
+                         this_data.colorMorphTargets});
+    } else {
+        const PrimitiveInfo& this_info = primitivesInfo[index];
+        return std::max({this_info.positionMorphTargets, this_info.normalMorphTargets,
+                         this_info.tangentMorphTargets, this_info.texcoordsMorphTargets,
+                         this_info.colorMorphTargets});
+    }
+}
+
 
 

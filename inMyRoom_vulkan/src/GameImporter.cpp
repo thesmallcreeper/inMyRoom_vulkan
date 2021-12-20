@@ -283,14 +283,25 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
     }
 
     // Model draw component
+    int mesh_index = -1;
+    bool is_skin = false;
+    bool has_morphTargets = false;
     if (this_gltf_node.mesh != -1)
     {
         CompEntityInitMap this_map;
-        this_map.intMap["MeshIndex"] = this_gltf_node.mesh + static_cast<int>(engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(model));
 
-        if (this_gltf_node.skin != -1)
+        mesh_index = this_gltf_node.mesh + static_cast<int>(engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(model));
+        is_skin = engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).IsSkinned();
+        has_morphTargets = engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).HasMorphTargets();
+
+        this_map.intMap["MeshIndex"] = mesh_index;
+
+        assert(not is_skin && this_gltf_node.skin == -1 || is_skin && this_gltf_node.skin != -1);
+
+        if (is_skin || has_morphTargets)
         {
-            this_map.intMap["IsSkin"] = static_cast<int>(true);
+            this_map.intMap["IsSkin"] = static_cast<int>(is_skin);
+            this_map.intMap["HasMorphTargets"] = static_cast<int>(has_morphTargets);
             this_map.intMap["DisableCulling"] = static_cast<int>(true);
         }
         if (this_node->nodeName.find("_collision") != std::string::npos)
@@ -302,7 +313,7 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
     }
 
     // Model collision component
-    if (this_gltf_node.mesh != -1 && this_gltf_node.skin == -1)
+    if (mesh_index != -1 && not is_skin && not has_morphTargets)
     {
         CompEntityInitMap this_map;
         this_map.intMap["MeshIndex"] = this_gltf_node.mesh + static_cast<int>(engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshIndexOffsetOfModel(model));
@@ -310,25 +321,40 @@ void GameImporter::ImportNodeComponents(Node* this_node, Node* root_node, tinygl
         this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::ModelCollision), this_map);
     }
 
-    // Skin component
-    if (this_gltf_node.skin != -1)
+    // Skin and morph target component
+    if (mesh_index != -1 && (is_skin || has_morphTargets))
     {
-        size_t skin_index = static_cast<size_t>(this_gltf_node.skin) + engine_ptr->GetGraphicsPtr()->GetSkinsOfMeshesPtr()->GetSkinIndexOffsetOfModel(model);
-        SkinInfo this_skinInfo = engine_ptr->GetGraphicsPtr()->GetSkinsOfMeshesPtr()->GetSkin(skin_index);
-
         CompEntityInitMap this_map;
-        this_map.intMap["InverseBindMatricesOffset"] = static_cast<int>(this_skinInfo.inverseBindMatricesFirstOffset);
 
-        std::string this_node_path = GetPathUsingGLTFindex(root_node, this_node->glTFnodeIndex);
-        for (size_t index = 0; index < this_skinInfo.glTFnodesJoints.size(); index++)
-        {
-            std::string this_joint_path = GetPathUsingGLTFindex(root_node, this_skinInfo.glTFnodesJoints[index]);
-            std::string relative_path = GetRelativePath(this_joint_path, this_node_path);
+        if (is_skin) {
+            size_t skin_index = static_cast<size_t>(this_gltf_node.skin) + engine_ptr->GetGraphicsPtr()->GetSkinsOfMeshesPtr()->GetSkinIndexOffsetOfModel(model);
+            SkinInfo this_skinInfo = engine_ptr->GetGraphicsPtr()->GetSkinsOfMeshesPtr()->GetSkin(skin_index);
 
-            this_map.stringMap.emplace(std::make_pair("JointRelativeName_" + std::to_string(index), relative_path));
+            this_map.intMap["InverseBindMatricesOffset"] = static_cast<int>(this_skinInfo.inverseBindMatricesFirstOffset);
+
+            std::string this_node_path = GetPathUsingGLTFindex(root_node, this_node->glTFnodeIndex);
+            for (size_t index = 0; index < this_skinInfo.glTFnodesJoints.size(); ++index) {
+                std::string this_joint_path = GetPathUsingGLTFindex(root_node, this_skinInfo.glTFnodesJoints[index]);
+                std::string relative_path = GetRelativePath(this_joint_path, this_node_path);
+
+                this_map.stringMap.emplace(std::make_pair("JointRelativeName_" + std::to_string(index), relative_path));
+            }
+        }
+        if (has_morphTargets) {
+            std::vector<float> weights = engine_ptr->GetGraphicsPtr()->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).morphDefaultWeights;
+
+            if (this_gltf_node.weights.size()) {
+                assert(weights.size() == this_gltf_node.weights.size());
+                std::transform(this_gltf_node.weights.begin(), this_gltf_node.weights.end(), weights.begin(),
+                               [](double w) -> float { return float(w); });
+            }
+
+            for (size_t index = 0; index < weights.size(); ++index) {
+                this_map.floatMap.emplace(std::make_pair("DefaultWeight_" + std::to_string(index), weights[index]));
+            }
         }
 
-        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::Skin), this_map);
+        this_node->componentIDsToInitMaps.emplace(static_cast<componentID>(componentIDenum::DynamicMesh), this_map);
     }
 
     // Animation actor component

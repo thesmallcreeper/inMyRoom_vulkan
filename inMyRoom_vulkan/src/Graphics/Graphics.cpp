@@ -167,7 +167,7 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
     command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
     for (const DrawInfo& this_draw: draw_infos) {
-        for (size_t primitive_index : meshesOfNodes_uptr->GetMeshInfoPtr(this_draw.meshIndex)->primitivesIndex) {
+        for (size_t primitive_index : meshesOfNodes_uptr->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
             const PrimitiveInfo& primitive_info = primitivesOfMeshes_uptr->GetPrimitiveInfo(primitive_index);
 
             vk::Pipeline pipeline = primitivesPipelines[primitive_index];
@@ -618,8 +618,8 @@ void Graphics::InitGraphicsComponents()
     }
 
     {
-        skinComp_uptr = std::make_unique<SkinComp>(engine_ptr->GetECSwrapperPtr(),
-                                                   skinsOfMeshes_uptr.get());
+        skinComp_uptr = std::make_unique<DynamicMeshComp>(engine_ptr->GetECSwrapperPtr(),
+                                                          skinsOfMeshes_uptr.get());
         engine_ptr->GetECSwrapperPtr()->AddComponent(skinComp_uptr.get());
     }
 }

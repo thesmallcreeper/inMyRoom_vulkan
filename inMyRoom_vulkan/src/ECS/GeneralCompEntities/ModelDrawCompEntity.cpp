@@ -62,7 +62,7 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
 }
 
 void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
-                                      const SkinComp* skinEntity_ptr,
+                                      const DynamicMeshComp* skinEntity_ptr,
                                       std::vector<glm::mat4>& matrices,
                                       std::vector<DrawInfo>& draw_infos) const
 {

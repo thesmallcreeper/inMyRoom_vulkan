@@ -13,16 +13,29 @@ void MeshesOfNodes::AddMeshesOfModel(const tinygltf::Model& in_model)
 
     for (const tinygltf::Mesh& this_mesh : in_model.meshes)
     {
-        MeshInfo this_mesh_range;
+        MeshInfo this_mesh_info;
+        size_t morphTargetsCount = 0;
 
         primitivesOfMeshes_ptr->StartRecordOBBtree();
 
-        for (const tinygltf::Primitive& this_primitive : this_mesh.primitives)
-            this_mesh_range.primitivesIndex.emplace_back(primitivesOfMeshes_ptr->AddPrimitive(in_model, this_primitive));
+        for (const tinygltf::Primitive& this_primitive : this_mesh.primitives) {
+            size_t index = primitivesOfMeshes_ptr->AddPrimitive(in_model, this_primitive);
 
-        this_mesh_range.boundBoxTree = primitivesOfMeshes_ptr->GetOBBtreeAndReset();
+            this_mesh_info.primitivesIndex.emplace_back(index);
+            this_mesh_info.isSkinned |= primitivesOfMeshes_ptr->IsPrimitiveSkinned(index);
+            morphTargetsCount = std::max(primitivesOfMeshes_ptr->PrimitiveMorphTargetsCount(index), morphTargetsCount);
+        }
 
-        meshes.emplace_back(std::move(this_mesh_range));
+        this_mesh_info.boundBoxTree = primitivesOfMeshes_ptr->GetOBBtreeAndReset();
+
+        this_mesh_info.morphDefaultWeights = std::vector<float>(morphTargetsCount, 0.f);
+        if (this_mesh.weights.size()) {
+            assert(this_mesh_info.morphDefaultWeights.size() == this_mesh.weights.size());
+            std::transform(this_mesh.weights.begin(), this_mesh.weights.end(), this_mesh_info.morphDefaultWeights.begin(),
+                           [](double w) -> float { return float(w); });
+        }
+
+        meshes.emplace_back(std::move(this_mesh_info));
     }
 }
 
@@ -33,9 +46,4 @@ size_t MeshesOfNodes::GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model)
     assert(search != modelToMeshIndexOffset_umap.end());
 
     return search->second;
-}
-
-const MeshInfo* MeshesOfNodes::GetMeshInfoPtr(size_t this_mesh_index) const
-{
-    return &meshes[this_mesh_index];
 }

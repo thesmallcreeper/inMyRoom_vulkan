@@ -121,6 +121,9 @@ public:
     vk::Buffer GetIndicesBuffer() const {return indicesBuffer;}
     vk::Buffer GetVerticesBuffer() const {return verticesBuffer;}
 
+    bool IsPrimitiveSkinned(size_t index) const;
+    size_t PrimitiveMorphTargetsCount(size_t index) const;
+
 private:
     size_t GetIndicesBufferSize() const;
     size_t GetVerticesBufferSize() const;

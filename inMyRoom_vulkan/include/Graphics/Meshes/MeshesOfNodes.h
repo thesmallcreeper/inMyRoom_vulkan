@@ -9,8 +9,14 @@
 
 struct MeshInfo
 {
+    bool isSkinned = false;
+    std::vector<float> morphDefaultWeights = {};
+
     std::vector<size_t> primitivesIndex;
     OBBtree boundBoxTree;
+
+    bool IsSkinned() const {return isSkinned;}
+    bool HasMorphTargets() const {return morphDefaultWeights.size();}
 };
 
 
@@ -22,7 +28,7 @@ public: // functions
     void AddMeshesOfModel(const tinygltf::Model& in_model);
 
     size_t GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model) const;
-    const MeshInfo* GetMeshInfoPtr(size_t this_mesh_index) const;
+    const MeshInfo& GetMeshInfo(size_t this_mesh_index) const {return meshes[this_mesh_index];};
 
 private: // data
     std::vector<MeshInfo> meshes;

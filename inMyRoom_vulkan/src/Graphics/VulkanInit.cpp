@@ -81,6 +81,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
 
     vk::PhysicalDeviceVulkan11Features vulkan11_device_features;
     vk::PhysicalDeviceVulkan12Features vulkan12_device_features;
+    vulkan12_device_features.descriptorIndexing = VK_TRUE;
     vulkan12_device_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     vulkan12_device_features.runtimeDescriptorArray = VK_TRUE;
     vulkan12_device_features.descriptorBindingVariableDescriptorCount = VK_TRUE;

@@ -15,7 +15,7 @@ public:
 
     static AnimationComposerCompEntity GetEmpty();
 
-    /*  CreateComponentEntityByMap - SkinCompEntity
+    /*  CreateComponentEntityByMap - DynamicMeshCompEntity
         "AnimationName",                 animationName                 = string    
         "NodesRelativeName_X",           nodesEntities[X]              = string    (name)
         "ShouldAutoplay",                shouldAutoplay                = int

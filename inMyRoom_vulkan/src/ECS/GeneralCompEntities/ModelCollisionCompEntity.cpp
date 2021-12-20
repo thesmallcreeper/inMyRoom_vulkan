@@ -70,7 +70,7 @@ void ModelCollisionCompEntity::AddCollisionDetectionEntryToVector(EarlyNodeGloba
         this_collisionDetectionEntry.currentGlobalMatrix = this_frame_global_matrix;
         this_collisionDetectionEntry.previousGlobalMatrix = previous_frame_global_matrix;
         this_collisionDetectionEntry.shouldCallback = shouldCallback;
-        this_collisionDetectionEntry.OBBtree_ptr = &(meshesOfNodes_ptr->GetMeshInfoPtr(meshIndex)->boundBoxTree);
+        this_collisionDetectionEntry.OBBtree_ptr = &(meshesOfNodes_ptr->GetMeshInfo(meshIndex).boundBoxTree);
         this_collisionDetectionEntry.entity = thisEntity;
 
         collisionDetection_ptr->AddCollisionDetectionEntry(this_collisionDetectionEntry);

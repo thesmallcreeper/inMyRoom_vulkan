@@ -37,7 +37,7 @@
     <ClCompile Include="src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralCompEntities\NodeDataCompEntity.cpp" />
-    <ClCompile Include="src\ECS\GeneralCompEntities\SkinCompEntity.cpp" />
+    <ClCompile Include="src\ECS\GeneralCompEntities\DynamicMeshCompEntity.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\AnimationActorComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\AnimationComposerComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\CameraComp.cpp" />
@@ -47,7 +47,7 @@
     <ClCompile Include="src\ECS\GeneralComponents\ModelDrawComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\EarlyNodeGlobalMatrixComp.cpp" />
     <ClCompile Include="src\ECS\GeneralComponents\NodeDataComp.cpp" />
-    <ClCompile Include="src\ECS\GeneralComponents\SkinComp.cpp" />
+    <ClCompile Include="src\ECS\GeneralComponents\DynamicMeshComp.cpp" />
     <ClCompile Include="src\ExportedFunctionsConstructor.cpp" />
     <ClCompile Include="src\GameDLLimporter.cpp" />
     <ClCompile Include="src\GameImporter.cpp" />
@@ -109,7 +109,7 @@
     <ClInclude Include="include\ECS\GeneralCompEntities\ModelDrawCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralCompEntities\NodeDataCompEntity.h" />
-    <ClInclude Include="include\ECS\GeneralCompEntities\SkinCompEntity.h" />
+    <ClInclude Include="include\ECS\GeneralCompEntities\DynamicMeshCompEntity.h" />
     <ClInclude Include="include\ECS\GeneralComponents\AnimationActorComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\AnimationComposerComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\CameraComp.h" />
@@ -120,7 +120,7 @@
     <ClInclude Include="include\ECS\GeneralComponents\EarlyNodeGlobalMatrixComp.h" />
     <ClInclude Include="include\ECS\GeneralComponents\NodeDataComp.h" />
     <ClInclude Include="include\const_maps.h" />
-    <ClInclude Include="include\ECS\GeneralComponents\SkinComp.h" />
+    <ClInclude Include="include\ECS\GeneralComponents\DynamicMeshComp.h" />
     <ClInclude Include="include\ECS\TemplateHelpers.h" />
     <ClInclude Include="include\ExportedFunctionsConstructor.h" />
     <ClInclude Include="include\FixedString.h" />

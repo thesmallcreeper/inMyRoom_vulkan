@@ -123,10 +123,10 @@
     <ClCompile Include="src\ECS\GeneralComponents\CameraComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
-    <ClCompile Include="src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
+    <ClCompile Include="src\ECS\GeneralCompEntities\DynamicMeshCompEntity.cpp">
       <Filter>Source Files\ECS\GeneralCompEntities</Filter>
     </ClCompile>
-    <ClCompile Include="src\ECS\GeneralComponents\SkinComp.cpp">
+    <ClCompile Include="src\ECS\GeneralComponents\DynamicMeshComp.cpp">
       <Filter>Source Files\ECS\GeneralComponents</Filter>
     </ClCompile>
     <ClCompile Include="src\GameDLLimporter.cpp">
@@ -320,10 +320,10 @@
     <ClInclude Include="include\ECS\GeneralComponents\CameraComp.h">
       <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
-    <ClInclude Include="include\ECS\GeneralCompEntities\SkinCompEntity.h">
+    <ClInclude Include="include\ECS\GeneralCompEntities\DynamicMeshCompEntity.h">
       <Filter>Header Files\ECS\GeneralCompEntities</Filter>
     </ClInclude>
-    <ClInclude Include="include\ECS\GeneralComponents\SkinComp.h">
+    <ClInclude Include="include\ECS\GeneralComponents\DynamicMeshComp.h">
       <Filter>Header Files\ECS\GeneralComponents</Filter>
     </ClInclude>
     <ClInclude Include="include\GameDLLimporter.h">
