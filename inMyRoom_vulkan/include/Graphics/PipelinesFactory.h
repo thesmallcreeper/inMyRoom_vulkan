@@ -56,13 +56,29 @@ class PipelinesFactory
          std::unordered_set<std::vector<vk::DynamicState>>                       dynamicStates_uset;
     };
 
+    class ComputePipelineCache
+    {
+    public:
+        explicit ComputePipelineCache(vk::Device device);
+        ~ComputePipelineCache();
+
+        std::pair<vk::Pipeline, const vk::ComputePipelineCreateInfo*> GetComputePipeline(const vk::ComputePipelineCreateInfo& create_info);
+    private:
+        vk::Device device;
+
+        std::unordered_map<vk::ComputePipelineCreateInfo, vk::Pipeline>         infoToHandle_umap;
+    };
 public:  //functions
     explicit PipelinesFactory(vk::Device in_device);
 
     std::pair<vk::PipelineLayout, const vk::PipelineLayoutCreateInfo*> GetPipelineLayout(const vk::PipelineLayoutCreateInfo& create_info);
+
     std::pair<vk::Pipeline, const vk::GraphicsPipelineCreateInfo*> GetPipeline(const vk::GraphicsPipelineCreateInfo& create_info);
+    std::pair<vk::Pipeline, const vk::ComputePipelineCreateInfo*> GetPipeline(const vk::ComputePipelineCreateInfo& create_info);
 
 private: //data
     PipelineLayoutCache pipelineLayoutCache;
+
     GraphicsPipelineCache graphicsPipelineCache;
+    ComputePipelineCache computePipelineCache;
 };

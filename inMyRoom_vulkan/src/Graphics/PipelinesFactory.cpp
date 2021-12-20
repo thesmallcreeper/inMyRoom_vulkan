@@ -281,7 +281,45 @@ PipelinesFactory::GraphicsPipelineCache::GetGraphicsPipeline(const vk::GraphicsP
             return_pipeline = it->second;
             return_info_ptr = &it->first;
         } else {
-            std::cerr << "Failed to create pipeline. \n";
+            std::cerr << "Failed to create graphics pipeline. \n";
+            std::terminate();
+        }
+    }
+
+    return {return_pipeline, return_info_ptr};
+}
+
+PipelinesFactory::ComputePipelineCache::ComputePipelineCache(vk::Device in_device)
+    :device(in_device)
+{
+}
+
+PipelinesFactory::ComputePipelineCache::~ComputePipelineCache()
+{
+    for (auto& this_pair: infoToHandle_umap) {
+        device.destroyPipeline(this_pair.second);
+    }
+}
+
+std::pair<vk::Pipeline, const vk::ComputePipelineCreateInfo *>
+    PipelinesFactory::ComputePipelineCache::GetComputePipeline(const vk::ComputePipelineCreateInfo &create_info)
+{
+    assert(create_info.pNext == nullptr);
+
+    vk::Pipeline return_pipeline;
+    const vk::ComputePipelineCreateInfo* return_info_ptr;
+    auto search = infoToHandle_umap.find(create_info);
+    if (search != infoToHandle_umap.end()) {
+        return_pipeline = search->second;
+        return_info_ptr = &search->first;
+    } else {
+        auto pipeline_opt = device.createComputePipeline( VK_NULL_HANDLE, create_info);
+        if (pipeline_opt.result == vk::Result::eSuccess) {
+            auto it = infoToHandle_umap.emplace(create_info, pipeline_opt.value).first;
+            return_pipeline = it->second;
+            return_info_ptr = &it->first;
+        } else {
+            std::cerr << "Failed to create compute pipeline. \n";
             std::terminate();
         }
     }
@@ -291,7 +329,8 @@ PipelinesFactory::GraphicsPipelineCache::GetGraphicsPipeline(const vk::GraphicsP
 
 PipelinesFactory::PipelinesFactory(vk::Device in_device)
     :pipelineLayoutCache(in_device),
-     graphicsPipelineCache(in_device)
+     graphicsPipelineCache(in_device),
+     computePipelineCache(in_device)
 {
 }
 
@@ -306,3 +345,10 @@ std::pair<vk::Pipeline, const vk::GraphicsPipelineCreateInfo *>
 {
     return graphicsPipelineCache.GetGraphicsPipeline(create_info);
 }
+
+std::pair<vk::Pipeline, const vk::ComputePipelineCreateInfo *>
+    PipelinesFactory::GetPipeline(const vk::ComputePipelineCreateInfo &create_info)
+{
+    return computePipelineCache.GetComputePipeline(create_info);
+}
+

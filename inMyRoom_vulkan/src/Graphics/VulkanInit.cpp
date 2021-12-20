@@ -79,10 +79,20 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vk::PhysicalDeviceFeatures vulkan_device_features;
     vulkan_device_features.samplerAnisotropy = VK_TRUE;
 
+    vk::PhysicalDeviceVulkan11Features vulkan11_device_features;
+    vk::PhysicalDeviceVulkan12Features vulkan12_device_features;
+    vulkan12_device_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    vulkan12_device_features.runtimeDescriptorArray = VK_TRUE;
+    vulkan12_device_features.descriptorBindingVariableDescriptorCount = VK_TRUE;
+    vulkan12_device_features.descriptorBindingPartiallyBound = VK_TRUE;
+
+    void* pNext = &vulkan11_device_features;
+    vulkan11_device_features.pNext = &vulkan12_device_features;
     CreateDevice(selected_device,
                  1, 0, 0,
                  vulkan_device_extensions,
-                 vulkan_device_features);
+                 vulkan_device_features,
+                 pNext);
 
     //
     // Initialize VMA allocator

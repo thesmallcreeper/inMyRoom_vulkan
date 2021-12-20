@@ -325,6 +325,12 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                 }
             }
         }
+
+        // Align
+        if(texcoords.size() % 4 == 2) {
+            texcoords.emplace_back(0.f);
+            texcoords.emplace_back(0.f);
+        }
     }
 
     {// Color (only COLOR_0)
@@ -508,6 +514,14 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                               std::back_inserter(joints));
                 }
             }
+        }
+
+        // Align
+        if(joints.size() % 8 == 4) {
+            texcoords.emplace_back(0);
+            texcoords.emplace_back(0);
+            texcoords.emplace_back(0);
+            texcoords.emplace_back(0);
         }
     }
 
