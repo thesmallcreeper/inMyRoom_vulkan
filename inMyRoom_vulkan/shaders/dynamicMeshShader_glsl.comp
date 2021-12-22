@@ -1,0 +1,94 @@
+#version 450
+
+#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_shader_16bit_storage : require
+
+#ifdef USE_VEC2
+    #define VEC vec2
+#else
+    #define VEC vec4
+#endif
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = 1, local_size_z = 1) in;
+
+// Push constant
+
+layout (push_constant) uniform PushConstants
+{
+    layout(offset = 0)  uint matrixOffset;
+    layout(offset = 4)  uint inverseMatricesOffset;
+    layout(offset = 8)  uint verticesOffset;
+    layout(offset = 12) uint jointsOffset;
+    layout(offset = 16) uint weightsOffset;
+    layout(offset = 20) uint jointsGroupsCount;
+    layout(offset = 24) uint morphTargets;
+    layout(offset = 28) uint size_x;
+    layout(offset = 32) uint step_multiplier;
+    layout(offset = 36) uint resultDescriptorIndex;
+    layout(offset = 40) uint resultOffset;
+    layout(offset = 44) float morph_weights[MAX_MORPH_WEIGHTS];
+};
+
+// Description sets
+
+layout( std140, set = 0 , binding = 0 ) readonly buffer nodesMatrixBuffer
+{
+    mat4 matrices[MATRICES_COUNT];
+};
+
+layout( std140, set = 1 , binding = 0 ) readonly buffer inverseMatricesBuffer
+{
+    mat4 inverseMatrices[INVERSE_MATRICES_COUNT];
+};
+
+layout( std140, set = 2, binding = 0 ) buffer vecVerticesBuffersDescriptors
+{
+    VEC vertices[];
+} verticesBuffers [];
+
+layout( std140, set = 2, binding = 0 ) buffer uvec4verticesBuffersDescriptors
+{
+    u16vec4 vertices[];
+} u16vec4verticesBuffers [];
+
+layout( std140, set = 2, binding = 0 ) buffer vec4verticesBuffersDescriptors
+{
+    vec4 vertices[];
+} vec4verticesBuffers [];
+
+void main() {
+    const uint x = gl_GlobalInvocationID.x;
+    if (x >= size_x) {
+        return;
+    }
+
+    VEC morphed_vertex = verticesBuffers[0].vertices[verticesOffset + (morphTargets + 1) * x * step_multiplier];
+    for (uint i = 0; i != morphTargets && i != MAX_MORPH_WEIGHTS; ++i) {
+        VEC this_vertex = verticesBuffers[0].vertices[verticesOffset + (morphTargets + 1) * x * step_multiplier + i];
+        float this_weight = morph_weights[i];
+
+        morphed_vertex += this_weight * this_vertex;
+    }
+
+    #ifdef USE_SKIN
+    mat4 skin_matrix = mat4(0.f);
+    if (jointsGroupsCount == 0) {
+        skin_matrix = mat4(1.f);
+    }
+    for (uint i = 0; i != jointsGroupsCount; ++i) {
+        vec4 weights =  vec4verticesBuffers[0].vertices[jointsOffset  + x*jointsGroupsCount + i];
+        uvec4 joints = uvec4(u16vec4verticesBuffers[0].vertices[weightsOffset + x*jointsGroupsCount + i]);
+
+        skin_matrix += weights.x * matrices[joints.x+matrixOffset+1] * inverseMatrices[joints.x+inverseMatricesOffset];
+        skin_matrix += weights.y * matrices[joints.y+matrixOffset+1] * inverseMatrices[joints.y+inverseMatricesOffset];
+        skin_matrix += weights.z * matrices[joints.z+matrixOffset+1] * inverseMatrices[joints.z+inverseMatricesOffset];
+        skin_matrix += weights.w * matrices[joints.w+matrixOffset+1] * inverseMatrices[joints.w+inverseMatricesOffset];
+    }
+    vec4 result = skin_matrix*morphed_vertex;
+    #else
+    VEC result = morphed_vertex;
+    #endif
+
+    verticesBuffers[resultDescriptorIndex].vertices[resultOffset + x * step_multiplier] = result;
+}
+

@@ -105,7 +105,7 @@ void SkinsOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
         descriptor_set_layout_binding.binding = 0;
         descriptor_set_layout_binding.descriptorType = vk::DescriptorType::eStorageBuffer;
         descriptor_set_layout_binding.descriptorCount = 1;
-        descriptor_set_layout_binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+        descriptor_set_layout_binding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eCompute;
 
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({},1, &descriptor_set_layout_binding);
         descriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;

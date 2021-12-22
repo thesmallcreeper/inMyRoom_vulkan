@@ -57,12 +57,21 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
             this_modelDrawCompEntity.isSkin = static_cast<bool>(this_int);
         }
     }
+    // "HasMorphTargets", hasMorphTargets = int (optional)
+    {
+        auto search = in_map.intMap.find("HasMorphTargets");
+        if (search != in_map.intMap.end())
+        {
+            int this_int = search->second;
+            this_modelDrawCompEntity.hasMorphTargets = static_cast<bool>(this_int);
+        }
+    }
 
     return this_modelDrawCompEntity;
 }
 
 void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
-                                      const DynamicMeshComp* skinEntity_ptr,
+                                      const DynamicMeshComp* dynamicMeshComp_ptr,
                                       std::vector<glm::mat4>& matrices,
                                       std::vector<DrawInfo>& draw_infos) const
 {
@@ -73,26 +82,39 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
         this_draw_info.matricesOffset = matrices.size();
         this_draw_info.dontCull = disableCulling;
 
-        if (not isSkin) {
-            this_draw_info.isSkin = false;
-
+        if (not isSkin && not hasMorphTargets) {
             glm::mat4 matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             matrices.emplace_back(matrix);
         } else {
-            this_draw_info.isSkin = true;
-            this_draw_info.inverseMatricesOffset = skinEntity_ptr->GetComponentEntity(thisEntity).inverseBindMatricesOffset;
+            const auto& dynamic_mesh_entity = dynamicMeshComp_ptr->GetComponentEntity(thisEntity);
+            this_draw_info.dynamicMeshIndex = dynamic_mesh_entity.dynamicMeshIndex;
 
-            glm::mat4 parent_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
-            matrices.emplace_back(parent_matrix);
+            if (isSkin) {
+                this_draw_info.isSkin = true;
+                this_draw_info.inverseMatricesOffset = dynamic_mesh_entity.inverseBindMatricesOffset;
 
-            glm::mat4 inverse_parent_matrix = glm::inverse(parent_matrix);
-            for(Entity relative_entity: skinEntity_ptr->GetComponentEntity(thisEntity).jointRelativeEntities) {
-                glm::mat4 joint_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
-                matrices.emplace_back(inverse_parent_matrix * joint_matrix);
+                glm::mat4 parent_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+                matrices.emplace_back(parent_matrix);
+
+                glm::mat4 inverse_parent_matrix = glm::inverse(parent_matrix);
+                for(Entity relative_entity: dynamic_mesh_entity.jointRelativeEntities) {
+                    glm::mat4 joint_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
+                    matrices.emplace_back(inverse_parent_matrix * joint_matrix);
+                }
+            }
+            if (hasMorphTargets) {
+                this_draw_info.weights = dynamic_mesh_entity.morphTargetsWeights;
+                this_draw_info.hasMorphTargets = true;
             }
         }
 
         draw_infos.emplace_back(this_draw_info);
     }
 }
+
+void ModelDrawCompEntity::ToBeRemovedCallback()
+{
+    shouldDraw = false;
+}
+
 #endif

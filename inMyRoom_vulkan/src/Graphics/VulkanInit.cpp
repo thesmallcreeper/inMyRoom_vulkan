@@ -80,6 +80,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan_device_features.samplerAnisotropy = VK_TRUE;
 
     vk::PhysicalDeviceVulkan11Features vulkan11_device_features;
+    vulkan11_device_features.storageBuffer16BitAccess = VK_TRUE;
     vk::PhysicalDeviceVulkan12Features vulkan12_device_features;
     vulkan12_device_features.descriptorIndexing = VK_TRUE;
     vulkan12_device_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;

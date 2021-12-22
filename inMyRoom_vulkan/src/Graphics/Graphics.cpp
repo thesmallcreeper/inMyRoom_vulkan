@@ -34,6 +34,8 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, vk::Dev
     InitShadersSetsFamiliesCache();
     printf("Initializing meshes tree\n");
     InitMeshesTree();
+    printf("Initializing dynamic meshes\n");
+    InitDynamicMeshes();
     printf("Initializing graphics oriented components\n");
     InitGraphicsComponents();
 }
@@ -63,6 +65,7 @@ Graphics::~Graphics()
     vma_allocator.destroyBuffer(cameraBuffer, cameraAllocation);
     vma_allocator.destroyBuffer(matricesBuffer, matricesAllocation);
 
+    dynamicMeshes_uptr.reset();
     meshesOfNodes_uptr.reset();
     skinsOfMeshes_uptr.reset();
     materialsOfPrimitives_uptr.reset();
@@ -106,8 +109,9 @@ void Graphics::DrawFrame()
                                                          uint64_t(-1),
                                                          imageAvailableSemaphore).value;
 
-    ViewportFrustum culling_viewport = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
+    dynamicMeshes_uptr->SwapDescriptorSet();
 
+    ViewportFrustum culling_viewport = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
     FrustumCulling frustum_culling;
     frustum_culling.SetFrustumPlanes(culling_viewport.GetWorldSpacePlanesOfFrustum());
 
@@ -140,6 +144,7 @@ void Graphics::DrawFrame()
 
     graphicsQueue.first.presentKHR(present_info);
 
+    dynamicMeshes_uptr->CompleteRemovesSafe();
     ++frameCount;
 }
 
@@ -150,6 +155,13 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
                                    const FrustumCulling& frustum_culling)
 {
     command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+    std::vector<DrawInfo> dynamic_meshes_draw_infos;
+    for(const DrawInfo& this_draw_info : draw_infos) {
+        if (this_draw_info.isSkin || this_draw_info.hasMorphTargets)
+            dynamic_meshes_draw_infos.emplace_back(this_draw_info);
+    }
+    dynamicMeshes_uptr->RecordTransformations(command_buffer, dynamic_meshes_draw_infos);
 
     vk::RenderPassBeginInfo render_pass_begin_info;
     vk::ClearValue clear_values[2];
@@ -320,7 +332,7 @@ void Graphics::InitDescriptors()
         buffer_binding.binding = 0;
         buffer_binding.descriptorType = vk::DescriptorType::eStorageBuffer;
         buffer_binding.descriptorCount = 1;
-        buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+        buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eCompute;
 
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &buffer_binding);
         matricesDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
@@ -576,6 +588,12 @@ void Graphics::InitShadersSetsFamiliesCache()
         this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Dynamic Mesh Evaluation Shader";
+        this_shaderSetInitInfo.computeShaderSourceFilename = "dynamicMeshShader_glsl.comp";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
 }
 
 void Graphics::InitMeshesTree()
@@ -591,6 +609,12 @@ void Graphics::InitMeshesTree()
     skinsOfMeshes_uptr = std::make_unique<SkinsOfMeshes>(device, vma_allocator);
 
     meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get());
+
+}
+
+void Graphics::InitDynamicMeshes()
+{
+    dynamicMeshes_uptr = std::make_unique<DynamicMeshes>(this, device, vma_allocator, 127);
 }
 
 void Graphics::InitGraphicsComponents()
@@ -618,9 +642,10 @@ void Graphics::InitGraphicsComponents()
     }
 
     {
-        skinComp_uptr = std::make_unique<DynamicMeshComp>(engine_ptr->GetECSwrapperPtr(),
-                                                          skinsOfMeshes_uptr.get());
-        engine_ptr->GetECSwrapperPtr()->AddComponent(skinComp_uptr.get());
+        dynamicMeshComp_uptr = std::make_unique<DynamicMeshComp>(engine_ptr->GetECSwrapperPtr(),
+                                                                 dynamicMeshes_uptr.get(),
+                                                                 meshesOfNodes_uptr.get());
+        engine_ptr->GetECSwrapperPtr()->AddComponent(dynamicMeshComp_uptr.get());
     }
 }
 
@@ -642,6 +667,7 @@ void Graphics::EndModelsLoad()
     materialsOfPrimitives_uptr->FlashDevice(graphicsQueue);
     primitivesOfMeshes_uptr->FlashDevice(graphicsQueue);
     skinsOfMeshes_uptr->FlashDevice(graphicsQueue);
+    dynamicMeshes_uptr->FlashDevice();
 
     // Create primitives sets (shaders-pipelines for each kind of primitive)
     printf("-Initializing \"Texture Pass\" primitives set\n");

@@ -18,5 +18,6 @@ public:
 
     void AddDrawInfos(std::vector<glm::mat4>& matrices,
                       std::vector<DrawInfo>& draw_infos);
+    void ToBeRemovedCallback(const std::vector<std::pair<Entity, Entity>>& callback_ranges) override;
 };
 

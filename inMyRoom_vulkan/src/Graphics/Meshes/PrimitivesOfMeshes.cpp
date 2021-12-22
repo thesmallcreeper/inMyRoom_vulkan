@@ -769,7 +769,7 @@ void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
     {
         vk::BufferCreateInfo indices_buffer_create_info;
         indices_buffer_create_info.size = indices_size_bytes;
-        indices_buffer_create_info.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        indices_buffer_create_info.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
         indices_buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
         vma::AllocationCreateInfo indices_allocation_create_info;
@@ -783,7 +783,7 @@ void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
     {
         vk::BufferCreateInfo vertices_buffer_create_info;
         vertices_buffer_create_info.size = vertices_size_bytes;
-        vertices_buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        vertices_buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
         vertices_buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
         vma::AllocationCreateInfo vertices_allocation_create_info;

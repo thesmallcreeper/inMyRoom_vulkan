@@ -6,13 +6,18 @@
 #include "ECS/ComponentsIDsEnum.h"
 
 #include "Graphics/Meshes/SkinsOfMeshes.h"
+#include "Graphics/DynamicMeshes.h"
 
 class DynamicMeshComp final
     : public ComponentDataClass<DynamicMeshCompEntity, static_cast<componentID>(componentIDenum::DynamicMesh), "DynamicMesh", sparse_set>
 {
 public:
-    explicit DynamicMeshComp(ECSwrapper* const in_ecs_wrapper_ptr, SkinsOfMeshes* in_skinsOfMeshes_ptr);
+    DynamicMeshComp(ECSwrapper* ecs_wrapper_ptr, DynamicMeshes* dynamicMeshes_ptr, MeshesOfNodes* meshesOfNodes_ptr);
+
+    void Update() override;
+    void ToBeRemovedCallback(const std::vector<std::pair<Entity, Entity>>& callback_ranges) override;
 
 private:
-    SkinsOfMeshes* skinsOfMeshes_ptr;
+    DynamicMeshes* dynamicMeshes_ptr;
+    MeshesOfNodes* meshesOfNodes_ptr;
 };

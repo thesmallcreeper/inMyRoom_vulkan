@@ -3,6 +3,8 @@
 #include "ECS/ECSwrapper.h"
 
 #ifndef GAME_DLL
+#include "Graphics/DynamicMeshes.h"
+#include "Graphics/Meshes/PrimitivesOfMeshes.h"
 
 DynamicMeshCompEntity::DynamicMeshCompEntity(const Entity this_entity)
     :CompEntityBaseWrappedClass<DynamicMeshComp>(this_entity)
@@ -66,6 +68,28 @@ DynamicMeshCompEntity DynamicMeshCompEntity::CreateComponentEntityByMap(const En
     }
 
     return this_skinCompEntity;
+}
+
+void DynamicMeshCompEntity::Update(ModelDrawComp* modelDrawComp_ptr,
+                                   DynamicMeshes* dynamicMeshes_ptr,
+                                   MeshesOfNodes* meshesOfNodes_ptr)
+{
+    if (dynamicMeshIndex == -1 && not toBeRemoved) {
+        size_t mesh_index = modelDrawComp_ptr->GetComponentEntity(thisEntity).meshIndex;
+        std::vector<size_t> primitives_index= meshesOfNodes_ptr->GetMeshInfo(mesh_index).primitivesIndex;
+
+        dynamicMeshIndex = dynamicMeshes_ptr->AddDynamicMesh(primitives_index);
+    }
+}
+
+void DynamicMeshCompEntity::ToBeRemovedCallBack(DynamicMeshes *dynamicMeshes_ptr)
+{
+    if(dynamicMeshIndex != -1) {
+        dynamicMeshes_ptr->RemoveDynamicMeshSafe(dynamicMeshIndex);
+        dynamicMeshIndex = -1;
+        toBeRemoved = true;
+    }
+
 }
 
 #endif

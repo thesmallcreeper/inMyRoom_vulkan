@@ -21,21 +21,25 @@ public:
             "ShouldDraw",        shouldDraw              = int         (optional)
             "DisableCulling",    disableCulling          = int         (optional)
             "IsSkin",            isSkin                  = int         (optional)
+            "HasMorphTargets",   hasMorphTargets         = int         (optional)
     */
     static ModelDrawCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
-                     const DynamicMeshComp* skinEntity_ptr,
+                     const DynamicMeshComp* dynamicMeshComp_ptr,
                      std::vector<glm::mat4>& matrices,
                      std::vector<DrawInfo>& draw_infos) const;
 
+    void ToBeRemovedCallback();
+
 #endif
 public: // data
-    uint32_t meshIndex;
+    uint32_t meshIndex = -1;
     bool shouldDraw = true;
     bool disableCulling = false;
-    
+
     bool isSkin = false;
+    bool hasMorphTargets = false;
 };
 
 #ifdef GAME_DLL

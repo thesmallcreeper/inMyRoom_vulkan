@@ -71,16 +71,19 @@ public:
 
     [[nodiscard]] std::pair<iterator, iterator> get_range_iterators(const std::pair<index_T, index_T>& range)
     {
-        std::pair<iterator, iterator> range_iterators = {dense_array.data() + range.first - sparse_array_offset,
-                                                         dense_array.data() + range.second - sparse_array_offset + 1};
+        std::pair<iterator, iterator> range_iterators = {iterator(&dense_array[size_t(sparse_array[range.first - sparse_array_offset])]),
+                                                         iterator(&dense_array[size_t(sparse_array[range.second - sparse_array_offset])] + 1)};
 
         return range_iterators;
     }
 
     [[nodiscard]] std::pair<const_iterator, const_iterator> get_range_iterators(const std::pair<index_T, index_T>& range) const
     {
-        std::pair<const_iterator, const_iterator> range_iterators = {dense_array.data() + range.first - sparse_array_offset,
-                                                                     dense_array.data() + range.second - sparse_array_offset + 1};
+        assert(does_exist(range.first));
+        assert(does_exist(range.second));
+
+        std::pair<const_iterator, const_iterator> range_iterators = {const_iterator(&dense_array[size_t(sparse_array[range.first - sparse_array_offset])]),
+                                                                     const_iterator(&dense_array[size_t(sparse_array[range.second - sparse_array_offset])] + 1)};
 
         return range_iterators;
     }

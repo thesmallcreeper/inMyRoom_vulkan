@@ -4,6 +4,7 @@
 
 class DynamicMeshComp;
 
+#include "ECS/GeneralCompEntities/ModelDrawCompEntity.h"
 #include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
 
 class DynamicMeshCompEntity :
@@ -22,7 +23,12 @@ public:
     */
     static DynamicMeshCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
+    void Update( ModelDrawComp* modelDrawComp_ptr, class DynamicMeshes* dynamicMeshes_ptr, class MeshesOfNodes* meshesOfNodes_ptr);
+    void ToBeRemovedCallBack(class DynamicMeshes* dynamicMeshes_ptr);
+
 #endif
+    bool IsSkin() const {return jointRelativeEntities.size();}
+    bool HasMorphTargets() const {return morphTargetsWeights.size();}
 public: // data
     // skin
     std::vector<Entity> jointRelativeEntities;
@@ -31,8 +37,9 @@ public: // data
     // morph targets
     std::vector<float> morphTargetsWeights;
 
-    bool IsSkin() const {return jointRelativeEntities.size();}
-    bool HasMorphTargets() const {return morphTargetsWeights.size();}
+    // dynamic mesh index
+    size_t dynamicMeshIndex = -1;
+    bool toBeRemoved = false;
 };
 
 #ifdef GAME_DLL

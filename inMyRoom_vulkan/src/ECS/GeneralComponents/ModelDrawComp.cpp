@@ -32,3 +32,17 @@ void ModelDrawComp::AddDrawInfos(std::vector<glm::mat4>& matrices,
     }
 }
 
+void ModelDrawComp::ToBeRemovedCallback(const std::vector<std::pair<Entity, Entity>> &callback_ranges)
+{
+    size_t containers_count_when_start = GetContainersCount();
+    for (const std::pair<Entity, Entity>& this_range : callback_ranges) {
+        size_t container_index = this->entitiesHandler_ptr->GetContainerIndexOfEntity(this_range.first);
+        auto& container = GetContainerByIndex(container_index);
+
+        auto iterators = container.get_range_iterators(this_range);
+        for (auto it = iterators.first; it != iterators.second; ++it) {
+            it->ToBeRemovedCallback();
+        }
+    }
+}
+
