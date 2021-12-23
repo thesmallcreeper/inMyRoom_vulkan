@@ -518,10 +518,10 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
         // Align
         if(joints.size() % 8 == 4) {
-            texcoords.emplace_back(0);
-            texcoords.emplace_back(0);
-            texcoords.emplace_back(0);
-            texcoords.emplace_back(0);
+            joints.emplace_back(0);
+            joints.emplace_back(0);
+            joints.emplace_back(0);
+            joints.emplace_back(0);
         }
     }
 
@@ -989,6 +989,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         PrimitiveInfo& this_info = primitivesInfo[i];
 
         size_t position_byte_size = this_initializeData.position.size() * sizeof(float);
+        assert(position_byte_size % 16 == 0);
         if (position_byte_size) {
             memcpy(ptr + offset, this_initializeData.position.data(), position_byte_size);
             this_info.positionOffset = offset;
@@ -996,6 +997,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         }
 
         size_t normal_byte_size = this_initializeData.normal.size() * sizeof(float);
+        assert(normal_byte_size % 16 == 0);
         if (normal_byte_size) {
             memcpy(ptr + offset, this_initializeData.normal.data(), normal_byte_size);
             this_info.normalOffset = offset;
@@ -1003,6 +1005,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         }
 
         size_t tangent_byte_size = this_initializeData.tangent.size() * sizeof(float);
+        assert(tangent_byte_size % 16 == 0);
         if (tangent_byte_size) {
             memcpy(ptr + offset, this_initializeData.tangent.data(), tangent_byte_size);
             this_info.tangentOffset = offset;
@@ -1010,6 +1013,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         }
 
         size_t texcoords_byte_size = this_initializeData.texcoords.size() * sizeof(float);
+        assert(texcoords_byte_size % 16 == 0);
         if (texcoords_byte_size) {
             memcpy(ptr + offset, this_initializeData.texcoords.data(), texcoords_byte_size);
             this_info.texcoordsOffset = offset;
@@ -1017,6 +1021,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         }
 
         size_t color_byte_size = this_initializeData.color.size() * sizeof(float);
+        assert(color_byte_size % 16 == 0);
         if (color_byte_size) {
             memcpy(ptr + offset, this_initializeData.color.data(), color_byte_size);
             this_info.colorOffset = offset;
@@ -1024,6 +1029,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         }
 
         size_t joints_byte_size = this_initializeData.joints.size() * sizeof(uint16_t);
+        assert(joints_byte_size % 16 == 0);
         if (joints_byte_size) {
             memcpy(ptr + offset, this_initializeData.joints.data(), joints_byte_size);
             this_info.jointsOffset = offset;
@@ -1031,6 +1037,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         }
 
         size_t weights_byte_size = this_initializeData.weights.size() * sizeof(float);
+        assert(weights_byte_size % 16 == 0);
         if (weights_byte_size) {
             memcpy(ptr + offset, this_initializeData.weights.data(), weights_byte_size);
             this_info.weightsOffset = offset;

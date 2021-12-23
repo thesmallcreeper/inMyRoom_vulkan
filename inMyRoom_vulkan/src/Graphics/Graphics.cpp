@@ -77,6 +77,8 @@ Graphics::~Graphics()
 
 void Graphics::DrawFrame()
 {
+    ++frameCount;
+
     size_t bufferIndex = frameCount % 2;
 
     std::vector<glm::mat4> matrices;
@@ -145,7 +147,6 @@ void Graphics::DrawFrame()
     graphicsQueue.first.presentKHR(present_info);
 
     dynamicMeshes_uptr->CompleteRemovesSafe();
-    ++frameCount;
 }
 
 void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
@@ -179,18 +180,29 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
     command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
     for (const DrawInfo& this_draw: draw_infos) {
-        for (size_t primitive_index : meshesOfNodes_uptr->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
-            const PrimitiveInfo& primitive_info = primitivesOfMeshes_uptr->GetPrimitiveInfo(primitive_index);
+        std::vector<std::tuple<size_t, PrimitiveInfo, DynamicPrimitiveInfo>> info_tuples;
 
-            vk::Pipeline pipeline = primitivesPipelines[primitive_index];
+        if (this_draw.dynamicMeshIndex != -1) {
+            const auto &dynamic_primitives_infos = dynamicMeshes_uptr->GetDynamicPrimitivesInfo(this_draw.dynamicMeshIndex);
+            for (const auto& this_dynamic_primitive_info: dynamic_primitives_infos) {
+                const PrimitiveInfo &this_primitive_info = primitivesOfMeshes_uptr->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
+                info_tuples.emplace_back(this_dynamic_primitive_info.primitiveIndex, this_primitive_info, this_dynamic_primitive_info);
+            }
+        } else {
+            for (size_t primitive_index : meshesOfNodes_uptr->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
+                const PrimitiveInfo& primitive_info = primitivesOfMeshes_uptr->GetPrimitiveInfo(primitive_index);
+                info_tuples.emplace_back(primitive_index, primitive_info, DynamicPrimitiveInfo());
+            }
+        }
+
+        for (const auto& this_info_tuple : info_tuples) {
+            vk::Pipeline pipeline = primitivesPipelines[std::get<0>(this_info_tuple)];
             command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
-            vk::PipelineLayout pipeline_layout = primitivesPipelineLayouts[primitive_index];
+            vk::PipelineLayout pipeline_layout = primitivesPipelineLayouts[std::get<0>(this_info_tuple)];
             std::vector<vk::DescriptorSet> descriptor_sets;
             descriptor_sets.emplace_back(cameraDescriptorSets[buffer_index]);
             descriptor_sets.emplace_back(matricesDescriptorSets[buffer_index]);
-            if (this_draw.isSkin)
-                descriptor_sets.emplace_back(skinsOfMeshes_uptr->GetDescriptorSet());
             descriptor_sets.emplace_back(materialsOfPrimitives_uptr->GetDescriptorSet());
             command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                               pipeline_layout,
@@ -198,63 +210,76 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
                                               descriptor_sets,
                                               {});
 
-            std::array<uint32_t, 2> data_vertex = {uint32_t(this_draw.matricesOffset), uint32_t(this_draw.inverseMatricesOffset)};
-            command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, 8, data_vertex.data());
+            std::array<uint32_t, 1> data_vertex = {uint32_t(this_draw.matricesOffset)};
+            command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, 4, data_vertex.data());
 
-            std::array<uint32_t, 1> data_frag = {uint32_t(primitive_info.material)};
-            command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, 8, 4, data_frag.data());
+            std::array<uint32_t, 1> data_frag = {uint32_t(std::get<1>(this_info_tuple).material)};
+            command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, 4, 4, data_frag.data());
 
-            vk::Buffer vertexBuffer = primitivesOfMeshes_uptr->GetVerticesBuffer();
+            vk::Buffer staticBuffer = primitivesOfMeshes_uptr->GetVerticesBuffer();
             std::vector<vk::Buffer> buffers;
             std::vector<vk::DeviceSize> offsets;
 
             // Position
-            buffers.emplace_back(vertexBuffer);
-            offsets.emplace_back(primitive_info.positionOffset);
+            if (std::get<2>(this_info_tuple).positionOffset != -1) {
+                offsets.emplace_back(std::get<2>(this_info_tuple).positionOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
+                buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
+            } else {
+                offsets.emplace_back(std::get<1>(this_info_tuple).positionOffset);
+                buffers.emplace_back(staticBuffer);
+            }
 
             // Normal
-            if (primitive_info.normalOffset != -1) {
-                buffers.emplace_back(vertexBuffer);
-                offsets.emplace_back(primitive_info.normalOffset);
+            if (std::get<1>(this_info_tuple).normalOffset != -1) {
+                if (std::get<2>(this_info_tuple).normalOffset != -1) {
+                    offsets.emplace_back(std::get<2>(this_info_tuple).normalOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
+                    buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
+                } else {
+                    offsets.emplace_back(std::get<1>(this_info_tuple).normalOffset);
+                    buffers.emplace_back(staticBuffer);
+                }
             }
 
             // Tangent
-            if (primitive_info.tangentOffset != -1) {
-                buffers.emplace_back(vertexBuffer);
-                offsets.emplace_back(primitive_info.tangentOffset);
+            if (std::get<1>(this_info_tuple).tangentOffset != -1) {
+                if (std::get<2>(this_info_tuple).tangentOffset != -1) {
+                    offsets.emplace_back(std::get<2>(this_info_tuple).tangentOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
+                    buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
+                } else {
+                    offsets.emplace_back(std::get<1>(this_info_tuple).tangentOffset);
+                    buffers.emplace_back(staticBuffer);
+                }
             }
 
             // Texcoords
-            if (primitive_info.texcoordsOffset != -1) {
-                buffers.emplace_back(vertexBuffer);
-                offsets.emplace_back(primitive_info.texcoordsOffset);
+            if (std::get<1>(this_info_tuple).texcoordsOffset != -1) {
+                if (std::get<2>(this_info_tuple).texcoordsOffset != -1) {
+                    offsets.emplace_back(std::get<2>(this_info_tuple).texcoordsOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
+                    buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
+                } else {
+                    offsets.emplace_back(std::get<1>(this_info_tuple).texcoordsOffset);
+                    buffers.emplace_back(staticBuffer);
+                }
             }
 
             // Color
-            if (primitive_info.colorOffset != -1) {
-                buffers.emplace_back(vertexBuffer);
-                offsets.emplace_back(primitive_info.colorOffset);
-            }
-
-            // Joint
-            if (primitive_info.jointsOffset != -1) {
-                buffers.emplace_back(vertexBuffer);
-                offsets.emplace_back(primitive_info.jointsOffset);
-            }
-
-            // Weight
-            if (primitive_info.weightsOffset != -1) {
-                buffers.emplace_back(vertexBuffer);
-                offsets.emplace_back(primitive_info.weightsOffset);
+            if (std::get<1>(this_info_tuple).colorOffset != -1) {
+                if (std::get<2>(this_info_tuple).colorOffset != -1) {
+                    offsets.emplace_back(std::get<2>(this_info_tuple).colorOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
+                    buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
+                } else {
+                    offsets.emplace_back(std::get<1>(this_info_tuple).colorOffset);
+                    buffers.emplace_back(staticBuffer);
+                }
             }
 
             command_buffer.bindVertexBuffers(0, buffers, offsets);
 
             command_buffer.bindIndexBuffer(primitivesOfMeshes_uptr->GetIndicesBuffer(),
-                                           primitive_info.indicesOffset,
+                                           std::get<1>(this_info_tuple).indicesOffset,
                                            vk::IndexType::eUint32);
 
-            command_buffer.drawIndexed(primitive_info.indicesCount, 1, 0, 0, 0);
+            command_buffer.drawIndexed(std::get<1>(this_info_tuple).indicesCount, 1, 0, 0, 0);
         }
     }
 
@@ -689,20 +714,12 @@ void Graphics::EndModelsLoad()
             std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
             descriptor_sets_layouts.emplace_back(cameraDescriptorSetLayout);
             descriptor_sets_layouts.emplace_back(matricesDescriptorSetLayout);
-            if (is_skin) {
-                descriptor_sets_layouts.emplace_back(skinsOfMeshes_uptr->GetDescriptorSetLayout());
-                shadersDefinitionStringPairs.emplace_back("USE_SKIN", "");
-                shadersDefinitionStringPairs.emplace_back("INVERSE_MATRICES_COUNT", std::to_string(skinsOfMeshes_uptr->GetCountOfInverseBindMatrices()));
-                shadersDefinitionStringPairs.emplace_back("MATERIAL_DS_INDEX", "3");
-            } else {
-                shadersDefinitionStringPairs.emplace_back("MATERIAL_DS_INDEX", "2");
-            }
             descriptor_sets_layouts.emplace_back(materialsOfPrimitives_uptr->GetDescriptorSetLayout());
             pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
             std::vector<vk::PushConstantRange> push_constant_range;
-            push_constant_range.emplace_back(vk::ShaderStageFlagBits::eVertex, 0, 8);
-            push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 8, 4);
+            push_constant_range.emplace_back(vk::ShaderStageFlagBits::eVertex, 0, 4);
+            push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 4, 4);
             pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
             this_pipeline_layout = pipelinesFactory_uptr->GetPipelineLayout(pipeline_layout_create_info).first;
@@ -722,7 +739,7 @@ void Graphics::EndModelsLoad()
             size_t location_index = 0;
 
             vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                           (this_primitiveInfo.positionMorphTargets + 1) * 4 * sizeof(float),
+                                                           4 * sizeof(float),
                                                            vk::VertexInputRate::eVertex);
             vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                              vk::Format::eR32G32B32A32Sfloat,
@@ -731,7 +748,7 @@ void Graphics::EndModelsLoad()
 
             if (this_primitiveInfo.normalOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               (this_primitiveInfo.normalMorphTargets + 1) * 4 * sizeof(float),
+                                                               4 * sizeof(float),
                                                                vk::VertexInputRate::eVertex);
                 vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                                  vk::Format::eR32G32B32A32Sfloat,
@@ -744,7 +761,7 @@ void Graphics::EndModelsLoad()
 
             if (this_primitiveInfo.tangentOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               (this_primitiveInfo.tangentMorphTargets + 1) * 4 * sizeof(float),
+                                                               4 * sizeof(float),
                                                                vk::VertexInputRate::eVertex);
                 vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                                  vk::Format::eR32G32B32A32Sfloat,
@@ -757,13 +774,13 @@ void Graphics::EndModelsLoad()
 
             if (this_primitiveInfo.texcoordsOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               (this_primitiveInfo.texcoordsMorphTargets + 1) * this_primitiveInfo.texcoordsCount * 2 * sizeof(float),
+                                                               this_primitiveInfo.texcoordsCount * 2 * sizeof(float),
                                                                vk::VertexInputRate::eVertex);
 
                 for (size_t index = 0; index != this_primitiveInfo.texcoordsCount; ++index) {
                     vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                                      vk::Format::eR32G32Sfloat,
-                                                                     (this_primitiveInfo.texcoordsMorphTargets + 1) * index * 2 * sizeof(float));
+                                                                     index * 2 * sizeof(float));
                     shadersDefinitionStringPairs.emplace_back("VERT_TEXCOORD" + std::to_string(index), "");
                     shadersDefinitionStringPairs.emplace_back("VERT_TEXCOORD" + std::to_string(index) + "_LOCATION", std::to_string(location_index));
                     ++location_index;
@@ -773,7 +790,7 @@ void Graphics::EndModelsLoad()
 
             if (this_primitiveInfo.colorOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               (this_primitiveInfo.colorMorphTargets + 1) * 4 * sizeof(float),
+                                                               4 * sizeof(float),
                                                                vk::VertexInputRate::eVertex);
                 vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                                  vk::Format::eR32G32B32A32Sfloat,
@@ -781,36 +798,6 @@ void Graphics::EndModelsLoad()
                 shadersDefinitionStringPairs.emplace_back("VERT_COLOR0", "");
                 shadersDefinitionStringPairs.emplace_back("VERT_COLOR0_LOCATION", std::to_string(location_index));
                 ++binding_index; ++location_index;
-            }
-
-            if(this_primitiveInfo.jointsOffset != -1) {
-                vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               this_primitiveInfo.jointsCount * 4 * sizeof(uint16_t),
-                                                               vk::VertexInputRate::eVertex);
-                for (size_t index = 0; index != this_primitiveInfo.jointsCount; ++index) {
-                    vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
-                                                                     vk::Format::eR16G16B16A16Uint,
-                                                                     index * 4 * sizeof(uint16_t));
-                    shadersDefinitionStringPairs.emplace_back("VERT_JOINTS" + std::to_string(index), "");
-                    shadersDefinitionStringPairs.emplace_back("VERT_JOINTS" + std::to_string(index) + "_LOCATION", std::to_string(location_index));
-                    ++location_index;
-                }
-                ++binding_index;
-            }
-
-            if(this_primitiveInfo.weightsOffset != -1) {
-                vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               this_primitiveInfo.weightsCount * 4 * sizeof(float),
-                                                               vk::VertexInputRate::eVertex);
-                for (size_t index = 0; index != this_primitiveInfo.weightsCount; ++index) {
-                    vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
-                                                                     vk::Format::eR32G32B32A32Sfloat,
-                                                                     index * 4 * sizeof(float));
-                    shadersDefinitionStringPairs.emplace_back("VERT_WEIGHTS" + std::to_string(index), "");
-                    shadersDefinitionStringPairs.emplace_back("VERT_WEIGHTS" + std::to_string(index) + "_LOCATION", std::to_string(location_index));
-                    ++location_index;
-                }
-                ++binding_index;
             }
 
             vertex_input_state_create_info.setVertexBindingDescriptions(vertex_input_binding_descriptions);

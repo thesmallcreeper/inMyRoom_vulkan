@@ -248,7 +248,12 @@ std::vector<uint32_t>
     std::string preprocessed_source = {result.cbegin(), result.cend()};
 
     // Optimizations
+#ifdef _DEBUG
+    options.SetOptimizationLevel(shaderc_optimization_level_zero);
+    options.SetGenerateDebugInfo();
+#else
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
+#endif
 
     // Compile to SPIRv
     shaderc::SpvCompilationResult module =

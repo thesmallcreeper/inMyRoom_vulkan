@@ -191,7 +191,7 @@ size_t DynamicMeshes::AddDynamicMesh(const std::vector<size_t>& primitives_info_
         if (this_primitiveInfo.texcoordsMorphTargets > 0) {
             this_dynamicPrimitiveInfo.texcoordsCount  = this_primitiveInfo.texcoordsCount;
 
-            size_t size_in_byte = sizeof(float) * 2 * this_primitiveInfo.texcoordsCount;
+            size_t size_in_byte = this_primitiveInfo.verticesCount * sizeof(float) * 2 * this_primitiveInfo.texcoordsCount;
             size_in_byte += (size_in_byte % 16 == 8) ? 8 : 0;
 
             this_dynamicPrimitiveInfo.texcoordsOffset = offset;
@@ -244,6 +244,8 @@ void DynamicMeshes::SwapDescriptorSet()
 {
     assert(hasBeenFlashed);
 
+    ++swapsCounter;
+
     size_t descriptor_set_index = swapsCounter % 2;
     std::vector<vk::DescriptorBufferInfo> descriptor_buffer_infos;
 
@@ -261,7 +263,7 @@ void DynamicMeshes::SwapDescriptorSet()
 
         vk::DescriptorBufferInfo this_descriptor_buffer_info;
         this_descriptor_buffer_info.buffer = buffer;
-        this_descriptor_buffer_info.offset = descriptor_set_index == 0 ? 0 : halfSize;
+        this_descriptor_buffer_info.offset = descriptor_set_index * halfSize;
         this_descriptor_buffer_info.range = halfSize;
 
         for (auto& this_dynamic_primitive : this_pair.second) {
@@ -280,8 +282,6 @@ void DynamicMeshes::SwapDescriptorSet()
     write_descriptor_set.pBufferInfo = descriptor_buffer_infos.data();
 
     device.updateDescriptorSets(1, &write_descriptor_set, 0, nullptr);
-
-    swapsCounter++;
 }
 
 void DynamicMeshes::CompleteRemovesSafe()
@@ -316,12 +316,18 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
 
     command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, computeLayout, 0, descriptor_sets, {});
 
+    std::vector<vk::BufferMemoryBarrier> buffer_memory_barries;
     for (const auto& draw_info : draw_infos) {
         for (const DynamicPrimitiveInfo& this_dynamic_primitive : GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)) {
             const PrimitiveInfo& this_primitive = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive.primitiveIndex);
 
             if (this_dynamic_primitive.positionOffset != -1) {
                 command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, positionCompPipeline);
+
+                assert(this_primitive.positionOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.jointsOffset % (sizeof(uint16_t) * 4) == 0);
+                assert(this_primitive.weightsOffset % (sizeof(float) * 4) == 0);
+                assert(this_dynamic_primitive.positionOffset % (sizeof(float) * 4) == 0);
 
                 DynamicMeshComputePushConstants push_constants;
                 push_constants.matrixOffset = draw_info.matricesOffset;
@@ -332,6 +338,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.jointsGroupsCount = this_primitive.jointsCount;
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = this_primitive.verticesCount;
+                push_constants.step_multiplier = 1;
                 push_constants.resultDescriptorIndex = this_dynamic_primitive.descriptorIndex;
                 push_constants.resultOffset = this_dynamic_primitive.positionOffset / (sizeof(float) * 4);
                 std::copy(draw_info.weights.begin(),
@@ -341,8 +348,136 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
 
                 command_buffer.dispatch((this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
             }
+
+            if (this_dynamic_primitive.normalOffset != -1) {
+                command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, normalCompPipeline);
+
+                assert(this_primitive.normalOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.jointsOffset % (sizeof(uint16_t) * 4) == 0);
+                assert(this_primitive.weightsOffset % (sizeof(float) * 4) == 0);
+                assert(this_dynamic_primitive.normalOffset % (sizeof(float) * 4) == 0);
+
+                DynamicMeshComputePushConstants push_constants;
+                push_constants.matrixOffset = draw_info.matricesOffset;
+                push_constants.inverseMatricesOffset = draw_info.inverseMatricesOffset;
+                push_constants.verticesOffset = this_primitive.normalOffset / (sizeof(float) * 4);
+                push_constants.jointsOffset = this_primitive.jointsOffset / (sizeof(uint16_t) * 4);
+                push_constants.weightsOffset = this_primitive.weightsOffset / (sizeof(float) * 4);
+                push_constants.jointsGroupsCount = this_primitive.jointsCount;
+                push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
+                push_constants.size_x = this_primitive.verticesCount;
+                push_constants.step_multiplier = 1;
+                push_constants.resultDescriptorIndex = this_dynamic_primitive.descriptorIndex;
+                push_constants.resultOffset = this_dynamic_primitive.normalOffset / (sizeof(float) * 4);
+                std::copy(draw_info.weights.begin(),
+                          std::min(draw_info.weights.end(), draw_info.weights.begin() + push_constants.morph_weights.size()),
+                          push_constants.morph_weights.begin());
+                command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+
+                command_buffer.dispatch((this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+            }
+
+            if (this_dynamic_primitive.tangentOffset != -1) {
+                command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, tangentCompPipeline);
+
+                assert(this_primitive.tangentOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.jointsOffset % (sizeof(uint16_t) * 4) == 0);
+                assert(this_primitive.weightsOffset % (sizeof(float) * 4) == 0);
+                assert(this_dynamic_primitive.tangentOffset % (sizeof(float) * 4) == 0);
+
+                DynamicMeshComputePushConstants push_constants;
+                push_constants.matrixOffset = draw_info.matricesOffset;
+                push_constants.inverseMatricesOffset = draw_info.inverseMatricesOffset;
+                push_constants.verticesOffset = this_primitive.tangentOffset / (sizeof(float) * 4);
+                push_constants.jointsOffset = this_primitive.jointsOffset / (sizeof(uint16_t) * 4);
+                push_constants.weightsOffset = this_primitive.weightsOffset / (sizeof(float) * 4);
+                push_constants.jointsGroupsCount = this_primitive.jointsCount;
+                push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
+                push_constants.size_x = this_primitive.verticesCount;
+                push_constants.step_multiplier = 1;
+                push_constants.resultDescriptorIndex = this_dynamic_primitive.descriptorIndex;
+                push_constants.resultOffset = this_dynamic_primitive.tangentOffset / (sizeof(float) * 4);
+                std::copy(draw_info.weights.begin(),
+                          std::min(draw_info.weights.end(), draw_info.weights.begin() + push_constants.morph_weights.size()),
+                          push_constants.morph_weights.begin());
+                command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+
+                command_buffer.dispatch((this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+            }
+
+            if (this_dynamic_primitive.colorOffset != -1) {
+                command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, colorCompPipeline);
+
+                assert(this_primitive.colorOffset % (sizeof(float) * 4) == 0);
+                assert(this_dynamic_primitive.colorOffset % (sizeof(float) * 4) == 0);
+
+                DynamicMeshComputePushConstants push_constants;
+                push_constants.matrixOffset = draw_info.matricesOffset;
+                push_constants.inverseMatricesOffset = draw_info.inverseMatricesOffset;
+                push_constants.verticesOffset = this_primitive.colorOffset / (sizeof(float) * 4);
+                push_constants.jointsOffset = 0;
+                push_constants.weightsOffset = 0;
+                push_constants.jointsGroupsCount = 0;
+                push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
+                push_constants.size_x = this_primitive.verticesCount;
+                push_constants.step_multiplier = 1;
+                push_constants.resultDescriptorIndex = this_dynamic_primitive.descriptorIndex;
+                push_constants.resultOffset = this_dynamic_primitive.colorOffset / (sizeof(float) * 4);
+                std::copy(draw_info.weights.begin(),
+                          std::min(draw_info.weights.end(), draw_info.weights.begin() + push_constants.morph_weights.size()),
+                          push_constants.morph_weights.begin());
+                command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+
+                command_buffer.dispatch((this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+            }
+
+            if (this_dynamic_primitive.texcoordsOffset != -1) {
+                for(size_t i = 0; i != this_dynamic_primitive.texcoordsCount; i++) {
+                    command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, texcoordsCompPipeline);
+
+                    assert(this_primitive.texcoordsOffset % (sizeof(float) * 4) == 0);
+                    assert(this_dynamic_primitive.texcoordsOffset % (sizeof(float) * 4) == 0);
+
+                    DynamicMeshComputePushConstants push_constants;
+                    push_constants.matrixOffset = draw_info.matricesOffset;
+                    push_constants.inverseMatricesOffset = draw_info.inverseMatricesOffset;
+                    push_constants.verticesOffset = this_primitive.texcoordsOffset / (sizeof(float) * 2) + i;
+                    push_constants.jointsOffset = 0;
+                    push_constants.weightsOffset = 0;
+                    push_constants.jointsGroupsCount = 0;
+                    push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
+                    push_constants.size_x = this_primitive.verticesCount;
+                    push_constants.step_multiplier = this_dynamic_primitive.texcoordsCount;
+                    push_constants.resultDescriptorIndex = this_dynamic_primitive.descriptorIndex;
+                    push_constants.resultOffset = this_dynamic_primitive.texcoordsOffset / (sizeof(float) * 4) + i;
+                    std::copy(draw_info.weights.begin(),
+                              std::min(draw_info.weights.end(), draw_info.weights.begin() + push_constants.morph_weights.size()),
+                              push_constants.morph_weights.begin());
+                    command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+
+                    command_buffer.dispatch((this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+                }
+            }
         }
+
+        vk::BufferMemoryBarrier this_memory_barrier;
+        this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+        this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead;
+        this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        this_memory_barrier.buffer = GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].buffer;
+        this_memory_barrier.offset = (swapsCounter % 2) * GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].halfSize;
+        this_memory_barrier.size = GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].halfSize;
+
+        buffer_memory_barries.emplace_back(this_memory_barrier);
     }
+
+    command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
+                                   vk::PipelineStageFlagBits::eVertexInput,
+                                   vk::DependencyFlagBits::eByRegion,
+                                   {},
+                                   buffer_memory_barries,
+                                   {});
 }
 
 

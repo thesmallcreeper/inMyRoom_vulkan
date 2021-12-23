@@ -41,17 +41,17 @@ layout( std140, set = 1 , binding = 0 ) readonly buffer inverseMatricesBuffer
     mat4 inverseMatrices[INVERSE_MATRICES_COUNT];
 };
 
-layout( std140, set = 2, binding = 0 ) buffer vecVerticesBuffersDescriptors
+layout( std430, set = 2, binding = 0 ) buffer vecVerticesBuffersDescriptors
 {
     VEC vertices[];
 } verticesBuffers [];
 
-layout( std140, set = 2, binding = 0 ) buffer uvec4verticesBuffersDescriptors
+layout( std430, set = 2, binding = 0 ) buffer uvec4verticesBuffersDescriptors
 {
     u16vec4 vertices[];
 } u16vec4verticesBuffers [];
 
-layout( std140, set = 2, binding = 0 ) buffer vec4verticesBuffersDescriptors
+layout( std430, set = 2, binding = 0 ) buffer vec4verticesBuffersDescriptors
 {
     vec4 vertices[];
 } vec4verticesBuffers [];
@@ -64,7 +64,7 @@ void main() {
 
     VEC morphed_vertex = verticesBuffers[0].vertices[verticesOffset + (morphTargets + 1) * x * step_multiplier];
     for (uint i = 0; i != morphTargets && i != MAX_MORPH_WEIGHTS; ++i) {
-        VEC this_vertex = verticesBuffers[0].vertices[verticesOffset + (morphTargets + 1) * x * step_multiplier + i];
+        VEC this_vertex = verticesBuffers[0].vertices[verticesOffset + (morphTargets + 1) * x * step_multiplier + (i + 1)];
         float this_weight = morph_weights[i];
 
         morphed_vertex += this_weight * this_vertex;
@@ -76,8 +76,8 @@ void main() {
         skin_matrix = mat4(1.f);
     }
     for (uint i = 0; i != jointsGroupsCount; ++i) {
-        vec4 weights =  vec4verticesBuffers[0].vertices[jointsOffset  + x*jointsGroupsCount + i];
-        uvec4 joints = uvec4(u16vec4verticesBuffers[0].vertices[weightsOffset + x*jointsGroupsCount + i]);
+        vec4 weights =  vec4verticesBuffers[0].vertices[weightsOffset  + x*jointsGroupsCount + i];
+        uvec4 joints = uvec4(u16vec4verticesBuffers[0].vertices[jointsOffset + x*jointsGroupsCount + i]);
 
         skin_matrix += weights.x * matrices[joints.x+matrixOffset+1] * inverseMatrices[joints.x+inverseMatricesOffset];
         skin_matrix += weights.y * matrices[joints.y+matrixOffset+1] * inverseMatrices[joints.y+inverseMatricesOffset];

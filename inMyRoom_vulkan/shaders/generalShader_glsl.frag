@@ -30,16 +30,16 @@ layout( location = 0 ) out vec4 frag_color;
 
 layout (push_constant) uniform PushConstants
 {
-    layout(offset = 8)     uint materialIndex;
+    layout(offset = 4)     uint materialIndex;
 };
 
 // Descriptor Sets
-layout (std140, set = MATERIAL_DS_INDEX, binding = 0) readonly buffer MaterialsParametersBuffer
+layout (std140, set = 2, binding = 0) readonly buffer MaterialsParametersBuffer
 {
     MaterialParameters materialsParameters[MATERIALS_PARAMETERS_COUNT];
 };
 
-layout (set = MATERIAL_DS_INDEX, binding = 1) uniform sampler2D textures[TEXTURES_COUNT];
+layout (set = 2, binding = 1) uniform sampler2D textures[TEXTURES_COUNT];
 
 void main() 
 {

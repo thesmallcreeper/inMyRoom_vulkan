@@ -86,15 +86,15 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
             glm::mat4 matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             matrices.emplace_back(matrix);
         } else {
+            glm::mat4 parent_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+            matrices.emplace_back(parent_matrix);
+
             const auto& dynamic_mesh_entity = dynamicMeshComp_ptr->GetComponentEntity(thisEntity);
             this_draw_info.dynamicMeshIndex = dynamic_mesh_entity.dynamicMeshIndex;
 
             if (isSkin) {
                 this_draw_info.isSkin = true;
                 this_draw_info.inverseMatricesOffset = dynamic_mesh_entity.inverseBindMatricesOffset;
-
-                glm::mat4 parent_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
-                matrices.emplace_back(parent_matrix);
 
                 glm::mat4 inverse_parent_matrix = glm::inverse(parent_matrix);
                 for(Entity relative_entity: dynamic_mesh_entity.jointRelativeEntities) {
