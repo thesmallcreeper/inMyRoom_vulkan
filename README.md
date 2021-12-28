@@ -36,7 +36,7 @@ git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com
 ```
  ## Windows using Visual Studio 2022
 
- #### Not maintained! Using CLion on Linux thesedays...
+ #### Not maintained! Using CLion on Linux thesedays... So some files might be missing from VS project file.  
  
  * Run `buildForVS2022.bat` script. This will generate project files for glfw using CMake.
  * Launch solution by opening `/inMyRoom_vulkan/inMyRoom_vulkan.sln` and compile. 
