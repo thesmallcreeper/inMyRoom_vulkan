@@ -13,6 +13,7 @@ Named after the mixtape of Greek hiphop artist 013, "In My Room". Project starte
 
 ### Deps - Submodules
 * VulkanMemoryAllocator-Hpp , the usual VMA library but with Vulkan-Hpp binding.
+* glfw , window and input library.
 * GLM , math library for OpenGL and Vulkan.
 * configuru , config file library.
 * tinygltf , glTF model import.
