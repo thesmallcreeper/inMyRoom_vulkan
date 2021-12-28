@@ -37,7 +37,7 @@ add_compile_definitions(VULKAN_HPP_NO_EXCEPTIONS=1)
 add_compile_definitions(VMA_STATIC_VULKAN_FUNCTIONS=0)
 add_compile_definitions(VMA_DYNAMIC_VULKAN_FUNCTIONS=1)
 
-add_compile_definitions(SHADERC_SHAREDLIB)
+#add_compile_definitions(SHADERC_ENABLE_SHARED_CRT=ON)
 
 add_compile_definitions(GLFW_INCLUDE_NONE)
 
@@ -202,7 +202,8 @@ add_dependencies(inMyRoom_vulkan glfw)
 
 if (WIN32)
     target_link_libraries(inMyRoom_vulkan glfw)
-    #target_link_libraries(inMyRoom_vulkan ${LIB_SHADERC})
+    target_link_libraries(inMyRoom_vulkan debug $ENV{VULKAN_SDK}/lib/shaderc_combinedd.lib
+                                          optimized $ENV{VULKAN_SDK}/lib/shaderc_combined.lib)
 else ()
     target_link_libraries(inMyRoom_vulkan dl)
     target_link_libraries(inMyRoom_vulkan glfw)

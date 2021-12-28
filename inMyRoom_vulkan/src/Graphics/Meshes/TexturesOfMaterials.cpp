@@ -30,8 +30,8 @@ size_t TexturesOfMaterials::AddTextureAndMipmaps(const std::vector<ImageData> &i
     vk::ImageCreateInfo image_create_info;
     image_create_info.imageType = vk::ImageType::e2D;
     image_create_info.format = format;
-    image_create_info.extent = vk::Extent3D(images_data[0].GetWidth(), images_data[0].GetHeight(), 1);
-    image_create_info.mipLevels = images_data.size();
+    image_create_info.extent = vk::Extent3D(uint32_t(images_data[0].GetWidth()), uint32_t(images_data[0].GetHeight()), 1);
+    image_create_info.mipLevels = uint32_t(images_data.size());
     image_create_info.arrayLayers = 1;
     image_create_info.samples = vk::SampleCountFlagBits::e1;
     image_create_info.sharingMode = vk::SharingMode::eExclusive;

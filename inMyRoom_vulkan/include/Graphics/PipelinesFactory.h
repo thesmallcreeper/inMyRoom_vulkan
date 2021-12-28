@@ -6,6 +6,7 @@
 #include "hash_combine.h"
 
 #include "vulkan/vulkan.hpp"
+#include "vulkan/vulkan_hash.hpp"
 #include "glTFenum.h"
 
 class PipelinesFactory

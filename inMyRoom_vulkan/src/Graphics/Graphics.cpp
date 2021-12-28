@@ -118,7 +118,7 @@ void Graphics::DrawFrame()
     frustum_culling.SetFrustumPlanes(culling_viewport.GetWorldSpacePlanesOfFrustum());
 
     commandBuffer.reset();
-    RecordCommandBuffer(commandBuffer, bufferIndex, swapchainIndex,  draw_infos, frustum_culling);
+    RecordCommandBuffer(commandBuffer, uint32_t(bufferIndex), swapchainIndex,  draw_infos, frustum_culling);
 
     vk::SubmitInfo submit_info;
     vk::PipelineStageFlags wait_semaphore_stage_flag = vk::PipelineStageFlagBits::eTopOfPipe;
@@ -279,7 +279,7 @@ void Graphics::RecordCommandBuffer(vk::CommandBuffer command_buffer,
                                            std::get<1>(this_info_tuple).indicesOffset,
                                            vk::IndexType::eUint32);
 
-            command_buffer.drawIndexed(std::get<1>(this_info_tuple).indicesCount, 1, 0, 0, 0);
+            command_buffer.drawIndexed(uint32_t(std::get<1>(this_info_tuple).indicesCount), 1, 0, 0, 0);
         }
     }
 
@@ -735,11 +735,11 @@ void Graphics::EndModelsLoad()
             std::vector<vk::VertexInputBindingDescription> vertex_input_binding_descriptions;
             std::vector<vk::VertexInputAttributeDescription> vertex_input_attribute_descriptions;
 
-            size_t binding_index = 0;
-            size_t location_index = 0;
+            uint32_t binding_index = 0;
+            uint32_t location_index = 0;
 
             vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                           4 * sizeof(float),
+                                                           uint32_t(4 * sizeof(float)),
                                                            vk::VertexInputRate::eVertex);
             vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                              vk::Format::eR32G32B32A32Sfloat,
@@ -748,7 +748,7 @@ void Graphics::EndModelsLoad()
 
             if (this_primitiveInfo.normalOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               4 * sizeof(float),
+                                                               uint32_t(4 * sizeof(float)),
                                                                vk::VertexInputRate::eVertex);
                 vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                                  vk::Format::eR32G32B32A32Sfloat,
@@ -761,7 +761,7 @@ void Graphics::EndModelsLoad()
 
             if (this_primitiveInfo.tangentOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               4 * sizeof(float),
+                                                               uint32_t(4 * sizeof(float)),
                                                                vk::VertexInputRate::eVertex);
                 vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                                  vk::Format::eR32G32B32A32Sfloat,
@@ -774,13 +774,13 @@ void Graphics::EndModelsLoad()
 
             if (this_primitiveInfo.texcoordsOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               this_primitiveInfo.texcoordsCount * 2 * sizeof(float),
+                                                               uint32_t(this_primitiveInfo.texcoordsCount * 2 * sizeof(float)),
                                                                vk::VertexInputRate::eVertex);
 
                 for (size_t index = 0; index != this_primitiveInfo.texcoordsCount; ++index) {
                     vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                                      vk::Format::eR32G32Sfloat,
-                                                                     index * 2 * sizeof(float));
+                                                                     uint32_t(index * 2 * sizeof(float)));
                     shadersDefinitionStringPairs.emplace_back("VERT_TEXCOORD" + std::to_string(index), "");
                     shadersDefinitionStringPairs.emplace_back("VERT_TEXCOORD" + std::to_string(index) + "_LOCATION", std::to_string(location_index));
                     ++location_index;
@@ -790,7 +790,7 @@ void Graphics::EndModelsLoad()
 
             if (this_primitiveInfo.colorOffset != -1) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               4 * sizeof(float),
+                                                               uint32_t(4 * sizeof(float)),
                                                                vk::VertexInputRate::eVertex);
                 vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
                                                                  vk::Format::eR32G32B32A32Sfloat,

@@ -68,7 +68,7 @@ std::vector<std::byte> ImageData::GetImage(bool srgb, bool _16bit) const
         for (size_t i = 0; i != width; ++i) {
             for (size_t j = 0; j != height; ++j) {
                 for (size_t k = 0; k != componentsCount; ++k) {
-                    float component = GetComponent(i, j, k);
+                    float component = GetComponent(int(i), int(j), k);
 
                     uint8_t data = 0;
                     if (srgb) data = FloatToSRGB(component);
@@ -84,7 +84,7 @@ std::vector<std::byte> ImageData::GetImage(bool srgb, bool _16bit) const
         for (size_t i = 0; i != width; ++i) {
             for (size_t j = 0; j != height; ++j) {
                 for (size_t k = 0; k != componentsCount; ++k) {
-                    float component = GetComponent(i, j, k);
+                    float component = GetComponent(int(i), int(j), k);
 
                     uint16_t data = FloatToR16(component);
                     buffer_ptr[(j * width + i) * componentsCount + k] = data;

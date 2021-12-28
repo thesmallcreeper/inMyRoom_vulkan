@@ -46,9 +46,6 @@
     <Filter Include="Resource Files\Shaders">
       <UniqueIdentifier>{4ab0fcf5-a4b2-4af9-b3f2-f1ceb86fa35b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files\Shaders\Mipmaps">
-      <UniqueIdentifier>{62bcfb90-a1cc-4477-9404-26e041dc4150}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\Graphics">
       <UniqueIdentifier>{96c6848a-3ff6-48d6-bf8f-19b0b9a00503}</UniqueIdentifier>
     </Filter>
@@ -83,9 +80,6 @@
     </ClCompile>
     <ClCompile Include="src\InputManager.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\DiTO\dito.cpp">
-      <Filter>Source Files\_etc</Filter>
     </ClCompile>
     <ClCompile Include="src\ECS\ComponentBaseClass.cpp">
       <Filter>Source Files\ECS</Filter>
@@ -132,13 +126,7 @@
     <ClCompile Include="src\GameDLLimporter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Graphics\Drawer.cpp">
-      <Filter>Source Files\Graphics</Filter>
-    </ClCompile>
     <ClCompile Include="src\Graphics\Graphics.cpp">
-      <Filter>Source Files\Graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Graphics\MipmapsGenerator.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
     <ClCompile Include="src\Graphics\PipelinesFactory.cpp">
@@ -149,9 +137,6 @@
     </ClCompile>
     <ClCompile Include="src\Graphics\VulkanInit.cpp">
       <Filter>Source Files\Graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Graphics\Meshes\ImagesAboutOfTextures.cpp">
-      <Filter>Source Files\Graphics\Meshes</Filter>
     </ClCompile>
     <ClCompile Include="src\Graphics\Meshes\MaterialsOfPrimitives.cpp">
       <Filter>Source Files\Graphics\Meshes</Filter>
@@ -246,6 +231,18 @@
     <ClCompile Include="src\Geometry\ViewportFrustum.cpp">
       <Filter>Source Files\Geometry</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\DynamicMeshes.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\HelperUtils.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\ImagesInterfaces.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\eig3\eig3.cpp">
+      <Filter>Source Files\_etc</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -332,9 +329,6 @@
     <ClInclude Include="include\game_dll.h">
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
-    <ClInclude Include="include\Graphics\MipmapsGenerator.h">
-      <Filter>Header Files\Graphics</Filter>
-    </ClInclude>
     <ClInclude Include="include\Graphics\PipelinesFactory.h">
       <Filter>Header Files\Graphics</Filter>
     </ClInclude>
@@ -343,12 +337,6 @@
     </ClInclude>
     <ClInclude Include="include\Graphics\VulkanInit.h">
       <Filter>Header Files\Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Graphics\Drawer.h">
-      <Filter>Header Files\Graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\Graphics\Meshes\ImagesAboutOfTextures.h">
-      <Filter>Header Files\Graphics\Meshes</Filter>
     </ClInclude>
     <ClInclude Include="include\Graphics\Meshes\MaterialsOfPrimitives.h">
       <Filter>Header Files\Graphics\Meshes</Filter>
@@ -473,6 +461,15 @@
     <ClInclude Include="include\Geometry\Paralgram.h">
       <Filter>Header Files\Geometry</Filter>
     </ClInclude>
+    <ClInclude Include="include\Graphics\HelperUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\DynamicMeshes.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\ImagesInterfaces.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="config.cfg">
@@ -484,14 +481,8 @@
     <None Include="shaders\generalShader_glsl.vert">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="shaders\16bitTo8bit_glsl.frag">
-      <Filter>Resource Files\Shaders\Mipmaps</Filter>
-    </None>
-    <None Include="shaders\generalMipmap_glsl.comp">
-      <Filter>Resource Files\Shaders\Mipmaps</Filter>
-    </None>
-    <None Include="shaders\16bitTo8bit_glsl.vert">
-      <Filter>Resource Files\Shaders\Mipmaps</Filter>
+    <None Include="shaders\dynamicMeshShader_glsl.comp">
+      <Filter>Resource Files\Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

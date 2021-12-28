@@ -55,9 +55,9 @@ private:
     void InitializeVMA(vma::AllocatorCreateFlags allocator_flags,
                        uint32_t                  apiVersion);
 
-    void CreateWindow(const std::string& title,
-                      uint32_t width,
-                      uint32_t height);
+    void CreateWindow_(const std::string& title,
+                       uint32_t width,
+                       uint32_t height);
 
     void CreateSwapchain(vk::SurfaceFormatKHR surface_format,
                          vk::PresentModeKHR present_mode,

@@ -81,9 +81,6 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelDrawCompEntity.h">
       <Filter>Header Files\General\GeneralCompEntities</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h">
-      <Filter>Header Files\General\GeneralCompEntities</Filter>
-    </ClInclude>
     <ClInclude Include="include\GameSpecificComponentsIDsEnum.inj">
       <Filter>Header Files\GameSpecific</Filter>
     </ClInclude>
@@ -135,6 +132,9 @@
     <ClInclude Include="..\..\..\include\game_dll.h">
       <Filter>Header Files\Geometry</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\DynamicMeshCompEntity.h">
+      <Filter>Header Files\General\GeneralCompEntities</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\src\game_dll.cpp">
@@ -156,9 +156,6 @@
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp">
-      <Filter>Source Files\General\GeneralCompEntities</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp">
       <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationActorCompEntity.cpp">
@@ -190,6 +187,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\src\Geometry\ViewportFrustum.cpp">
       <Filter>Source Files\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\DynamicMeshCompEntity.cpp">
+      <Filter>Source Files\General\GeneralCompEntities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -50,7 +50,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
         drawMode = static_cast<glTFmode>(primitive.mode);
         if (drawMode == glTFmode::line_loop ) {
             std::cout << "Line loop is not supported, fallback to line strip.\n";
-            drawMode == glTFmode::line_strip;
+            drawMode = glTFmode::line_strip;
         }
     }
 
@@ -107,7 +107,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                 }
             }
 
-            positionMorphTargets = attributeAndTargets.size() - 1;
+            positionMorphTargets = int(attributeAndTargets.size() - 1);
 
             size_t components_count = attributeAndTargets[0].size() / 4;
             for (size_t i = 0; i != components_count; ++i) {
@@ -161,7 +161,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                 }
             }
 
-            normalMorphTargets = attributeAndTargets.size() - 1;
+            normalMorphTargets = int(attributeAndTargets.size() - 1);
 
             size_t components_count = attributeAndTargets[0].size() / 4;
             for (size_t i = 0; i != components_count; ++i) {
@@ -206,7 +206,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                 }
             }
 
-            tangentMorphTargets = attributeAndTargets.size() - 1;
+            tangentMorphTargets = int(attributeAndTargets.size() - 1);
 
             size_t components_count = attributeAndTargets[0].size() / 4;
             for (size_t i = 0; i != components_count; ++i) {
@@ -231,7 +231,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
         if (primitive.targets.size()) {
             auto target_upper_bound = primitive.targets[0].upper_bound("TEXCOORD_");
             if (target_upper_bound != primitive.targets[0].end() && target_upper_bound->first.starts_with("TEXCOORD_")) {
-                texcoordsMorphTargets = primitive.targets.size();
+                texcoordsMorphTargets = int(primitive.targets.size());
             }
         }
 
@@ -465,7 +465,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                 }
             }
 
-            colorMorphTargets = attributeAndTargets.size() - 1;
+            colorMorphTargets = int(attributeAndTargets.size() - 1);
 
             size_t components_count = attributeAndTargets[0].size() / 4;
             for (size_t i = 0; i != components_count; ++i) {

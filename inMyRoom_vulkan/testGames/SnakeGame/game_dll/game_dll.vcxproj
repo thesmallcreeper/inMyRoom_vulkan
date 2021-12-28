@@ -33,12 +33,12 @@
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\AnimationComposerCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\CameraCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.h" />
+    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\DynamicMeshCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelCollisionCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\ModelDrawCompEntity.h" />
     <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\NodeDataCompEntity.h" />
-    <ClInclude Include="..\..\..\include\ECS\GeneralCompEntities\SkinCompEntity.h" />
     <ClInclude Include="..\..\..\include\game_dll.h" />
     <ClInclude Include="..\..\..\include\Geometry\ViewportFrustum.h" />
     <ClInclude Include="..\..\..\include\sparse_set.h" />
@@ -55,12 +55,12 @@
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\AnimationComposerCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\CameraDefaultInputCompEntity.cpp" />
+    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\DynamicMeshCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\EarlyNodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\LateNodeGlobalMatrixCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelCollisionCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\ModelDrawCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\NodeDataCompEntity.cpp" />
-    <ClCompile Include="..\..\..\src\ECS\GeneralCompEntities\SkinCompEntity.cpp" />
     <ClCompile Include="..\..\..\src\game_dll.cpp" />
     <ClCompile Include="..\..\..\src\Geometry\ViewportFrustum.cpp" />
     <ClCompile Include="src\CompEntities\SnakePlayerCompEntity.cpp" />
@@ -81,26 +81,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>

@@ -187,7 +187,7 @@ void MaterialsOfPrimitives::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
     {   // Create descriptor set
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 1);
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eCombinedImageSampler, texturesOfMaterials_ptr->GetTexturesCount());
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eCombinedImageSampler, uint32_t(texturesOfMaterials_ptr->GetTexturesCount()));
         vk::DescriptorPoolCreateInfo descriptor_pool_create_info({},1,
                                                                  descriptor_pool_sizes);
 
@@ -207,7 +207,7 @@ void MaterialsOfPrimitives::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
             vk::DescriptorSetLayoutBinding textures_binding;
             textures_binding.binding = 1;
             textures_binding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-            textures_binding.descriptorCount = texturesOfMaterials_ptr->GetTexturesCount();
+            textures_binding.descriptorCount = uint32_t(texturesOfMaterials_ptr->GetTexturesCount());
             textures_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
             descriptor_set_layout_bindings.emplace_back(textures_binding);
@@ -257,7 +257,7 @@ void MaterialsOfPrimitives::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
             write_descriptor_set.dstSet = descriptorSet;
             write_descriptor_set.dstBinding = 1;
             write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = descriptor_combine_infos.size();
+            write_descriptor_set.descriptorCount = uint32_t(descriptor_combine_infos.size());
             write_descriptor_set.descriptorType = vk::DescriptorType::eCombinedImageSampler;
             write_descriptor_set.pImageInfo = descriptor_combine_infos.data();
 

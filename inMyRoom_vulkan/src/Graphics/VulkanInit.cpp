@@ -53,7 +53,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     if(device_preferred_name != "") {
         auto result = std::find_if(physical_devices.cbegin(), physical_devices.cend(),
                                [device_preferred_name](const vk::PhysicalDevice& this_device)
-                                   {return std::string(this_device.getProperties().deviceName) == device_preferred_name;});
+                                   {return std::string(this_device.getProperties().deviceName.data()) == device_preferred_name;});
 
         if (result != physical_devices.end())
             selected_device = *result;
@@ -103,7 +103,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
 
     //
     // Create window!
-    CreateWindow(appName, windowWidth, windowHeight);
+    CreateWindow_(appName, windowWidth, windowHeight);
 
     //
     // Select present format !
@@ -263,7 +263,7 @@ void VulkanInit::CreateDevice(vk::PhysicalDevice physical_device,
 
         std::unique_ptr<std::vector<float>> this_queues_priorities_uptr = std::make_unique<std::vector<float>>(queues_count, 1.f);
         vk::DeviceQueueCreateInfo graphics_queue_create_info({},
-                                                             std::distance(queue_families_properties.begin(), graphics_family),
+                                                             uint32_t(std::distance(queue_families_properties.begin(), graphics_family)),
                                                              *this_queues_priorities_uptr);
 
         device_queues_create_infos.emplace_back(graphics_queue_create_info);
@@ -279,7 +279,7 @@ void VulkanInit::CreateDevice(vk::PhysicalDevice physical_device,
 
         std::unique_ptr<std::vector<float>> this_queues_priorities_uptr = std::make_unique<std::vector<float>>(queues_count, 1.f);
         vk::DeviceQueueCreateInfo dedi_compute_queue_create_info({},
-                                                                 std::distance(queue_families_properties.begin(), dedi_compute_family),
+                                                                 uint32_t(std::distance(queue_families_properties.begin(), dedi_compute_family)),
                                                                  *this_queues_priorities_uptr);
 
         device_queues_create_infos.emplace_back(dedi_compute_queue_create_info);
@@ -291,7 +291,7 @@ void VulkanInit::CreateDevice(vk::PhysicalDevice physical_device,
 
         std::unique_ptr<std::vector<float>> this_queues_priorities_uptr = std::make_unique<std::vector<float>>(queues_count, 1.f);
         vk::DeviceQueueCreateInfo dedi_transfer_queue_create_info({},
-                                                                  std::distance(queue_families_properties.begin(), dedi_transfer_family),
+                                                                  uint32_t(std::distance(queue_families_properties.begin(), dedi_transfer_family)),
                                                                   *this_queues_priorities_uptr);
 
         device_queues_create_infos.emplace_back(dedi_transfer_queue_create_info);
@@ -335,7 +335,7 @@ void VulkanInit::CreateDevice(vk::PhysicalDevice physical_device,
 
     // Get the queues
     for(const vk::DeviceQueueCreateInfo& this_queue_create_info: device_queues_create_infos) {
-        for(size_t index = 0; index != this_queue_create_info.queueCount; ++index) {
+        for(uint32_t index = 0; index != this_queue_create_info.queueCount; ++index) {
             vk::Queue this_queue = device.getQueue(this_queue_create_info.queueFamilyIndex, index);
             if (queue_families_properties[this_queue_create_info.queueFamilyIndex].queueFlags & vk::QueueFlagBits::eGraphics)
                 queues.graphicsQueues.emplace_back(this_queue, this_queue_create_info.queueFamilyIndex);
@@ -374,9 +374,9 @@ void VulkanInit::InitializeVMA(vma::AllocatorCreateFlags allocator_flags,
 }
 
 
-void VulkanInit::CreateWindow(const std::string& title,
-                              uint32_t width,
-                              uint32_t height)
+void VulkanInit::CreateWindow_(const std::string& title,
+                               uint32_t width,
+                               uint32_t height)
 {
     windowAsync_uptr = std::make_unique<WindowWithAsyncInput>(title, width, height);
 
@@ -403,7 +403,8 @@ void VulkanInit::CreateSwapchain(vk::SurfaceFormatKHR surface_format,
         swapchain_extent.height = std::clamp( windowHeight, surface_capabilities.minImageExtent.height, surface_capabilities.minImageExtent.height );
     }
     else {
-        swapchain_extent = surface_capabilities.currentExtent;
+        swapchain_extent.height = surface_capabilities.currentExtent.height;
+        swapchain_extent.width = surface_capabilities.currentExtent.width;
     }
 
     vk::SwapchainCreateInfoKHR swapchain_create_info({},

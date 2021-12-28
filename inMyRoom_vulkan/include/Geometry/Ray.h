@@ -19,7 +19,7 @@ struct RayOBBtreeIntersectInfo
     bool doIntersect = false;
     bool itBackfaces = false;
     float distanceFromOrigin = std::numeric_limits<float>::infinity();
-    size_t triangle_index = -1;
+    size_t triangle_index = size_t(-1);
     glm::vec2 baryPosition = glm::vec2();
 };
 

@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\DiTO\dito.cpp" />
+    <ClCompile Include="..\eig3\eig3.cpp" />
     <ClCompile Include="src\CollisionDetection\CollisionDetection.cpp" />
     <ClCompile Include="src\CollisionDetection\OBBtreesCollision.cpp" />
     <ClCompile Include="src\CollisionDetection\ShootUncollideRays.cpp" />
@@ -59,16 +59,16 @@
     <ClCompile Include="src\Geometry\Ray.cpp" />
     <ClCompile Include="src\Geometry\Triangle.cpp" />
     <ClCompile Include="src\Geometry\ViewportFrustum.cpp" />
-    <ClCompile Include="src\Graphics\Drawer.cpp" />
+    <ClCompile Include="src\Graphics\DynamicMeshes.cpp" />
     <ClCompile Include="src\Graphics\Graphics.cpp" />
-    <ClCompile Include="src\Graphics\Meshes\ImagesAboutOfTextures.cpp" />
+    <ClCompile Include="src\Graphics\HelperUtils.cpp" />
+    <ClCompile Include="src\Graphics\ImagesInterfaces.cpp" />
     <ClCompile Include="src\Graphics\Meshes\MaterialsOfPrimitives.cpp" />
     <ClCompile Include="src\Graphics\Meshes\MeshesOfNodes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\PrimitivesOfMeshes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\SkinsOfMeshes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\AnimationsDataOfNodes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\TexturesOfMaterials.cpp" />
-    <ClCompile Include="src\Graphics\MipmapsGenerator.cpp" />
     <ClCompile Include="src\Graphics\PipelinesFactory.cpp" />
     <ClCompile Include="src\Graphics\ShadersSetsFamiliesCache.cpp" />
     <ClCompile Include="src\Graphics\VulkanInit.cpp" />
@@ -136,16 +136,16 @@
     <ClInclude Include="include\Geometry\Triangle.h" />
     <ClInclude Include="include\Geometry\ViewportFrustum.h" />
     <ClInclude Include="include\glTFenum.h" />
-    <ClInclude Include="include\Graphics\Drawer.h" />
+    <ClInclude Include="include\Graphics\DynamicMeshes.h" />
     <ClInclude Include="include\Graphics\Graphics.h" />
+    <ClInclude Include="include\Graphics\HelperUtils.h" />
+    <ClInclude Include="include\Graphics\ImagesInterfaces.h" />
     <ClInclude Include="include\Graphics\Meshes\AnimationsDataOfNodes.h" />
-    <ClInclude Include="include\Graphics\Meshes\ImagesAboutOfTextures.h" />
     <ClInclude Include="include\Graphics\Meshes\MaterialsOfPrimitives.h" />
     <ClInclude Include="include\Graphics\Meshes\MeshesOfNodes.h" />
     <ClInclude Include="include\Graphics\Meshes\PrimitivesOfMeshes.h" />
     <ClInclude Include="include\Graphics\Meshes\SkinsOfMeshes.h" />
     <ClInclude Include="include\Graphics\Meshes\TexturesOfMaterials.h" />
-    <ClInclude Include="include\Graphics\MipmapsGenerator.h" />
     <ClInclude Include="include\Graphics\PipelinesFactory.h" />
     <ClInclude Include="include\Graphics\ShadersSetsFamiliesCache.h" />
     <ClInclude Include="include\Graphics\VulkanInit.h" />
@@ -157,9 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="config.cfg" />
-    <None Include="shaders\16bitTo8bit_glsl.frag" />
-    <None Include="shaders\16bitTo8bit_glsl.vert" />
-    <None Include="shaders\generalMipmap_glsl.comp" />
+    <None Include="shaders\dynamicMeshShader_glsl.comp" />
     <None Include="shaders\generalShader_glsl.frag" />
     <None Include="shaders\generalShader_glsl.vert" />
   </ItemGroup>
@@ -173,26 +171,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -232,21 +230,21 @@
       <SDLCheck>
       </SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\inMyRoom_vulkan\include;..\glm;..\tinygltf;..\glfw\include;..\eig3;..\VulkanMemoryAllocator-Hpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PreprocessorDefinitions>TINYGLTF_NOEXCEPTION;VK_NO_PROTOTYPES;VULKAN_HPP_NO_NODISCARD_WARNINGS=1;VULKAN_HPP_NO_EXCEPTIONS=1;VMA_STATIC_VULKAN_FUNCTIONS=0;VMA_DYNAMIC_VULKAN_FUNCTIONS=1;SHADERC_ENABLE_SHARED_CRT=ON;GLFW_INCLUDE_NONE;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>..\Compressonator\Compressonator\build;..\Anvil\build;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\glfw\build\src\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>Debug\CMP_Framework.lib;Debug\Anvil.lib;deps\glslang\SPIRV\Debug\SPIRVd.lib;deps\glslang\glslang\Debug\glslangd.lib;deps\glslang\OGLCompilersDLL\Debug\OGLCompilerd.lib;deps\glslang\glslang\OSDependent\Windows\Debug\OSDependentd.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VULKAN_SDK)/Lib/shaderc_sharedd.lib;glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
@@ -278,13 +276,13 @@
       <SDLCheck>
       </SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\Anvil\build\include;..\Anvil\include;..\DiTO;..\inMyRoom_vulkan\include;..\glm;..\Compressonator\Compressonator;..\tinygltf;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\inMyRoom_vulkan\include;..\glm;..\tinygltf;..\glfw\include;..\eig3;..\VulkanMemoryAllocator-Hpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
-      <PreprocessorDefinitions>TINYGLTF_NO_INCLUDE_STB_IMAGE;TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE;TINYGLTF_NO_EXTERNAL_IMAGE;TINYGLTF_NO_STB_IMAGE;TINYGLTF_NO_STB_IMAGE_WRITE;_MBCS;NDEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TINYGLTF_NOEXCEPTION;VK_NO_PROTOTYPES;VULKAN_HPP_NO_NODISCARD_WARNINGS=1;VULKAN_HPP_NO_EXCEPTIONS=1;VMA_STATIC_VULKAN_FUNCTIONS=0;VMA_DYNAMIC_VULKAN_FUNCTIONS=1;SHADERC_ENABLE_SHARED_CRT=ON;GLFW_INCLUDE_NONE;NDEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
@@ -297,10 +295,10 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>..\Compressonator\Compressonator\build;..\Anvil\build;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\glfw\build\src\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <AdditionalDependencies>Release\CMP_Framework.lib;Release\Anvil.lib;deps\glslang\SPIRV\Release\SPIRV.lib;deps\glslang\glslang\Release\glslang.lib;deps\glslang\OGLCompilersDLL\Release\OGLCompiler.lib;deps\glslang\glslang\OSDependent\Windows\Release\OSDependent.lib;$(VK_SDK_PATH)\Lib\vulkan-1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VULKAN_SDK)/Lib/shaderc_shared.lib;glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <Profile>true</Profile>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>

@@ -17,8 +17,8 @@ StagingBuffer::StagingBuffer(vk::Device in_device, vma::Allocator in_allocator, 
         staging_allocation_create_info.requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 
         auto createBuffer_result = vma_allocator.createBuffer(staging_buffer_create_info,
-                                                                            staging_allocation_create_info,
-                                                                            stagingAllocInfo);
+                                                              staging_allocation_create_info,
+                                                              stagingAllocInfo);
         assert(createBuffer_result.result == vk::Result::eSuccess);
         stagingBuffer = createBuffer_result.value.first;
         stagingAllocation = createBuffer_result.value.second;

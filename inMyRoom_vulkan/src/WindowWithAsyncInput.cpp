@@ -1,5 +1,6 @@
 #include "WindowWithAsyncInput.h"
 #include <iostream>
+#include <condition_variable>
 #include <cmath>
 
 static WindowWithAsyncInput* windowWithAsyncInput_static_ptr = nullptr;
@@ -14,35 +15,48 @@ WindowWithAsyncInput::WindowWithAsyncInput(const std::string&             in_tit
     assert(windowWithAsyncInput_static_ptr == nullptr);
     windowWithAsyncInput_static_ptr = this;
 
-    glfwWindowHint( GLFW_CLIENT_API, GLFW_NO_API );
-    window = glfwCreateWindow( in_width, in_height, in_title.c_str(), nullptr, nullptr );
-
-#ifdef NDEBUG
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-#endif
-
-    glfwSetKeyCallback(window, key_glfw_callback);
-    glfwSetMouseButtonCallback(window, mouse_button_glfw_callback);
-    glfwSetCursorPosCallback(window, mouse_cursor_glfw_callback);
-
-    if (glfwRawMouseMotionSupported())
-        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-
-    glfwGetCursorPos(window, &lastMousePosition.first, &lastMousePosition.second);
-    moduloOfMousePosition = std::make_pair(0.f, 0.f);
+    bool windows_create_var = false;
+    std::condition_variable cv;
 
     inputThread_uptr = std::make_unique<std::thread>(
-            [this]() {
-                bool breakLoop = false;
-                while(not breakLoop)
+        [&, this]() {
+            {
+                std::lock_guard<std::mutex> thread_lk(controlMutex);
+
+                glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+                window = glfwCreateWindow(in_width, in_height, in_title.c_str(), nullptr, nullptr);
+
+#ifdef NDEBUG // -------
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+#endif        // -------
+
+                glfwSetKeyCallback(window, key_glfw_callback);
+                glfwSetMouseButtonCallback(window, mouse_button_glfw_callback);
+                glfwSetCursorPosCallback(window, mouse_cursor_glfw_callback);
+
+                if (glfwRawMouseMotionSupported())
+                    glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+
+                glfwGetCursorPos(window, &lastMousePosition.first, &lastMousePosition.second);
+                moduloOfMousePosition = std::make_pair(0.f, 0.f);
+
+                windows_create_var = true;
+            }
+            cv.notify_one();
+
+            bool breakLoop = false;
+            while(not breakLoop)
+            {
+                glfwWaitEvents();
                 {
-                    glfwWaitEvents();
-                    {
-                        std::lock_guard guard(controlMutex);
-                        breakLoop = closeInputThread;
-                    }
+                    std::lock_guard guard(controlMutex);
+                    breakLoop = closeInputThread;
                 }
-            });
+            }
+        });
+
+    std::unique_lock wait_lk(controlMutex);
+    cv.wait(wait_lk, [&windows_create_var] {return windows_create_var; });
 }
 
 WindowWithAsyncInput::~WindowWithAsyncInput()

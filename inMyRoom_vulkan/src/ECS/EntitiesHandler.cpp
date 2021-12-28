@@ -67,7 +67,7 @@ InstanceInfo* EntitiesHandler::AddInstanceEntities(const FabInfo* fab_info_ptr,
     additionsNotCompletedRanges.emplace_back(range);
     for(size_t index = 0; index != instance_info_ptr->fabInfo->size; index++)
     {
-        containerIndexOfEachEntity[index + instance_info_ptr->entityOffset] = additionsNotCompletedRanges.size();
+        containerIndexOfEachEntity[index + instance_info_ptr->entityOffset] = Entity(additionsNotCompletedRanges.size());
     }
 
     nameToInstancePtr_umap.emplace(instance_name, instance_info_ptr);
