@@ -1,6 +1,3 @@
-[submodule "Anvil"]
-	path = Anvil
-	url = https://github.com/thesmallcreeper/Anvil
 [submodule "glm"]
 	path = glm
 	url = https://github.com/thesmallcreeper/glm
@@ -10,9 +7,6 @@
 [submodule "tinygltf"]
 	path = tinygltf
 	url = https://github.com/thesmallcreeper/tinygltf
-[submodule "Compressonator"]
-	path = Compressonator
-	url = https://github.com/thesmallcreeper/Compressonator
 [submodule "glfw"]
 	path = glfw
 	url = https://github.com/glfw/glfw.git
