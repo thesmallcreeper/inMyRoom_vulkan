@@ -53,6 +53,7 @@ Graphics::~Graphics()
     device.destroy(presentImageAvailableSemaphores[1]);
     device.destroy(presentImageAvailableSemaphores[2]);
     device.destroy(submitFinishTimelineSemaphore);
+    device.destroy(hostWriteFinishTimelineSemaphore);
 
     for(auto& this_framebuffer : framebuffers) {
         device.destroy(this_framebuffer);
@@ -97,6 +98,7 @@ void Graphics::DrawFrame()
     FrustumCulling frustum_culling;
     frustum_culling.SetFrustumPlanes(culling_viewport.GetWorldSpacePlanesOfFrustum());
 
+    //
     // Wait! For command buffer reset (-3)
     {
         uint64_t wait_value = uint64_t( std::max(int64_t(frameCount - 3), int64_t(0)) );
@@ -113,11 +115,46 @@ void Graphics::DrawFrame()
     command_buffer.reset();
 
     uint32_t swapchainIndex = device.acquireNextImageKHR(engine_ptr->GetSwapchain(),
-                                                         uint64_t(-1),
+                                                         0,
                                                          presentImageAvailableSemaphores[commandBuffer_index]).value;
 
     RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchainIndex, draw_infos, frustum_culling);
 
+    // Submit but hold until write host
+    vk::SubmitInfo submit_info;
+    vk::TimelineSemaphoreSubmitInfo timeline_semaphore_info;
+    submit_info.pNext = &timeline_semaphore_info;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+    /// wait for
+    std::array<vk::Semaphore, 2> wait_semaphores = {hostWriteFinishTimelineSemaphore, presentImageAvailableSemaphores[commandBuffer_index]};
+    std::array<vk::PipelineStageFlags, 2> wait_pipeline_stages = {vk::PipelineStageFlagBits::eTopOfPipe ,vk::PipelineStageFlagBits::eColorAttachmentOutput};
+    submit_info.setWaitSemaphores(wait_semaphores);
+    submit_info.setWaitDstStageMask(wait_pipeline_stages);
+    std::array<uint64_t, 2> wait_semaphores_values = {frameCount, 0};
+    timeline_semaphore_info.setWaitSemaphoreValues(wait_semaphores_values);
+    /// signal
+    std::array<vk::Semaphore, 2> signal_semaphores = {submitFinishTimelineSemaphore, readyForPresentSemaphores[commandBuffer_index]};
+    submit_info.setSignalSemaphores(signal_semaphores);
+    std::array<uint64_t, 2> signal_semaphores_values = {frameCount, 0};
+    timeline_semaphore_info.setSignalSemaphoreValues(signal_semaphores_values);
+
+    std::vector<vk::SubmitInfo> submit_infos;
+    submit_infos.emplace_back(submit_info);
+    graphicsQueue.first.submit(submit_infos);
+
+    // Present but hold
+    vk::PresentInfoKHR present_info;
+    vk::SwapchainKHR swapchain = engine_ptr->GetSwapchain();
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &readyForPresentSemaphores[commandBuffer_index];
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swapchain;
+    present_info.pImageIndices = &swapchainIndex;
+
+    graphicsQueue.first.presentKHR(present_info);
+
+    //
     // Wait! Wait for write buffers (-2)
     {
         uint64_t wait_value = uint64_t( std::max(int64_t(frameCount - 2), int64_t(0)) );
@@ -144,42 +181,22 @@ void Graphics::DrawFrame()
 
     // Update matrices
     {
-        memcpy((std::byte*)(matricesAllocInfo.pMappedData) + buffer_index * maxInstances * sizeof(glm::mat4),
+        memcpy((std::byte *) (matricesAllocInfo.pMappedData) + buffer_index * maxInstances * sizeof(glm::mat4),
                matrices.data(),
                matrices.size() * sizeof(glm::mat4));
 
         vma_allocator.invalidateAllocation(matricesAllocation, buffer_index * maxInstances * sizeof(glm::mat4), matrices.size() * sizeof(glm::mat4));
     }
 
-    // Submit
-    vk::SubmitInfo submit_info;
-    vk::TimelineSemaphoreSubmitInfo timeline_semaphore_info;
-    submit_info.pNext = &timeline_semaphore_info;
-    vk::PipelineStageFlags wait_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &presentImageAvailableSemaphores[commandBuffer_index];
-    submit_info.pWaitDstStageMask = &wait_pipeline_stage;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-    std::array<vk::Semaphore, 2> signal_semaphores = {submitFinishTimelineSemaphore, readyForPresentSemaphores[commandBuffer_index]};
-    submit_info.setSignalSemaphores(signal_semaphores);
-    std::array<uint64_t, 2> signal_semaphores_values = {frameCount, 0};
-    timeline_semaphore_info.setSignalSemaphoreValues(signal_semaphores_values);
+    //
+    // Signal host write finish semaphore
+    {
+        vk::SemaphoreSignalInfo host_signal_info;
+        host_signal_info.semaphore = hostWriteFinishTimelineSemaphore;
+        host_signal_info.value = uint64_t(frameCount);
 
-    std::vector<vk::SubmitInfo> submit_infos;
-    submit_infos.emplace_back(submit_info);
-    graphicsQueue.first.submit(submit_infos);
-
-    // Present
-    vk::PresentInfoKHR present_info;
-    vk::SwapchainKHR swapchain = engine_ptr->GetSwapchain();
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &readyForPresentSemaphores[commandBuffer_index];
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = &swapchain;
-    present_info.pImageIndices = &swapchainIndex;
-
-    graphicsQueue.first.presentKHR(present_info);
+        device.signalSemaphore(host_signal_info);
+    }
 
     dynamicMeshes_uptr->CompleteRemovesSafe();
 }
@@ -569,12 +586,12 @@ void Graphics::InitRenderpasses()
     subpass_description.pDepthStencilAttachment = &depthAttach_ref;
 
     vk::SubpassDependency subpass_dependency;
-    subpass_dependency.srcSubpass = 0;
-    subpass_dependency.dstSubpass = VK_SUBPASS_EXTERNAL;
-    subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
-    subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-    subpass_dependency.dstAccessMask = vk::AccessFlagBits::eNoneKHR;
+    subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    subpass_dependency.dstSubpass = 0;
+    subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eLateFragmentTests;
+    subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+    subpass_dependency.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
+    subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
 
     // Renderpass
     vk::RenderPassCreateInfo renderpass_create_info;
@@ -635,6 +652,17 @@ void Graphics::InitSemaphoresAndFences()
         semaphore_create_info.pNext = &semaphore_type_info;
 
         submitFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
+    }
+
+    {   // hostWriteFinishTimelineSemaphore
+        vk::SemaphoreTypeCreateInfo semaphore_type_info;
+        semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
+        semaphore_type_info.initialValue = 0;
+
+        vk::SemaphoreCreateInfo semaphore_create_info;
+        semaphore_create_info.pNext = &semaphore_type_info;
+
+        hostWriteFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
     }
     vk::SemaphoreCreateInfo semaphore_create_info;
 }

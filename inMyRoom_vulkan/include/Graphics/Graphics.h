@@ -103,6 +103,7 @@ private:
 
     vk::Semaphore           readyForPresentSemaphores[3];
     vk::Semaphore           presentImageAvailableSemaphores[3];
+    vk::Semaphore           hostWriteFinishTimelineSemaphore;
     vk::Semaphore           submitFinishTimelineSemaphore;
 
     vk::CommandPool         commandPool;
