@@ -46,8 +46,13 @@ Graphics::~Graphics()
 
     device.destroy(commandPool);
 
-    device.destroy(imageAvailableSemaphore);
-    device.destroy(renderFinishSemaphore);
+    device.destroy(readyForPresentSemaphores[0]);
+    device.destroy(readyForPresentSemaphores[1]);
+    device.destroy(readyForPresentSemaphores[2]);
+    device.destroy(presentImageAvailableSemaphores[0]);
+    device.destroy(presentImageAvailableSemaphores[1]);
+    device.destroy(presentImageAvailableSemaphores[2]);
+    device.destroy(submitFinishTimelineSemaphore);
 
     for(auto& this_framebuffer : framebuffers) {
         device.destroy(this_framebuffer);
@@ -79,67 +84,97 @@ void Graphics::DrawFrame()
 {
     ++frameCount;
 
-    size_t bufferIndex = frameCount % 2;
+    size_t buffer_index = frameCount % 2;
+    size_t commandBuffer_index = frameCount % 3;
 
     std::vector<glm::mat4> matrices;
     std::vector<DrawInfo> draw_infos;
-
     modelDrawComp_uptr->AddDrawInfos(matrices, draw_infos);
 
+    dynamicMeshes_uptr->SwapDescriptorSet(frameCount);
+
+    ViewportFrustum culling_viewport = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
+    FrustumCulling frustum_culling;
+    frustum_culling.SetFrustumPlanes(culling_viewport.GetWorldSpacePlanesOfFrustum());
+
+    // Wait! For command buffer reset (-3)
+    {
+        uint64_t wait_value = uint64_t( std::max(int64_t(frameCount - 3), int64_t(0)) );
+
+        vk::SemaphoreWaitInfo host_wait_info;
+        host_wait_info.semaphoreCount = 1;
+        host_wait_info.pSemaphores = &submitFinishTimelineSemaphore;
+        host_wait_info.pValues = &wait_value;
+
+        device.waitSemaphores(host_wait_info, uint64_t(-1));
+    }
+
+    vk::CommandBuffer command_buffer = commandBuffers[commandBuffer_index];
+    command_buffer.reset();
+
+    uint32_t swapchainIndex = device.acquireNextImageKHR(engine_ptr->GetSwapchain(),
+                                                         uint64_t(-1),
+                                                         presentImageAvailableSemaphores[commandBuffer_index]).value;
+
+    RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchainIndex, draw_infos, frustum_culling);
+
+    // Wait! Wait for write buffers (-2)
+    {
+        uint64_t wait_value = uint64_t( std::max(int64_t(frameCount - 2), int64_t(0)) );
+
+        vk::SemaphoreWaitInfo host_wait_info;
+        host_wait_info.semaphoreCount = 1;
+        host_wait_info.pSemaphores = &submitFinishTimelineSemaphore;
+        host_wait_info.pValues = &wait_value;
+
+        device.waitSemaphores(host_wait_info, uint64_t(-1));
+    }
+    
     ViewportFrustum camera_viewport = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
 
     // Update camera matrix
     {
         glm::mat4x4 view_projection_matrices[2] = {camera_viewport.GetViewMatrix(), camera_viewport.GetPerspectiveMatrix()};
 
-        memcpy((std::byte*)(cameraAllocInfo.pMappedData) + bufferIndex * 2 * sizeof(glm::mat4),
+        memcpy((std::byte*)(cameraAllocInfo.pMappedData) + buffer_index * 2 * sizeof(glm::mat4),
                view_projection_matrices,
                2 * sizeof(glm::mat4));
-        vma_allocator.invalidateAllocation(cameraAllocation, bufferIndex * sizeof(glm::mat4), sizeof(glm::mat4));
+        vma_allocator.invalidateAllocation(cameraAllocation, buffer_index * sizeof(glm::mat4), sizeof(glm::mat4));
     }
 
     // Update matrices
     {
-        memcpy((std::byte*)(matricesAllocInfo.pMappedData) + bufferIndex * maxInstances * sizeof(glm::mat4),
+        memcpy((std::byte*)(matricesAllocInfo.pMappedData) + buffer_index * maxInstances * sizeof(glm::mat4),
                matrices.data(),
                matrices.size() * sizeof(glm::mat4));
 
-        vma_allocator.invalidateAllocation(matricesAllocation, bufferIndex * maxInstances * sizeof(glm::mat4), matrices.size() * sizeof(glm::mat4));
+        vma_allocator.invalidateAllocation(matricesAllocation, buffer_index * maxInstances * sizeof(glm::mat4), matrices.size() * sizeof(glm::mat4));
     }
 
-    uint32_t swapchainIndex = device.acquireNextImageKHR(engine_ptr->GetSwapchain(),
-                                                         uint64_t(-1),
-                                                         imageAvailableSemaphore).value;
-
-    dynamicMeshes_uptr->SwapDescriptorSet();
-
-    ViewportFrustum culling_viewport = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
-    FrustumCulling frustum_culling;
-    frustum_culling.SetFrustumPlanes(culling_viewport.GetWorldSpacePlanesOfFrustum());
-
-    commandBuffer.reset();
-    RecordCommandBuffer(commandBuffer, uint32_t(bufferIndex), swapchainIndex,  draw_infos, frustum_culling);
-
+    // Submit
     vk::SubmitInfo submit_info;
-    vk::PipelineStageFlags wait_semaphore_stage_flag = vk::PipelineStageFlagBits::eTopOfPipe;
+    vk::TimelineSemaphoreSubmitInfo timeline_semaphore_info;
+    submit_info.pNext = &timeline_semaphore_info;
+    vk::PipelineStageFlags wait_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &imageAvailableSemaphore;
-    submit_info.pWaitDstStageMask = &wait_semaphore_stage_flag;
+    submit_info.pWaitSemaphores = &presentImageAvailableSemaphores[commandBuffer_index];
+    submit_info.pWaitDstStageMask = &wait_pipeline_stage;
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &commandBuffer;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &renderFinishSemaphore;
+    submit_info.pCommandBuffers = &command_buffer;
+    std::array<vk::Semaphore, 2> signal_semaphores = {submitFinishTimelineSemaphore, readyForPresentSemaphores[commandBuffer_index]};
+    submit_info.setSignalSemaphores(signal_semaphores);
+    std::array<uint64_t, 2> signal_semaphores_values = {frameCount, 0};
+    timeline_semaphore_info.setSignalSemaphoreValues(signal_semaphores_values);
 
     std::vector<vk::SubmitInfo> submit_infos;
     submit_infos.emplace_back(submit_info);
-
     graphicsQueue.first.submit(submit_infos);
-    graphicsQueue.first.waitIdle();
 
+    // Present
     vk::PresentInfoKHR present_info;
     vk::SwapchainKHR swapchain = engine_ptr->GetSwapchain();
     present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &renderFinishSemaphore;
+    present_info.pWaitSemaphores = &readyForPresentSemaphores[commandBuffer_index];
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &swapchain;
     present_info.pImageIndices = &swapchainIndex;
@@ -575,10 +610,33 @@ void Graphics::InitFramebuffers()
 
 void Graphics::InitSemaphoresAndFences()
 {
-    vk::SemaphoreCreateInfo semaphore_create_info;
+    {   // readyForPresentSemaphores
+        vk::SemaphoreCreateInfo semaphore_create_info;
 
-    imageAvailableSemaphore = device.createSemaphore(semaphore_create_info).value;
-    renderFinishSemaphore = device.createSemaphore(semaphore_create_info).value;
+        readyForPresentSemaphores[0] = device.createSemaphore(semaphore_create_info).value;
+        readyForPresentSemaphores[1] = device.createSemaphore(semaphore_create_info).value;
+        readyForPresentSemaphores[2] = device.createSemaphore(semaphore_create_info).value;
+    }
+
+    {   // presentImageAvailableSemaphores
+        vk::SemaphoreCreateInfo semaphore_create_info;
+
+        presentImageAvailableSemaphores[0] = device.createSemaphore(semaphore_create_info).value;
+        presentImageAvailableSemaphores[1] = device.createSemaphore(semaphore_create_info).value;
+        presentImageAvailableSemaphores[2] = device.createSemaphore(semaphore_create_info).value;
+    }
+
+    {   // submitFinishTimelineSemaphore
+        vk::SemaphoreTypeCreateInfo semaphore_type_info;
+        semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
+        semaphore_type_info.initialValue = 0;
+
+        vk::SemaphoreCreateInfo semaphore_create_info;
+        semaphore_create_info.pNext = &semaphore_type_info;
+
+        submitFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
+    }
+    vk::SemaphoreCreateInfo semaphore_create_info;
 }
 
 void Graphics::InitCommandBuffers()
@@ -592,9 +650,12 @@ void Graphics::InitCommandBuffers()
     vk::CommandBufferAllocateInfo command_buffer_alloc_info;
     command_buffer_alloc_info.commandPool = commandPool;
     command_buffer_alloc_info.level = vk::CommandBufferLevel::ePrimary;
-    command_buffer_alloc_info.commandBufferCount = 1;
+    command_buffer_alloc_info.commandBufferCount = 3;
 
-    commandBuffer = device.allocateCommandBuffers(command_buffer_alloc_info).value[0];
+    auto command_buffers = device.allocateCommandBuffers(command_buffer_alloc_info).value;
+    commandBuffers[0] = command_buffers[0];
+    commandBuffers[1] = command_buffers[1];
+    commandBuffers[2] = command_buffers[2];
 }
 
 void Graphics::InitPipelinesFactory()

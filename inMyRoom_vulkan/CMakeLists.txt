@@ -209,7 +209,3 @@ else ()
     target_link_libraries(inMyRoom_vulkan glfw)
     target_link_libraries(inMyRoom_vulkan $ENV{VULKAN_SDK}/lib/libshaderc_combined.a)
 endif ()
-
-if (UNIX)
-    target_link_libraries(inMyRoom_vulkan stdc++fs)
-endif ()

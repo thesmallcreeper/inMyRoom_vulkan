@@ -34,8 +34,8 @@ void DynamicMeshes::FlashDevice()
 
     // Description sets
     {   // Create descriptor pool
-        vk::DescriptorPoolSize descriptor_pool_size = {vk::DescriptorType::eStorageBuffer, max_descriptor_per_set * 2};
-        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 2,
+        vk::DescriptorPoolSize descriptor_pool_size = {vk::DescriptorType::eStorageBuffer, max_descriptor_per_set * 3};
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 3,
                                                                  1 , &descriptor_pool_size);
 
         descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
@@ -61,13 +61,15 @@ void DynamicMeshes::FlashDevice()
         std::vector<vk::DescriptorSetLayout> descriptor_set_layouts;
         descriptor_set_layouts.emplace_back(descriptorSetLayout);
         descriptor_set_layouts.emplace_back(descriptorSetLayout);
+        descriptor_set_layouts.emplace_back(descriptorSetLayout);
 
-        uint32_t counts[2];
+        uint32_t counts[3];
         counts[0] = max_descriptor_per_set - 1;
         counts[1] = max_descriptor_per_set - 1;
+        counts[2] = max_descriptor_per_set - 1;
 
         vk::DescriptorSetVariableDescriptorCountAllocateInfo set_counts;
-        set_counts.descriptorSetCount = 2;
+        set_counts.descriptorSetCount = 3;
         set_counts.pDescriptorCounts = counts;
 
         vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, descriptor_set_layouts);
@@ -76,6 +78,7 @@ void DynamicMeshes::FlashDevice()
         auto descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
         descriptorSets[0] = descriptor_sets[0];
         descriptorSets[1] = descriptor_sets[1];
+        descriptorSets[2] = descriptor_sets[2];
     }
 
     // Compute pipelines
@@ -237,16 +240,20 @@ void DynamicMeshes::RemoveDynamicMeshSafe(size_t index)
     assert(hasBeenFlashed);
 
     assert(indexToDynamicPrimitivesInfos_umap.find(index) != indexToDynamicPrimitivesInfos_umap.end());
-    indicesToBeRemovedInNextTwoRemoves.emplace_back(index);
+
+    vk::Buffer buffer = indexToDynamicPrimitivesInfos_umap.find(index)->second[0].buffer;
+    bufferToBeRemovedCountdown.emplace_back(buffer, removeCountdown);
+
+    indexToDynamicPrimitivesInfos_umap.erase(index);
 }
 
-void DynamicMeshes::SwapDescriptorSet()
+void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
 {
     assert(hasBeenFlashed);
 
-    ++swapsCounter;
+    swapIndex = swap_index;
 
-    size_t descriptor_set_index = swapsCounter % 2;
+    size_t buffer_index = swapIndex % 2;
     std::vector<vk::DescriptorBufferInfo> descriptor_buffer_infos;
 
     {   // Default primitives buffer
@@ -263,7 +270,7 @@ void DynamicMeshes::SwapDescriptorSet()
 
         vk::DescriptorBufferInfo this_descriptor_buffer_info;
         this_descriptor_buffer_info.buffer = buffer;
-        this_descriptor_buffer_info.offset = descriptor_set_index * halfSize;
+        this_descriptor_buffer_info.offset = buffer_index * halfSize;
         this_descriptor_buffer_info.range = halfSize;
 
         for (auto& this_dynamic_primitive : this_pair.second) {
@@ -274,7 +281,7 @@ void DynamicMeshes::SwapDescriptorSet()
     }
 
     vk::WriteDescriptorSet write_descriptor_set;
-    write_descriptor_set.dstSet = descriptorSets[descriptor_set_index];
+    write_descriptor_set.dstSet = this->GetDescriptorSet();
     write_descriptor_set.dstBinding = 0;
     write_descriptor_set.dstArrayElement = 0;
     write_descriptor_set.descriptorCount = uint32_t(descriptor_buffer_infos.size());
@@ -288,20 +295,22 @@ void DynamicMeshes::CompleteRemovesSafe()
 {
     assert(hasBeenFlashed);
 
-    for(size_t index : indicesToBeRemovedInNextRemoves) {
-        assert(indexToDynamicPrimitivesInfos_umap.find(index) != indexToDynamicPrimitivesInfos_umap.end());
-        vk::Buffer buffer = indexToDynamicPrimitivesInfos_umap.find(index)->second[0].buffer;
+    std::vector<std::pair<vk::Buffer, uint32_t>> new_bufferToBeRemovedCountdown;
+    for(const auto& bufferCountdown_pair : bufferToBeRemovedCountdown) {
+        if (bufferCountdown_pair.second == 0) {
+            vk::Buffer buffer = bufferCountdown_pair.first;
 
-        assert(bufferToVMAallocation_umap.find(buffer) != bufferToVMAallocation_umap.end());
-        vma::Allocation allocation = bufferToVMAallocation_umap.find(buffer)->second;
+            assert(bufferToVMAallocation_umap.find(buffer) != bufferToVMAallocation_umap.end());
+            vma::Allocation allocation = bufferToVMAallocation_umap.find(buffer)->second;
 
-        vma_allocator.destroyBuffer(buffer, allocation);
-        indexToDynamicPrimitivesInfos_umap.erase(index);
-        bufferToVMAallocation_umap.erase(buffer);
+            vma_allocator.destroyBuffer(buffer, allocation);
+            bufferToVMAallocation_umap.erase(buffer);
+        } else {
+            new_bufferToBeRemovedCountdown.emplace_back(bufferCountdown_pair.first, bufferCountdown_pair.second - 1);
+        }
     }
 
-    indicesToBeRemovedInNextRemoves.clear();
-    std::swap(indicesToBeRemovedInNextRemoves, indicesToBeRemovedInNextTwoRemoves);
+    bufferToBeRemovedCountdown = std::move(new_bufferToBeRemovedCountdown);
 }
 
 void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
@@ -466,7 +475,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
         this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         this_memory_barrier.buffer = GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].buffer;
-        this_memory_barrier.offset = (swapsCounter % 2) * GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].halfSize;
+        this_memory_barrier.offset = (swapIndex % 2) * GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].halfSize;
         this_memory_barrier.size = GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].halfSize;
 
         buffer_memory_barries.emplace_back(this_memory_barrier);

@@ -75,10 +75,10 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan_device_extensions.emplace_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
+    vulkan_device_extensions.emplace_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
 
     vk::PhysicalDeviceFeatures vulkan_device_features;
     vulkan_device_features.samplerAnisotropy = VK_TRUE;
-
     vk::PhysicalDeviceVulkan11Features vulkan11_device_features;
     vulkan11_device_features.storageBuffer16BitAccess = VK_TRUE;
     vk::PhysicalDeviceVulkan12Features vulkan12_device_features;
@@ -87,6 +87,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan12_device_features.runtimeDescriptorArray = VK_TRUE;
     vulkan12_device_features.descriptorBindingVariableDescriptorCount = VK_TRUE;
     vulkan12_device_features.descriptorBindingPartiallyBound = VK_TRUE;
+    vulkan12_device_features.timelineSemaphore = VK_TRUE;
 
     void* pNext = &vulkan11_device_features;
     vulkan11_device_features.pNext = &vulkan12_device_features;
@@ -143,7 +144,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
 
     // Select swapchain images count
     auto surface_capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface).value;
-    uint32_t swapchain_images_count = std::max(uint32_t(2), surface_capabilities.minImageCount);
+    uint32_t swapchain_images_count = std::max(uint32_t(3), surface_capabilities.minImageCount);
 
     //
     // Create swapchain!

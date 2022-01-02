@@ -19,7 +19,7 @@
 class Engine: public VulkanInit
 {
 public:
-    Engine(configuru::Config& in_cfgFile);
+    explicit Engine(configuru::Config& in_cfgFile);
     ~Engine();
 
     Graphics*       GetGraphicsPtr();

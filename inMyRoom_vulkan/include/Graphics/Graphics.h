@@ -101,11 +101,12 @@ private:
 
     std::vector<vk::Framebuffer> framebuffers;
 
-    vk::Semaphore           imageAvailableSemaphore;
-    vk::Semaphore           renderFinishSemaphore;
+    vk::Semaphore           readyForPresentSemaphores[3];
+    vk::Semaphore           presentImageAvailableSemaphores[3];
+    vk::Semaphore           submitFinishTimelineSemaphore;
 
     vk::CommandPool         commandPool;
-    vk::CommandBuffer       commandBuffer;
+    vk::CommandBuffer       commandBuffers[3];
 
     std::vector<vk::Pipeline>       primitivesPipelines;
     std::vector<vk::PipelineLayout> primitivesPipelineLayouts;

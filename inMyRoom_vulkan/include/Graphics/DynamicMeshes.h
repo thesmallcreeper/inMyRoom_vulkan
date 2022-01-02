@@ -62,19 +62,18 @@ public:
     void RecordTransformations(vk::CommandBuffer command_buffer,
                                const std::vector<DrawInfo>& draw_infos);
 
-    vk::DescriptorSet GetDescriptorSet() {return descriptorSets[swapsCounter % 2];}
+    vk::DescriptorSet GetDescriptorSet() {return descriptorSets[swapIndex % 3];}
     vk::DescriptorSetLayout GetDescriptorLayout() {return descriptorSetLayout;}
-    void SwapDescriptorSet();
+    void SwapDescriptorSet(size_t swap_index);
     void CompleteRemovesSafe();
 private:
     std::unordered_map<size_t, std::vector<DynamicPrimitiveInfo>> indexToDynamicPrimitivesInfos_umap;
     std::unordered_map<vk::Buffer, vma::Allocation> bufferToVMAallocation_umap;
 
-    std::vector<size_t> indicesToBeRemovedInNextTwoRemoves;
-    std::vector<size_t> indicesToBeRemovedInNextRemoves;
+    std::vector<std::pair<vk::Buffer, uint32_t>> bufferToBeRemovedCountdown;
 
     vk::DescriptorPool      descriptorPool;
-    vk::DescriptorSet       descriptorSets[2];
+    vk::DescriptorSet       descriptorSets[3];
     vk::DescriptorSetLayout descriptorSetLayout;
     const size_t max_dynamicMeshes;
 
@@ -93,8 +92,9 @@ private:
     class Graphics* const graphics_ptr;
 
     size_t indexCounter = 0;
-    size_t swapsCounter = 0;
+    size_t swapIndex = 0;
 
     const uint32_t maxMorphWeights = MAX_MORPH_WEIGHTS;
     const uint32_t waveSize = 32;
+    const uint32_t removeCountdown = 2;
 };

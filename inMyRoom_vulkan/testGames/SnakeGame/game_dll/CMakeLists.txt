@@ -52,7 +52,7 @@ SET(SRC #engine's .h
         "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/ModelCollisionCompEntity.h" 
         "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/ModelDrawCompEntity.h" 
         "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/NodeDataCompEntity.h" 
-        "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/SkinCompEntity.h" 
+        "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/DynamicMeshCompEntity.h"
         "${game_dll_SOURCE_DIR}/../../../include/game_dll.h" 
         "${game_dll_SOURCE_DIR}/../../../include/Geometry/ViewportFrustum.h" 
 
@@ -69,7 +69,7 @@ SET(SRC #engine's .h
         "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/ModelCollisionCompEntity.cpp"
         "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/ModelDrawCompEntity.cpp"
         "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/NodeDataCompEntity.cpp"
-        "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/SkinCompEntity.cpp"
+        "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/DynamicMeshCompEntity.cpp"
         "${game_dll_SOURCE_DIR}/../../../src/game_dll.cpp"
         "${game_dll_SOURCE_DIR}/../../../src/Geometry/ViewportFrustum.cpp"
         
