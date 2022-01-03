@@ -176,7 +176,7 @@ void Graphics::DrawFrame()
         memcpy((std::byte*)(cameraAllocInfo.pMappedData) + buffer_index * 2 * sizeof(glm::mat4),
                view_projection_matrices,
                2 * sizeof(glm::mat4));
-        vma_allocator.invalidateAllocation(cameraAllocation, buffer_index * sizeof(glm::mat4), sizeof(glm::mat4));
+        vma_allocator.flushAllocation(cameraAllocation, buffer_index * sizeof(glm::mat4), sizeof(glm::mat4));
     }
 
     // Update matrices
@@ -185,7 +185,7 @@ void Graphics::DrawFrame()
                matrices.data(),
                matrices.size() * sizeof(glm::mat4));
 
-        vma_allocator.invalidateAllocation(matricesAllocation, buffer_index * maxInstances * sizeof(glm::mat4), matrices.size() * sizeof(glm::mat4));
+        vma_allocator.flushAllocation(matricesAllocation, buffer_index * maxInstances * sizeof(glm::mat4), matrices.size() * sizeof(glm::mat4));
     }
 
     //
