@@ -114,11 +114,11 @@ void Graphics::DrawFrame()
     vk::CommandBuffer command_buffer = commandBuffers[commandBuffer_index];
     command_buffer.reset();
 
-    uint32_t swapchainIndex = device.acquireNextImageKHR(engine_ptr->GetSwapchain(),
+    uint32_t swapchain_index = device.acquireNextImageKHR(engine_ptr->GetSwapchain(),
                                                          0,
                                                          presentImageAvailableSemaphores[commandBuffer_index]).value;
 
-    RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchainIndex, draw_infos, frustum_culling);
+    RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchain_index, draw_infos, frustum_culling);
 
     // Submit but hold until write host
     vk::SubmitInfo submit_info;
@@ -142,17 +142,6 @@ void Graphics::DrawFrame()
     std::vector<vk::SubmitInfo> submit_infos;
     submit_infos.emplace_back(submit_info);
     graphicsQueue.first.submit(submit_infos);
-
-    // Present but hold
-    vk::PresentInfoKHR present_info;
-    vk::SwapchainKHR swapchain = engine_ptr->GetSwapchain();
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &readyForPresentSemaphores[commandBuffer_index];
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = &swapchain;
-    present_info.pImageIndices = &swapchainIndex;
-
-    graphicsQueue.first.presentKHR(present_info);
 
     //
     // Wait! Wait for write buffers (-2)
@@ -197,6 +186,17 @@ void Graphics::DrawFrame()
 
         device.signalSemaphore(host_signal_info);
     }
+
+    // Present
+    vk::PresentInfoKHR present_info;
+    vk::SwapchainKHR swapchain = engine_ptr->GetSwapchain();
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &readyForPresentSemaphores[commandBuffer_index];
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swapchain;
+    present_info.pImageIndices = &swapchain_index;
+
+    graphicsQueue.first.presentKHR(present_info);
 
     dynamicMeshes_uptr->CompleteRemovesSafe();
 }
