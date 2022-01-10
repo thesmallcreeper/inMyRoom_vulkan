@@ -125,12 +125,14 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/VulkanInit.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/HelperUtils.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/ImagesInterfaces.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/RendererBase.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/AnimationsDataOfNodes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/MaterialsOfPrimitives.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/MeshesOfNodes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/PrimitivesOfMeshes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/SkinsOfMeshes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/TexturesOfMaterials.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Renderers/Renderer.h"
 
         #source .cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
@@ -190,6 +192,7 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/PrimitivesOfMeshes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/SkinsOfMeshes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/TexturesOfMaterials.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Renderers/Renderer.cpp"
         )
 
 add_executable(inMyRoom_vulkan ${SRC})

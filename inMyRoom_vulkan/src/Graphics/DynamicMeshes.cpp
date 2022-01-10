@@ -319,7 +319,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
     assert(hasBeenFlashed);
 
     std::vector<vk::DescriptorSet> descriptor_sets;
-    descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet());
+    descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(swapIndex));
     descriptor_sets.emplace_back(graphics_ptr->GetSkinsOfMeshesPtr()->GetDescriptorSet());
     descriptor_sets.emplace_back(this->GetDescriptorSet());
 
