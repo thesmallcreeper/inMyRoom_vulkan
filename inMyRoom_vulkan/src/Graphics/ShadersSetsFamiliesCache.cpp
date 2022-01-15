@@ -8,9 +8,11 @@
 
 
 ShadersSetsFamiliesCache::ShadersSetsFamiliesCache(vk::Device in_device,
+                                                   VendorID in_vendorID,
                                                    std::string shaders_folder)
     :
     device(in_device),
+    vendorID(in_vendorID),
     shadersFolder(std::move(shaders_folder))
 {
 }
@@ -68,8 +70,16 @@ void ShadersSetsFamiliesCache::AddShadersSetsFamily(const ShadersSetsFamilyInitI
     shadersSetFamilyNameToShadersSetFamilySourceStrings_umap.emplace(shadersSetsFamilyInitInfos.shadersSetFamilyName, this_shaderSetSourceString);
 }
 
-ShadersSet ShadersSetsFamiliesCache::GetShadersSet(const ShadersSpecs& shaderSpecs)
+ShadersSet ShadersSetsFamiliesCache::GetShadersSet(ShadersSpecs shaderSpecs)
 {
+    if (vendorID == VendorID::NVIDIA) {
+        shaderSpecs.definitionStringPairs.emplace_back("VENDOR_NVIDIA", "");
+    } else if (vendorID == VendorID::AMD){
+        shaderSpecs.definitionStringPairs.emplace_back("VENDOR_AMD", "");
+    } else if (vendorID == VendorID::INTEL) {
+        shaderSpecs.definitionStringPairs.emplace_back("VENDOR_INTEL", "");
+    }
+
     auto search = shaderSpecsToShadersSet_umap.find(shaderSpecs);
     if (search != shaderSpecsToShadersSet_umap.end()) {
         return search->second;
@@ -264,8 +274,24 @@ std::vector<uint32_t>
 
     if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
         std::cerr << "Shader compilation failed!\n error code = " + std::to_string(module.GetCompilationStatus()) + "\n";
-        std::cerr << module.GetErrorMessage();
-        std::cerr << preprocessed_source;
+        std::cerr << module.GetErrorMessage() << "\n";
+
+        const size_t spacing = 4;
+        size_t line_count = 1;
+        std::string output = std::to_string(line_count++);
+        output.resize(spacing, ' ');
+        output += '|';
+        for(const auto& this_char : preprocessed_source) {
+            output += this_char;
+            if (this_char == '\n') {
+                std::string append_string = std::to_string(line_count++);
+                append_string.resize(spacing, ' ');
+                append_string += '|';
+                output += append_string;
+            }
+        }
+        std::cerr << output;
+
         std::terminate();
     }
 

@@ -38,6 +38,7 @@ public:
     SkinsOfMeshes* GetSkinsOfMeshesPtr() const {return skinsOfMeshes_uptr.get();}
     AnimationsDataOfNodes* GetAnimationsDataOfNodesPtr() const {return animationsDataOfNodes_uptr.get();}
     MaterialsOfPrimitives* GetMaterialsOfPrimitives() const {return materialsOfPrimitives_uptr.get();}
+    TexturesOfMaterials* GetTexturesOfMaterials() const {return texturesOfMaterials_uptr.get();}
     DynamicMeshes* GetDynamicMeshes() const {return dynamicMeshes_uptr.get();}
     PipelinesFactory* GetPipelineFactory() const {return pipelinesFactory_uptr.get();}
     ShadersSetsFamiliesCache* GetShadersSetsFamiliesCache() const {return shadersSetsFamiliesCache_uptr.get();}
@@ -60,10 +61,10 @@ public:
 
     void DrawFrame();
 
-    void HostWriteBuffers(ViewportFrustum viewport,
-                          const std::vector<glm::mat4>& matrices,
-                          const std::vector<DrawInfo>& draw_infos,
-                          size_t buffer_index);
+    void WriteCameraMarticesBuffers(ViewportFrustum viewport,
+                                    const std::vector<glm::mat4>& matrices,
+                                    const std::vector<DrawInfo>& draw_infos,
+                                    size_t buffer_index);
 
     // TODO: Get the f out
     void ToggleCullingDebugging();

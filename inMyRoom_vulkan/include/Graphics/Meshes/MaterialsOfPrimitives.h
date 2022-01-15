@@ -14,6 +14,8 @@ struct MaterialParameters
 {
     alignas(16) glm::vec4 baseColorFactors = glm::vec4(1.f, 1.f, 1.f, 1.f);
     alignas(4) uint32_t baseColorTexture = -1;
+    alignas(4) uint32_t baseColorTexCoord = 0;
+
     alignas(4) float alphaCutoff = 0.5f;
 };
 
@@ -21,6 +23,8 @@ struct MaterialAbout
 {
     bool twoSided = false;
     bool transparent = false;
+    bool masked = false;
+    uint32_t color_texcooord = 0;
     std::vector<std::pair<std::string, std::string>> definitionStringPairs;
 };
 
@@ -32,6 +36,9 @@ public: // functions
                           vma::Allocator allocator);
 
     ~MaterialsOfPrimitives();
+
+    void AddDefaultTextures();
+    void AddDefaultMaterial();
 
     void AddMaterialsOfModel(const tinygltf::Model& model, const std::string& model_folder);
     size_t GetMaterialIndexOffsetOfModel(const tinygltf::Model& in_model) const;
@@ -51,6 +58,9 @@ private: // functions
 private: // data
     std::vector<MaterialParameters> materialsParameters;
     std::vector<MaterialAbout> materialsAbout;
+
+    // Default textures
+    uint32_t defaultColorTextureIndex = -1;
 
     // set: 0, bind: 0, UBO with material parameters
     // set: 0, bind: 1, array Sampler+Image

@@ -2,8 +2,6 @@
 
 #include <array>
 
-#define GLM_FORECE_DEPTH_ZERO_TO_ONE
-
 #include "glm/mat4x4.hpp"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -33,6 +31,9 @@ public:
 
 #ifndef GAME_DLL
     std::array<Plane, 6> GetWorldSpacePlanesOfFrustum() const;
+
+    std::array<glm::vec4, 4> GetFullscreenpassTriangleNormals() const;
+    std::array<glm::vec4, 4> GetFullscreenpassTrianglePos() const;
 #endif
 
 //    ViewportFrustum& operator = (const ViewportFrustum& t);

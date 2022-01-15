@@ -112,7 +112,8 @@ void Graphics::InitDescriptors()
         buffer_binding.binding = 0;
         buffer_binding.descriptorType = vk::DescriptorType::eUniformBuffer;
         buffer_binding.descriptorCount = 1;
-        buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+        buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex
+                | vk::ShaderStageFlagBits::eFragment;
 
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &buffer_binding);
         cameraDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
@@ -123,7 +124,9 @@ void Graphics::InitDescriptors()
         buffer_binding.binding = 0;
         buffer_binding.descriptorType = vk::DescriptorType::eStorageBuffer;
         buffer_binding.descriptorCount = 1;
-        buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eCompute;
+        buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex
+                | vk::ShaderStageFlagBits::eFragment
+                | vk::ShaderStageFlagBits::eCompute;
 
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &buffer_binding);
         matricesDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
@@ -228,19 +231,26 @@ void Graphics::InitPipelinesFactory()
 
 void Graphics::InitShadersSetsFamiliesCache()
 {
-    shadersSetsFamiliesCache_uptr = std::make_unique<ShadersSetsFamiliesCache>(device, "shaders");
+    shadersSetsFamiliesCache_uptr = std::make_unique<ShadersSetsFamiliesCache>(device, engine_ptr->GetVendorId(),  "shaders");
 
-    {
-        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "Texture-Pass Shaders";
-        this_shaderSetInitInfo.fragmentShaderSourceFilename = "generalShader_glsl.frag";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "generalShader_glsl.vert";
-        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
-    }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
         this_shaderSetInitInfo.shadersSetFamilyName = "Dynamic Mesh Evaluation Shader";
         this_shaderSetInitInfo.computeShaderSourceFilename = "dynamicMeshShader_glsl.comp";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Visibility Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "visibilityPass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "visibilityPass_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Texture-Pass Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "texturePass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "texturePass_glsl.vert";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
 }
@@ -251,7 +261,7 @@ void Graphics::InitMeshesTree()
 
     texturesOfMaterials_uptr = std::make_unique<TexturesOfMaterials>(device, vma_allocator, engine_ptr->GetQueuesList().graphicsQueues[0]);
 
-    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device, vma_allocator);                                                               //needs flash
+    materialsOfPrimitives_uptr = std::make_unique<MaterialsOfPrimitives>(texturesOfMaterials_uptr.get(), device, vma_allocator);
 
     primitivesOfMeshes_uptr = std::make_unique<PrimitivesOfMeshes>(materialsOfPrimitives_uptr.get(), device, vma_allocator);
 
@@ -337,7 +347,7 @@ void Graphics::DrawFrame()
 
     ViewportFrustum camera_viewport = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
 
-    renderer_uptr->DrawFrame(camera_viewport, matrices, draw_infos);
+    renderer_uptr->DrawFrame(camera_viewport, std::move(matrices), std::move(draw_infos));
 
     dynamicMeshes_uptr->CompleteRemovesSafe();
 }
@@ -366,10 +376,10 @@ vk::SwapchainKHR Graphics::GetSwapchain() const{
     return engine_ptr->GetSwapchain();
 }
 
-void Graphics::HostWriteBuffers(ViewportFrustum viewport,
-                                const std::vector<glm::mat4>& matrices,
-                                const std::vector<DrawInfo>& draw_infos,
-                                size_t buffer_index)
+void Graphics::WriteCameraMarticesBuffers(ViewportFrustum viewport,
+                                          const std::vector<glm::mat4>& matrices,
+                                          const std::vector<DrawInfo>& draw_infos,
+                                          size_t buffer_index)
 {
     // Update camera matrix
     {

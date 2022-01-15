@@ -16,6 +16,12 @@ struct QueuesList
     std::vector<std::pair<vk::Queue, uint32_t>> dedicatedTransferQueues;
 };
 
+enum class VendorID : uint32_t {
+    AMD         = 0x1002,
+    NVIDIA      = 0x10DE,
+    INTEL       = 0x8086
+};
+
 class VulkanInit
 {
 public:
@@ -28,6 +34,7 @@ public:
     WindowWithAsyncInput* GetWindowPtr() const {return windowAsync_uptr.get();}
 
     vk::Device GetDevice() const {return device;}
+    VendorID GetVendorId() const {return vendorId;}
     QueuesList GetQueuesList() const {return queues;}
     vk::SwapchainKHR GetSwapchain() const {return swapchain;}
     vk::SwapchainCreateInfoKHR GetSwapchainCreateInfo() const {return swapchainCreateInfo;}
@@ -69,6 +76,7 @@ protected:
     vk::DebugUtilsMessengerEXT      vulkanDebugUtilsMessenger;
     vk::Device                      device;
     vk::PhysicalDevice              physicalDevice;
+    VendorID                        vendorId;
     QueuesList                      queues;
     vk::SurfaceKHR                  surface;
     vk::SwapchainKHR                swapchain;

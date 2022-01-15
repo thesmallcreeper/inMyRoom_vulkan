@@ -45,7 +45,7 @@ void DynamicMeshes::FlashDevice()
         binding_layout.binding = 0;
         binding_layout.descriptorType = vk::DescriptorType::eStorageBuffer;
         binding_layout.descriptorCount = max_descriptor_per_set;
-        binding_layout.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eCompute;
+        binding_layout.stageFlags = vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eCompute;
 
         vk::DescriptorSetLayoutBindingFlagsCreateInfo binding_flags;
         vk::DescriptorBindingFlags flags =  vk::DescriptorBindingFlagBits::eVariableDescriptorCount | vk::DescriptorBindingFlagBits::ePartiallyBound;
@@ -180,15 +180,15 @@ size_t DynamicMeshes::AddDynamicMesh(const std::vector<size_t>& primitives_info_
         this_dynamicPrimitiveInfo.primitiveIndex = this_primitiveInfo_index;
 
         if (this_primitiveInfo.positionMorphTargets > 0 || isSkin) {
-            this_dynamicPrimitiveInfo.positionOffset = offset;
+            this_dynamicPrimitiveInfo.positionByteOffset = offset;
             offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
         }
         if (this_primitiveInfo.normalMorphTargets > 0 || isSkin) {
-            this_dynamicPrimitiveInfo.normalOffset = offset;
+            this_dynamicPrimitiveInfo.normalByteOffset = offset;
             offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
         }
         if (this_primitiveInfo.tangentMorphTargets > 0 || isSkin) {
-            this_dynamicPrimitiveInfo.tangentOffset = offset;
+            this_dynamicPrimitiveInfo.tangentByteOffset = offset;
             offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
         }
         if (this_primitiveInfo.texcoordsMorphTargets > 0) {
@@ -197,11 +197,11 @@ size_t DynamicMeshes::AddDynamicMesh(const std::vector<size_t>& primitives_info_
             size_t size_in_byte = this_primitiveInfo.verticesCount * sizeof(float) * 2 * this_primitiveInfo.texcoordsCount;
             size_in_byte += (size_in_byte % 16 == 8) ? 8 : 0;
 
-            this_dynamicPrimitiveInfo.texcoordsOffset = offset;
+            this_dynamicPrimitiveInfo.texcoordsByteOffset = offset;
             offset += size_in_byte;
         }
         if (this_primitiveInfo.colorMorphTargets > 0) {
-            this_dynamicPrimitiveInfo.colorOffset = offset;
+            this_dynamicPrimitiveInfo.colorByteOffset = offset;
             offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
         }
 
@@ -258,7 +258,7 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
 
     {   // Default primitives buffer
         vk::DescriptorBufferInfo primitives_buffer_info;
-        primitives_buffer_info.buffer = graphics_ptr->GetPrimitivesOfMeshes()->GetVerticesBuffer();
+        primitives_buffer_info.buffer = graphics_ptr->GetPrimitivesOfMeshes()->GetBuffer();
         primitives_buffer_info.offset = 0;
         primitives_buffer_info.range = VK_WHOLE_SIZE;
         descriptor_buffer_infos.emplace_back(primitives_buffer_info);
@@ -330,26 +330,26 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
         for (const DynamicPrimitiveInfo& this_dynamic_primitive : GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)) {
             const PrimitiveInfo& this_primitive = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive.primitiveIndex);
 
-            if (this_dynamic_primitive.positionOffset != -1) {
+            if (this_dynamic_primitive.positionByteOffset != -1) {
                 command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, positionCompPipeline);
 
-                assert(this_primitive.positionOffset % (sizeof(float) * 4) == 0);
-                assert(this_primitive.jointsOffset % (sizeof(uint16_t) * 4) == 0);
-                assert(this_primitive.weightsOffset % (sizeof(float) * 4) == 0);
-                assert(this_dynamic_primitive.positionOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.positionByteOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.jointsByteOffset % (sizeof(uint16_t) * 4) == 0);
+                assert(this_primitive.weightsByteOffset % (sizeof(float) * 4) == 0);
+                assert(this_dynamic_primitive.positionByteOffset % (sizeof(float) * 4) == 0);
 
                 DynamicMeshComputePushConstants push_constants;
                 push_constants.matrixOffset = uint32_t(draw_info.matricesOffset);
                 push_constants.inverseMatricesOffset = uint32_t(draw_info.inverseMatricesOffset);
-                push_constants.verticesOffset = uint32_t(this_primitive.positionOffset / (sizeof(float) * 4));
-                push_constants.jointsOffset = uint32_t(this_primitive.jointsOffset / (sizeof(uint16_t) * 4));
-                push_constants.weightsOffset = uint32_t(this_primitive.weightsOffset / (sizeof(float) * 4));
+                push_constants.verticesOffset = uint32_t(this_primitive.positionByteOffset / (sizeof(float) * 4));
+                push_constants.jointsOffset = uint32_t(this_primitive.jointsByteOffset / (sizeof(uint16_t) * 4));
+                push_constants.weightsOffset = uint32_t(this_primitive.weightsByteOffset / (sizeof(float) * 4));
                 push_constants.jointsGroupsCount = uint32_t(this_primitive.jointsCount);
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
                 push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
-                push_constants.resultOffset = uint32_t(this_dynamic_primitive.positionOffset / (sizeof(float) * 4));
+                push_constants.resultOffset = uint32_t(this_dynamic_primitive.positionByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                           push_constants.morph_weights.begin());
@@ -358,26 +358,26 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
             }
 
-            if (this_dynamic_primitive.normalOffset != -1) {
+            if (this_dynamic_primitive.normalByteOffset != -1) {
                 command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, normalCompPipeline);
 
-                assert(this_primitive.normalOffset % (sizeof(float) * 4) == 0);
-                assert(this_primitive.jointsOffset % (sizeof(uint16_t) * 4) == 0);
-                assert(this_primitive.weightsOffset % (sizeof(float) * 4) == 0);
-                assert(this_dynamic_primitive.normalOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.normalByteOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.jointsByteOffset % (sizeof(uint16_t) * 4) == 0);
+                assert(this_primitive.weightsByteOffset % (sizeof(float) * 4) == 0);
+                assert(this_dynamic_primitive.normalByteOffset % (sizeof(float) * 4) == 0);
 
                 DynamicMeshComputePushConstants push_constants;
                 push_constants.matrixOffset = uint32_t(draw_info.matricesOffset);
                 push_constants.inverseMatricesOffset = uint32_t(draw_info.inverseMatricesOffset);
-                push_constants.verticesOffset = uint32_t(this_primitive.normalOffset / (sizeof(float) * 4));
-                push_constants.jointsOffset = uint32_t(this_primitive.jointsOffset / (sizeof(uint16_t) * 4));
-                push_constants.weightsOffset = uint32_t(this_primitive.weightsOffset / (sizeof(float) * 4));
+                push_constants.verticesOffset = uint32_t(this_primitive.normalByteOffset / (sizeof(float) * 4));
+                push_constants.jointsOffset = uint32_t(this_primitive.jointsByteOffset / (sizeof(uint16_t) * 4));
+                push_constants.weightsOffset = uint32_t(this_primitive.weightsByteOffset / (sizeof(float) * 4));
                 push_constants.jointsGroupsCount = uint32_t(this_primitive.jointsCount);
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
                 push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
-                push_constants.resultOffset = uint32_t(this_dynamic_primitive.normalOffset / (sizeof(float) * 4));
+                push_constants.resultOffset = uint32_t(this_dynamic_primitive.normalByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                           push_constants.morph_weights.begin());
@@ -386,26 +386,26 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
             }
 
-            if (this_dynamic_primitive.tangentOffset != -1) {
+            if (this_dynamic_primitive.tangentByteOffset != -1) {
                 command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, tangentCompPipeline);
 
-                assert(this_primitive.tangentOffset % (sizeof(float) * 4) == 0);
-                assert(this_primitive.jointsOffset % (sizeof(uint16_t) * 4) == 0);
-                assert(this_primitive.weightsOffset % (sizeof(float) * 4) == 0);
-                assert(this_dynamic_primitive.tangentOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.tangentByteOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.jointsByteOffset % (sizeof(uint16_t) * 4) == 0);
+                assert(this_primitive.weightsByteOffset % (sizeof(float) * 4) == 0);
+                assert(this_dynamic_primitive.tangentByteOffset % (sizeof(float) * 4) == 0);
 
                 DynamicMeshComputePushConstants push_constants;
                 push_constants.matrixOffset = uint32_t(draw_info.matricesOffset);
                 push_constants.inverseMatricesOffset = uint32_t(draw_info.inverseMatricesOffset);
-                push_constants.verticesOffset = uint32_t(this_primitive.tangentOffset / (sizeof(float) * 4));
-                push_constants.jointsOffset = uint32_t(this_primitive.jointsOffset / (sizeof(uint16_t) * 4));
-                push_constants.weightsOffset = uint32_t(this_primitive.weightsOffset / (sizeof(float) * 4));
+                push_constants.verticesOffset = uint32_t(this_primitive.tangentByteOffset / (sizeof(float) * 4));
+                push_constants.jointsOffset = uint32_t(this_primitive.jointsByteOffset / (sizeof(uint16_t) * 4));
+                push_constants.weightsOffset = uint32_t(this_primitive.weightsByteOffset / (sizeof(float) * 4));
                 push_constants.jointsGroupsCount = uint32_t(this_primitive.jointsCount);
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
                 push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
-                push_constants.resultOffset = uint32_t(this_dynamic_primitive.tangentOffset / (sizeof(float) * 4));
+                push_constants.resultOffset = uint32_t(this_dynamic_primitive.tangentByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                           push_constants.morph_weights.begin());
@@ -414,16 +414,16 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
             }
 
-            if (this_dynamic_primitive.colorOffset != -1) {
+            if (this_dynamic_primitive.colorByteOffset != -1) {
                 command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, colorCompPipeline);
 
-                assert(this_primitive.colorOffset % (sizeof(float) * 4) == 0);
-                assert(this_dynamic_primitive.colorOffset % (sizeof(float) * 4) == 0);
+                assert(this_primitive.colorByteOffset % (sizeof(float) * 4) == 0);
+                assert(this_dynamic_primitive.colorByteOffset % (sizeof(float) * 4) == 0);
 
                 DynamicMeshComputePushConstants push_constants;
                 push_constants.matrixOffset = uint32_t(draw_info.matricesOffset);
                 push_constants.inverseMatricesOffset = uint32_t(draw_info.inverseMatricesOffset);
-                push_constants.verticesOffset = uint32_t(this_primitive.colorOffset / (sizeof(float) * 4));
+                push_constants.verticesOffset = uint32_t(this_primitive.colorByteOffset / (sizeof(float) * 4));
                 push_constants.jointsOffset = 0;
                 push_constants.weightsOffset = 0;
                 push_constants.jointsGroupsCount = 0;
@@ -431,7 +431,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
                 push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
-                push_constants.resultOffset = uint32_t(this_dynamic_primitive.colorOffset / (sizeof(float) * 4));
+                push_constants.resultOffset = uint32_t(this_dynamic_primitive.colorByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                           push_constants.morph_weights.begin());
@@ -440,17 +440,17 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
             }
 
-            if (this_dynamic_primitive.texcoordsOffset != -1) {
+            if (this_dynamic_primitive.texcoordsByteOffset != -1) {
                 for(size_t i = 0; i != this_dynamic_primitive.texcoordsCount; i++) {
                     command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, texcoordsCompPipeline);
 
-                    assert(this_primitive.texcoordsOffset % (sizeof(float) * 4) == 0);
-                    assert(this_dynamic_primitive.texcoordsOffset % (sizeof(float) * 4) == 0);
+                    assert(this_primitive.texcoordsByteOffset % (sizeof(float) * 4) == 0);
+                    assert(this_dynamic_primitive.texcoordsByteOffset % (sizeof(float) * 4) == 0);
 
                     DynamicMeshComputePushConstants push_constants;
                     push_constants.matrixOffset = uint32_t(draw_info.matricesOffset);
                     push_constants.inverseMatricesOffset = uint32_t(draw_info.inverseMatricesOffset);
-                    push_constants.verticesOffset = uint32_t(this_primitive.texcoordsOffset / (sizeof(float) * 2) + i);
+                    push_constants.verticesOffset = uint32_t(this_primitive.texcoordsByteOffset / (sizeof(float) * 2) + i);
                     push_constants.jointsOffset = 0;
                     push_constants.weightsOffset = 0;
                     push_constants.jointsGroupsCount = 0;
@@ -458,7 +458,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                     push_constants.size_x = uint32_t(this_primitive.verticesCount);
                     push_constants.step_multiplier = uint32_t(this_dynamic_primitive.texcoordsCount);
                     push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
-                    push_constants.resultOffset = uint32_t(this_dynamic_primitive.texcoordsOffset / (sizeof(float) * 4) + i);
+                    push_constants.resultOffset = uint32_t(this_dynamic_primitive.texcoordsByteOffset / (sizeof(float) * 4) + i);
                     std::copy(draw_info.weights.begin(),
                               draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                               push_constants.morph_weights.begin());

@@ -11,6 +11,8 @@
 #include "vulkan/vulkan.hpp"
 #include "shaderc/shaderc.hpp"
 
+#include "Graphics/VulkanInit.h"
+
 struct ShadersSet
 {
     vk::ShaderModule fragmentShaderModule;
@@ -99,13 +101,14 @@ class ShadersSetsFamiliesCache
 {
 public:
     ShadersSetsFamiliesCache(vk::Device device,
+                             VendorID vendorId,
                              std::string shaders_folder);
     ~ShadersSetsFamiliesCache();
     ShadersSetsFamiliesCache (const ShadersSetsFamiliesCache&) = delete;
     ShadersSetsFamiliesCache& operator= (const ShadersSetsFamiliesCache&) = delete;
 
     void AddShadersSetsFamily(const ShadersSetsFamilyInitInfo& shadersSetsFamilyInitInfos);
-    ShadersSet GetShadersSet(const ShadersSpecs& shaderSpecs);
+    ShadersSet GetShadersSet(ShadersSpecs shaderSpecs);
 
 private:
     ShadersSet CreateShadersSet(const ShadersSpecs& shaderSpecs);
@@ -120,6 +123,7 @@ private:
 
 private:
     const vk::Device device;
+    const VendorID vendorID;
     const std::string shadersFolder;
 
     std::unordered_map<std::string, ShadersSetsFamilySourceStrings> shadersSetFamilyNameToShadersSetFamilySourceStrings_umap;

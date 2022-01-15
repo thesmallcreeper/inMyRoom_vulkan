@@ -28,20 +28,30 @@ void ViewportFrustum::UpdatePerspectiveMatrix(float fovy,
                                               float near,
                                               float far)
 {
-    perspectiveMatrix = glm::perspective(fovy, aspect, near, far)
-                      * glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,    // Multiply with diag(1,-1,1,1) in order to make glm::perspective "vulkan-ready"                                                                                                                                                                                                                       
-                                  0.0f, -1.0f, 0.0f, 0.0f,
-                                  0.0f, 0.0f, 1.0f, 0.0f,
-                                  0.0f, 0.0f, 0.0f, 1.0f);
+    float halfFov_tan = glm::tan(fovy / 2.f);
+
+    perspectiveMatrix = glm::mat4(0.f);
+    perspectiveMatrix[0][0] = +1.f / (aspect * halfFov_tan);
+    perspectiveMatrix[1][1] = +1.f / (halfFov_tan);
+    perspectiveMatrix[2][2] = +(far) / (far - near);
+    perspectiveMatrix[2][3] = +1.f;
+    perspectiveMatrix[3][2] = -(far * near) / (far - near);
 }
 
 void ViewportFrustum::UpdateViewMatrix(glm::vec3 in_camera_position,
                                        glm::vec3 in_camera_looking_direction,
                                        glm::vec3 in_camera_up)
 {
-    viewMatrix = glm::lookAt(in_camera_position,
-                             in_camera_position + in_camera_looking_direction,
-                             in_camera_up);
+    glm::vec3 camera_z = glm::normalize(in_camera_looking_direction);
+    glm::vec3 camera_x = glm::normalize(glm::cross(-in_camera_up, camera_z));
+    glm::vec3 camera_y = glm::cross(camera_z, camera_x);
+
+    glm::mat4 inv_view_matrix = glm::mat4(glm::vec4(camera_x, 0.f),
+                                          glm::vec4(camera_y, 0.f),
+                                          glm::vec4(camera_z, 0.f),
+                                          glm::vec4(in_camera_position, 1.f));
+
+    viewMatrix = glm::inverse(inv_view_matrix);
 }
 
 #ifndef GAME_DLL
@@ -103,6 +113,39 @@ std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
 
     return planes;
 }
+
+std::array<glm::vec4, 4> ViewportFrustum::GetFullscreenpassTriangleNormals() const
+{
+    glm::vec4 origin = glm::vec4(0.f, 0.f, 0.f, 1.f);
+
+    glm::mat4 pers_matrix = GetPerspectiveMatrix();
+    glm::mat4 inv_pers_matrix = glm::inverse(pers_matrix);
+
+    std::array<glm::vec4, 4> triangle_pos = GetFullscreenpassTrianglePos();
+
+    std::array<glm::vec4, 4> return_array = {};
+    for (size_t i = 0; i != triangle_pos.size(); ++i) {
+        const glm::vec4& this_pos = triangle_pos[i];
+
+        glm::vec4 backproject_pos = inv_pers_matrix * this_pos;
+        backproject_pos /= backproject_pos.w;
+
+        return_array[i] = glm::normalize(backproject_pos - origin);
+    }
+
+    return return_array;
+}
+
+std::array<glm::vec4, 4> ViewportFrustum::GetFullscreenpassTrianglePos() const
+{
+    std::array<glm::vec4, 4> return_array = {glm::vec4( 1.f,  1.f, 0.5f, 1.f),
+                                             glm::vec4(-1.f,  1.f, 0.5f, 1.f),
+                                             glm::vec4(-1.f, -1.f, 0.5f, 1.f),
+                                             glm::vec4( 1.f, -1.f, 0.5f, 1.f)};
+
+    return return_array;
+}
+
 #endif
 
 //ViewportFrustum& ViewportFrustum::operator=(const ViewportFrustum& other)

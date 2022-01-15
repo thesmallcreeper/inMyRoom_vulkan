@@ -14,16 +14,16 @@
 struct DynamicPrimitiveInfo {
     size_t primitiveIndex           = -1;
 
-    VkDeviceSize positionOffset     = -1;
+    VkDeviceSize positionByteOffset = -1;
 
-    VkDeviceSize normalOffset       = -1;
+    VkDeviceSize normalByteOffset   = -1;
 
-    VkDeviceSize tangentOffset      = -1;
+    VkDeviceSize tangentByteOffset  = -1;
 
     int texcoordsCount              =  0;
-    VkDeviceSize texcoordsOffset    = -1;
+    VkDeviceSize texcoordsByteOffset= -1;
 
-    VkDeviceSize colorOffset        = -1;
+    VkDeviceSize colorByteOffset    = -1;
 
     vk::Buffer buffer;
     size_t halfSize                 =  0;

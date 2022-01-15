@@ -99,7 +99,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                         std::vector target = transformRange<float>(target_begin_end_ptr.first,target_begin_end_ptr.second,
                                                                    +[](const std::array<float, 3> &in) -> std::array<float, 4> {
                                                                    std::array<float, 4> out;
-                                                                   out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2]; out[2] = 1.f;
+                                                                   out[0] = in[0]; out[1] = -in[1]; out[2] = -in[2]; out[3] = 1.f;
                                                                    return out; });
 
                         attributeAndTargets.emplace_back(std::move(target));
@@ -705,12 +705,54 @@ PrimitivesOfMeshes::PrimitivesOfMeshes(MaterialsOfPrimitives* in_materialsOfPrim
     device(in_device),
     vma_allocator(in_allocator)
 {
+    AddDefaultPrimitive();
 }
 
 PrimitivesOfMeshes::~PrimitivesOfMeshes()
 {
-    vma_allocator.destroyBuffer(indicesBuffer, indicesAllocation);
+    vma_allocator.destroyBuffer(buffer, allocation);
     vma_allocator.destroyBuffer(verticesBuffer, verticesAllocation);
+}
+
+void PrimitivesOfMeshes::AddDefaultPrimitive()
+{
+    PrimitiveInitializationData default_primitiveInitializationData;
+
+    default_primitiveInitializationData.indices.emplace_back(0);
+    default_primitiveInitializationData.indices.emplace_back(1);
+    default_primitiveInitializationData.indices.emplace_back(2);
+
+    for (size_t i = 0; i != 3; ++i) {
+        default_primitiveInitializationData.position.emplace_back(0.f);
+        default_primitiveInitializationData.position.emplace_back(0.f);
+        default_primitiveInitializationData.position.emplace_back(0.f);
+        default_primitiveInitializationData.position.emplace_back(1.f);
+
+        default_primitiveInitializationData.normal.emplace_back(0.f);
+        default_primitiveInitializationData.normal.emplace_back(0.f);
+        default_primitiveInitializationData.normal.emplace_back(1.f);
+        default_primitiveInitializationData.normal.emplace_back(0.f);
+
+        default_primitiveInitializationData.normal.emplace_back(0.f);
+        default_primitiveInitializationData.normal.emplace_back(1.f);
+        default_primitiveInitializationData.normal.emplace_back(0.f);
+        default_primitiveInitializationData.normal.emplace_back(0.f);
+
+        default_primitiveInitializationData.texcoordsCount = 1;
+        default_primitiveInitializationData.texcoords.emplace_back(0.5f);
+        default_primitiveInitializationData.texcoords.emplace_back(0.5f);
+
+        default_primitiveInitializationData.color.emplace_back(0.0f);
+        default_primitiveInitializationData.color.emplace_back(0.0f);
+        default_primitiveInitializationData.color.emplace_back(0.0f);
+        default_primitiveInitializationData.color.emplace_back(0.0f);
+    }
+
+    // Align
+    default_primitiveInitializationData.texcoords.emplace_back(0.f);
+    default_primitiveInitializationData.texcoords.emplace_back(0.f);
+
+    primitivesInitializationData.emplace_back(default_primitiveInitializationData);
 }
 
 size_t PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& model,
@@ -760,39 +802,28 @@ OBBtree PrimitivesOfMeshes::GetOBBtreeAndReset()
 void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
 {
     assert(hasBeenFlashed == false);
-
+    
     size_t indices_size_bytes = GetIndicesBufferSize();
     size_t vertices_size_bytes = GetVerticesBufferSize();
 
     InitializePrimitivesInfo();
 
     {
-        vk::BufferCreateInfo indices_buffer_create_info;
-        indices_buffer_create_info.size = indices_size_bytes;
-        indices_buffer_create_info.usage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
-        indices_buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = indices_size_bytes + vertices_size_bytes;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eIndexBuffer
+                | vk::BufferUsageFlagBits::eVertexBuffer
+                | vk::BufferUsageFlagBits::eTransferDst
+                | vk::BufferUsageFlagBits::eStorageBuffer;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
-        vma::AllocationCreateInfo indices_allocation_create_info;
-        indices_allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+        vma::AllocationCreateInfo allocation_create_info;
+        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
 
-        auto createBuffer_result = vma_allocator.createBuffer(indices_buffer_create_info, indices_allocation_create_info);
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
         assert(createBuffer_result.result == vk::Result::eSuccess);
-        indicesBuffer = createBuffer_result.value.first;
-        indicesAllocation = createBuffer_result.value.second;
-    }
-    {
-        vk::BufferCreateInfo vertices_buffer_create_info;
-        vertices_buffer_create_info.size = vertices_size_bytes;
-        vertices_buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
-        vertices_buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
-
-        vma::AllocationCreateInfo vertices_allocation_create_info;
-        vertices_allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
-
-        auto createBuffer_result = vma_allocator.createBuffer(vertices_buffer_create_info, vertices_allocation_create_info);
-        assert(createBuffer_result.result == vk::Result::eSuccess);
-        verticesBuffer = createBuffer_result.value.first;
-        verticesAllocation = createBuffer_result.value.second;
+        buffer = createBuffer_result.value.first;
+        allocation = createBuffer_result.value.second;
     }
 
     StagingBuffer staging_buffer(device, vma_allocator, indices_size_bytes + vertices_size_bytes);
@@ -800,23 +831,17 @@ void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
     std::byte* dst_ptr = staging_buffer.GetDstPtr();
 
     CopyIndicesToBuffer(dst_ptr);
-    CopyVerticesToBuffer(dst_ptr + indices_size_bytes);
+    CopyVerticesToBuffer(dst_ptr, indices_size_bytes);
 
     vk::CommandBuffer command_buffer = staging_buffer.BeginCommandRecord(queue);
     vk::Buffer copy_buffer = staging_buffer.GetBuffer();
 
-    vk::BufferCopy indices_region;
-    indices_region.srcOffset = 0;
-    indices_region.dstOffset = 0;
-    indices_region.size = indices_size_bytes;
-    command_buffer.copyBuffer(copy_buffer, indicesBuffer, 1, &indices_region);
-
-    vk::BufferCopy vertices_region;
-    vertices_region.srcOffset = indices_size_bytes;
-    vertices_region.dstOffset = 0;
-    vertices_region.size = vertices_size_bytes;
-    command_buffer.copyBuffer(copy_buffer, verticesBuffer, 1, &vertices_region);
-
+    vk::BufferCopy copy_region;
+    copy_region.srcOffset = 0;
+    copy_region.dstOffset = 0;
+    copy_region.size = indices_size_bytes + vertices_size_bytes;
+    command_buffer.copyBuffer(copy_buffer, buffer, 1, &copy_region);
+    
     staging_buffer.EndAndSubmitCommands();
 
     FinishInitializePrimitivesInfo();
@@ -830,6 +855,7 @@ size_t PrimitivesOfMeshes::GetIndicesBufferSize() const {
         size_bytes += this_primitive.IndicesBufferSize();
     }
 
+    size_bytes += size_bytes % 16 == 0 ? 0 : (16 - size_bytes % 16) ;       // align
     return size_bytes;
 }
 
@@ -939,7 +965,7 @@ void PrimitivesOfMeshes::CopyIndicesToBuffer(std::byte *ptr)
                 memcpy(ptr + offset, indices.data(), indices_byte_size);
 
                 this_info.drawMode = vk::PrimitiveTopology::eTriangleList;
-                this_info.indicesOffset = offset;
+                this_info.indicesByteOffset = offset;
                 this_info.indicesCount = indices.size();
                 offset += indices_byte_size;
             } else if (this_initializeData.drawMode == glTFmode::triangle_strip) {
@@ -948,7 +974,7 @@ void PrimitivesOfMeshes::CopyIndicesToBuffer(std::byte *ptr)
                 memcpy(ptr + offset, indices.data(), indices_byte_size);
 
                 this_info.drawMode = vk::PrimitiveTopology::eTriangleList;
-                this_info.indicesOffset = offset;
+                this_info.indicesByteOffset = offset;
                 this_info.indicesCount = indices.size();
                 offset += indices_byte_size;
             } else {
@@ -956,34 +982,31 @@ void PrimitivesOfMeshes::CopyIndicesToBuffer(std::byte *ptr)
                 memcpy(ptr + offset, this_initializeData.indices.data(), indices_byte_size);
 
                 this_info.drawMode = glTFmodeToPrimitiveTopology_map.find(this_initializeData.drawMode)->second;
-                this_info.indicesOffset = offset;
+                this_info.indicesByteOffset = offset;
                 this_info.indicesCount = this_initializeData.indices.size();
                 offset += indices_byte_size;
             }
         } else {
             if (this_initializeData.drawMode == glTFmode::triangle_fan) {
-                this_info.indicesOffset = fan_list_offset;
+                this_info.indicesByteOffset = fan_list_offset;
                 this_info.indicesCount = (this_initializeData.position.size() / 4 - 2) * 3;
                 this_info.drawMode = vk::PrimitiveTopology::eTriangleList;
             } else if (this_initializeData.drawMode == glTFmode::line_strip) {
-                this_info.indicesOffset = strip_list_offset;
+                this_info.indicesByteOffset = strip_list_offset;
                 this_info.indicesCount = (this_initializeData.position.size() / 4 - 2) * 3;
                 this_info.drawMode = vk::PrimitiveTopology::eTriangleList;
             } else {
-                this_info.indicesOffset = iota_list_offset;
+                this_info.indicesByteOffset = iota_list_offset;
                 this_info.drawMode = glTFmodeToPrimitiveTopology_map.find(this_initializeData.drawMode)->second;
                 this_info.indicesCount = this_initializeData.position.size() / 4;
             }
         }
     }
 
-    assert(offset == GetIndicesBufferSize());
 }
 
-void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
+void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr, size_t offset)
 {
-    size_t offset = 0;
-
     for(size_t i = 0; i != primitivesInitializationData.size(); ++i) {
         const PrimitiveInitializationData& this_initializeData = primitivesInitializationData[i];
         PrimitiveInfo& this_info = primitivesInfo[i];
@@ -992,7 +1015,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         assert(position_byte_size % 16 == 0);
         if (position_byte_size) {
             memcpy(ptr + offset, this_initializeData.position.data(), position_byte_size);
-            this_info.positionOffset = offset;
+            this_info.positionByteOffset = offset;
             offset += position_byte_size;
         }
 
@@ -1000,7 +1023,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         assert(normal_byte_size % 16 == 0);
         if (normal_byte_size) {
             memcpy(ptr + offset, this_initializeData.normal.data(), normal_byte_size);
-            this_info.normalOffset = offset;
+            this_info.normalByteOffset = offset;
             offset += normal_byte_size;
         }
 
@@ -1008,7 +1031,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         assert(tangent_byte_size % 16 == 0);
         if (tangent_byte_size) {
             memcpy(ptr + offset, this_initializeData.tangent.data(), tangent_byte_size);
-            this_info.tangentOffset = offset;
+            this_info.tangentByteOffset = offset;
             offset += tangent_byte_size;
         }
 
@@ -1016,7 +1039,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         assert(texcoords_byte_size % 16 == 0);
         if (texcoords_byte_size) {
             memcpy(ptr + offset, this_initializeData.texcoords.data(), texcoords_byte_size);
-            this_info.texcoordsOffset = offset;
+            this_info.texcoordsByteOffset = offset;
             offset += texcoords_byte_size;
         }
 
@@ -1024,7 +1047,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         assert(color_byte_size % 16 == 0);
         if (color_byte_size) {
             memcpy(ptr + offset, this_initializeData.color.data(), color_byte_size);
-            this_info.colorOffset = offset;
+            this_info.colorByteOffset = offset;
             offset += color_byte_size;
         }
 
@@ -1032,7 +1055,7 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         assert(joints_byte_size % 16 == 0);
         if (joints_byte_size) {
             memcpy(ptr + offset, this_initializeData.joints.data(), joints_byte_size);
-            this_info.jointsOffset = offset;
+            this_info.jointsByteOffset = offset;
             offset += joints_byte_size;
         }
 
@@ -1040,12 +1063,11 @@ void PrimitivesOfMeshes::CopyVerticesToBuffer(std::byte *ptr)
         assert(weights_byte_size % 16 == 0);
         if (weights_byte_size) {
             memcpy(ptr + offset, this_initializeData.weights.data(), weights_byte_size);
-            this_info.weightsOffset = offset;
+            this_info.weightsByteOffset = offset;
             offset += weights_byte_size;
         }
     }
 
-    assert(offset == GetVerticesBufferSize());
 }
 
 std::vector<uint32_t> PrimitivesOfMeshes::TransformIndicesStripToList(const std::vector<uint32_t> &indices)
@@ -1101,6 +1123,4 @@ size_t PrimitivesOfMeshes::PrimitiveMorphTargetsCount(size_t index) const
                          this_info.colorMorphTargets});
     }
 }
-
-
 

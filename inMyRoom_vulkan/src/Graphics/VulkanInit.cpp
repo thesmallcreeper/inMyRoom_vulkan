@@ -67,21 +67,26 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     }
 
     std::cout << "Device \"" << selected_device.getProperties().deviceName <<  "\" chosen\n";
+    vendorId = VendorID(selected_device.getProperties().vendorID);
 
     //
     // Create device
     std::vector<std::string> vulkan_device_extensions;
     vulkan_device_extensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    vulkan_device_extensions.emplace_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
 
+
     vk::PhysicalDeviceFeatures vulkan_device_features;
     vulkan_device_features.samplerAnisotropy = VK_TRUE;
+    vulkan_device_features.geometryShader = VK_TRUE;
     vk::PhysicalDeviceVulkan11Features vulkan11_device_features;
+    vulkan11_device_features.uniformAndStorageBuffer16BitAccess = VK_TRUE;
     vulkan11_device_features.storageBuffer16BitAccess = VK_TRUE;
     vk::PhysicalDeviceVulkan12Features vulkan12_device_features;
+    vulkan12_device_features.uniformAndStorageBuffer8BitAccess = VK_TRUE;
+    vulkan12_device_features.storageBuffer8BitAccess = VK_TRUE;
     vulkan12_device_features.descriptorIndexing = VK_TRUE;
     vulkan12_device_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     vulkan12_device_features.runtimeDescriptorArray = VK_TRUE;

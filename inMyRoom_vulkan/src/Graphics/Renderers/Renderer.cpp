@@ -9,12 +9,15 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
 {
     graphicsQueue = graphics_ptr->GetQueuesList().graphicsQueues[0];
 
+    InitBuffers();
     InitImages();
+    InitDescriptors();
     InitRenderpasses();
     InitFramebuffers();
     InitSemaphoresAndFences();
     InitCommandBuffers();
     InitPrimitivesSet();
+    InitFullscreenPipeline();
 }
 
 Renderer::~Renderer()
@@ -38,11 +41,67 @@ Renderer::~Renderer()
 
     device.destroy(depthImageView);
     vma_allocator.destroyImage(depthImage, depthAllocation);
+
+    device.destroy(visibilityImageView);
+    vma_allocator.destroyImage(visibilityImage, visibilityAllocation);
+
+    device.destroy(descriptorPool);
+    device.destroy(primitivesInstanceDescriptorSetLayout);
+
+    vma_allocator.destroyBuffer(primitivesInstanceBuffer, primitivesInstanceAllocation);
+    vma_allocator.destroyBuffer(fullscreenBuffer, fullscreenAllocation);
+}
+
+void Renderer::InitBuffers()
+{
+    // primitivesInstanceBuffer
+    {
+        primitivesInstanceBufferHalfsize = sizeof(PrimitiveInstanceParameters) * graphics_ptr->GetMaxInstancesCount();
+        primitivesInstanceBufferHalfsize += (primitivesInstanceBufferHalfsize % 16 == 0) ? 0 : 16 - primitivesInstanceBufferHalfsize % 16;
+
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = primitivesInstanceBufferHalfsize * 2;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo buffer_allocation_create_info;
+        buffer_allocation_create_info.usage = vma::MemoryUsage::eCpuToGpu;
+        buffer_allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
+
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info,
+                                                              buffer_allocation_create_info,
+                                                              primitivesInstanceAllocInfo);
+
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        primitivesInstanceBuffer = createBuffer_result.value.first;
+        primitivesInstanceAllocation = createBuffer_result.value.second;
+    }
+
+    {   // full-screen pass
+        fullscreenBufferHalfsize = sizeof(glm::vec4) * 8 ;
+
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = fullscreenBufferHalfsize * 2;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo buffer_allocation_create_info;
+        buffer_allocation_create_info.usage = vma::MemoryUsage::eCpuToGpu;
+        buffer_allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
+
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info,
+                                                              buffer_allocation_create_info,
+                                                              fullscreenAllocInfo);
+
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        fullscreenBuffer = createBuffer_result.value.first;
+        fullscreenAllocation = createBuffer_result.value.second;
+    }
 }
 
 void Renderer::InitImages()
 {
-    // z-buffer buffer
+    // z-buffer
     {
         depthImageCreateInfo.imageType = vk::ImageType::e2D;
         depthImageCreateInfo.format = vk::Format::eD32Sfloat;
@@ -78,21 +137,183 @@ void Renderer::InitImages()
 
         depthImageView = device.createImageView(imageView_create_info).value;
     }
+
+    // visibility image
+    {
+        visibilityImageCreateInfo.imageType = vk::ImageType::e2D;
+        visibilityImageCreateInfo.format = vk::Format::eR32G32Uint;
+        visibilityImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        visibilityImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        visibilityImageCreateInfo.extent.depth = 1;
+        visibilityImageCreateInfo.mipLevels = 1;
+        visibilityImageCreateInfo.arrayLayers = 1;
+        visibilityImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        visibilityImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        visibilityImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment;
+        visibilityImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        visibilityImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(visibilityImageCreateInfo, image_allocation_info).value;
+        visibilityImage = createImage_result.first;
+        visibilityAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = visibilityImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = visibilityImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        visibilityImageView = device.createImageView(imageView_create_info).value;
+    }
+}
+
+void Renderer::InitDescriptors()
+{
+    {   // Create descriptor pool
+        std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 2);
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eInputAttachment, 2);
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 2,
+                                                                 descriptor_pool_sizes);
+
+        descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
+    }
+    {   // Create primitivesInstanceSet layout
+        std::vector<vk::DescriptorSetLayoutBinding> bindings;
+        {   // Buffer
+            vk::DescriptorSetLayoutBinding buffer_binding;
+            buffer_binding.binding = 0;
+            buffer_binding.descriptorType = vk::DescriptorType::eStorageBuffer;
+            buffer_binding.descriptorCount = 1;
+            buffer_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+            bindings.emplace_back(buffer_binding);
+        }
+        {   // Input attachment
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 1;
+            attach_binding.descriptorType = vk::DescriptorType::eInputAttachment;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+            bindings.emplace_back(attach_binding);
+        }
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
+        primitivesInstanceDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+    }
+    {   // Allocate
+        std::vector<vk::DescriptorSetLayout> layouts;
+        layouts.emplace_back(primitivesInstanceDescriptorSetLayout);
+        layouts.emplace_back(primitivesInstanceDescriptorSetLayout);
+
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
+        std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
+        primitivesInstanceDescriptorSets[0] = descriptor_sets[0];
+        primitivesInstanceDescriptorSets[1] = descriptor_sets[1];
+    }
+
+    {   // Write descriptors
+        std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
+
+        std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> descriptor_buffer_infos_uptrs;
+        {
+            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+            descriptor_buffer_info_uptr->buffer = primitivesInstanceBuffer;
+            descriptor_buffer_info_uptr->offset = 0;
+            descriptor_buffer_info_uptr->range  = primitivesInstanceBufferHalfsize;
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[0];
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+
+            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+        {
+            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+            descriptor_buffer_info_uptr->buffer = primitivesInstanceBuffer;
+            descriptor_buffer_info_uptr->offset = primitivesInstanceBufferHalfsize;
+            descriptor_buffer_info_uptr->range  = primitivesInstanceBufferHalfsize;
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[1];
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+
+            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+
+        std::vector<std::unique_ptr<vk::DescriptorImageInfo>> descriptor_image_infos_uptrs;
+        {
+            auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
+            descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            descriptor_image_info_uptr->imageView = visibilityImageView;
+            descriptor_image_info_uptr->sampler = nullptr;
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[0];
+            write_descriptor_set.dstBinding = 1;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
+            write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
+
+            descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+        {
+            auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
+            descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            descriptor_image_info_uptr->imageView = visibilityImageView;
+            descriptor_image_info_uptr->sampler = nullptr;
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[1];
+            write_descriptor_set.dstBinding = 1;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
+            write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
+
+            descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+
+        device.updateDescriptorSets(writes_descriptor_set, {});
+    }
 }
 
 void Renderer::InitRenderpasses()
 {
     // Attachments
-    vk::AttachmentDescription attachment_descriptions[2];
+    vk::AttachmentDescription attachment_descriptions[3];
 
-    attachment_descriptions[0].format = graphics_ptr->GetSwapchainCreateInfo().imageFormat;
+    attachment_descriptions[0].format = visibilityImageCreateInfo.format;
     attachment_descriptions[0].samples = vk::SampleCountFlagBits::e1;
     attachment_descriptions[0].loadOp = vk::AttachmentLoadOp::eClear;
-    attachment_descriptions[0].storeOp = vk::AttachmentStoreOp::eStore;
+    attachment_descriptions[0].storeOp = vk::AttachmentStoreOp::eDontCare;
     attachment_descriptions[0].stencilLoadOp = vk::AttachmentLoadOp::eClear;
     attachment_descriptions[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
     attachment_descriptions[0].initialLayout = vk::ImageLayout::eUndefined;
-    attachment_descriptions[0].finalLayout = vk::ImageLayout::ePresentSrcKHR;
+    attachment_descriptions[0].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
     attachment_descriptions[1].format = depthImageCreateInfo.format;
     attachment_descriptions[1].samples = vk::SampleCountFlagBits::e1;
@@ -103,37 +324,88 @@ void Renderer::InitRenderpasses()
     attachment_descriptions[1].initialLayout = vk::ImageLayout::eUndefined;
     attachment_descriptions[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
-    // Subpass
-    vk::AttachmentReference colorAttach_ref;
-    colorAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
-    colorAttach_ref.attachment = 0;
+    attachment_descriptions[2].format = graphics_ptr->GetSwapchainCreateInfo().imageFormat;
+    attachment_descriptions[2].samples = vk::SampleCountFlagBits::e1;
+    attachment_descriptions[2].loadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[2].storeOp = vk::AttachmentStoreOp::eStore;
+    attachment_descriptions[2].stencilLoadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[2].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    attachment_descriptions[2].initialLayout = vk::ImageLayout::eUndefined;
+    attachment_descriptions[2].finalLayout = vk::ImageLayout::ePresentSrcKHR;
 
-    vk::AttachmentReference depthAttach_ref;
-    depthAttach_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    depthAttach_ref.attachment = 1;
+    // Subpasses
+    std::vector<vk::SubpassDescription> subpasses;
+    std::vector<vk::SubpassDependency> dependencies;
 
-    vk::SubpassDescription subpass_description;
-    subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    subpass_description.colorAttachmentCount = 1;
-    subpass_description.pColorAttachments = &colorAttach_ref;
-    subpass_description.pDepthStencilAttachment = &depthAttach_ref;
+    // Subpass 0
+    std::vector<vk::AttachmentReference> visibility_colorAttachments_refs;
+    {
+        vk::AttachmentReference visibilityAttach_ref;
+        visibilityAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        visibilityAttach_ref.attachment = 0;
+        visibility_colorAttachments_refs.emplace_back(visibilityAttach_ref);
+    }
 
-    vk::SubpassDependency subpass_dependency;
-    subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    subpass_dependency.dstSubpass = 0;
-    subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eLateFragmentTests;
-    subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
-    subpass_dependency.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
-    subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
+    vk::AttachmentReference visibility_depthAttach_ref;
+    visibility_depthAttach_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    visibility_depthAttach_ref.attachment = 1;
+
+    vk::SubpassDescription visibility_subpass_description;
+    visibility_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    visibility_subpass_description.setColorAttachments(visibility_colorAttachments_refs);
+    visibility_subpass_description.pDepthStencilAttachment = &visibility_depthAttach_ref;
+
+    vk::SubpassDependency visibility_subpass_dependency;
+    visibility_subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    visibility_subpass_dependency.dstSubpass = 0;
+    visibility_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eLateFragmentTests;
+    visibility_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+    visibility_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
+    visibility_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
+
+    subpasses.emplace_back(visibility_subpass_description);
+    dependencies.emplace_back(visibility_subpass_dependency);
+
+    // Subpass 1
+    std::vector<vk::AttachmentReference> texture_colorAttachments_refs;
+    {
+        vk::AttachmentReference colorAttach_ref;
+        colorAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        colorAttach_ref.attachment = 2;
+        texture_colorAttachments_refs.emplace_back(colorAttach_ref);
+    }
+
+    std::vector<vk::AttachmentReference> texture_inputAttachments_refs;
+    {
+        vk::AttachmentReference inputAttach_ref;
+        inputAttach_ref.layout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        inputAttach_ref.attachment = 0;
+        texture_inputAttachments_refs.emplace_back(inputAttach_ref);
+    }
+
+    vk::SubpassDescription texture_subpass_description;
+    texture_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    texture_subpass_description.setColorAttachments(texture_colorAttachments_refs);
+    texture_subpass_description.setInputAttachments(texture_inputAttachments_refs);
+
+    vk::SubpassDependency texture_subpass_dependency;
+    texture_subpass_dependency.srcSubpass = 0;
+    texture_subpass_dependency.dstSubpass = 1;
+    texture_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    texture_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
+    texture_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+    texture_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eInputAttachmentRead;
+    texture_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+    subpasses.emplace_back(texture_subpass_description);
+    dependencies.emplace_back(texture_subpass_dependency);
 
     // Renderpass
     vk::RenderPassCreateInfo renderpass_create_info;
-    renderpass_create_info.attachmentCount = 2;
+    renderpass_create_info.attachmentCount = 3;
     renderpass_create_info.pAttachments = attachment_descriptions;
-    renderpass_create_info.subpassCount = 1;
-    renderpass_create_info.pSubpasses = &subpass_description;
-    renderpass_create_info.dependencyCount = 1;
-    renderpass_create_info.pDependencies = &subpass_dependency;
+    renderpass_create_info.setSubpasses(subpasses);
+    renderpass_create_info.setDependencies(dependencies);
 
     renderpass = device.createRenderPass(renderpass_create_info).value;
 }
@@ -143,8 +415,9 @@ void Renderer::InitFramebuffers()
     for (const auto& swapchain_imageview : graphics_ptr->GetSwapchainImageViews())
     {
         std::vector<vk::ImageView> attachments;
-        attachments.emplace_back(swapchain_imageview);
+        attachments.emplace_back(visibilityImageView);
         attachments.emplace_back(depthImageView);
+        attachments.emplace_back(swapchain_imageview);
 
         vk::FramebufferCreateInfo framebuffer_createInfo;
         framebuffer_createInfo.renderPass = renderpass;
@@ -228,7 +501,11 @@ void Renderer::InitPrimitivesSet()
         const PrimitiveInfo& this_primitiveInfo = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(i);
         const MaterialAbout& this_material = graphics_ptr->GetMaterialsOfPrimitives()->GetMaterialAbout(this_primitiveInfo.material);
 
-        bool is_skin = this_primitiveInfo.jointsCount != 0;
+        if (this_material.transparent) {
+            primitivesPipelineLayouts.emplace_back(nullptr);
+            primitivesPipelines.emplace_back(nullptr);
+            continue;
+        }
 
         std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs = this_material.definitionStringPairs;
         shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
@@ -241,12 +518,17 @@ void Renderer::InitPrimitivesSet()
             std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
             descriptor_sets_layouts.emplace_back(graphics_ptr->GetCameraDescriptionSetLayout());
             descriptor_sets_layouts.emplace_back(graphics_ptr->GetMatricesDescriptionSetLayout());
-            descriptor_sets_layouts.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSetLayout());
+            if (this_material.masked)
+                descriptor_sets_layouts.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSetLayout());
             pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
             std::vector<vk::PushConstantRange> push_constant_range;
             push_constant_range.emplace_back(vk::ShaderStageFlagBits::eVertex, 0, 4);
-            push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 4, 4);
+            if (not this_material.masked)
+                push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 4, 4);
+            else
+                push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 4 ,8);
+
             pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
             this_pipeline_layout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
@@ -273,57 +555,13 @@ void Renderer::InitPrimitivesSet()
                                                              0);
             ++binding_index; ++location_index;
 
-            if (this_primitiveInfo.normalOffset != -1) {
+            if (this_material.masked) {
                 vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               uint32_t(4 * sizeof(float)),
+                                                               uint32_t(2 * sizeof(float)) * this_primitiveInfo.texcoordsCount,
                                                                vk::VertexInputRate::eVertex);
                 vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
-                                                                 vk::Format::eR32G32B32A32Sfloat,
+                                                                 vk::Format::eR32G32Sfloat,
                                                                  0);
-
-                shadersDefinitionStringPairs.emplace_back("VERT_NORMAL", "");
-                shadersDefinitionStringPairs.emplace_back("VERT_NORMAL_LOCATION", std::to_string(location_index));
-                ++binding_index; ++location_index;
-            }
-
-            if (this_primitiveInfo.tangentOffset != -1) {
-                vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               uint32_t(4 * sizeof(float)),
-                                                               vk::VertexInputRate::eVertex);
-                vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
-                                                                 vk::Format::eR32G32B32A32Sfloat,
-                                                                 0);
-
-                shadersDefinitionStringPairs.emplace_back("VERT_TANGENT", "");
-                shadersDefinitionStringPairs.emplace_back("VERT_TANGENT_LOCATION", std::to_string(location_index));
-                ++binding_index; ++location_index;
-            }
-
-            if (this_primitiveInfo.texcoordsOffset != -1) {
-                vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               uint32_t(this_primitiveInfo.texcoordsCount * 2 * sizeof(float)),
-                                                               vk::VertexInputRate::eVertex);
-
-                for (size_t index = 0; index != this_primitiveInfo.texcoordsCount; ++index) {
-                    vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
-                                                                     vk::Format::eR32G32Sfloat,
-                                                                     uint32_t(index * 2 * sizeof(float)));
-                    shadersDefinitionStringPairs.emplace_back("VERT_TEXCOORD" + std::to_string(index), "");
-                    shadersDefinitionStringPairs.emplace_back("VERT_TEXCOORD" + std::to_string(index) + "_LOCATION", std::to_string(location_index));
-                    ++location_index;
-                }
-                ++binding_index;
-            }
-
-            if (this_primitiveInfo.colorOffset != -1) {
-                vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                               uint32_t(4 * sizeof(float)),
-                                                               vk::VertexInputRate::eVertex);
-                vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
-                                                                 vk::Format::eR32G32B32A32Sfloat,
-                                                                 0);
-                shadersDefinitionStringPairs.emplace_back("VERT_COLOR0", "");
-                shadersDefinitionStringPairs.emplace_back("VERT_COLOR0_LOCATION", std::to_string(location_index));
                 ++binding_index; ++location_index;
             }
 
@@ -415,7 +653,7 @@ void Renderer::InitPrimitivesSet()
             // PipelineShaderStageCreateInfo
             std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
 
-            ShadersSpecs shaders_specs {"Texture-Pass Shaders", shadersDefinitionStringPairs};
+            ShadersSpecs shaders_specs {"Visibility Shaders", shadersDefinitionStringPairs};
             ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
             assert(shader_set.abortedDueToDefinition == false);
@@ -447,9 +685,167 @@ void Renderer::InitPrimitivesSet()
     }
 }
 
+void Renderer::InitFullscreenPipeline()
+{
+    std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
+    shadersDefinitionStringPairs.emplace_back("TEXTURES_COUNT", std::to_string(graphics_ptr->GetTexturesOfMaterials()->GetTexturesCount()));
+    shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
+    shadersDefinitionStringPairs.emplace_back("INSTANCES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
+    shadersDefinitionStringPairs.emplace_back("MATERIALS_PARAMETERS_COUNT", std::to_string(graphics_ptr->GetMaterialsOfPrimitives()->GetMaterialsCount()));
+
+    {   // Pipeline layout fullscreen
+        vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
+
+        std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetCameraDescriptionSetLayout());
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetMatricesDescriptionSetLayout());
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorLayout());
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSetLayout());
+        descriptor_sets_layouts.emplace_back(primitivesInstanceDescriptorSetLayout);
+        pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
+
+        fullscreenPipelineLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
+    }
+
+    {   // Pipeline layout
+        vk::GraphicsPipelineCreateInfo pipeline_create_info;
+
+        // PipelineVertexInputStateCreateInfo
+        vk::PipelineVertexInputStateCreateInfo vertex_input_state_create_info;
+        std::vector<vk::VertexInputBindingDescription> vertex_input_binding_descriptions;
+        std::vector<vk::VertexInputAttributeDescription> vertex_input_attribute_descriptions;
+
+        uint32_t binding_index = 0;
+        uint32_t location_index = 0;
+
+        vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                       uint32_t(4 * sizeof(float)),
+                                                       vk::VertexInputRate::eVertex);
+        vertex_input_attribute_descriptions.emplace_back(location_index++, binding_index,
+                                                         vk::Format::eR32G32B32A32Sfloat,
+                                                         0);
+        vertex_input_attribute_descriptions.emplace_back(location_index++, binding_index,
+                                                         vk::Format::eR32G32B32A32Sfloat,
+                                                         uint32_t(4 * 4 * sizeof(float)));
+
+        ++binding_index;
+
+        vertex_input_state_create_info.setVertexBindingDescriptions(vertex_input_binding_descriptions);
+        vertex_input_state_create_info.setVertexAttributeDescriptions(vertex_input_attribute_descriptions);
+
+        pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
+
+        // PipelineInputAssemblyStateCreateInfo
+        vk::PipelineInputAssemblyStateCreateInfo input_assembly_state_create_info;
+        input_assembly_state_create_info.topology = vk::PrimitiveTopology::eTriangleFan;
+
+        pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info;
+
+        // PipelineViewportStateCreateInfo
+        vk::PipelineViewportStateCreateInfo viewport_state_create_info;
+
+        uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+
+        vk::Viewport viewport {0.f, 0.f,
+                               float(width), float(height),
+                               0.f, 1.f};
+        viewport_state_create_info.viewportCount = 1;
+        viewport_state_create_info.pViewports = &viewport;
+
+        vk::Rect2D scissor {{0, 0}, {width, height}};
+        viewport_state_create_info.scissorCount = 1;
+        viewport_state_create_info.pScissors = &scissor;
+
+        pipeline_create_info.pViewportState = &viewport_state_create_info;
+
+        // PipelineRasterizationStateCreateInfo
+        vk::PipelineRasterizationStateCreateInfo rasterization_state_create_info;
+        rasterization_state_create_info.depthBiasClamp = VK_FALSE;
+        rasterization_state_create_info.rasterizerDiscardEnable = VK_FALSE;
+        rasterization_state_create_info.polygonMode = vk::PolygonMode::eFill;
+        rasterization_state_create_info.cullMode = vk::CullModeFlagBits::eNone;
+        rasterization_state_create_info.frontFace = vk::FrontFace::eCounterClockwise;
+        rasterization_state_create_info.lineWidth = 1.f;
+
+        pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
+
+        // PipelineMultisampleStateCreateInfo
+        vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
+        multisample_state_create_info.sampleShadingEnable = VK_FALSE;
+        multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
+        multisample_state_create_info.minSampleShading = 1.0f;
+        multisample_state_create_info.pSampleMask = nullptr;
+        multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
+        multisample_state_create_info.alphaToOneEnable = VK_FALSE;
+
+        pipeline_create_info.pMultisampleState = &multisample_state_create_info;
+
+        // PipelineDepthStencilStateCreateInfo
+        vk::PipelineDepthStencilStateCreateInfo depth_state_create_info;
+        depth_state_create_info.depthTestEnable = VK_FALSE;
+        depth_state_create_info.depthWriteEnable = VK_FALSE;
+        depth_state_create_info.depthCompareOp = vk::CompareOp::eLess;
+        depth_state_create_info.depthBoundsTestEnable = VK_FALSE;
+        depth_state_create_info.stencilTestEnable = VK_FALSE;
+        depth_state_create_info.minDepthBounds = 0.f;
+        depth_state_create_info.maxDepthBounds = 1.f;
+
+        pipeline_create_info.pDepthStencilState = &depth_state_create_info;
+
+        // PipelineColorBlendAttachmentState
+        vk::PipelineColorBlendStateCreateInfo color_blend_create_info;
+        vk::PipelineColorBlendAttachmentState color_blend_attachment;
+        color_blend_attachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        color_blend_attachment.blendEnable = VK_FALSE;
+        color_blend_attachment.srcColorBlendFactor = vk::BlendFactor::eOne;
+        color_blend_attachment.dstColorBlendFactor = vk::BlendFactor::eZero;
+        color_blend_attachment.colorBlendOp = vk::BlendOp::eAdd;
+        color_blend_attachment.srcAlphaBlendFactor = vk::BlendFactor::eOne;
+        color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+        color_blend_attachment.alphaBlendOp = vk::BlendOp::eAdd;
+
+        color_blend_create_info.logicOpEnable = VK_FALSE;
+        color_blend_create_info.attachmentCount = 1;
+        color_blend_create_info.pAttachments = &color_blend_attachment;
+
+        pipeline_create_info.pColorBlendState = &color_blend_create_info;
+
+        // PipelineShaderStageCreateInfo
+        std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
+
+        ShadersSpecs shaders_specs {"Texture-Pass Shaders", shadersDefinitionStringPairs};
+        ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
+
+        assert(shader_set.abortedDueToDefinition == false);
+
+        vk::PipelineShaderStageCreateInfo vertex_shader_stage;
+        vertex_shader_stage.stage = vk::ShaderStageFlagBits::eVertex;
+        vertex_shader_stage.module = shader_set.vertexShaderModule;
+        vertex_shader_stage.pName = "main";
+        shaders_stage_create_infos.emplace_back(vertex_shader_stage);
+
+        vk::PipelineShaderStageCreateInfo fragment_shader_stage;
+        fragment_shader_stage.stage = vk::ShaderStageFlagBits::eFragment;
+        fragment_shader_stage.module = shader_set.fragmentShaderModule;
+        fragment_shader_stage.pName = "main";
+        shaders_stage_create_infos.emplace_back(fragment_shader_stage);
+
+        pipeline_create_info.setStages(shaders_stage_create_infos);
+
+        // etc
+        pipeline_create_info.layout = fullscreenPipelineLayout;
+        pipeline_create_info.renderPass = renderpass;
+        pipeline_create_info.subpass = 1;
+
+        fullscreenPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
+    }
+}
+
 void Renderer::DrawFrame(ViewportFrustum viewport,
-                         const std::vector<glm::mat4>& matrices,
-                         const std::vector<DrawInfo>& draw_infos)
+                         std::vector<glm::mat4>&& matrices,
+                         std::vector<DrawInfo>&& draw_infos)
 {
     ++frameCount;
 
@@ -457,25 +853,13 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
     size_t commandBuffer_index = frameCount % 3;
 
     graphics_ptr->GetDynamicMeshes()->SwapDescriptorSet(frameCount);
-
-    FrustumCulling frustum_culling;
-    frustum_culling.SetFrustumPlanes(viewport.GetWorldSpacePlanesOfFrustum());
-
-    //
-    // Wait! For command buffer reset (-3)
-    {
-        uint64_t wait_value = uint64_t( std::max(int64_t(frameCount - 3), int64_t(0)) );
-
-        vk::SemaphoreWaitInfo host_wait_info;
-        host_wait_info.semaphoreCount = 1;
-        host_wait_info.pSemaphores = &submitFinishTimelineSemaphore;
-        host_wait_info.pValues = &wait_value;
-
-        device.waitSemaphores(host_wait_info, uint64_t(-1));
-    }
+    std::vector<PrimitiveInstanceParameters> primitive_instance_parameters = GetPrimitivesInstanceParameters(draw_infos);
 
     vk::CommandBuffer command_buffer = commandBuffers[commandBuffer_index];
     command_buffer.reset();
+
+    FrustumCulling frustum_culling;
+    frustum_culling.SetFrustumPlanes(viewport.GetWorldSpacePlanesOfFrustum());
 
     uint32_t swapchain_index = device.acquireNextImageKHR(graphics_ptr->GetSwapchain(),
                                                           0,
@@ -519,10 +903,31 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
         device.waitSemaphores(host_wait_info, uint64_t(-1));
     }
 
-    graphics_ptr->HostWriteBuffers(viewport,
-                                   matrices,
-                                   draw_infos,
-                                   buffer_index);
+    graphics_ptr->WriteCameraMarticesBuffers(viewport,
+                                             matrices,
+                                             draw_infos,
+                                             buffer_index);
+
+    {
+        memcpy((std::byte*)(primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferHalfsize,
+               primitive_instance_parameters.data(),
+               primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
+        vma_allocator.flushAllocation(primitivesInstanceAllocation,
+                                      buffer_index * primitivesInstanceBufferHalfsize,
+                                      primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
+    }
+
+    {
+        std::array<std::array<glm::vec4, 4>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
+                                                               viewport.GetFullscreenpassTriangleNormals()};
+
+        memcpy((std::byte*)(fullscreenAllocInfo.pMappedData) + buffer_index * fullscreenBufferHalfsize,
+               vertex_data.data(),
+               fullscreenBufferHalfsize);
+        vma_allocator.flushAllocation(fullscreenAllocation,
+                                      buffer_index * fullscreenBufferHalfsize,
+                                      fullscreenBufferHalfsize);
+    }
 
     //
     // Signal host write finish semaphore
@@ -563,45 +968,64 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
     graphics_ptr->GetDynamicMeshes()->RecordTransformations(command_buffer, dynamic_meshes_draw_infos);
 
     vk::RenderPassBeginInfo render_pass_begin_info;
-    vk::ClearValue clear_values[2];
+    vk::ClearValue clear_values[3];
     render_pass_begin_info.renderPass = renderpass;
     render_pass_begin_info.framebuffer = framebuffers[swapchain_index];
     render_pass_begin_info.renderArea.offset = vk::Offset2D(0, 0);
     render_pass_begin_info.renderArea.extent = graphics_ptr->GetSwapchainCreateInfo().imageExtent;
 
-    std::array<float, 4> color_clear = {0.04f, 0.08f, 0.f, 1.f};
-    clear_values[0].color.float32 = color_clear;
+    std::array<uint32_t, 4> visibility_clear = {0, 0, 0, 0};
+    clear_values[0].color.uint32 = visibility_clear;
     clear_values[1].depthStencil.depth = 1.f;
-    render_pass_begin_info.clearValueCount = 2;
+    std::array<float, 4> color_clear = {0.04f, 0.08f, 0.f, 1.f};
+    clear_values[2].color.float32 = color_clear;
+
+    render_pass_begin_info.clearValueCount = 3;
     render_pass_begin_info.pClearValues = clear_values;
 
     command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
+    // Visibility pass
     for (const DrawInfo& this_draw: draw_infos) {
-        std::vector<std::tuple<size_t, PrimitiveInfo, DynamicPrimitiveInfo>> info_tuples;
+        struct DrawPrimitiveInfo {
+            DrawPrimitiveInfo(size_t in_primitiveIndex, PrimitiveInfo in_primitiveInfo, DynamicPrimitiveInfo in_dynamicPrimitiveInfo)
+                :primitiveIndex(in_primitiveIndex),
+                 primitiveInfo(in_primitiveInfo),
+                 dynamicPrimitiveInfo(in_dynamicPrimitiveInfo) {}
+            size_t primitiveIndex;
+            PrimitiveInfo primitiveInfo;
+            DynamicPrimitiveInfo dynamicPrimitiveInfo;
+        };
+        std::vector<DrawPrimitiveInfo> draw_primitives_infos;
 
         if (this_draw.dynamicMeshIndex != -1) {
             const auto &dynamic_primitives_infos = graphics_ptr->GetDynamicMeshes()->GetDynamicPrimitivesInfo(this_draw.dynamicMeshIndex);
             for (const auto& this_dynamic_primitive_info: dynamic_primitives_infos) {
                 const PrimitiveInfo &this_primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
-                info_tuples.emplace_back(this_dynamic_primitive_info.primitiveIndex, this_primitive_info, this_dynamic_primitive_info);
+                draw_primitives_infos.emplace_back(this_dynamic_primitive_info.primitiveIndex, this_primitive_info, this_dynamic_primitive_info);
             }
         } else {
             for (size_t primitive_index : graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
                 const PrimitiveInfo& primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(primitive_index);
-                info_tuples.emplace_back(primitive_index, primitive_info, DynamicPrimitiveInfo());
+                draw_primitives_infos.emplace_back(primitive_index, primitive_info, DynamicPrimitiveInfo());
             }
         }
 
-        for (const auto& this_info_tuple : info_tuples) {
-            vk::Pipeline pipeline = primitivesPipelines[std::get<0>(this_info_tuple)];
+        for (size_t i = 0; i != draw_primitives_infos.size(); ++i) {
+            const auto& this_draw_primitive_info = draw_primitives_infos[i];
+
+            const MaterialAbout& this_material = graphics_ptr->GetMaterialsOfPrimitives()->GetMaterialAbout(this_draw_primitive_info.primitiveInfo.material);
+
+            vk::Pipeline pipeline = primitivesPipelines[this_draw_primitive_info.primitiveIndex];
             command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
-            vk::PipelineLayout pipeline_layout = primitivesPipelineLayouts[std::get<0>(this_info_tuple)];
+            vk::PipelineLayout pipeline_layout = primitivesPipelineLayouts[this_draw_primitive_info.primitiveIndex];
             std::vector<vk::DescriptorSet> descriptor_sets;
             descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(buffer_index));
             descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(buffer_index));
-            descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
+            if (this_material.masked)
+                descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
+
             command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                               pipeline_layout,
                                               0,
@@ -611,77 +1035,194 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
             std::array<uint32_t, 1> data_vertex = {uint32_t(this_draw.matricesOffset)};
             command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, 4, data_vertex.data());
 
-            std::array<uint32_t, 1> data_frag = {uint32_t(std::get<1>(this_info_tuple).material)};
-            command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, 4, 4, data_frag.data());
+            std::array<uint32_t, 2> data_frag = {uint32_t(this_draw.primitivesInstanceOffset + i), uint32_t(this_draw_primitive_info.primitiveInfo.material)};
+            if (not this_material.masked)
+                command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, 4, 4, data_frag.data());
+            else
+                command_buffer.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, 4, 8, data_frag.data());
 
-            vk::Buffer staticBuffer = graphics_ptr->GetPrimitivesOfMeshes()->GetVerticesBuffer();
+            vk::Buffer static_primitives_buffer = graphics_ptr->GetPrimitivesOfMeshes()->GetBuffer();
             std::vector<vk::Buffer> buffers;
             std::vector<vk::DeviceSize> offsets;
 
             // Position
-            if (std::get<2>(this_info_tuple).positionOffset != -1) {
-                offsets.emplace_back(std::get<2>(this_info_tuple).positionOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
-                buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
+            if (this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset != -1) {
+                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + buffer_index * this_draw_primitive_info.dynamicPrimitiveInfo.halfSize);
+                buffers.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.buffer);
             } else {
-                offsets.emplace_back(std::get<1>(this_info_tuple).positionOffset);
-                buffers.emplace_back(staticBuffer);
+                offsets.emplace_back(this_draw_primitive_info.primitiveInfo.positionByteOffset);
+                buffers.emplace_back(static_primitives_buffer);
             }
 
-            // Normal
-            if (std::get<1>(this_info_tuple).normalOffset != -1) {
-                if (std::get<2>(this_info_tuple).normalOffset != -1) {
-                    offsets.emplace_back(std::get<2>(this_info_tuple).normalOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
-                    buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
+            if (this_material.masked) {
+                if (this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset != -1) {
+                    offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset
+                                        + this_material.color_texcooord * sizeof(glm::vec2)
+                                        + buffer_index * this_draw_primitive_info.dynamicPrimitiveInfo.halfSize );
+                    buffers.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.buffer);
                 } else {
-                    offsets.emplace_back(std::get<1>(this_info_tuple).normalOffset);
-                    buffers.emplace_back(staticBuffer);
+                    offsets.emplace_back(this_draw_primitive_info.primitiveInfo.texcoordsByteOffset
+                                        + this_material.color_texcooord * sizeof(glm::vec2) );
+                    buffers.emplace_back(static_primitives_buffer);
                 }
             }
-
-            // Tangent
-            if (std::get<1>(this_info_tuple).tangentOffset != -1) {
-                if (std::get<2>(this_info_tuple).tangentOffset != -1) {
-                    offsets.emplace_back(std::get<2>(this_info_tuple).tangentOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
-                    buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
-                } else {
-                    offsets.emplace_back(std::get<1>(this_info_tuple).tangentOffset);
-                    buffers.emplace_back(staticBuffer);
-                }
-            }
-
-            // Texcoords
-            if (std::get<1>(this_info_tuple).texcoordsOffset != -1) {
-                if (std::get<2>(this_info_tuple).texcoordsOffset != -1) {
-                    offsets.emplace_back(std::get<2>(this_info_tuple).texcoordsOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
-                    buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
-                } else {
-                    offsets.emplace_back(std::get<1>(this_info_tuple).texcoordsOffset);
-                    buffers.emplace_back(staticBuffer);
-                }
-            }
-
-            // Color
-            if (std::get<1>(this_info_tuple).colorOffset != -1) {
-                if (std::get<2>(this_info_tuple).colorOffset != -1) {
-                    offsets.emplace_back(std::get<2>(this_info_tuple).colorOffset + buffer_index * std::get<2>(this_info_tuple).halfSize);
-                    buffers.emplace_back(std::get<2>(this_info_tuple).buffer);
-                } else {
-                    offsets.emplace_back(std::get<1>(this_info_tuple).colorOffset);
-                    buffers.emplace_back(staticBuffer);
-                }
-            }
-
+            
             command_buffer.bindVertexBuffers(0, buffers, offsets);
 
-            command_buffer.bindIndexBuffer(graphics_ptr->GetPrimitivesOfMeshes()->GetIndicesBuffer(),
-                                           std::get<1>(this_info_tuple).indicesOffset,
+            command_buffer.bindIndexBuffer(graphics_ptr->GetPrimitivesOfMeshes()->GetBuffer(),
+                                           this_draw_primitive_info.primitiveInfo.indicesByteOffset,
                                            vk::IndexType::eUint32);
 
-            command_buffer.drawIndexed(uint32_t(std::get<1>(this_info_tuple).indicesCount), 1, 0, 0, 0);
+            command_buffer.drawIndexed(uint32_t(this_draw_primitive_info.primitiveInfo.indicesCount), 1, 0, 0, 0);
         }
+    }
+
+    command_buffer.nextSubpass(vk::SubpassContents::eInline);
+
+    // Texture pass
+    {
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fullscreenPipeline);
+
+        std::vector<vk::DescriptorSet> descriptor_sets;
+        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(buffer_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(buffer_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorSet());
+        descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
+        descriptor_sets.emplace_back(primitivesInstanceDescriptorSets[buffer_index]);
+
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                          fullscreenPipelineLayout,
+                                          0,
+                                          descriptor_sets,
+                                          {});
+
+        std::vector<vk::Buffer> buffers;
+        std::vector<vk::DeviceSize> offsets;
+
+        buffers.emplace_back(fullscreenBuffer);
+        offsets.emplace_back(buffer_index * fullscreenBufferHalfsize);
+
+        command_buffer.bindVertexBuffers(0, buffers, offsets);
+
+        command_buffer.draw(4, 1, 0, 0);
     }
 
     command_buffer.endRenderPass();
 
     command_buffer.end();
 }
+
+std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstanceParameters(std::vector<DrawInfo>& draw_infos) const
+{
+    std::vector<PrimitiveInstanceParameters> return_vector;
+
+    PrimitiveInstanceParameters default_instance_parameters;
+    default_instance_parameters.material = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().material;
+    default_instance_parameters.matricesOffset = 0;
+    default_instance_parameters.indicesOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().indicesByteOffset / sizeof(uint32_t);
+    default_instance_parameters.positionOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().positionByteOffset / sizeof(glm::vec4);
+    default_instance_parameters.normalOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().normalByteOffset / sizeof(glm::vec4);
+    default_instance_parameters.tangentOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().tangentByteOffset / sizeof(glm::vec4);
+    default_instance_parameters.texcoordsOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().texcoordsByteOffset / sizeof(glm::vec2);
+    default_instance_parameters.colorOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().colorByteOffset / sizeof(glm::vec4);
+    return_vector.emplace_back(default_instance_parameters);
+
+    for (DrawInfo& this_draw_info : draw_infos) {
+        this_draw_info.primitivesInstanceOffset = return_vector.size();
+
+        std::vector<PrimitiveInfo> primitives_info;
+        std::vector<DynamicPrimitiveInfo> dynamic_primitives_info;
+        if (this_draw_info.dynamicMeshIndex != -1) {
+            dynamic_primitives_info = graphics_ptr->GetDynamicMeshes()->GetDynamicPrimitivesInfo(this_draw_info.dynamicMeshIndex);
+            for (const auto& this_dynamic_primitive_info: dynamic_primitives_info) {
+                const PrimitiveInfo &this_primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
+                primitives_info.emplace_back(this_primitive_info);
+            }
+        } else {
+            for (size_t primitive_index : graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex).primitivesIndex) {
+                const PrimitiveInfo& primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(primitive_index);
+                primitives_info.emplace_back(primitive_info);
+                dynamic_primitives_info.emplace_back();
+            }
+        }
+
+        for (size_t i = 0; i != primitives_info.size(); ++i) {
+            PrimitiveInstanceParameters this_primitiveInstanceParameters;
+
+            this_primitiveInstanceParameters.material = primitives_info[i].material;
+            this_primitiveInstanceParameters.matricesOffset = this_draw_info.matricesOffset;
+
+            if (primitives_info[i].drawMode == vk::PrimitiveTopology::eTriangleList)
+                this_primitiveInstanceParameters.indicesSetMultiplier = 3;
+            else if (primitives_info[i].drawMode == vk::PrimitiveTopology::eLineList)
+                this_primitiveInstanceParameters.indicesSetMultiplier = 2;
+            else
+                this_primitiveInstanceParameters.indicesSetMultiplier = 1;
+                
+            this_primitiveInstanceParameters.indicesOffset = primitives_info[i].indicesByteOffset / sizeof(uint32_t);
+
+            if (dynamic_primitives_info[i].positionByteOffset != -1) {
+                this_primitiveInstanceParameters.positionOffset = dynamic_primitives_info[i].positionByteOffset / sizeof(glm::vec4);
+                this_primitiveInstanceParameters.positionDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+            } else {
+                this_primitiveInstanceParameters.positionOffset = primitives_info[i].positionByteOffset / sizeof(glm::vec4);
+                this_primitiveInstanceParameters.positionDescriptorIndex = 0;
+            }
+
+            if (dynamic_primitives_info[i].normalByteOffset != -1) {
+                this_primitiveInstanceParameters.normalOffset = dynamic_primitives_info[i].normalByteOffset / sizeof(glm::vec4);
+                this_primitiveInstanceParameters.normalDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+            } else {
+                assert(primitives_info[i].normalByteOffset != -1);
+                this_primitiveInstanceParameters.normalOffset = primitives_info[i].normalByteOffset / sizeof(glm::vec4);
+                this_primitiveInstanceParameters.normalDescriptorIndex = 0;
+            }
+
+            if (dynamic_primitives_info[i].tangentByteOffset != -1) {
+                this_primitiveInstanceParameters.tangentOffset = dynamic_primitives_info[i].tangentByteOffset / sizeof(glm::vec4);
+                this_primitiveInstanceParameters.tangentDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+            } else {
+                assert(primitives_info[i].tangentByteOffset != -1);
+                this_primitiveInstanceParameters.tangentOffset = primitives_info[i].tangentByteOffset / sizeof(glm::vec4);
+                this_primitiveInstanceParameters.tangentDescriptorIndex = 0;
+            }
+
+            if (dynamic_primitives_info[i].texcoordsByteOffset != -1) {
+                this_primitiveInstanceParameters.texcoordsStepMultiplier = dynamic_primitives_info[i].texcoordsCount;
+                this_primitiveInstanceParameters.texcoordsOffset = dynamic_primitives_info[i].texcoordsByteOffset / sizeof(glm::vec2);
+                this_primitiveInstanceParameters.texcoordsDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+            } else {
+                if (primitives_info[i].texcoordsByteOffset != -1) {
+                    this_primitiveInstanceParameters.texcoordsStepMultiplier = primitives_info[i].texcoordsCount;
+                    this_primitiveInstanceParameters.texcoordsOffset = primitives_info[i].texcoordsByteOffset / sizeof(glm::vec2);
+                    this_primitiveInstanceParameters.texcoordsDescriptorIndex = 0;
+                } else {
+                    this_primitiveInstanceParameters.texcoordsStepMultiplier = 0;
+                    this_primitiveInstanceParameters.texcoordsOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().texcoordsByteOffset / sizeof(glm::vec2);
+                    this_primitiveInstanceParameters.texcoordsDescriptorIndex = 0;
+                }
+            }
+
+            if (dynamic_primitives_info[i].colorByteOffset != -1) {
+                this_primitiveInstanceParameters.colorStepMultiplier = 1;
+                this_primitiveInstanceParameters.colorOffset = dynamic_primitives_info[i].colorByteOffset / sizeof(glm::vec4);
+                this_primitiveInstanceParameters.colorDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+            } else {
+                if (primitives_info[i].texcoordsByteOffset != -1) {
+                    this_primitiveInstanceParameters.colorStepMultiplier = 1;
+                    this_primitiveInstanceParameters.colorOffset = primitives_info[i].texcoordsByteOffset / sizeof(glm::vec4);
+                    this_primitiveInstanceParameters.colorDescriptorIndex = 0;
+                } else {
+                    this_primitiveInstanceParameters.colorStepMultiplier = 0;
+                    this_primitiveInstanceParameters.colorOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().colorByteOffset / sizeof(glm::vec2);
+                    this_primitiveInstanceParameters.colorDescriptorIndex = 0;
+                }
+            }
+
+            return_vector.emplace_back(this_primitiveInstanceParameters);
+        }
+    }
+
+    return return_vector;
+}
+

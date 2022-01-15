@@ -165,6 +165,7 @@ struct DrawInfo
     size_t meshIndex = -1;
     size_t dynamicMeshIndex = -1;
     size_t matricesOffset = -1;
+    size_t primitivesInstanceOffset = -1;
 
     bool isSkin = false;
     bool hasMorphTargets = false;

@@ -10,17 +10,41 @@ MaterialsOfPrimitives::MaterialsOfPrimitives(TexturesOfMaterials *in_texturesOfM
      device(in_device),
      vma_allocator(in_allocator)
 {
+    AddDefaultTextures();
+    AddDefaultMaterial();
+}
+
+void MaterialsOfPrimitives::AddDefaultTextures()
+{
+    // Color texture
+    {
+        ImageData image(4, 4, 4, glTFsamplerWrap::repeat, glTFsamplerWrap::repeat);
+
+        std::vector<uint8_t> image_data(4 * 4 * 4, 0);
+        image.SetImage(image_data, false);
+
+        defaultColorTextureIndex = texturesOfMaterials_ptr->AddTextureAndMipmaps(std::vector(1, image),
+                                                                                 vk::Format::eR8G8B8A8Srgb);
+
+    }
+}
+
+void MaterialsOfPrimitives::AddDefaultMaterial()
+{
     // Default material
     MaterialAbout this_materialAbout;
     MaterialParameters this_materialParameters;
 
+    this_materialAbout.twoSided = false;
     this_materialAbout.transparent = false;
     this_materialAbout.definitionStringPairs.emplace_back("IS_OPAQUE", "");
+
+    this_materialParameters.baseColorTexture = defaultColorTextureIndex;
+
 
     materialsAbout.emplace_back(this_materialAbout);
     materialsParameters.emplace_back(this_materialParameters);
 }
-
 
 MaterialsOfPrimitives::~MaterialsOfPrimitives()
 {
@@ -74,12 +98,15 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
 
         if (this_material.alphaMode == "BLEND") {
             this_materialAbout.transparent = true;
+            this_materialAbout.masked = false;
             this_materialAbout.definitionStringPairs.emplace_back("IS_TRANSPARENT", "");
         } else if (this_material.alphaMode == "MASK") {
             this_materialAbout.transparent = false;
+            this_materialAbout.masked = true;
             this_materialAbout.definitionStringPairs.emplace_back("IS_MASKED", "");
         } else {
             this_materialAbout.transparent = false;
+            this_materialAbout.masked = false;
             this_materialAbout.definitionStringPairs.emplace_back("IS_OPAQUE", "");
         }
 
@@ -125,8 +152,20 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
 
                         color_image.SaveMipmaps();
                     }
+                } else {
+                    this_materialParameters.baseColorTexture = defaultColorTextureIndex;
                 }
+            } else {
+                this_materialParameters.baseColorTexture = defaultColorTextureIndex;
+                this_materialAbout.color_texcooord = 0;
+            }
 
+            if (this_material.pbrMetallicRoughness.baseColorTexture.texCoord != -1) {
+                this_materialParameters.baseColorTexCoord = this_material.pbrMetallicRoughness.baseColorTexture.texCoord;
+                this_materialAbout.color_texcooord = this_material.pbrMetallicRoughness.baseColorTexture.texCoord;
+            } else {
+                this_materialParameters.baseColorTexCoord = 0;
+                this_materialAbout.color_texcooord = 0;
             }
         }
 
@@ -289,4 +328,7 @@ size_t MaterialsOfPrimitives::GetMaterialParametersBufferSize() const
 {
     return GetMaterialsCount() * sizeof(MaterialParameters);
 }
+
+
+
 

@@ -10,38 +10,40 @@
 
 #include "Graphics/Meshes/MaterialsOfPrimitives.h"
 
+// TODO: fallback when no normal or tangent
+
 struct PrimitiveInfo
 {
     vk::PrimitiveTopology drawMode = vk::PrimitiveTopology::eTriangleList;
 
-    size_t material             =  0;
+    size_t material                 =  0;
 
-    size_t indicesCount         =  0;
-    size_t verticesCount        =  0;
+    size_t indicesCount             =  0;
+    size_t verticesCount            =  0;
 
-    VkDeviceSize indicesOffset  = -1;
+    VkDeviceSize indicesByteOffset  = -1;
 
-    int positionMorphTargets    =  0;
-    VkDeviceSize positionOffset = -1;
+    int positionMorphTargets        =  0;
+    VkDeviceSize positionByteOffset = -1;
 
-    int normalMorphTargets      =  0;
-    VkDeviceSize normalOffset   = -1;
+    int normalMorphTargets          =  0;
+    VkDeviceSize normalByteOffset   = -1;
 
-    int tangentMorphTargets     =  0;
-    VkDeviceSize tangentOffset  = -1;
+    int tangentMorphTargets         =  0;
+    VkDeviceSize tangentByteOffset  = -1;
 
-    int texcoordsCount          =  0;
-    int texcoordsMorphTargets   =  0;
-    VkDeviceSize texcoordsOffset= -1;
+    int texcoordsCount              =  0;
+    int texcoordsMorphTargets       =  0;
+    VkDeviceSize texcoordsByteOffset= -1;
 
-    int colorMorphTargets       =  0;
-    VkDeviceSize colorOffset    = -1;
+    int colorMorphTargets           =  0;
+    VkDeviceSize colorByteOffset    = -1;
 
-    int jointsCount             =  0;
-    VkDeviceSize jointsOffset   = -1;
+    int jointsCount                 =  0;
+    VkDeviceSize jointsByteOffset   = -1;
 
-    int weightsCount            =  0;
-    VkDeviceSize weightsOffset  = -1;
+    int weightsCount                =  0;
+    VkDeviceSize weightsByteOffset  = -1;
 };
 
 class PrimitivesOfMeshes
@@ -108,6 +110,8 @@ public:
                        vma::Allocator allocator);
     ~PrimitivesOfMeshes();
 
+    void AddDefaultPrimitive();
+
     size_t AddPrimitive(const tinygltf::Model& model,
                         const tinygltf::Primitive& primitive);
 
@@ -117,9 +121,9 @@ public:
     OBBtree GetOBBtreeAndReset();
 
     size_t GetPrimitivesCount() const {return primitivesInfo.size();}
+    const PrimitiveInfo& GetDefaultPrimitiveInfo() const {return primitivesInfo[0];}
     const PrimitiveInfo& GetPrimitiveInfo(size_t index) const {return primitivesInfo[index];}
-    vk::Buffer GetIndicesBuffer() const {return indicesBuffer;}
-    vk::Buffer GetVerticesBuffer() const {return verticesBuffer;}
+    vk::Buffer GetBuffer() const {return buffer;}
 
     bool IsPrimitiveSkinned(size_t index) const;
     size_t PrimitiveMorphTargetsCount(size_t index) const;
@@ -130,7 +134,7 @@ private:
 
     void InitializePrimitivesInfo();
     void CopyIndicesToBuffer(std::byte* ptr);
-    void CopyVerticesToBuffer(std::byte* ptr);
+    void CopyVerticesToBuffer(std::byte* ptr, size_t offset);
     void FinishInitializePrimitivesInfo();
 
     static std::vector<uint32_t> TransformIndicesStripToList(const std::vector<uint32_t>& indices);
@@ -146,8 +150,8 @@ private: // data
     vk::Device device;
     vma::Allocator vma_allocator;
 
-    vk::Buffer indicesBuffer;
-    vma::Allocation indicesAllocation;
+    vk::Buffer buffer;
+    vma::Allocation allocation;
     vk::Buffer verticesBuffer;
     vma::Allocation verticesAllocation;
     bool hasBeenFlashed = false;
