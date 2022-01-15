@@ -1,13 +1,6 @@
 #version 450
 
-struct MaterialParameters
-{
-    vec4 baseColorFactors;
-    uint baseColorTexture;
-    uint baseColorTexCoord;
-
-    float alphaCutoff;
-};
+#include "common/structs/MaterialParameters.h"
 
 //
 // In

@@ -6,27 +6,7 @@
 class Renderer
     : public RendererBase
 {
-
-    struct PrimitiveInstanceParameters {
-        alignas(4) uint32_t indicesOffset = 0;      // uint32_t
-        alignas(4) uint32_t positionOffset = 0;     // glm::vec4
-        alignas(4) uint32_t normalOffset = 0;       // glm::vec4
-        alignas(4) uint32_t tangentOffset = 0;      // glm::vec4
-        alignas(4) uint32_t texcoordsOffset = 0;    // glm::vec2
-        alignas(4) uint32_t colorOffset = 0;        // glm::vec4
-
-        alignas(2) uint16_t matricesOffset = -1;
-        alignas(2) uint16_t material = -1;
-        alignas(2) uint16_t positionDescriptorIndex = 0;
-        alignas(2) uint16_t normalDescriptorIndex = 0;
-        alignas(2) uint16_t tangentDescriptorIndex = 0;
-        alignas(2) uint16_t texcoordsDescriptorIndex = 0;
-        alignas(2) uint16_t colorDescriptorIndex = 0;
-
-        alignas(1) uint8_t indicesSetMultiplier = 3;
-        alignas(1) uint8_t texcoordsStepMultiplier = 0;
-        alignas(1) uint8_t colorStepMultiplier = 0;
-    };
+#include "common/structs/PrimitiveInstanceParameters.h"
 public:
     Renderer(class Graphics* in_graphics_ptr,
              vk::Device in_device,

@@ -187,13 +187,12 @@ public:
                                        const char* requesting_source,
                                        size_t include_depth) override
     {
-        std::unique_ptr<std::string> include_name_uptr = std::make_unique<std::string>(folder + "/" +std::string(requesting_source));
+        std::unique_ptr<std::string> include_name_uptr = std::make_unique<std::string>(folder + "/" +std::string(requested_source));
 
         std::ifstream include_file(*include_name_uptr);
-        std::unique_ptr<std::string> include_source_uptr
-            = std::make_unique<std::string>((std::istreambuf_iterator<char>(include_file)), (std::istreambuf_iterator<char>()));
+        std::unique_ptr<std::string> include_source_uptr = std::make_unique<std::string>((std::istreambuf_iterator<char>(include_file)), (std::istreambuf_iterator<char>()));
 
-        std::unique_ptr<shaderc_include_result> include_result_uptr;
+        std::unique_ptr<shaderc_include_result> include_result_uptr = std::make_unique<shaderc_include_result>();
         include_result_uptr->source_name = include_name_uptr->c_str();
         include_result_uptr->source_name_length = include_name_uptr->size();
         include_result_uptr->content = include_source_uptr->c_str();
@@ -244,10 +243,11 @@ std::vector<uint32_t>
     options.SetIncluder(std::move(includer));
 
     // Preprocess
+    std::string input_file_nickname = family_name + " - " + vk::to_string(shader_stage);
     shaderc::PreprocessedSourceCompilationResult result =
         compiler.PreprocessGlsl(shader_source,
                                 shaderc_shaderKind,
-                                family_name.c_str(),
+                                input_file_nickname.c_str(),
                                 options);
 
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {

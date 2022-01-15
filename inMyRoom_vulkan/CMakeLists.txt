@@ -41,9 +41,13 @@ add_compile_definitions(VMA_DYNAMIC_VULKAN_FUNCTIONS=1)
 
 add_compile_definitions(GLFW_INCLUDE_NONE)
 
+add_compile_definitions(ENABLE_CPP_INTERFACE)
+
 find_package(Threads REQUIRED)
 
 include_directories(
+        ${inMyRoom_vulkan_SOURCE_DIR}/include
+        ${inMyRoom_vulkan_SOURCE_DIR}/shaders
         $ENV{VULKAN_SDK}/include                                           #Include Vulkan Sdk
         ../VulkanMemoryAllocator-Hpp                                       #Include VMA
         ../glfw/include                                                    #Include glfw
@@ -51,7 +55,7 @@ include_directories(
         ../Configuru                                                       #Include configuru
         ../glm                                                             #Include glm
         ../eig3                                                            #Include eig3
-        ${inMyRoom_vulkan_SOURCE_DIR}/include)
+)
 
 SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/../eig3/eig3.h"

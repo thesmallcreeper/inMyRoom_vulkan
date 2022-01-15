@@ -4,35 +4,8 @@
 #extension GL_EXT_shader_16bit_storage : require
 #extension GL_EXT_shader_8bit_storage : require
 
-struct MaterialParameters
-{
-    vec4 baseColorFactors;
-    uint baseColorTexture;
-    uint baseColorTexCoord;
-
-    float alphaCutoff;
-};
-
-struct PrimitiveInstanceParameters {
-    uint indicesOffset;      // uint32_t
-    uint positionOffset;     // glm::vec4
-    uint normalOffset;       // glm::vec4
-    uint tangentOffset;      // glm::vec4
-    uint texcoordsOffset;    // glm::vec2
-    uint colorOffset;        // glm::vec4
-
-    uint16_t matricesOffset;
-    uint16_t material;
-    uint16_t positionDescriptorIndex;
-    uint16_t normalDescriptorIndex;
-    uint16_t tangentDescriptorIndex;
-    uint16_t texcoordsDescriptorIndex;
-    uint16_t colorDescriptorIndex;
-
-    uint8_t indicesSetMultiplier;
-    uint8_t texcoordsStepMultiplier;
-    uint8_t colorStepMultiplier;
-};
+#include "common/structs/MaterialParameters.h"
+#include "common/structs/PrimitiveInstanceParameters.h"
 
 //
 // In
