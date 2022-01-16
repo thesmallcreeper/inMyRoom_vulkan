@@ -6,6 +6,7 @@
 
 #include "common/structs/MaterialParameters.h"
 #include "common/structs/PrimitiveInstanceParameters.h"
+#include "common/intersectOriginTriangle.glsl"
 
 //
 // In
@@ -90,19 +91,10 @@ void main()
     vec4 vert_1 = pos_matrix * vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_1_index];
     vec4 vert_2 = pos_matrix * vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_2_index];
 
-    vec3 edge1 = vec3(vert_1 - vert_0);
-    vec3 edge2 = vec3(vert_2 - vert_0);
+    vec3 edge_1 = vec3(vert_1 - vert_0);
+    vec3 edge_2 = vec3(vert_2 - vert_0);
 
-    vec3 p = cross(ray_dir, edge2);
-    float det = dot(edge1, p);
-
-    vec2 baryPosition;
-    baryPosition.x = dot(-vec3(vert_0), p);
-
-    vec3 perped = cross(-vec3(vert_0), edge1);
-    baryPosition.y = dot(ray_dir, perped);
-
-    baryPosition /= det;
+    IntersectOriginTriangleResult intersect_result = IntersectOriginTriangle(vec3(vert_0), edge_1, edge_2, ray_dir);
 
     uint material_index = uint(primitivesInstancesParameters[frag_primitiveInstance].material);
     MaterialParameters this_materialParameters = materialsParameters[material_index];
@@ -114,10 +106,15 @@ void main()
     vec2 uv_1 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_1_index * uv_stepMult + this_materialParameters.baseColorTexCoord];
     vec2 uv_2 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_2_index * uv_stepMult + this_materialParameters.baseColorTexCoord];
 
-    vec2 uv = (1.f - baryPosition.x - baryPosition.y) * uv_0 + baryPosition.x * uv_1 + baryPosition.y * uv_2;
+    vec2 uv_edge_1 = uv_1 - uv_0;
+    vec2 uv_edge_2 = uv_2 - uv_0;
+    vec2 uv = uv_0 + intersect_result.barycoords.x * uv_edge_1 + intersect_result.barycoords.y * uv_edge_2;
+
+    vec2 uv_dx = intersect_result.barycoordsDx.x * uv_edge_1 + intersect_result.barycoordsDx.y * uv_edge_2;
+    vec2 uv_dy = intersect_result.barycoordsDy.x * uv_edge_1 + intersect_result.barycoordsDy.y * uv_edge_2;
 
     uint base_color_texture_index = this_materialParameters.baseColorTexture;
-    vec4 text_color = texture(textures[base_color_texture_index], uv).rgba * this_materialParameters.baseColorFactors;
+    vec4 text_color = textureGrad(textures[base_color_texture_index], uv, uv_dx, uv_dy);
 
-    color_out = text_color;
+    color_out = text_color * this_materialParameters.baseColorFactors;;
 }

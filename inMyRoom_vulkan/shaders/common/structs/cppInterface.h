@@ -1,7 +1,6 @@
 #ifndef FILE_CPP_INTERFACE
 
 #ifdef ENABLE_CPP_INTERFACE
-    #include <cstdint>
 
     #define VEC4        alignas(16) glm::vec4
     #define VEC3        alignas(16) glm::vec3
