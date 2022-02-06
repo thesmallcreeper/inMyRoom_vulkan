@@ -814,7 +814,8 @@ void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
         buffer_create_info.usage = vk::BufferUsageFlagBits::eIndexBuffer
                 | vk::BufferUsageFlagBits::eVertexBuffer
                 | vk::BufferUsageFlagBits::eTransferDst
-                | vk::BufferUsageFlagBits::eStorageBuffer;
+                | vk::BufferUsageFlagBits::eStorageBuffer
+                | vk::BufferUsageFlagBits::eShaderDeviceAddress;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
         vma::AllocationCreateInfo allocation_create_info;
@@ -1121,6 +1122,36 @@ size_t PrimitivesOfMeshes::PrimitiveMorphTargetsCount(size_t index) const
         return std::max({this_info.positionMorphTargets, this_info.normalMorphTargets,
                          this_info.tangentMorphTargets, this_info.texcoordsMorphTargets,
                          this_info.colorMorphTargets});
+    }
+}
+
+std::tuple<bool, vk::AccelerationStructureGeometryKHR, vk::AccelerationStructureBuildRangeInfoKHR> PrimitivesOfMeshes::GetPrimitiveAccelerationStructureTriangle(size_t index)
+{
+    assert(hasBeenFlashed);
+
+    const PrimitiveInfo& primitive_info = GetPrimitiveInfo(index);
+    uint64_t buffer_device_address = device.getBufferAddress({buffer});
+
+    if (primitive_info.drawMode == vk::PrimitiveTopology::eTriangleList) {
+        vk::AccelerationStructureGeometryKHR acceleration_struct;
+        acceleration_struct.geometryType = vk::GeometryTypeKHR::eTriangles;
+        acceleration_struct.geometry.triangles.vertexFormat = vk::Format::eR32G32B32Sfloat;
+        acceleration_struct.geometry.triangles.vertexData = buffer_device_address + primitive_info.positionByteOffset;
+        acceleration_struct.geometry.triangles.vertexStride = sizeof(glm::vec4) * (primitive_info.positionMorphTargets + 1);
+        acceleration_struct.geometry.triangles.maxVertex = primitive_info.verticesCount;
+        acceleration_struct.geometry.triangles.indexType = vk::IndexType::eUint32;
+        acceleration_struct.geometry.triangles.indexData = buffer_device_address + primitive_info.indicesByteOffset;
+        acceleration_struct.geometry.triangles.transformData = nullptr;
+
+        vk::AccelerationStructureBuildRangeInfoKHR acceleration_range;
+        acceleration_range.primitiveCount = primitive_info.indicesCount / 3;
+        acceleration_range.primitiveOffset = 0;
+        acceleration_range.firstVertex = 0;
+        acceleration_range.transformOffset = 0;
+
+        return std::make_tuple(true, acceleration_struct, acceleration_range);
+    } else {
+        return std::make_tuple(false, vk::AccelerationStructureGeometryKHR(), vk::AccelerationStructureBuildRangeInfoKHR());
     }
 }
 

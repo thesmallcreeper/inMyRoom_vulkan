@@ -11,23 +11,41 @@
 #include "vulkan/vulkan_hash.hpp"
 #include "vk_mem_alloc.hpp"
 
-struct DynamicPrimitiveInfo {
-    size_t primitiveIndex           = -1;
+struct DynamicMeshInfo {
+    struct DynamicPrimitiveInfo {
+        size_t primitiveIndex           = -1;
 
-    VkDeviceSize positionByteOffset = -1;
+        VkDeviceSize positionByteOffset = -1;
 
-    VkDeviceSize normalByteOffset   = -1;
+        VkDeviceSize normalByteOffset   = -1;
 
-    VkDeviceSize tangentByteOffset  = -1;
+        VkDeviceSize tangentByteOffset  = -1;
 
-    int texcoordsCount              =  0;
-    VkDeviceSize texcoordsByteOffset= -1;
+        int texcoordsCount              =  0;
+        VkDeviceSize texcoordsByteOffset= -1;
 
-    VkDeviceSize colorByteOffset    = -1;
+        VkDeviceSize colorByteOffset    = -1;
+    };
+
+    std::vector<DynamicPrimitiveInfo> dynamicPrimitives;
 
     vk::Buffer buffer;
+    vma::Allocation allocation;
     size_t halfSize                 =  0;
     size_t descriptorIndex          = -1;
+
+    bool hasDynamicBLAS             = false;
+
+    vk::AccelerationStructureKHR BLASesHandles[2];
+    uint64_t BLASesDeviceAddresses[2] = {0, 0};
+    vk::Buffer BLASesBuffer;
+    vma::Allocation BLASesAllocation;
+    size_t BLASesHalfSize           = 0;
+
+    vk::Buffer updateScratchBuffer;
+    vma::Allocation updateScratchAllocation;
+
+    size_t meshIndex                = -1;
 };
 
 struct DynamicMeshComputePushConstants {
@@ -42,7 +60,7 @@ struct DynamicMeshComputePushConstants {
     uint32_t step_multiplier = 1;
     uint32_t resultDescriptorIndex = 0;
     uint32_t resultOffset = -1;
-    std::array<float, MAX_MORPH_WEIGHTS> morph_weights;
+    std::array<float, MAX_MORPH_WEIGHTS> morph_weights = {};
 };
 
 class DynamicMeshes
@@ -55,8 +73,8 @@ public:
 
     void FlashDevice();
 
-    const std::vector<DynamicPrimitiveInfo>& GetDynamicPrimitivesInfo(size_t index) const;
-    size_t AddDynamicMesh(const std::vector<size_t>& primitives_info_indices);
+    const DynamicMeshInfo& GetDynamicMeshInfo(size_t index) const;
+    size_t AddDynamicMesh(size_t mesh_index);
     void RemoveDynamicMeshSafe(size_t index);
 
     void RecordTransformations(vk::CommandBuffer command_buffer,
@@ -66,11 +84,10 @@ public:
     vk::DescriptorSetLayout GetDescriptorLayout() {return descriptorSetLayout;}
     void SwapDescriptorSet(size_t swap_index);
     void CompleteRemovesSafe();
-private:
-    std::unordered_map<size_t, std::vector<DynamicPrimitiveInfo>> indexToDynamicPrimitivesInfos_umap;
-    std::unordered_map<vk::Buffer, vma::Allocation> bufferToVMAallocation_umap;
 
-    std::vector<std::pair<vk::Buffer, uint32_t>> bufferToBeRemovedCountdown;
+private:
+    std::unordered_map<size_t, DynamicMeshInfo> indexToDynamicMeshInfo_umap;
+    std::vector<std::pair<DynamicMeshInfo, uint32_t>> dynamicMeshToBeRemovedCountdown;
 
     vk::DescriptorPool      descriptorPool;
     vk::DescriptorSet       descriptorSets[3];

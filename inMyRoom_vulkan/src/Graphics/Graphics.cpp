@@ -267,7 +267,7 @@ void Graphics::InitMeshesTree()
 
     skinsOfMeshes_uptr = std::make_unique<SkinsOfMeshes>(device, vma_allocator);
 
-    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get());
+    meshesOfNodes_uptr = std::make_unique<MeshesOfNodes>(primitivesOfMeshes_uptr.get(), device, vma_allocator);
 
 }
 
@@ -332,6 +332,7 @@ void Graphics::EndModelsLoad()
     std::cout << "Flashing device\n";
     materialsOfPrimitives_uptr->FlashDevice(graphicsQueue);
     primitivesOfMeshes_uptr->FlashDevice(graphicsQueue);
+    meshesOfNodes_uptr->FlashDevice(graphicsQueue);
     skinsOfMeshes_uptr->FlashDevice(graphicsQueue);
     dynamicMeshes_uptr->FlashDevice();
 

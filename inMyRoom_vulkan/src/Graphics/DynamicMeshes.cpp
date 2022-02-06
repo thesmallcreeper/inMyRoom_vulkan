@@ -20,8 +20,14 @@ DynamicMeshes::~DynamicMeshes()
     device.destroy(descriptorSetLayout);
     device.destroy(descriptorPool);
 
-    for (const auto& this_pair : bufferToVMAallocation_umap) {
-        vma_allocator.destroyBuffer(this_pair.first, this_pair.second);
+    for (const auto& this_pair : indexToDynamicMeshInfo_umap) {
+        vma_allocator.destroyBuffer(this_pair.second.buffer, this_pair.second.allocation);
+        if(this_pair.second.hasDynamicBLAS) {
+            device.destroy(this_pair.second.BLASesHandles[0]);
+            device.destroy(this_pair.second.BLASesHandles[1]);
+            vma_allocator.destroyBuffer(this_pair.second.BLASesBuffer, this_pair.second.BLASesAllocation);
+            vma_allocator.destroyBuffer(this_pair.second.updateScratchBuffer, this_pair.second.updateScratchAllocation);
+        }
     }
 }
 
@@ -152,31 +158,33 @@ void DynamicMeshes::FlashDevice()
     hasBeenFlashed = true;
 }
 
-const std::vector<DynamicPrimitiveInfo> &DynamicMeshes::GetDynamicPrimitivesInfo(size_t index) const
+const DynamicMeshInfo& DynamicMeshes::GetDynamicMeshInfo(size_t index) const
 {
-    assert(indexToDynamicPrimitivesInfos_umap.find(index) != indexToDynamicPrimitivesInfos_umap.end());
+    assert(indexToDynamicMeshInfo_umap.find(index) != indexToDynamicMeshInfo_umap.end());
 
-    auto search = indexToDynamicPrimitivesInfos_umap.find(index);
+    auto search = indexToDynamicMeshInfo_umap.find(index);
     return search->second;
 }
 
-size_t DynamicMeshes::AddDynamicMesh(const std::vector<size_t>& primitives_info_indices)
+size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
 {
     assert(hasBeenFlashed);
 
-    if (indexToDynamicPrimitivesInfos_umap.size() == max_dynamicMeshes) {
+    if (indexToDynamicMeshInfo_umap.size() == max_dynamicMeshes) {
         std::cerr << "Exceeding dynamic meshes count!\n";
         std::terminate();
     }
 
-    std::vector<DynamicPrimitiveInfo> dynamicPrimitiveInfos;
+    // Primitives info creation
+    std::vector<DynamicMeshInfo::DynamicPrimitiveInfo> dynamicPrimitiveInfos;
 
     size_t offset = 0;
+    std::vector<size_t> primitives_info_indices = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).primitivesIndex;
     for (size_t this_primitiveInfo_index : primitives_info_indices) {
         const PrimitiveInfo& this_primitiveInfo = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_primitiveInfo_index);
         bool isSkin = this_primitiveInfo.jointsCount;
 
-        DynamicPrimitiveInfo this_dynamicPrimitiveInfo;
+        DynamicMeshInfo::DynamicPrimitiveInfo this_dynamicPrimitiveInfo;
         this_dynamicPrimitiveInfo.primitiveIndex = this_primitiveInfo_index;
 
         if (this_primitiveInfo.positionMorphTargets > 0 || isSkin) {
@@ -208,29 +216,83 @@ size_t DynamicMeshes::AddDynamicMesh(const std::vector<size_t>& primitives_info_
         dynamicPrimitiveInfos.emplace_back(this_dynamicPrimitiveInfo);
     }
 
-    size_t buffer_size = 2 * offset;
+    DynamicMeshInfo dynamicMeshInfo;
+    dynamicMeshInfo.meshIndex = mesh_index;
+    dynamicMeshInfo.dynamicPrimitives = std::move(dynamicPrimitiveInfos);
+    // Create vertices buffer
+    {
+        size_t buffer_size = 2 * offset;
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = buffer_size;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
-    vk::BufferCreateInfo buffer_create_info;
-    buffer_create_info.size = buffer_size;
-    buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer;
-    buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+        vma::AllocationCreateInfo allocation_create_info;
+        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
 
-    vma::AllocationCreateInfo allocation_create_info;
-    allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        dynamicMeshInfo.buffer =  createBuffer_result.value.first;
+        dynamicMeshInfo.allocation = createBuffer_result.value.second;
+        dynamicMeshInfo.halfSize = buffer_size / 2;
+    }
 
-    auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
-    assert(createBuffer_result.result == vk::Result::eSuccess);
-    vk::Buffer buffer = createBuffer_result.value.first;
-    vma::Allocation allocation = createBuffer_result.value.second;
+    // BLAS creation
+    dynamicMeshInfo.hasDynamicBLAS = std::find_if(dynamicMeshInfo.dynamicPrimitives.begin(), dynamicMeshInfo.dynamicPrimitives.end(),
+                                                  [](const auto& primitive) {return primitive.positionByteOffset != -1;}) != dynamicMeshInfo.dynamicPrimitives.end();
+    if (dynamicMeshInfo.hasDynamicBLAS) {
+        dynamicMeshInfo.BLASesHalfSize = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.bufferSize;
+        size_t scratch_buffer_size = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.updateScratchBufferSize;
 
-    for (auto& this_dynamicPrimitiveInfo : dynamicPrimitiveInfos) {
-        this_dynamicPrimitiveInfo.halfSize = offset;
-        this_dynamicPrimitiveInfo.buffer = buffer;
+        // Create buffer for acceleration structure
+        {
+            vk::BufferCreateInfo buffer_create_info;
+            buffer_create_info.size = dynamicMeshInfo.BLASesHalfSize * 2;
+            buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
+            buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+            vma::AllocationCreateInfo allocation_create_info;
+            allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+            auto create_buffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
+            assert(create_buffer_result.result == vk::Result::eSuccess);
+            dynamicMeshInfo.BLASesBuffer = create_buffer_result.value.first;
+            dynamicMeshInfo.BLASesAllocation = create_buffer_result.value.second;
+
+        }
+
+        // Create acceleration structures
+        for (size_t i = 0; i != 2; ++i) {
+            vk::AccelerationStructureCreateInfoKHR BLAS_create_info;
+            BLAS_create_info.buffer = dynamicMeshInfo.BLASesBuffer;
+            BLAS_create_info.size = dynamicMeshInfo.BLASesHalfSize;
+            BLAS_create_info.offset = i * dynamicMeshInfo.BLASesHalfSize;
+            BLAS_create_info.type = vk::AccelerationStructureTypeKHR::eBottomLevel;
+            auto BLAS_create_result = device.createAccelerationStructureKHR(BLAS_create_info);
+            assert(BLAS_create_result.result == vk::Result::eSuccess);
+            dynamicMeshInfo.BLASesHandles[i] = BLAS_create_result.value;
+            dynamicMeshInfo.BLASesDeviceAddresses[i] = device.getAccelerationStructureAddressKHR({dynamicMeshInfo.BLASesHandles[i]});
+        }
+
+        // Create update scratch buffer
+        {
+            vk::BufferCreateInfo buffer_create_info;
+            buffer_create_info.size = scratch_buffer_size;
+            buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+            buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+            vma::AllocationCreateInfo allocation_create_info;
+            allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+            auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
+            assert(createBuffer_result.result == vk::Result::eSuccess);
+            dynamicMeshInfo.updateScratchBuffer = createBuffer_result.value.first;
+            dynamicMeshInfo.updateScratchAllocation = createBuffer_result.value.second;
+        }
     }
 
     size_t index = indexCounter++;
-    indexToDynamicPrimitivesInfos_umap.emplace(index, dynamicPrimitiveInfos);
-    bufferToVMAallocation_umap.emplace(buffer, allocation);
+    indexToDynamicMeshInfo_umap.emplace(index, dynamicMeshInfo);
 
     return index;
 }
@@ -239,12 +301,10 @@ void DynamicMeshes::RemoveDynamicMeshSafe(size_t index)
 {
     assert(hasBeenFlashed);
 
-    assert(indexToDynamicPrimitivesInfos_umap.find(index) != indexToDynamicPrimitivesInfos_umap.end());
+    assert(indexToDynamicMeshInfo_umap.find(index) != indexToDynamicMeshInfo_umap.end());
+    dynamicMeshToBeRemovedCountdown.emplace_back(indexToDynamicMeshInfo_umap.find(index)->second, removeCountdown);
 
-    vk::Buffer buffer = indexToDynamicPrimitivesInfos_umap.find(index)->second[0].buffer;
-    bufferToBeRemovedCountdown.emplace_back(buffer, removeCountdown);
-
-    indexToDynamicPrimitivesInfos_umap.erase(index);
+    indexToDynamicMeshInfo_umap.erase(index);
 }
 
 void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
@@ -256,7 +316,7 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
     size_t buffer_index = swapIndex % 2;
     std::vector<vk::DescriptorBufferInfo> descriptor_buffer_infos;
 
-    {   // Default primitives buffer
+    {   // Static primitives buffer
         vk::DescriptorBufferInfo primitives_buffer_info;
         primitives_buffer_info.buffer = graphics_ptr->GetPrimitivesOfMeshes()->GetBuffer();
         primitives_buffer_info.offset = 0;
@@ -264,18 +324,16 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
         descriptor_buffer_infos.emplace_back(primitives_buffer_info);
     }
 
-    for (auto& this_pair : indexToDynamicPrimitivesInfos_umap) {
-        vk::Buffer buffer = this_pair.second[0].buffer;
-        size_t halfSize = this_pair.second[0].halfSize;
+    for (auto& this_pair : indexToDynamicMeshInfo_umap) {
+        vk::Buffer buffer = this_pair.second.buffer;
+        size_t halfSize = this_pair.second.halfSize;
 
         vk::DescriptorBufferInfo this_descriptor_buffer_info;
         this_descriptor_buffer_info.buffer = buffer;
         this_descriptor_buffer_info.offset = buffer_index * halfSize;
         this_descriptor_buffer_info.range = halfSize;
 
-        for (auto& this_dynamic_primitive : this_pair.second) {
-            this_dynamic_primitive.descriptorIndex = descriptor_buffer_infos.size();
-        }
+        this_pair.second.descriptorIndex = descriptor_buffer_infos.size();
 
         descriptor_buffer_infos.emplace_back(this_descriptor_buffer_info);
     }
@@ -295,22 +353,23 @@ void DynamicMeshes::CompleteRemovesSafe()
 {
     assert(hasBeenFlashed);
 
-    std::vector<std::pair<vk::Buffer, uint32_t>> new_bufferToBeRemovedCountdown;
-    for(const auto& bufferCountdown_pair : bufferToBeRemovedCountdown) {
-        if (bufferCountdown_pair.second == 0) {
-            vk::Buffer buffer = bufferCountdown_pair.first;
-
-            assert(bufferToVMAallocation_umap.find(buffer) != bufferToVMAallocation_umap.end());
-            vma::Allocation allocation = bufferToVMAallocation_umap.find(buffer)->second;
-
-            vma_allocator.destroyBuffer(buffer, allocation);
-            bufferToVMAallocation_umap.erase(buffer);
+    std::vector<std::pair<DynamicMeshInfo, uint32_t>> new_bufferToBeRemovedCountdown;
+    for(const auto& this_pair : dynamicMeshToBeRemovedCountdown) {
+        if (this_pair.second == 0) {
+            vma_allocator.destroyBuffer(this_pair.first.buffer, this_pair.first.allocation);
+            if (this_pair.first.hasDynamicBLAS) {
+                device.destroy(this_pair.first.BLASesHandles[0]);
+                device.destroy(this_pair.first.BLASesHandles[1]);
+                vma_allocator.destroyBuffer(this_pair.first.BLASesBuffer, this_pair.first.BLASesAllocation);
+                vma_allocator.destroyBuffer(this_pair.first.updateScratchBuffer, this_pair.first.updateScratchAllocation);
+            }
         } else {
-            new_bufferToBeRemovedCountdown.emplace_back(bufferCountdown_pair.first, bufferCountdown_pair.second - 1);
+            new_bufferToBeRemovedCountdown.emplace_back(this_pair.first,
+                                                        this_pair.second - 1);
         }
     }
 
-    bufferToBeRemovedCountdown = std::move(new_bufferToBeRemovedCountdown);
+    dynamicMeshToBeRemovedCountdown = std::move(new_bufferToBeRemovedCountdown);
 }
 
 void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
@@ -318,6 +377,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
 {
     assert(hasBeenFlashed);
 
+    // Calculate transformations
     std::vector<vk::DescriptorSet> descriptor_sets;
     descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(swapIndex));
     descriptor_sets.emplace_back(graphics_ptr->GetSkinsOfMeshesPtr()->GetDescriptorSet());
@@ -327,7 +387,8 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
 
     std::vector<vk::BufferMemoryBarrier> buffer_memory_barries;
     for (const auto& draw_info : draw_infos) {
-        for (const DynamicPrimitiveInfo& this_dynamic_primitive : GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)) {
+        const DynamicMeshInfo& dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
+        for (const DynamicMeshInfo::DynamicPrimitiveInfo& this_dynamic_primitive : dynamic_mesh_info.dynamicPrimitives) {
             const PrimitiveInfo& this_primitive = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive.primitiveIndex);
 
             if (this_dynamic_primitive.positionByteOffset != -1) {
@@ -348,7 +409,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
-                push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
+                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
                 push_constants.resultOffset = uint32_t(this_dynamic_primitive.positionByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
@@ -376,7 +437,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
-                push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
+                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
                 push_constants.resultOffset = uint32_t(this_dynamic_primitive.normalByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
@@ -404,7 +465,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
-                push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
+                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
                 push_constants.resultOffset = uint32_t(this_dynamic_primitive.tangentByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
@@ -430,7 +491,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
-                push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
+                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
                 push_constants.resultOffset = uint32_t(this_dynamic_primitive.colorByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
@@ -457,7 +518,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                     push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                     push_constants.size_x = uint32_t(this_primitive.verticesCount);
                     push_constants.step_multiplier = uint32_t(this_dynamic_primitive.texcoordsCount);
-                    push_constants.resultDescriptorIndex = uint32_t(this_dynamic_primitive.descriptorIndex);
+                    push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
                     push_constants.resultOffset = uint32_t(this_dynamic_primitive.texcoordsByteOffset / (sizeof(float) * 4) + i);
                     std::copy(draw_info.weights.begin(),
                               draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
@@ -471,22 +532,106 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
 
         vk::BufferMemoryBarrier this_memory_barrier;
         this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
-        this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead;
+        this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eAccelerationStructureWriteKHR;
         this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        this_memory_barrier.buffer = GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].buffer;
-        this_memory_barrier.offset = (swapIndex % 2) * GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].halfSize;
-        this_memory_barrier.size = GetDynamicPrimitivesInfo(draw_info.dynamicMeshIndex)[0].halfSize;
+        this_memory_barrier.buffer = dynamic_mesh_info.buffer;
+        this_memory_barrier.offset = (swapIndex % 2) * dynamic_mesh_info.halfSize;
+        this_memory_barrier.size = dynamic_mesh_info.halfSize;
 
         buffer_memory_barries.emplace_back(this_memory_barrier);
     }
 
-    command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
-                                   vk::PipelineStageFlagBits::eVertexInput,
-                                   vk::DependencyFlagBits::eByRegion,
-                                   {},
-                                   buffer_memory_barries,
-                                   {});
+    if (buffer_memory_barries.size()) {
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
+                                       vk::PipelineStageFlagBits::eVertexInput | vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       buffer_memory_barries,
+                                       {});
+    }
+
+    // Update BLASes
+    std::vector<vk::BufferMemoryBarrier> BLAS_memory_barries;
+    std::vector<vk::AccelerationStructureBuildGeometryInfoKHR> infos;
+    std::vector<std::unique_ptr<std::vector<vk::AccelerationStructureGeometryKHR>>> geometries_of_infos;
+    std::vector<std::unique_ptr<std::vector<vk::AccelerationStructureBuildRangeInfoKHR>>> ranges_of_infos;
+    uint64_t static_buffer_address = device.getBufferAddress(graphics_ptr->GetPrimitivesOfMeshes()->GetBuffer());
+    for (const auto& draw_info : draw_infos) {
+        const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(draw_info.meshIndex);
+        const DynamicMeshInfo& dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
+
+        if (dynamic_mesh_info.hasDynamicBLAS) {
+            uint64_t dynamic_buffer_address = device.getBufferAddress(dynamic_mesh_info.buffer);
+
+            std::vector<vk::AccelerationStructureGeometryKHR> geometries;
+            std::vector<vk::AccelerationStructureBuildRangeInfoKHR> geometries_ranges;
+            for (const DynamicMeshInfo::DynamicPrimitiveInfo &this_dynamic_primitive_info: dynamic_mesh_info.dynamicPrimitives) {
+                const PrimitiveInfo &this_primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
+
+                vk::AccelerationStructureGeometryKHR geometry;
+                geometry.geometryType = vk::GeometryTypeKHR::eTriangles;
+                geometry.geometry.triangles.vertexFormat = vk::Format::eR32G32B32Sfloat;
+                geometry.geometry.triangles.vertexData = this_dynamic_primitive_info.positionByteOffset
+                        ? dynamic_buffer_address + (swapIndex % 2) * dynamic_mesh_info.halfSize + this_dynamic_primitive_info.positionByteOffset
+                        : static_buffer_address + this_primitive_info.positionByteOffset;
+                geometry.geometry.triangles.vertexStride = sizeof(glm::vec4);
+                geometry.geometry.triangles.maxVertex = this_primitive_info.verticesCount;
+                geometry.geometry.triangles.indexType = vk::IndexType::eUint32;
+                geometry.geometry.triangles.indexData = static_buffer_address + this_primitive_info.indicesByteOffset;
+                geometry.geometry.triangles.transformData = nullptr;
+
+                vk::AccelerationStructureBuildRangeInfoKHR range;
+                range.primitiveCount = this_primitive_info.indicesCount / 3;
+                range.primitiveOffset = 0;
+                range.firstVertex = 0;
+                range.transformOffset = 0;
+
+                geometries.emplace_back(geometry);
+                geometries_ranges.emplace_back(range);
+            }
+            geometries_of_infos.emplace_back(std::make_unique<std::vector<vk::AccelerationStructureGeometryKHR>>(std::move(geometries)));
+            ranges_of_infos.emplace_back(std::make_unique<std::vector<vk::AccelerationStructureBuildRangeInfoKHR>>(std::move(geometries_ranges)));
+
+            vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
+            geometry_info.type = vk::AccelerationStructureTypeKHR::eBottomLevel;
+            geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace | vk::BuildAccelerationStructureFlagBitsKHR::eAllowUpdate;
+            geometry_info.mode = vk::BuildAccelerationStructureModeKHR::eUpdate;
+            geometry_info.scratchData.deviceAddress = device.getBufferAddress(dynamic_mesh_info.updateScratchBuffer);
+            geometry_info.srcAccelerationStructure = mesh_info.meshBLAS.handle;
+            geometry_info.dstAccelerationStructure = dynamic_mesh_info.BLASesHandles[(swapIndex % 2)];
+            geometry_info.setGeometries(*geometries_of_infos.back());
+
+            infos.emplace_back(geometry_info);
+
+            vk::BufferMemoryBarrier this_memory_barrier;
+            this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
+            this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+            this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            this_memory_barrier.buffer = dynamic_mesh_info.BLASesBuffer;
+            this_memory_barrier.offset = (swapIndex % 2) * dynamic_mesh_info.BLASesHalfSize;
+            this_memory_barrier.size = dynamic_mesh_info.BLASesHalfSize;
+
+            BLAS_memory_barries.emplace_back(this_memory_barrier);
+        }
+    }
+
+    if (infos.size()) {
+        std::vector<vk::AccelerationStructureBuildRangeInfoKHR*> ranges_of_infos_ptrs;
+        std::transform(ranges_of_infos.begin(), ranges_of_infos.end(), std::back_inserter(ranges_of_infos_ptrs),
+                       [](const auto& uptr) { return uptr->data(); });
+
+        command_buffer.buildAccelerationStructuresKHR(infos, ranges_of_infos_ptrs);
+
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
+                                       vk::PipelineStageFlagBits::eRayTracingShaderKHR | vk::PipelineStageFlagBits::eFragmentShader,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       BLAS_memory_barries,
+                                       {});
+    }
+
 }
 
 

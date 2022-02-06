@@ -76,9 +76,8 @@ void DynamicMeshCompEntity::Update(ModelDrawComp* modelDrawComp_ptr,
 {
     if (dynamicMeshIndex == -1 && not toBeRemoved) {
         size_t mesh_index = modelDrawComp_ptr->GetComponentEntity(thisEntity).meshIndex;
-        std::vector<size_t> primitives_index= meshesOfNodes_ptr->GetMeshInfo(mesh_index).primitivesIndex;
 
-        dynamicMeshIndex = dynamicMeshes_ptr->AddDynamicMesh(primitives_index);
+        dynamicMeshIndex = dynamicMeshes_ptr->AddDynamicMesh(mesh_index);
     }
 }
 

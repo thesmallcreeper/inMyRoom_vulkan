@@ -1,47 +1,21 @@
 #include "Graphics/HelperUtils.h"
 
-
-StagingBuffer::StagingBuffer(vk::Device in_device, vma::Allocator in_allocator, size_t size_byte)
-    :device(in_device),
-     vma_allocator(in_allocator),
-     bufferSize(size_byte)
+OneShotCommandBuffer::OneShotCommandBuffer(vk::Device in_device)
+    :
+    device(in_device)
 {
-    {
-        vk::BufferCreateInfo staging_buffer_create_info;
-        staging_buffer_create_info.size = bufferSize;
-        staging_buffer_create_info.usage = vk::BufferUsageFlagBits::eTransferSrc;
-
-        vma::AllocationCreateInfo staging_allocation_create_info;
-        staging_allocation_create_info.usage = vma::MemoryUsage::eCpuOnly;
-        staging_allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
-        staging_allocation_create_info.requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
-
-        auto createBuffer_result = vma_allocator.createBuffer(staging_buffer_create_info,
-                                                              staging_allocation_create_info,
-                                                              stagingAllocInfo);
-        assert(createBuffer_result.result == vk::Result::eSuccess);
-        stagingBuffer = createBuffer_result.value.first;
-        stagingAllocation = createBuffer_result.value.second;
-    }
-    assert(stagingAllocInfo.pMappedData != nullptr);
 }
 
-StagingBuffer::~StagingBuffer()
+OneShotCommandBuffer::~OneShotCommandBuffer()
 {
+    assert(not recordingCommandBuffer || submitted);
+
     if (commandPool) {
         device.destroy(commandPool);
     }
-    if (stagingBuffer) {
-        vma_allocator.destroyBuffer(stagingBuffer, stagingAllocation);
-    }
 }
 
-std::byte *StagingBuffer::GetDstPtr()
-{
-    return static_cast<std::byte*>(stagingAllocInfo.pMappedData);
-}
-
-vk::CommandBuffer StagingBuffer::BeginCommandRecord(std::pair<vk::Queue, uint32_t> in_queue)
+vk::CommandBuffer OneShotCommandBuffer::BeginCommandRecord(std::pair<vk::Queue, uint32_t> in_queue)
 {
     assert(not recordingCommandBuffer);
     assert(not submitted);
@@ -69,7 +43,7 @@ vk::CommandBuffer StagingBuffer::BeginCommandRecord(std::pair<vk::Queue, uint32_
     return commandBuffer;
 }
 
-void StagingBuffer::EndAndSubmitCommands()
+void OneShotCommandBuffer::EndAndSubmitCommands()
 {
     assert(recordingCommandBuffer);
     assert(not submitted);
@@ -86,5 +60,53 @@ void StagingBuffer::EndAndSubmitCommands()
     device.waitIdle();
 
     submitted = true;
+}
+
+StagingBuffer::StagingBuffer(vk::Device in_device, vma::Allocator in_allocator, size_t size_byte)
+    :device(in_device),
+     vma_allocator(in_allocator),
+     bufferSize(size_byte),
+     oneShotCommandBuffer(device)
+{
+    {
+        vk::BufferCreateInfo staging_buffer_create_info;
+        staging_buffer_create_info.size = bufferSize;
+        staging_buffer_create_info.usage = vk::BufferUsageFlagBits::eTransferSrc;
+
+        vma::AllocationCreateInfo staging_allocation_create_info;
+        staging_allocation_create_info.usage = vma::MemoryUsage::eCpuOnly;
+        staging_allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
+        staging_allocation_create_info.requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+
+        auto createBuffer_result = vma_allocator.createBuffer(staging_buffer_create_info,
+                                                              staging_allocation_create_info,
+                                                              stagingAllocInfo);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        stagingBuffer = createBuffer_result.value.first;
+        stagingAllocation = createBuffer_result.value.second;
+    }
+    assert(stagingAllocInfo.pMappedData != nullptr);
+}
+
+StagingBuffer::~StagingBuffer()
+{
+    if (stagingBuffer) {
+        vma_allocator.destroyBuffer(stagingBuffer, stagingAllocation);
+    }
+}
+
+std::byte *StagingBuffer::GetDstPtr() const
+{
+    return static_cast<std::byte*>(stagingAllocInfo.pMappedData);
+}
+
+vk::CommandBuffer StagingBuffer::BeginCommandRecord(std::pair<vk::Queue, uint32_t> in_queue)
+{
+    return oneShotCommandBuffer.BeginCommandRecord(in_queue);
+}
+
+void StagingBuffer::EndAndSubmitCommands()
+{
+    oneShotCommandBuffer.EndAndSubmitCommands();
 }
 

@@ -128,6 +128,8 @@ public:
     bool IsPrimitiveSkinned(size_t index) const;
     size_t PrimitiveMorphTargetsCount(size_t index) const;
 
+    std::tuple<bool, vk::AccelerationStructureGeometryKHR, vk::AccelerationStructureBuildRangeInfoKHR> GetPrimitiveAccelerationStructureTriangle(size_t index);
+
 private:
     size_t GetIndicesBufferSize() const;
     size_t GetVerticesBufferSize() const;

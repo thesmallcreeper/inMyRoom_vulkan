@@ -76,7 +76,8 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan_device_extensions.emplace_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
-
+    vulkan_device_extensions.emplace_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+    vulkan_device_extensions.emplace_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
 
     vk::PhysicalDeviceFeatures vulkan_device_features;
     vulkan_device_features.samplerAnisotropy = VK_TRUE;
@@ -93,9 +94,17 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan12_device_features.descriptorBindingVariableDescriptorCount = VK_TRUE;
     vulkan12_device_features.descriptorBindingPartiallyBound = VK_TRUE;
     vulkan12_device_features.timelineSemaphore = VK_TRUE;
+    vulkan12_device_features.bufferDeviceAddress = VK_TRUE;
+
+    vk::PhysicalDeviceAccelerationStructureFeaturesKHR acceleratationStructure_device_feature;
+    acceleratationStructure_device_feature.accelerationStructure = VK_TRUE;
+    vk::PhysicalDeviceRayQueryFeaturesKHR rayQuery_device_feature;
+    rayQuery_device_feature.rayQuery = VK_TRUE;
 
     void* pNext = &vulkan11_device_features;
     vulkan11_device_features.pNext = &vulkan12_device_features;
+    vulkan12_device_features.pNext = &acceleratationStructure_device_feature;
+    acceleratationStructure_device_feature.pNext = &rayQuery_device_feature;
     CreateDevice(selected_device,
                  1, 0, 0,
                  vulkan_device_extensions,
@@ -104,7 +113,8 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
 
     //
     // Initialize VMA allocator
-    vma::AllocatorCreateFlags allocator_flags = vma::AllocatorCreateFlagBits::eKhrDedicatedAllocation;
+    vma::AllocatorCreateFlags allocator_flags = vma::AllocatorCreateFlagBits::eKhrDedicatedAllocation |
+            vma::AllocatorCreateFlagBits::eBufferDeviceAddress;
     InitializeVMA(allocator_flags, VK_API_VERSION_1_2);
 
     //
@@ -369,6 +379,7 @@ void VulkanInit::InitializeVMA(vma::AllocatorCreateFlags allocator_flags,
     allocator_create_info.device = device;
     allocator_create_info.instance = vulkanInstance;
     allocator_create_info.pVulkanFunctions = vma_vulkanFunctions_uptr.get();
+    allocator_create_info.flags = allocator_flags;
 
     auto allocator_opt = vma::createAllocator(allocator_create_info);
     if (allocator_opt.result == vk::Result::eSuccess) {

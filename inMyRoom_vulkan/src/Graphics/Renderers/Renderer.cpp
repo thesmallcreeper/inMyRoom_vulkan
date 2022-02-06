@@ -988,26 +988,45 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
     // Visibility pass
     for (const DrawInfo& this_draw: draw_infos) {
         struct DrawPrimitiveInfo {
-            DrawPrimitiveInfo(size_t in_primitiveIndex, PrimitiveInfo in_primitiveInfo, DynamicPrimitiveInfo in_dynamicPrimitiveInfo)
-                :primitiveIndex(in_primitiveIndex),
-                 primitiveInfo(in_primitiveInfo),
-                 dynamicPrimitiveInfo(in_dynamicPrimitiveInfo) {}
+            DrawPrimitiveInfo(size_t in_primitiveIndex,
+                              PrimitiveInfo in_primitiveInfo,
+                              DynamicMeshInfo::DynamicPrimitiveInfo in_dynamicPrimitiveInfo,
+                              vk::Buffer in_dynamicBuffer,
+                              uint32_t in_dynamicBufferHalfSize)
+                :
+                primitiveIndex(in_primitiveIndex),
+                primitiveInfo(in_primitiveInfo),
+                dynamicPrimitiveInfo(in_dynamicPrimitiveInfo),
+                dynamicBuffer(in_dynamicBuffer),
+                dynamicBufferHalfSize(in_dynamicBufferHalfSize) {}
             size_t primitiveIndex;
+
             PrimitiveInfo primitiveInfo;
-            DynamicPrimitiveInfo dynamicPrimitiveInfo;
+
+            DynamicMeshInfo::DynamicPrimitiveInfo dynamicPrimitiveInfo;
+            vk::Buffer dynamicBuffer;
+            uint32_t dynamicBufferHalfSize;
         };
         std::vector<DrawPrimitiveInfo> draw_primitives_infos;
 
         if (this_draw.dynamicMeshIndex != -1) {
-            const auto &dynamic_primitives_infos = graphics_ptr->GetDynamicMeshes()->GetDynamicPrimitivesInfo(this_draw.dynamicMeshIndex);
-            for (const auto& this_dynamic_primitive_info: dynamic_primitives_infos) {
+            const auto &dynamic_mesh_info = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw.dynamicMeshIndex);
+            for (const auto& this_dynamic_primitive_info: dynamic_mesh_info.dynamicPrimitives) {
                 const PrimitiveInfo &this_primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
-                draw_primitives_infos.emplace_back(this_dynamic_primitive_info.primitiveIndex, this_primitive_info, this_dynamic_primitive_info);
+                draw_primitives_infos.emplace_back(this_dynamic_primitive_info.primitiveIndex,
+                                                   this_primitive_info,
+                                                   this_dynamic_primitive_info,
+                                                   dynamic_mesh_info.buffer,
+                                                   dynamic_mesh_info.halfSize);
             }
         } else {
             for (size_t primitive_index : graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
                 const PrimitiveInfo& primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(primitive_index);
-                draw_primitives_infos.emplace_back(primitive_index, primitive_info, DynamicPrimitiveInfo());
+                draw_primitives_infos.emplace_back(primitive_index,
+                                                   primitive_info,
+                                                   DynamicMeshInfo::DynamicPrimitiveInfo(),
+                                                   vk::Buffer(),
+                                                   -1);
             }
         }
 
@@ -1047,22 +1066,21 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
 
             // Position
             if (this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset != -1) {
-                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + buffer_index * this_draw_primitive_info.dynamicPrimitiveInfo.halfSize);
-                buffers.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.buffer);
+                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + buffer_index * this_draw_primitive_info.dynamicBufferHalfSize);
+                buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
             } else {
                 offsets.emplace_back(this_draw_primitive_info.primitiveInfo.positionByteOffset);
                 buffers.emplace_back(static_primitives_buffer);
             }
 
+            // Color texcoords if material is masked
             if (this_material.masked) {
                 if (this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset != -1) {
-                    offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset
-                                        + this_material.color_texcooord * sizeof(glm::vec2)
-                                        + buffer_index * this_draw_primitive_info.dynamicPrimitiveInfo.halfSize );
-                    buffers.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.buffer);
+                    offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2)
+                                        + buffer_index * this_draw_primitive_info.dynamicBufferHalfSize );
+                    buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
                 } else {
-                    offsets.emplace_back(this_draw_primitive_info.primitiveInfo.texcoordsByteOffset
-                                        + this_material.color_texcooord * sizeof(glm::vec2) );
+                    offsets.emplace_back(this_draw_primitive_info.primitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2) );
                     buffers.emplace_back(static_primitives_buffer);
                 }
             }
@@ -1131,9 +1149,11 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstan
         this_draw_info.primitivesInstanceOffset = return_vector.size();
 
         std::vector<PrimitiveInfo> primitives_info;
-        std::vector<DynamicPrimitiveInfo> dynamic_primitives_info;
+        std::vector<DynamicMeshInfo::DynamicPrimitiveInfo> dynamic_primitives_info;
+        uint32_t descriptor_index = 0;
         if (this_draw_info.dynamicMeshIndex != -1) {
-            dynamic_primitives_info = graphics_ptr->GetDynamicMeshes()->GetDynamicPrimitivesInfo(this_draw_info.dynamicMeshIndex);
+            descriptor_index = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex).descriptorIndex;
+            dynamic_primitives_info = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex).dynamicPrimitives;
             for (const auto& this_dynamic_primitive_info: dynamic_primitives_info) {
                 const PrimitiveInfo &this_primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
                 primitives_info.emplace_back(this_primitive_info);
@@ -1163,7 +1183,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstan
 
             if (dynamic_primitives_info[i].positionByteOffset != -1) {
                 this_primitiveInstanceParameters.positionOffset = dynamic_primitives_info[i].positionByteOffset / sizeof(glm::vec4);
-                this_primitiveInstanceParameters.positionDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+                this_primitiveInstanceParameters.positionDescriptorIndex = descriptor_index;
             } else {
                 this_primitiveInstanceParameters.positionOffset = primitives_info[i].positionByteOffset / sizeof(glm::vec4);
                 this_primitiveInstanceParameters.positionDescriptorIndex = 0;
@@ -1171,7 +1191,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstan
 
             if (dynamic_primitives_info[i].normalByteOffset != -1) {
                 this_primitiveInstanceParameters.normalOffset = dynamic_primitives_info[i].normalByteOffset / sizeof(glm::vec4);
-                this_primitiveInstanceParameters.normalDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+                this_primitiveInstanceParameters.normalDescriptorIndex = descriptor_index;
             } else {
                 assert(primitives_info[i].normalByteOffset != -1);
                 this_primitiveInstanceParameters.normalOffset = primitives_info[i].normalByteOffset / sizeof(glm::vec4);
@@ -1180,7 +1200,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstan
 
             if (dynamic_primitives_info[i].tangentByteOffset != -1) {
                 this_primitiveInstanceParameters.tangentOffset = dynamic_primitives_info[i].tangentByteOffset / sizeof(glm::vec4);
-                this_primitiveInstanceParameters.tangentDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+                this_primitiveInstanceParameters.tangentDescriptorIndex = descriptor_index;
             } else {
                 assert(primitives_info[i].tangentByteOffset != -1);
                 this_primitiveInstanceParameters.tangentOffset = primitives_info[i].tangentByteOffset / sizeof(glm::vec4);
@@ -1190,7 +1210,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstan
             if (dynamic_primitives_info[i].texcoordsByteOffset != -1) {
                 this_primitiveInstanceParameters.texcoordsStepMultiplier = dynamic_primitives_info[i].texcoordsCount;
                 this_primitiveInstanceParameters.texcoordsOffset = dynamic_primitives_info[i].texcoordsByteOffset / sizeof(glm::vec2);
-                this_primitiveInstanceParameters.texcoordsDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+                this_primitiveInstanceParameters.texcoordsDescriptorIndex = descriptor_index;
             } else {
                 if (primitives_info[i].texcoordsByteOffset != -1) {
                     this_primitiveInstanceParameters.texcoordsStepMultiplier = primitives_info[i].texcoordsCount;
@@ -1206,7 +1226,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstan
             if (dynamic_primitives_info[i].colorByteOffset != -1) {
                 this_primitiveInstanceParameters.colorStepMultiplier = 1;
                 this_primitiveInstanceParameters.colorOffset = dynamic_primitives_info[i].colorByteOffset / sizeof(glm::vec4);
-                this_primitiveInstanceParameters.colorDescriptorIndex = dynamic_primitives_info[i].descriptorIndex;
+                this_primitiveInstanceParameters.colorDescriptorIndex = descriptor_index;
             } else {
                 if (primitives_info[i].texcoordsByteOffset != -1) {
                     this_primitiveInstanceParameters.colorStepMultiplier = 1;
