@@ -67,6 +67,12 @@
     <Filter Include="Source Files\_etc">
       <UniqueIdentifier>{6d1be37a-7301-4c7e-8906-76ce099d53d7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Graphics\Renderers">
+      <UniqueIdentifier>{3ed1c5dd-c633-4baf-983f-a280cedf6d4f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Graphics\Renderers">
+      <UniqueIdentifier>{44427293-e597-4d56-9b1c-543cc84bfce5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -242,6 +248,9 @@
     </ClCompile>
     <ClCompile Include="..\eig3\eig3.cpp">
       <Filter>Source Files\_etc</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\Renderers\Renderer.cpp">
+      <Filter>Source Files\Graphics\Renderers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -470,15 +479,39 @@
     <ClInclude Include="include\Graphics\ImagesInterfaces.h">
       <Filter>Header Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="include\Graphics\Renderers\Renderer.h">
+      <Filter>Header Files\Graphics\Renderers</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\RendererBase.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\common\structs\cppInterface.h">
+      <Filter>Resource Files\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\common\structs\MaterialParameters.h">
+      <Filter>Resource Files\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\common\structs\PrimitiveInstanceParameters.h">
+      <Filter>Resource Files\Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="config.cfg">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="shaders\generalShader_glsl.frag">
+    <None Include="shaders\texturePass_glsl.frag">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="shaders\generalShader_glsl.vert">
+    <None Include="shaders\texturePass_glsl.vert">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\visibilityPass_glsl.frag">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\visibilityPass_glsl.vert">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\common\intersectOriginTriangle.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
     <None Include="shaders\dynamicMeshShader_glsl.comp">

@@ -3,12 +3,12 @@
 #include "common/structs/cppInterface.h"
 
 struct PrimitiveInstanceParameters {
-    UINT indicesOffset;      // uint32_t
-    UINT positionOffset;     // glm::vec4
-    UINT normalOffset;       // glm::vec4
-    UINT tangentOffset;      // glm::vec4
-    UINT texcoordsOffset;    // glm::vec2
-    UINT colorOffset;        // glm::vec4
+    UINT_T indicesOffset;      // uint32_t
+    UINT_T positionOffset;     // glm::vec4
+    UINT_T normalOffset;       // glm::vec4
+    UINT_T tangentOffset;      // glm::vec4
+    UINT_T texcoordsOffset;    // glm::vec2
+    UINT_T colorOffset;        // glm::vec4
 
     UINT16_T matricesOffset;
     UINT16_T material;

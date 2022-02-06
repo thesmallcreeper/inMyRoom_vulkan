@@ -5,10 +5,10 @@
 struct MaterialParameters
 {
     VEC4 baseColorFactors;
-    UINT baseColorTexture;
-    UINT baseColorTexCoord;
+    UINT_T baseColorTexture;
+    UINT_T baseColorTexCoord;
 
-    FLOAT alphaCutoff;
+    FLOAT_T alphaCutoff;
 };
 
 #define FILE_MATERIAL_PARAMETERS

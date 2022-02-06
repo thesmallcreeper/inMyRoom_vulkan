@@ -70,6 +70,7 @@
     <ClCompile Include="src\Graphics\Meshes\AnimationsDataOfNodes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\TexturesOfMaterials.cpp" />
     <ClCompile Include="src\Graphics\PipelinesFactory.cpp" />
+    <ClCompile Include="src\Graphics\Renderers\Renderer.cpp" />
     <ClCompile Include="src\Graphics\ShadersSetsFamiliesCache.cpp" />
     <ClCompile Include="src\Graphics\VulkanInit.cpp" />
     <ClCompile Include="src\implementations.cpp" />
@@ -147,6 +148,8 @@
     <ClInclude Include="include\Graphics\Meshes\SkinsOfMeshes.h" />
     <ClInclude Include="include\Graphics\Meshes\TexturesOfMaterials.h" />
     <ClInclude Include="include\Graphics\PipelinesFactory.h" />
+    <ClInclude Include="include\Graphics\RendererBase.h" />
+    <ClInclude Include="include\Graphics\Renderers\Renderer.h" />
     <ClInclude Include="include\Graphics\ShadersSetsFamiliesCache.h" />
     <ClInclude Include="include\Graphics\VulkanInit.h" />
     <ClInclude Include="include\hash_combine.h" />
@@ -154,12 +157,18 @@
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\InputManager.h" />
+    <ClInclude Include="shaders\common\structs\cppInterface.h" />
+    <ClInclude Include="shaders\common\structs\MaterialParameters.h" />
+    <ClInclude Include="shaders\common\structs\PrimitiveInstanceParameters.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="config.cfg" />
+    <None Include="shaders\common\intersectOriginTriangle.glsl" />
     <None Include="shaders\dynamicMeshShader_glsl.comp" />
-    <None Include="shaders\generalShader_glsl.frag" />
-    <None Include="shaders\generalShader_glsl.vert" />
+    <None Include="shaders\texturePass_glsl.frag" />
+    <None Include="shaders\texturePass_glsl.vert" />
+    <None Include="shaders\visibilityPass_glsl.frag" />
+    <None Include="shaders\visibilityPass_glsl.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -230,13 +239,13 @@
       <SDLCheck>
       </SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\inMyRoom_vulkan\include;..\glm;..\tinygltf;..\glfw\include;..\eig3;..\VulkanMemoryAllocator-Hpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\inMyRoom_vulkan\include;..\glm;..\tinygltf;..\glfw\include;..\eig3;..\VulkanMemoryAllocator-Hpp;..\inMyRoom_vulkan\shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <PreprocessorDefinitions>TINYGLTF_NOEXCEPTION;VK_NO_PROTOTYPES;VULKAN_HPP_NO_NODISCARD_WARNINGS=1;VULKAN_HPP_NO_EXCEPTIONS=1;VMA_STATIC_VULKAN_FUNCTIONS=0;VMA_DYNAMIC_VULKAN_FUNCTIONS=1;SHADERC_ENABLE_SHARED_CRT=ON;GLFW_INCLUDE_NONE;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TINYGLTF_NOEXCEPTION;VK_NO_PROTOTYPES;VULKAN_HPP_NO_NODISCARD_WARNINGS=1;VULKAN_HPP_NO_EXCEPTIONS=1;VMA_STATIC_VULKAN_FUNCTIONS=0;VMA_DYNAMIC_VULKAN_FUNCTIONS=1;SHADERC_ENABLE_SHARED_CRT=ON;GLFW_INCLUDE_NONE;ENABLE_CPP_INTERFACE;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
@@ -276,9 +285,9 @@
       <SDLCheck>
       </SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\inMyRoom_vulkan\include;..\glm;..\tinygltf;..\glfw\include;..\eig3;..\VulkanMemoryAllocator-Hpp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;..\Configuru;..\inMyRoom_vulkan\include;..\glm;..\tinygltf;..\glfw\include;..\eig3;..\VulkanMemoryAllocator-Hpp;..\inMyRoom_vulkan\shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
-      <PreprocessorDefinitions>TINYGLTF_NOEXCEPTION;VK_NO_PROTOTYPES;VULKAN_HPP_NO_NODISCARD_WARNINGS=1;VULKAN_HPP_NO_EXCEPTIONS=1;VMA_STATIC_VULKAN_FUNCTIONS=0;VMA_DYNAMIC_VULKAN_FUNCTIONS=1;SHADERC_ENABLE_SHARED_CRT=ON;GLFW_INCLUDE_NONE;NDEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TINYGLTF_NOEXCEPTION;VK_NO_PROTOTYPES;VULKAN_HPP_NO_NODISCARD_WARNINGS=1;VULKAN_HPP_NO_EXCEPTIONS=1;VMA_STATIC_VULKAN_FUNCTIONS=0;VMA_DYNAMIC_VULKAN_FUNCTIONS=1;SHADERC_ENABLE_SHARED_CRT=ON;GLFW_INCLUDE_NONE;ENABLE_CPP_INTERFACE;NDEBUG;_CRT_SECURE_NO_WARNINGS;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Fast</FloatingPointModel>
