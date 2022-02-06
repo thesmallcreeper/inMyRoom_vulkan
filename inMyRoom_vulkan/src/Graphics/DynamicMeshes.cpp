@@ -572,7 +572,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 vk::AccelerationStructureGeometryKHR geometry;
                 geometry.geometryType = vk::GeometryTypeKHR::eTriangles;
                 geometry.geometry.triangles.vertexFormat = vk::Format::eR32G32B32Sfloat;
-                geometry.geometry.triangles.vertexData = this_dynamic_primitive_info.positionByteOffset
+                geometry.geometry.triangles.vertexData = this_dynamic_primitive_info.positionByteOffset != -1
                         ? dynamic_buffer_address + (swapIndex % 2) * dynamic_mesh_info.halfSize + this_dynamic_primitive_info.positionByteOffset
                         : static_buffer_address + this_primitive_info.positionByteOffset;
                 geometry.geometry.triangles.vertexStride = sizeof(glm::vec4);
