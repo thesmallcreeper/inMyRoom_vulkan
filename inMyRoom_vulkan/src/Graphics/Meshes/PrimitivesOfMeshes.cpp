@@ -815,6 +815,7 @@ void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
                 | vk::BufferUsageFlagBits::eVertexBuffer
                 | vk::BufferUsageFlagBits::eTransferDst
                 | vk::BufferUsageFlagBits::eStorageBuffer
+                | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR
                 | vk::BufferUsageFlagBits::eShaderDeviceAddress;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
@@ -1135,6 +1136,7 @@ std::tuple<bool, vk::AccelerationStructureGeometryKHR, vk::AccelerationStructure
     if (primitive_info.drawMode == vk::PrimitiveTopology::eTriangleList) {
         vk::AccelerationStructureGeometryKHR acceleration_struct;
         acceleration_struct.geometryType = vk::GeometryTypeKHR::eTriangles;
+        acceleration_struct.geometry.triangles.sType = vk::StructureType::eAccelerationStructureGeometryTrianglesDataKHR;
         acceleration_struct.geometry.triangles.vertexFormat = vk::Format::eR32G32B32Sfloat;
         acceleration_struct.geometry.triangles.vertexData = buffer_device_address + primitive_info.positionByteOffset;
         acceleration_struct.geometry.triangles.vertexStride = sizeof(glm::vec4) * (primitive_info.positionMorphTargets + 1);

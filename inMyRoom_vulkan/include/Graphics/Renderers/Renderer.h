@@ -27,14 +27,19 @@ private:
     void InitCommandBuffers();
     void InitPrimitivesSet();
     void InitFullscreenPipeline();
+    void InitTLASes();
 
     void RecordCommandBuffer(vk::CommandBuffer command_buffer,
                              uint32_t buffer_index,
                              uint32_t swapchain_index,
+                             uint32_t TLAS_primitive_count,
                              const std::vector<DrawInfo>& draw_infos,
                              const FrustumCulling& frustum_culling);
 
-    std::vector<PrimitiveInstanceParameters> GetPrimitivesInstanceParameters(std::vector<DrawInfo>& draw_infos) const;
+    std::vector<PrimitiveInstanceParameters> CreatePrimitivesInstanceParameters(std::vector<DrawInfo>& draw_infos) const;
+    std::vector<vk::AccelerationStructureInstanceKHR> CreateTLASinstances(const std::vector<DrawInfo>& draw_infos,
+                                                                          const std::vector<glm::mat4>& matrices,
+                                                                          uint32_t buffer_index) const;
 
 private:
     std::pair<vk::Queue, uint32_t> graphicsQueue;
@@ -49,6 +54,20 @@ private:
     vma::Allocation         fullscreenAllocation;
     vma::AllocationInfo     fullscreenAllocInfo;
     size_t                  fullscreenBufferHalfsize;
+
+    vk::Buffer              TLASesInstancesBuffer;
+    vma::Allocation         TLASesInstancesAllocation;
+    vma::AllocationInfo     TLASesInstancesAllocInfo;
+    size_t                  TLASesInstancesHalfSize;
+
+    vk::Buffer              TLASesBuffer;
+    vma::Allocation         TLASesAllocation;
+    vk::AccelerationStructureKHR TLASesHandles[2];
+    uint64_t                TLASesDeviceAddresses[2];
+    size_t                  TLASesHalfSize;
+
+    vk::Buffer              TLASbuildScratchBuffer;
+    vma::Allocation         TLASbuildScratchAllocation;
 
     vk::DescriptorPool      descriptorPool;
     vk::DescriptorSet       primitivesInstanceDescriptorSets[2];

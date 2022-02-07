@@ -18,6 +18,7 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
     InitCommandBuffers();
     InitPrimitivesSet();
     InitFullscreenPipeline();
+    InitTLASes();
 }
 
 Renderer::~Renderer()
@@ -50,6 +51,12 @@ Renderer::~Renderer()
 
     vma_allocator.destroyBuffer(primitivesInstanceBuffer, primitivesInstanceAllocation);
     vma_allocator.destroyBuffer(fullscreenBuffer, fullscreenAllocation);
+
+    device.destroy(TLASesHandles[0]);
+    device.destroy(TLASesHandles[1]);
+    vma_allocator.destroyBuffer(TLASesBuffer, TLASesAllocation);
+    vma_allocator.destroyBuffer(TLASbuildScratchBuffer, TLASbuildScratchAllocation);
+    vma_allocator.destroyBuffer(TLASesInstancesBuffer, TLASesInstancesAllocation);
 }
 
 void Renderer::InitBuffers()
@@ -77,7 +84,8 @@ void Renderer::InitBuffers()
         primitivesInstanceAllocation = createBuffer_result.value.second;
     }
 
-    {   // full-screen pass
+    // full-screen pass
+    {
         fullscreenBufferHalfsize = sizeof(glm::vec4) * 8 ;
 
         vk::BufferCreateInfo buffer_create_info;
@@ -96,6 +104,30 @@ void Renderer::InitBuffers()
         assert(createBuffer_result.result == vk::Result::eSuccess);
         fullscreenBuffer = createBuffer_result.value.first;
         fullscreenAllocation = createBuffer_result.value.second;
+    }
+
+    // TLASesInstancesBuffer
+    {
+        TLASesInstancesHalfSize = sizeof(vk::AccelerationStructureInstanceKHR) * graphics_ptr->GetMaxInstancesCount();
+
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = TLASesInstancesHalfSize * 2;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR
+                | vk::BufferUsageFlagBits::eTransferDst
+                | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo buffer_allocation_create_info;
+        buffer_allocation_create_info.usage = vma::MemoryUsage::eCpuToGpu;
+        buffer_allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
+
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info,
+                                                              buffer_allocation_create_info,
+                                                              TLASesInstancesAllocInfo);
+
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        TLASesInstancesBuffer = createBuffer_result.value.first;
+        TLASesInstancesAllocation = createBuffer_result.value.second;
     }
 }
 
@@ -843,6 +875,76 @@ void Renderer::InitFullscreenPipeline()
     }
 }
 
+void Renderer::InitTLASes()
+{
+    // Get required sizes
+    vk::AccelerationStructureBuildSizesInfoKHR build_size_info;
+    {
+        vk::AccelerationStructureGeometryKHR instances;
+        instances.geometryType = vk::GeometryTypeKHR::eInstances;
+        instances.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
+
+        vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
+        geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+        geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
+        geometry_info.geometryCount = 1;
+        geometry_info.pGeometries = &instances;
+
+        build_size_info = device.getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice,
+                                                                       geometry_info,
+                                                                       graphics_ptr->GetMaxInstancesCount());
+    }
+    TLASesHalfSize = build_size_info.accelerationStructureSize;
+    TLASesHalfSize += (TLASesHalfSize % 256 != 0) ? 256 - TLASesHalfSize % 256 : 0;
+
+    // Create buffer for acceleration structures
+    {
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = TLASesHalfSize * 2;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo allocation_create_info;
+        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto create_buffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
+        assert(create_buffer_result.result == vk::Result::eSuccess);
+        TLASesBuffer = create_buffer_result.value.first;
+        TLASesAllocation = create_buffer_result.value.second;
+    }
+
+    // Create TLASes
+    for(size_t i = 0; i != 2; ++i) {
+        vk::AccelerationStructureCreateInfoKHR TLAS_create_info;
+        TLAS_create_info.buffer = TLASesBuffer;
+        TLAS_create_info.size = build_size_info.accelerationStructureSize;
+        TLAS_create_info.offset = i * TLASesHalfSize;
+        TLAS_create_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+        auto TLAS_create_result = device.createAccelerationStructureKHR(TLAS_create_info);
+        assert(TLAS_create_result.result == vk::Result::eSuccess);
+        TLASesHandles[i] = TLAS_create_result.value;
+        TLASesDeviceAddresses[i] = device.getAccelerationStructureAddressKHR({TLASesHandles[i]});
+    }
+
+    // Create scratch build buffer
+    {
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = build_size_info.buildScratchSize;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo allocation_create_info;
+        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        TLASbuildScratchBuffer = createBuffer_result.value.first;
+        TLASbuildScratchAllocation = createBuffer_result.value.second;
+    }
+
+
+}
+
 void Renderer::DrawFrame(ViewportFrustum viewport,
                          std::vector<glm::mat4>&& matrices,
                          std::vector<DrawInfo>&& draw_infos)
@@ -853,7 +955,8 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
     size_t commandBuffer_index = frameCount % 3;
 
     graphics_ptr->GetDynamicMeshes()->SwapDescriptorSet(frameCount);
-    std::vector<PrimitiveInstanceParameters> primitive_instance_parameters = GetPrimitivesInstanceParameters(draw_infos);
+    std::vector<PrimitiveInstanceParameters> primitive_instance_parameters = CreatePrimitivesInstanceParameters(draw_infos);
+    std::vector<vk::AccelerationStructureInstanceKHR> TLAS_instances = CreateTLASinstances(draw_infos, matrices, buffer_index);
 
     vk::CommandBuffer command_buffer = commandBuffers[commandBuffer_index];
     command_buffer.reset();
@@ -865,7 +968,7 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
                                                           0,
                                                           presentImageAvailableSemaphores[commandBuffer_index]).value;
 
-    RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchain_index, draw_infos, frustum_culling);
+    RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchain_index, uint32_t(TLAS_instances.size()), draw_infos, frustum_culling);
 
     // Submit but hold until write host
     vk::SubmitInfo submit_info;
@@ -918,6 +1021,16 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
     }
 
     {
+        memcpy((std::byte*)(TLASesInstancesAllocInfo.pMappedData) + buffer_index * TLASesInstancesHalfSize,
+               TLAS_instances.data(),
+               TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
+
+        vma_allocator.flushAllocation(TLASesInstancesAllocation,
+                                      buffer_index * TLASesInstancesHalfSize,
+                                      TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
+    }
+
+    {
         std::array<std::array<glm::vec4, 4>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
                                                                viewport.GetFullscreenpassTriangleNormals()};
 
@@ -955,11 +1068,13 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
 void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
                                    uint32_t buffer_index,
                                    uint32_t swapchain_index,
+                                   uint32_t TLAS_primitive_count,
                                    const std::vector<DrawInfo>& draw_infos,
                                    const FrustumCulling& frustum_culling)
 {
     command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
+    // Update dynamic meshes
     std::vector<DrawInfo> dynamic_meshes_draw_infos;
     for(const DrawInfo& this_draw_info : draw_infos) {
         if (this_draw_info.isSkin || this_draw_info.hasMorphTargets)
@@ -967,6 +1082,49 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
     }
     graphics_ptr->GetDynamicMeshes()->RecordTransformations(command_buffer, dynamic_meshes_draw_infos);
 
+    // Update TLAS
+    vk::AccelerationStructureGeometryKHR geometry_instance;
+    geometry_instance.geometryType = vk::GeometryTypeKHR::eInstances;
+    geometry_instance.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
+    geometry_instance.geometry.instances.arrayOfPointers = VK_FALSE;
+    geometry_instance.geometry.instances.data = device.getBufferAddress(TLASesInstancesBuffer) + buffer_index * TLASesInstancesHalfSize;
+
+    vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
+    geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+    geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
+    geometry_info.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
+    geometry_info.dstAccelerationStructure = TLASesHandles[buffer_index];
+    geometry_info.geometryCount = 1;
+    geometry_info.pGeometries = &geometry_instance;
+    geometry_info.scratchData = device.getBufferAddress(TLASbuildScratchBuffer);
+
+    vk::AccelerationStructureBuildRangeInfoKHR build_range = {};
+    build_range.primitiveCount = TLAS_primitive_count;
+
+    vk::AccelerationStructureBuildRangeInfoKHR* indirection = &build_range;
+    command_buffer.buildAccelerationStructuresKHR(1, &geometry_info, &indirection);
+
+    // -- Barrier --
+    {
+        vk::BufferMemoryBarrier this_memory_barrier;
+        this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
+        this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+        this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        this_memory_barrier.buffer = TLASesBuffer;
+        this_memory_barrier.offset = buffer_index * TLASesHalfSize;
+        this_memory_barrier.size = TLASesHalfSize;
+
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
+                                       vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       this_memory_barrier,
+                                       {});
+    }
+
+
+    // Render begin
     vk::RenderPassBeginInfo render_pass_begin_info;
     vk::ClearValue clear_values[3];
     render_pass_begin_info.renderPass = renderpass;
@@ -1130,11 +1288,11 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
     command_buffer.end();
 }
 
-std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstanceParameters(std::vector<DrawInfo>& draw_infos) const
+std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesInstanceParameters(std::vector<DrawInfo>& draw_infos) const
 {
     std::vector<PrimitiveInstanceParameters> return_vector;
 
-    PrimitiveInstanceParameters default_instance_parameters;
+    PrimitiveInstanceParameters default_instance_parameters = {};
     default_instance_parameters.material = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().material;
     default_instance_parameters.matricesOffset = 0;
     default_instance_parameters.indicesOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().indicesByteOffset / sizeof(uint32_t);
@@ -1167,7 +1325,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstan
         }
 
         for (size_t i = 0; i != primitives_info.size(); ++i) {
-            PrimitiveInstanceParameters this_primitiveInstanceParameters;
+            PrimitiveInstanceParameters this_primitiveInstanceParameters = {};
 
             this_primitiveInstanceParameters.material = primitives_info[i].material;
             this_primitiveInstanceParameters.matricesOffset = this_draw_info.matricesOffset;
@@ -1246,3 +1404,46 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::GetPrimitivesInstan
     return return_vector;
 }
 
+std::vector<vk::AccelerationStructureInstanceKHR> Renderer::CreateTLASinstances(const std::vector<DrawInfo>& draw_infos,
+                                                                                const std::vector<glm::mat4>& matrices,
+                                                                                uint32_t buffer_index) const
+{
+    std::vector<vk::AccelerationStructureInstanceKHR> return_vector;
+    for (const auto& this_draw_info : draw_infos) {
+        if (this_draw_info.dynamicMeshIndex != -1) {
+            const DynamicMeshInfo& dynamic_mesh_info = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex);
+            if (dynamic_mesh_info.hasDynamicBLAS) {
+                vk::AccelerationStructureInstanceKHR instance;
+                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset];
+                instance.transform = {matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3],
+                                      matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][3],
+                                      matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][3] };
+                instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
+                instance.mask = 0xFF;
+                instance.instanceShaderBindingTableRecordOffset = 0;
+                instance.flags = uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable);
+                instance.accelerationStructureReference = dynamic_mesh_info.BLASesDeviceAddresses[buffer_index];
+
+                return_vector.emplace_back(instance);
+            }
+        } else {
+            const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex);
+            if (mesh_info.meshBLAS.hasBLAS) {
+                vk::AccelerationStructureInstanceKHR instance;
+                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset];
+                instance.transform = {matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3],
+                                      matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][3],
+                                      matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][3] };
+                instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
+                instance.mask = 0xFF;
+                instance.instanceShaderBindingTableRecordOffset = 0;
+                instance.flags = uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable);
+                instance.accelerationStructureReference = mesh_info.meshBLAS.deviceAddress;
+
+                return_vector.emplace_back(instance);
+            }
+        }
+    }
+
+    return return_vector;
+}

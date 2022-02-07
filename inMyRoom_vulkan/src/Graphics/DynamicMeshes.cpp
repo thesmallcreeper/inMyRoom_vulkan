@@ -224,7 +224,10 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
         size_t buffer_size = 2 * offset;
         vk::BufferCreateInfo buffer_create_info;
         buffer_create_info.size = buffer_size;
-        buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer
+                | vk::BufferUsageFlagBits::eStorageBuffer
+                | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR
+                | vk::BufferUsageFlagBits::eShaderDeviceAddress;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
         vma::AllocationCreateInfo allocation_create_info;
@@ -239,7 +242,8 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
 
     // BLAS creation
     dynamicMeshInfo.hasDynamicBLAS = std::find_if(dynamicMeshInfo.dynamicPrimitives.begin(), dynamicMeshInfo.dynamicPrimitives.end(),
-                                                  [](const auto& primitive) {return primitive.positionByteOffset != -1;}) != dynamicMeshInfo.dynamicPrimitives.end();
+                                                  [](const auto& primitive) {return primitive.positionByteOffset != -1;}) != dynamicMeshInfo.dynamicPrimitives.end()
+                                     && graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.hasBLAS;
     if (dynamicMeshInfo.hasDynamicBLAS) {
         dynamicMeshInfo.BLASesHalfSize = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.bufferSize;
         size_t scratch_buffer_size = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.updateScratchBufferSize;
@@ -625,7 +629,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
         command_buffer.buildAccelerationStructuresKHR(infos, ranges_of_infos_ptrs);
 
         command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
-                                       vk::PipelineStageFlagBits::eRayTracingShaderKHR | vk::PipelineStageFlagBits::eFragmentShader,
+                                       vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
                                        vk::DependencyFlagBits::eByRegion,
                                        {},
                                        BLAS_memory_barries,
