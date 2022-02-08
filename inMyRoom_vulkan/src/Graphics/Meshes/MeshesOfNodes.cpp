@@ -33,7 +33,12 @@ void MeshesOfNodes::AddMeshesOfModel(const tinygltf::Model& in_model)
 
         primitivesOfMeshes_ptr->StartRecordOBBtree();
 
-        for (const tinygltf::Primitive& this_primitive : this_mesh.primitives) {
+        // Triangles first
+        std::vector<tinygltf::Primitive> primitives = this_mesh.primitives;
+        std::sort(primitives.begin(), primitives.end(),
+                  [](const tinygltf::Primitive& lhs, const tinygltf::Primitive& rhs) {return static_cast<glTFmode>(lhs.mode) == glTFmode::triangles;});
+
+        for (const tinygltf::Primitive& this_primitive : primitives) {
             size_t index = primitivesOfMeshes_ptr->AddPrimitive(in_model, this_primitive);
 
             this_mesh_info.primitivesIndex.emplace_back(index);
