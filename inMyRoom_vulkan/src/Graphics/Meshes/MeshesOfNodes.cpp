@@ -36,7 +36,7 @@ void MeshesOfNodes::AddMeshesOfModel(const tinygltf::Model& in_model)
         // Triangles first
         std::vector<tinygltf::Primitive> primitives = this_mesh.primitives;
         std::sort(primitives.begin(), primitives.end(),
-                  [](const tinygltf::Primitive& lhs, const tinygltf::Primitive& rhs) {return static_cast<glTFmode>(lhs.mode) == glTFmode::triangles;});
+                  [](const tinygltf::Primitive& lhs, const tinygltf::Primitive& rhs) {return static_cast<glTFmode>(lhs.mode) == glTFmode::triangles || lhs.mode == -1;});
 
         for (const tinygltf::Primitive& this_primitive : primitives) {
             size_t index = primitivesOfMeshes_ptr->AddPrimitive(in_model, this_primitive);
