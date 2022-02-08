@@ -75,12 +75,13 @@ void MeshesOfNodes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
         // Get primitives geometries
         for(const size_t primitive_index : this_mesh.primitivesIndex) {
             const auto& this_geometry_tuple = primitivesOfMeshes_ptr->GetPrimitiveAccelerationStructureTriangle(primitive_index);
-
             if (std::get<0>(this_geometry_tuple)) {
                 geometries.emplace_back(std::get<1>(this_geometry_tuple));
                 geometries_ranges.emplace_back(std::get<2>(this_geometry_tuple));
                 primitive_counts.emplace_back(std::get<2>(this_geometry_tuple).primitiveCount);
             }
+
+            this_mesh.meshBLAS.disableFaceCulling |= primitivesOfMeshes_ptr->GetPrimitiveInfo(primitive_index).materialTwoSided;
         }
 
         if (geometries.size()) {

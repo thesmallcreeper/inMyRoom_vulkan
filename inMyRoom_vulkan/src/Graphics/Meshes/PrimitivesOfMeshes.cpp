@@ -876,6 +876,7 @@ void PrimitivesOfMeshes::InitializePrimitivesInfo()
         PrimitiveInfo this_info;
 
         this_info.material = this_initializeData.material;
+        this_info.materialTwoSided = materialsOfPrimitives_ptr->GetMaterialAbout(this_info.material).twoSided;
 
         this_info.verticesCount = this_initializeData.position.size() / 4;
 
@@ -1131,11 +1132,13 @@ std::tuple<bool, vk::AccelerationStructureGeometryKHR, vk::AccelerationStructure
     assert(hasBeenFlashed);
 
     const PrimitiveInfo& primitive_info = GetPrimitiveInfo(index);
+    const MaterialAbout& material_about = materialsOfPrimitives_ptr->GetMaterialAbout(primitive_info.material);
     uint64_t buffer_device_address = device.getBufferAddress({buffer});
 
     if (primitive_info.drawMode == vk::PrimitiveTopology::eTriangleList) {
         vk::AccelerationStructureGeometryKHR acceleration_struct;
         acceleration_struct.geometryType = vk::GeometryTypeKHR::eTriangles;
+        acceleration_struct.flags = (not material_about.masked && not material_about.transparent) ? vk::GeometryFlagBitsKHR::eOpaque : vk::GeometryFlagsKHR(0);
         acceleration_struct.geometry.triangles.sType = vk::StructureType::eAccelerationStructureGeometryTrianglesDataKHR;
         acceleration_struct.geometry.triangles.vertexFormat = vk::Format::eR32G32B32Sfloat;
         acceleration_struct.geometry.triangles.vertexData = buffer_device_address + primitive_info.positionByteOffset;

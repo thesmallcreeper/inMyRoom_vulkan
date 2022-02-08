@@ -17,6 +17,7 @@ struct PrimitiveInfo
     vk::PrimitiveTopology drawMode = vk::PrimitiveTopology::eTriangleList;
 
     size_t material                 =  0;
+    bool materialTwoSided           =  false;
 
     size_t indicesCount             =  0;
     size_t verticesCount            =  0;

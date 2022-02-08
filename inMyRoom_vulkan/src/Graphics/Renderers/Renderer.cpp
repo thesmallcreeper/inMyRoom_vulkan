@@ -1411,17 +1411,18 @@ std::vector<vk::AccelerationStructureInstanceKHR> Renderer::CreateTLASinstances(
     std::vector<vk::AccelerationStructureInstanceKHR> return_vector;
     for (const auto& this_draw_info : draw_infos) {
         if (this_draw_info.dynamicMeshIndex != -1) {
+            const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex);
             const DynamicMeshInfo& dynamic_mesh_info = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex);
             if (dynamic_mesh_info.hasDynamicBLAS) {
                 vk::AccelerationStructureInstanceKHR instance;
                 const glm::mat4& matrix = matrices[this_draw_info.matricesOffset];
-                instance.transform = {matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3],
-                                      matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][3],
-                                      matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][3] };
+                instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
+                                       matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
+                                       matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };
                 instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
                 instance.mask = 0xFF;
                 instance.instanceShaderBindingTableRecordOffset = 0;
-                instance.flags = uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable);
+                instance.flags = mesh_info.meshBLAS.disableFaceCulling ? uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable) : 0;
                 instance.accelerationStructureReference = dynamic_mesh_info.BLASesDeviceAddresses[buffer_index];
 
                 return_vector.emplace_back(instance);
@@ -1431,13 +1432,13 @@ std::vector<vk::AccelerationStructureInstanceKHR> Renderer::CreateTLASinstances(
             if (mesh_info.meshBLAS.hasBLAS) {
                 vk::AccelerationStructureInstanceKHR instance;
                 const glm::mat4& matrix = matrices[this_draw_info.matricesOffset];
-                instance.transform = {matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3],
-                                      matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][3],
-                                      matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][3] };
+                instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
+                                       matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
+                                       matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };
                 instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
                 instance.mask = 0xFF;
                 instance.instanceShaderBindingTableRecordOffset = 0;
-                instance.flags = uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable);
+                instance.flags = mesh_info.meshBLAS.disableFaceCulling ? uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable) : 0;
                 instance.accelerationStructureReference = mesh_info.meshBLAS.deviceAddress;
 
                 return_vector.emplace_back(instance);

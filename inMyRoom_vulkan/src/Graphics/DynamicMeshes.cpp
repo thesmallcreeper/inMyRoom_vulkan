@@ -571,10 +571,13 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             std::vector<vk::AccelerationStructureGeometryKHR> geometries;
             std::vector<vk::AccelerationStructureBuildRangeInfoKHR> geometries_ranges;
             for (const DynamicMeshInfo::DynamicPrimitiveInfo &this_dynamic_primitive_info: dynamic_mesh_info.dynamicPrimitives) {
-                const PrimitiveInfo &this_primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
+                const PrimitiveInfo& this_primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
+
+                const MaterialAbout& material_about = graphics_ptr->GetMaterialsOfPrimitives()->GetMaterialAbout(this_primitive_info.material);
 
                 vk::AccelerationStructureGeometryKHR geometry;
                 geometry.geometryType = vk::GeometryTypeKHR::eTriangles;
+                geometry.flags = (not material_about.masked && not material_about.transparent) ? vk::GeometryFlagBitsKHR::eOpaque : vk::GeometryFlagsKHR(0);
                 geometry.geometry.triangles.vertexFormat = vk::Format::eR32G32B32Sfloat;
                 geometry.geometry.triangles.vertexData = this_dynamic_primitive_info.positionByteOffset != -1
                         ? dynamic_buffer_address + (swapIndex % 2) * dynamic_mesh_info.halfSize + this_dynamic_primitive_info.positionByteOffset

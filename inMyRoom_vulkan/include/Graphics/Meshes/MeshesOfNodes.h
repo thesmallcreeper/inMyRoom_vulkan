@@ -12,6 +12,7 @@ struct MeshInfo
     struct MeshBLAS
     {
         bool hasBLAS = false;
+        bool disableFaceCulling = false;
         vk::AccelerationStructureKHR handle;
         uint64_t deviceAddress = 0;
 
