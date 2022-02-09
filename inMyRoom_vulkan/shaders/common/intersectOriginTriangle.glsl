@@ -17,7 +17,7 @@ IntersectOriginTriangleResult IntersectOriginTriangle(vec3 vert_0, vec3 edge_1, 
     vec3 c_x = cross(edge_2, dir);
     vec3 c_y = cross(dir, edge_1);
 
-    return_struct.distance = dot(-vert_0, n);
+    return_struct.distance = dot(vert_0, n);
     return_struct.barycoords.x = dot(-vert_0, c_x);
     return_struct.barycoords.y = dot(-vert_0, c_y);
     return_struct.barycoordsDx.x = dot(c_x, dir_dx);

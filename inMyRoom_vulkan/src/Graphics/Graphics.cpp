@@ -59,7 +59,7 @@ void Graphics::InitBuffers()
     // Create camera buffer
     {
         vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = sizeof(glm::mat4) * 4;
+        buffer_create_info.size = sizeof(glm::mat4) * 3 * 2;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
@@ -155,7 +155,7 @@ void Graphics::InitDescriptors()
             auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
             descriptor_buffer_info_uptr->buffer = cameraBuffer;
             descriptor_buffer_info_uptr->offset = 0;
-            descriptor_buffer_info_uptr->range  = 2 * sizeof(glm::mat4);
+            descriptor_buffer_info_uptr->range  = 3 * sizeof(glm::mat4);
 
             vk::WriteDescriptorSet write_descriptor_set;
             write_descriptor_set.dstSet = cameraDescriptorSets[0];
@@ -171,8 +171,8 @@ void Graphics::InitDescriptors()
         {
             auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
             descriptor_buffer_info_uptr->buffer = cameraBuffer;
-            descriptor_buffer_info_uptr->offset = 2 * sizeof(glm::mat4);
-            descriptor_buffer_info_uptr->range  = 2 * sizeof(glm::mat4);
+            descriptor_buffer_info_uptr->offset = 3 * sizeof(glm::mat4);
+            descriptor_buffer_info_uptr->range  = 3 * sizeof(glm::mat4);
 
             vk::WriteDescriptorSet write_descriptor_set;
             write_descriptor_set.dstSet = cameraDescriptorSets[1];
@@ -384,12 +384,13 @@ void Graphics::WriteCameraMarticesBuffers(ViewportFrustum viewport,
 {
     // Update camera matrix
     {
-        glm::mat4x4 view_projection_matrices[2] = {viewport.GetViewMatrix(), viewport.GetPerspectiveMatrix()};
+        glm::mat4x4 view_projection_matrices[3] = {viewport.GetViewMatrix(), glm::mat4(), viewport.GetPerspectiveMatrix()};
+        view_projection_matrices[1] = glm::inverse(view_projection_matrices[0]);
 
-        memcpy((std::byte*)(cameraAllocInfo.pMappedData) + buffer_index * 2 * sizeof(glm::mat4),
+        memcpy((std::byte*)(cameraAllocInfo.pMappedData) + buffer_index * 3 * sizeof(glm::mat4),
                view_projection_matrices,
-               2 * sizeof(glm::mat4));
-        vma_allocator.flushAllocation(cameraAllocation, buffer_index * sizeof(glm::mat4), sizeof(glm::mat4));
+               3 * sizeof(glm::mat4));
+        vma_allocator.flushAllocation(cameraAllocation, buffer_index * 3 * sizeof(glm::mat4), 3 * sizeof(glm::mat4));
     }
 
     // Update matrices

@@ -11,6 +11,7 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
 
     InitBuffers();
     InitImages();
+    InitTLASes();
     InitDescriptors();
     InitRenderpasses();
     InitFramebuffers();
@@ -18,7 +19,6 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
     InitCommandBuffers();
     InitPrimitivesSet();
     InitFullscreenPipeline();
-    InitTLASes();
 }
 
 Renderer::~Renderer()
@@ -213,6 +213,7 @@ void Renderer::InitDescriptors()
     {   // Create descriptor pool
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 2);
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eAccelerationStructureKHR, 2);
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eInputAttachment, 2);
         vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 2,
                                                                  descriptor_pool_sizes);
@@ -238,6 +239,15 @@ void Renderer::InitDescriptors()
             attach_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
             bindings.emplace_back(attach_binding);
+        }
+        {   // TLAS
+            vk::DescriptorSetLayoutBinding TLAS_binding;
+            TLAS_binding.binding = 2;
+            TLAS_binding.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
+            TLAS_binding.descriptorCount = 1;
+            TLAS_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+            bindings.emplace_back(TLAS_binding);
         }
 
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
@@ -326,6 +336,40 @@ void Renderer::InitDescriptors()
             write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
 
             descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+
+        std::vector<std::unique_ptr<vk::WriteDescriptorSetAccelerationStructureKHR>> acceleration_structures_pnext_uptrs;
+        {
+            auto acceleration_structures_pnext_uptr = std::make_unique<vk::WriteDescriptorSetAccelerationStructureKHR>();
+            acceleration_structures_pnext_uptr->accelerationStructureCount = 1;
+            acceleration_structures_pnext_uptr->pAccelerationStructures = &TLASesHandles[0];
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[0];
+            write_descriptor_set.dstBinding = 2;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
+            write_descriptor_set.pNext = acceleration_structures_pnext_uptr.get();
+
+            acceleration_structures_pnext_uptrs.emplace_back(std::move(acceleration_structures_pnext_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+        {
+            auto acceleration_structures_pnext_uptr = std::make_unique<vk::WriteDescriptorSetAccelerationStructureKHR>();
+            acceleration_structures_pnext_uptr->accelerationStructureCount = 1;
+            acceleration_structures_pnext_uptr->pAccelerationStructures = &TLASesHandles[1];
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[1];
+            write_descriptor_set.dstBinding = 2;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
+            write_descriptor_set.pNext = acceleration_structures_pnext_uptr.get();
+
+            acceleration_structures_pnext_uptrs.emplace_back(std::move(acceleration_structures_pnext_uptr));
             writes_descriptor_set.emplace_back(write_descriptor_set);
         }
 

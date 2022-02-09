@@ -1,4 +1,4 @@
-#version 450
+#version 460
 
 //
 // In
@@ -19,6 +19,7 @@ layout( location = 0 ) out vec2 vert_texcoord;
 layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
 {
     mat4 viewMatrix;
+    mat4 inverseViewMatrix;
     mat4 projectionMatrix;
 };
 
