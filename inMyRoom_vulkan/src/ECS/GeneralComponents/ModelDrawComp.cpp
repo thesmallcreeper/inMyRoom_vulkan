@@ -11,7 +11,7 @@ ModelDrawComp::~ModelDrawComp()
 {
 }
 
-void ModelDrawComp::AddDrawInfos(std::vector<glm::mat4>& matrices,
+void ModelDrawComp::AddDrawInfos(std::vector<ModelMatrices>& matrices,
                                  std::vector<DrawInfo>& draw_infos)
 {
     auto nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);

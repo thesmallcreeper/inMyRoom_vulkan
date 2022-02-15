@@ -5,6 +5,7 @@
 #ifndef GAME_DLL
 
 #include "Geometry/FrustumCulling.h"
+#include "glm/gtc/matrix_inverse.hpp"
 
 ModelDrawCompEntity::ModelDrawCompEntity(const Entity this_entity)
     :CompEntityBaseWrappedClass<ModelDrawComp>(this_entity)
@@ -72,22 +73,24 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
 
 void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
                                       const DynamicMeshComp* dynamicMeshComp_ptr,
-                                      std::vector<glm::mat4>& matrices,
+                                      std::vector<ModelMatrices>& model_matrices,
                                       std::vector<DrawInfo>& draw_infos) const
 {
     if (shouldDraw)
     {
         DrawInfo this_draw_info;
         this_draw_info.meshIndex = meshIndex;
-        this_draw_info.matricesOffset = matrices.size();
+        this_draw_info.matricesOffset = model_matrices.size();
         this_draw_info.dontCull = disableCulling;
 
         if (not isSkin && not hasMorphTargets) {
-            glm::mat4 matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
-            matrices.emplace_back(matrix);
+            glm::mat4 pos_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+            glm::mat4 normal_matrix = glm::adjointTranspose(pos_matrix);
+            model_matrices.emplace_back(ModelMatrices({pos_matrix, normal_matrix}));
         } else {
-            glm::mat4 parent_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
-            matrices.emplace_back(parent_matrix);
+            glm::mat4 parent_pos_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+            glm::mat4 parent_normal_matrix = glm::adjointTranspose(parent_pos_matrix);
+            model_matrices.emplace_back(ModelMatrices({parent_pos_matrix, parent_normal_matrix}));
 
             const auto& dynamic_mesh_entity = dynamicMeshComp_ptr->GetComponentEntity(thisEntity);
             this_draw_info.dynamicMeshIndex = dynamic_mesh_entity.dynamicMeshIndex;
@@ -96,10 +99,11 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
                 this_draw_info.isSkin = true;
                 this_draw_info.inverseMatricesOffset = dynamic_mesh_entity.inverseBindMatricesOffset;
 
-                glm::mat4 inverse_parent_matrix = glm::inverse(parent_matrix);
+                glm::mat4 inverse_parent_matrix = glm::inverse(parent_pos_matrix);
                 for(Entity relative_entity: dynamic_mesh_entity.jointRelativeEntities) {
-                    glm::mat4 joint_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
-                    matrices.emplace_back(inverse_parent_matrix * joint_matrix);
+                    glm::mat4 joint_pos_matrix = inverse_parent_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
+                    glm::mat4 joint_normal_matrix = glm::adjointTranspose(joint_pos_matrix);
+                    model_matrices.emplace_back(ModelMatrices({joint_pos_matrix, joint_normal_matrix}));
                 }
             }
             if (hasMorphTargets) {

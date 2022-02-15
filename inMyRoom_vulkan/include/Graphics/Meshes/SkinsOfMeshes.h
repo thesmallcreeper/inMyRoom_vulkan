@@ -37,8 +37,6 @@ private:
                                        const tinygltf::Model& in_model,
                                        const tinygltf::Accessor& in_accessor);
 
-    void AddMatrixToInverseBindMatricesBuffer(glm::mat4 this_matrix);
-
     size_t GetInverseBindMatricesBufferSize() const;
 
 private: // data
@@ -46,7 +44,7 @@ private: // data
     std::unordered_map<tinygltf::Model*, size_t> modelToSkinIndexOffset_umap;
     std::vector<SkinInfo> skinInfos;
 
-    std::vector<float> inverseBindMatrices;
+    std::vector<glm::mat4> inverseBindMatrices;
 
     vk::Device device;
     vma::Allocator vma_allocator;

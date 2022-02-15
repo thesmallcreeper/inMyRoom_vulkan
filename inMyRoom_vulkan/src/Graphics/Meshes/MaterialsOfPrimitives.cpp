@@ -88,7 +88,7 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
         const tinygltf::Material& this_material = model.materials[this_material_index];
 
         MaterialAbout this_materialAbout;
-        MaterialParameters this_materialParameters;
+        MaterialParameters this_materialParameters = {};
 
         // materialAbout stuff
         if (this_material.doubleSided)

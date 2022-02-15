@@ -18,7 +18,7 @@ public:
     virtual ~RendererBase() = default;
 
     virtual void DrawFrame(ViewportFrustum viewport,
-                           std::vector<glm::mat4>&& matrices,
+                           std::vector<ModelMatrices>&& matrices,
                            std::vector<DrawInfo>&& draw_infos) {}
 protected:
     class Graphics* const graphics_ptr;

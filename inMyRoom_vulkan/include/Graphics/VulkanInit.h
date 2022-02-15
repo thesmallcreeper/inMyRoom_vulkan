@@ -34,6 +34,7 @@ public:
     WindowWithAsyncInput* GetWindowPtr() const {return windowAsync_uptr.get();}
 
     vk::Device GetDevice() const {return device;}
+    vk::PhysicalDevice GetPhysicalDevice() const {return physicalDevice;}
     VendorID GetVendorId() const {return vendorId;}
     QueuesList GetQueuesList() const {return queues;}
     vk::SwapchainKHR GetSwapchain() const {return swapchain;}

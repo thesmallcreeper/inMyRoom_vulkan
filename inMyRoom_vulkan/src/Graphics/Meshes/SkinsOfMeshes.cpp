@@ -4,9 +4,12 @@
 #include <iterator>
 
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/gtc/matrix_inverse.hpp"
 
 #include "glTFenum.h"
 #include "Graphics/HelperUtils.h"
+
+#include "common/structs/ModelMatrices.h"
 
 SkinsOfMeshes::SkinsOfMeshes(vk::Device in_device, vma::Allocator in_vma_allocator)
     :device(in_device),
@@ -14,7 +17,7 @@ SkinsOfMeshes::SkinsOfMeshes(vk::Device in_device, vma::Allocator in_vma_allocat
 {
     // Padding
     glm::mat4 identity(1.f);
-    AddMatrixToInverseBindMatricesBuffer(identity);
+    inverseBindMatrices.emplace_back(identity);
 }
 
 
@@ -44,7 +47,7 @@ void SkinsOfMeshes::AddSkinsOfModel(const tinygltf::Model& in_model)
             const glm::mat4 this_joint_inverseBindMatrix = GetAccessorMatrix(index,
                                                                              in_model,
                                                                              in_model.accessors[this_skin.inverseBindMatrices]);
-            AddMatrixToInverseBindMatricesBuffer(this_joint_inverseBindMatrix);
+            inverseBindMatrices.emplace_back(this_joint_inverseBindMatrix);
         }
 
         skinInfos.emplace_back(this_skinInfo);
@@ -75,7 +78,14 @@ void SkinsOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
         StagingBuffer staging_buffer(device, vma_allocator, buffer_size_bytes);
         std::byte *dst_ptr = staging_buffer.GetDstPtr();
 
-        memcpy(dst_ptr, inverseBindMatrices.data(), buffer_size_bytes);
+        std::vector<ModelMatrices> inverseBind_modelMatrices;
+        std::transform(inverseBindMatrices.begin(), inverseBindMatrices.end(), std::back_inserter(inverseBind_modelMatrices),
+                       [](const glm::mat4& pos_matrix) {
+                        glm::mat4 normal_matrix = glm::adjointTranspose(pos_matrix);
+                        return ModelMatrices({pos_matrix, normal_matrix});
+                       });
+
+        memcpy(dst_ptr, inverseBind_modelMatrices.data(), buffer_size_bytes);
 
         vk::CommandBuffer command_buffer = staging_buffer.BeginCommandRecord(queue);
         vk::Buffer copy_buffer = staging_buffer.GetBuffer();
@@ -189,25 +199,16 @@ glm::mat4 SkinsOfMeshes::GetAccessorMatrix(const size_t index, const tinygltf::M
     return return_matrix;
 }
 
-void SkinsOfMeshes::AddMatrixToInverseBindMatricesBuffer(glm::mat4 this_matrix)
-{
-    auto this_matrix_raw_ptr = reinterpret_cast<float*>(&this_matrix);
-
-    std::copy(this_matrix_raw_ptr,
-              this_matrix_raw_ptr + 16,
-              std::back_inserter(inverseBindMatrices));
-}
-
 size_t SkinsOfMeshes::GetCountOfInverseBindMatrices() const
 {
     if( not hasBeenFlashed)
-        return inverseBindMatrices.size() * sizeof(float) / sizeof(glm::mat4);
+        return inverseBindMatrices.size();
     else
         return inverseBindMatricesCount;
 }
 
 size_t SkinsOfMeshes::GetInverseBindMatricesBufferSize() const
 {
-    return GetCountOfInverseBindMatrices()*sizeof(glm::mat4);
+    return GetCountOfInverseBindMatrices()*sizeof(ModelMatrices);
 }
 

@@ -11,6 +11,8 @@
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 
+#include "common/structs/ModelMatrices.h"
+
 typedef uint16_t Entity;
 typedef uint32_t componentID;
 typedef void* ComponentEntityPtr;

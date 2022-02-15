@@ -78,7 +78,7 @@ void Graphics::InitBuffers()
     // Create matrices buffer
     {
         vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = sizeof(glm::mat4) * maxInstances * 2;
+        buffer_create_info.size = sizeof(ModelMatrices) * maxInstances * 2;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
@@ -189,7 +189,7 @@ void Graphics::InitDescriptors()
             auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
             descriptor_buffer_info_uptr->buffer = matricesBuffer;
             descriptor_buffer_info_uptr->offset = 0;
-            descriptor_buffer_info_uptr->range  = sizeof(glm::mat4) * maxInstances;
+            descriptor_buffer_info_uptr->range  = sizeof(ModelMatrices) * maxInstances;
 
             vk::WriteDescriptorSet write_descriptor_set;
             write_descriptor_set.dstSet = matricesDescriptorSets[0];
@@ -205,8 +205,8 @@ void Graphics::InitDescriptors()
         {
             auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
             descriptor_buffer_info_uptr->buffer = matricesBuffer;
-            descriptor_buffer_info_uptr->offset = sizeof(glm::mat4) * maxInstances;
-            descriptor_buffer_info_uptr->range  = sizeof(glm::mat4) * maxInstances;
+            descriptor_buffer_info_uptr->offset = sizeof(ModelMatrices) * maxInstances;
+            descriptor_buffer_info_uptr->range  = sizeof(ModelMatrices) * maxInstances;
 
             vk::WriteDescriptorSet write_descriptor_set;
             write_descriptor_set.dstSet = matricesDescriptorSets[1];
@@ -342,7 +342,7 @@ void Graphics::EndModelsLoad()
 
 void Graphics::DrawFrame()
 {
-    std::vector<glm::mat4> matrices;
+    std::vector<ModelMatrices> matrices;
     std::vector<DrawInfo> draw_infos;
     modelDrawComp_uptr->AddDrawInfos(matrices, draw_infos);
 
@@ -373,12 +373,26 @@ QueuesList Graphics::GetQueuesList() const
     return engine_ptr->GetQueuesList();
 }
 
-vk::SwapchainKHR Graphics::GetSwapchain() const{
+vk::SwapchainKHR Graphics::GetSwapchain() const
+{
     return engine_ptr->GetSwapchain();
 }
 
+size_t Graphics::GetSubgroupSize() const
+{
+    vk::PhysicalDevice physical_device = engine_ptr->GetPhysicalDevice();
+
+    vk::PhysicalDeviceProperties2 device_properties;
+    vk::PhysicalDeviceVulkan11Properties device_properties_vulkan11;
+    device_properties.pNext = &device_properties_vulkan11;
+
+    physical_device.getProperties2(&device_properties);
+
+    return device_properties_vulkan11.subgroupSize;
+}
+
 void Graphics::WriteCameraMarticesBuffers(ViewportFrustum viewport,
-                                          const std::vector<glm::mat4>& matrices,
+                                          const std::vector<ModelMatrices>& model_matrices,
                                           const std::vector<DrawInfo>& draw_infos,
                                           size_t buffer_index)
 {
@@ -393,15 +407,12 @@ void Graphics::WriteCameraMarticesBuffers(ViewportFrustum viewport,
         vma_allocator.flushAllocation(cameraAllocation, buffer_index * 3 * sizeof(glm::mat4), 3 * sizeof(glm::mat4));
     }
 
-    // Update matrices
+    // Update model_matrices
     {
-        memcpy((std::byte *) (matricesAllocInfo.pMappedData) + buffer_index * maxInstances * sizeof(glm::mat4),
-               matrices.data(),
-               matrices.size() * sizeof(glm::mat4));
+        memcpy((std::byte *) (matricesAllocInfo.pMappedData) + buffer_index * maxInstances * sizeof(ModelMatrices),
+               model_matrices.data(),
+               model_matrices.size() * sizeof(ModelMatrices));
 
-        vma_allocator.flushAllocation(matricesAllocation, buffer_index * maxInstances * sizeof(glm::mat4), matrices.size() * sizeof(glm::mat4));
+        vma_allocator.flushAllocation(matricesAllocation, buffer_index * maxInstances * sizeof(ModelMatrices), model_matrices.size() * sizeof(ModelMatrices));
     }
 }
-
-
-

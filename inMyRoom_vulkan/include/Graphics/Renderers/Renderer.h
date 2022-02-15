@@ -14,7 +14,7 @@ public:
     ~Renderer() override;
 
     void DrawFrame(ViewportFrustum viewport,
-                   std::vector<glm::mat4>&& matrices,
+                   std::vector<ModelMatrices>&& matrices,
                    std::vector<DrawInfo>&& draw_infos) override;
 
 private:
@@ -38,7 +38,7 @@ private:
 
     std::vector<PrimitiveInstanceParameters> CreatePrimitivesInstanceParameters(std::vector<DrawInfo>& draw_infos) const;
     std::vector<vk::AccelerationStructureInstanceKHR> CreateTLASinstances(const std::vector<DrawInfo>& draw_infos,
-                                                                          const std::vector<glm::mat4>& matrices,
+                                                                          const std::vector<ModelMatrices>& matrices,
                                                                           uint32_t buffer_index) const;
 
 private:

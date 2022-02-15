@@ -111,7 +111,7 @@ private:
     size_t indexCounter = 0;
     size_t swapIndex = 0;
 
+    const uint32_t waveSize;
     const uint32_t maxMorphWeights = MAX_MORPH_WEIGHTS;
-    const uint32_t waveSize = 32;
     const uint32_t removeCountdown = 2;
 };

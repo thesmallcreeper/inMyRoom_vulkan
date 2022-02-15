@@ -5,6 +5,7 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_EXT_ray_query : require
 
+#include "common/structs/ModelMatrices.h"
 #include "common/structs/MaterialParameters.h"
 #include "common/structs/PrimitiveInstanceParameters.h"
 #include "common/intersectOriginTriangle.glsl"
@@ -31,7 +32,7 @@ layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
 /// 1, 0
 layout( std430, set = 1 , binding = 0 ) readonly buffer worldSpaceMatricesBufferDescriptor
 {
-    mat4 matrices[MATRICES_COUNT];
+    ModelMatrices model_matrices[MATRICES_COUNT];
 };
 
 /// 2, 0
@@ -91,7 +92,7 @@ void main()
 
     // Get view matrix
     uint matrixOffset = uint(primitivesInstancesParameters[frag_primitiveInstance].matricesOffset);
-    mat4x4 pos_matrix = viewMatrix * matrices[matrixOffset];
+    mat4x4 pos_matrix = viewMatrix * model_matrices[matrixOffset].positionMatrix;
 
     // Intersect triangle
     uint pos_descriptorIndex = uint(primitivesInstancesParameters[frag_primitiveInstance].positionDescriptorIndex);

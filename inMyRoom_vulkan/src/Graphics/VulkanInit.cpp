@@ -22,7 +22,6 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     std::vector<std::string> vulkan_layers;
 #ifdef ENABLE_VALIDATION
     vulkan_layers.emplace_back("VK_LAYER_KHRONOS_validation");
-    vulkan_layers.emplace_back("VK_LAYER_KHRONOS_synchronization2");
 #endif
 
     std::vector<std::string> vulkan_instance_extensions = WindowWithAsyncInput::GetRequiredInstanceExtensions();

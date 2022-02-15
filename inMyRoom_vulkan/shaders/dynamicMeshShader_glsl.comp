@@ -1,7 +1,9 @@
-#version 450
+#version 460
 
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_shader_16bit_storage : require
+
+#include "common/structs/ModelMatrices.h"
 
 #ifdef USE_VEC2
     #define VEC vec2
@@ -33,12 +35,12 @@ layout (push_constant) uniform PushConstants
 
 layout( std140, set = 0 , binding = 0 ) readonly buffer nodesMatrixBuffer
 {
-    mat4 matrices[MATRICES_COUNT];
+    ModelMatrices modelMatrices[MATRICES_COUNT];
 };
 
 layout( std140, set = 1 , binding = 0 ) readonly buffer inverseMatricesBuffer
 {
-    mat4 inverseMatrices[INVERSE_MATRICES_COUNT];
+    ModelMatrices inverseModelMatrices[INVERSE_MATRICES_COUNT];
 };
 
 layout( std430, set = 2, binding = 0 ) buffer vecVerticesBuffersDescriptors
@@ -56,7 +58,29 @@ layout( std430, set = 2, binding = 0 ) buffer vec4verticesBuffersDescriptors
     vec4 vertices[];
 } vec4verticesBuffers [];
 
-void main() {
+vec4 CalucateSkinJoint(uint matrix_index, uint inverse_matrix_index, vec4 vertex)
+{
+    vec4 return_vec;
+
+    #ifndef USE_NORMAL_MATRIX
+    #ifndef ZERO_W
+    return_vec = modelMatrices[matrix_index].positionMatrix * inverseModelMatrices[inverse_matrix_index].positionMatrix * vertex;
+    #else
+    return_vec = modelMatrices[matrix_index].positionMatrix * inverseModelMatrices[inverse_matrix_index].positionMatrix * vec4(vertex.xyz, 0.f);
+    #endif
+    #else
+    return_vec = modelMatrices[matrix_index].normalMatrix * inverseModelMatrices[inverse_matrix_index].normalMatrix * vec4(vertex.xyz, 0.f);
+    #endif
+
+    #ifdef NORMALIZE
+    return_vec = vec4(normalize(return_vec.xyz), vertex.w);
+    #endif
+
+    return return_vec;
+}
+
+void main()
+{
     const uint x = gl_GlobalInvocationID.x;
     if (x >= size_x) {
         return;
@@ -70,21 +94,33 @@ void main() {
         morphed_vertex += this_weight * this_vertex;
     }
 
+    #ifdef NORMALIZE
+    if (morphTargets != 0) {
+        morphed_vertex = vec4(normalize(morphed_vertex.xyz), morphed_vertex.w);
+    }
+    #endif
+
     #ifdef USE_SKIN
-    mat4 skin_matrix = mat4(0.f);
+    vec4 result = vec4(0.f, 0.f, 0.f, 0.f);
     if (jointsGroupsCount == 0) {
-        skin_matrix = mat4(1.f);
+        result = morphed_vertex;
     }
     for (uint i = 0; i != jointsGroupsCount; ++i) {
-        vec4 weights =  vec4verticesBuffers[0].vertices[weightsOffset  + x*jointsGroupsCount + i];
+        vec4 weights = vec4verticesBuffers[0].vertices[weightsOffset  + x*jointsGroupsCount + i];
         uvec4 joints = uvec4(u16vec4verticesBuffers[0].vertices[jointsOffset + x*jointsGroupsCount + i]);
 
-        skin_matrix += weights.x * matrices[joints.x+matrixOffset+1] * inverseMatrices[joints.x+inverseMatricesOffset];
-        skin_matrix += weights.y * matrices[joints.y+matrixOffset+1] * inverseMatrices[joints.y+inverseMatricesOffset];
-        skin_matrix += weights.z * matrices[joints.z+matrixOffset+1] * inverseMatrices[joints.z+inverseMatricesOffset];
-        skin_matrix += weights.w * matrices[joints.w+matrixOffset+1] * inverseMatrices[joints.w+inverseMatricesOffset];
+        result += weights.x * CalucateSkinJoint( joints.x+matrixOffset+1, joints.x+inverseMatricesOffset, morphed_vertex);
+        result += weights.y * CalucateSkinJoint( joints.y+matrixOffset+1, joints.y+inverseMatricesOffset, morphed_vertex);
+        result += weights.z * CalucateSkinJoint( joints.z+matrixOffset+1, joints.z+inverseMatricesOffset, morphed_vertex);
+        result += weights.w * CalucateSkinJoint( joints.w+matrixOffset+1, joints.w+inverseMatricesOffset, morphed_vertex);
     }
-    vec4 result = skin_matrix*morphed_vertex;
+
+    #ifdef NORMALIZE
+    if (jointsGroupsCount != 0) {
+        morphed_vertex = vec4(normalize(result.xyz), result.w);
+    }
+    #endif
+
     #else
     VEC result = morphed_vertex;
     #endif

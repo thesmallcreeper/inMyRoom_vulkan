@@ -1,5 +1,7 @@
 #version 460
 
+#include "common/structs/ModelMatrices.h"
+
 //
 // In
 layout( location = 0 ) in vec4 app_position;
@@ -25,7 +27,7 @@ layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
 
 layout( std140, set = 1 , binding = 0 ) readonly buffer matricesBuffer
 {
-    mat4 matrices[MATRICES_COUNT];
+    ModelMatrices model_matrices[MATRICES_COUNT];
 };
 
 //
@@ -39,7 +41,7 @@ layout (push_constant) uniform PushConstants
 // Main!
 void main()
 {
-    vec4 world_position = matrices[matrixOffset] * app_position;
+    vec4 world_position = model_matrices[matrixOffset].positionMatrix * app_position;
     vec4 view_position = viewMatrix * world_position;
 
     gl_Position = projectionMatrix * view_position;

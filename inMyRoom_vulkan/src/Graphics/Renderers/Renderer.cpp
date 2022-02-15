@@ -990,7 +990,7 @@ void Renderer::InitTLASes()
 }
 
 void Renderer::DrawFrame(ViewportFrustum viewport,
-                         std::vector<glm::mat4>&& matrices,
+                         std::vector<ModelMatrices>&& matrices,
                          std::vector<DrawInfo>&& draw_infos)
 {
     ++frameCount;
@@ -1449,7 +1449,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
 }
 
 std::vector<vk::AccelerationStructureInstanceKHR> Renderer::CreateTLASinstances(const std::vector<DrawInfo>& draw_infos,
-                                                                                const std::vector<glm::mat4>& matrices,
+                                                                                const std::vector<ModelMatrices>& matrices,
                                                                                 uint32_t buffer_index) const
 {
     std::vector<vk::AccelerationStructureInstanceKHR> return_vector;
@@ -1459,7 +1459,7 @@ std::vector<vk::AccelerationStructureInstanceKHR> Renderer::CreateTLASinstances(
             const DynamicMeshInfo& dynamic_mesh_info = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex);
             if (dynamic_mesh_info.hasDynamicBLAS) {
                 vk::AccelerationStructureInstanceKHR instance;
-                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset];
+                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset].positionMatrix;
                 instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
                                        matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
                                        matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };
@@ -1475,7 +1475,7 @@ std::vector<vk::AccelerationStructureInstanceKHR> Renderer::CreateTLASinstances(
             const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex);
             if (mesh_info.meshBLAS.hasBLAS) {
                 vk::AccelerationStructureInstanceKHR instance;
-                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset];
+                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset].positionMatrix;
                 instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
                                        matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
                                        matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };

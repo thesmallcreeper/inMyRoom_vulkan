@@ -54,6 +54,8 @@ public:
     vk::SwapchainKHR GetSwapchain() const;
     QueuesList GetQueuesList() const;
 
+    size_t GetSubgroupSize() const;
+
     size_t GetMaxInstancesCount() const {return maxInstances;}
 
     void LoadModel(const tinygltf::Model& in_model, std::string in_model_images_folder);
@@ -62,7 +64,7 @@ public:
     void DrawFrame();
 
     void WriteCameraMarticesBuffers(ViewportFrustum viewport,
-                                    const std::vector<glm::mat4>& matrices,
+                                    const std::vector<ModelMatrices>& model_matrices,
                                     const std::vector<DrawInfo>& draw_infos,
                                     size_t buffer_index);
 

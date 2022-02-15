@@ -9,7 +9,8 @@ DynamicMeshes::DynamicMeshes(Graphics* in_graphics_ptr,
     :graphics_ptr(in_graphics_ptr),
      device(in_device),
      vma_allocator(in_vma_allocator),
-     max_dynamicMeshes(in_max_dynamicMeshes)
+     max_dynamicMeshes(in_max_dynamicMeshes),
+     waveSize(graphics_ptr->GetSubgroupSize())
 {
 }
 
@@ -123,9 +124,39 @@ void DynamicMeshes::FlashDevice()
 
             positionCompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
         }
-        // TODO!
-        normalCompPipeline = positionCompPipeline;
-        tangentCompPipeline = positionCompPipeline;
+        {   // Normal compute pipeline
+            std::vector<std::pair<std::string, std::string>> shaderDefinitionStringPairs = commonDefinitionStringPairs;
+            shaderDefinitionStringPairs.emplace_back("USE_SKIN", "");
+            shaderDefinitionStringPairs.emplace_back("USE_NORMAL_MATRIX", "");
+            shaderDefinitionStringPairs.emplace_back("ZERO_W", "");
+            shaderDefinitionStringPairs.emplace_back("NORMALIZE", "");
+            ShadersSpecs shaders_specs = {"Dynamic Mesh Evaluation Shader", shaderDefinitionStringPairs};
+            ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
+
+            vk::ComputePipelineCreateInfo compute_pipeline_create_info;
+            compute_pipeline_create_info.stage.stage = vk::ShaderStageFlagBits::eCompute;
+            compute_pipeline_create_info.stage.module = shader_set.computeShaderModule;
+            compute_pipeline_create_info.stage.pName = "main";
+            compute_pipeline_create_info.layout = computeLayout;
+
+            normalCompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
+        }
+        {   // Tangent compute pipeline
+            std::vector<std::pair<std::string, std::string>> shaderDefinitionStringPairs = commonDefinitionStringPairs;
+            shaderDefinitionStringPairs.emplace_back("USE_SKIN", "");
+            shaderDefinitionStringPairs.emplace_back("ZERO_W", "");
+            shaderDefinitionStringPairs.emplace_back("NORMALIZE", "");
+            ShadersSpecs shaders_specs = {"Dynamic Mesh Evaluation Shader", shaderDefinitionStringPairs};
+            ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
+
+            vk::ComputePipelineCreateInfo compute_pipeline_create_info;
+            compute_pipeline_create_info.stage.stage = vk::ShaderStageFlagBits::eCompute;
+            compute_pipeline_create_info.stage.module = shader_set.computeShaderModule;
+            compute_pipeline_create_info.stage.pName = "main";
+            compute_pipeline_create_info.layout = computeLayout;
+
+            tangentCompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
+        }
         {   // texcoord compute pipeline
             std::vector<std::pair<std::string, std::string>> shaderDefinitionStringPairs = commonDefinitionStringPairs;
             shaderDefinitionStringPairs.emplace_back("USE_VEC2", "");
