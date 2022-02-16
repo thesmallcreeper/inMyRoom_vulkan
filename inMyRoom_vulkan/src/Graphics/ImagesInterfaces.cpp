@@ -429,12 +429,12 @@ void TextureImage::SaveMipmapToDisk(size_t level) const
         if (saveAs16bit) {
             data = imagesData[level].GetImage16BitPerChannel();
             bytes_per_texel = int(imagesData[level].GetComponentsCount()) * 2;
+            stbi_write_png_16(path_to_this_mipmap.c_str(), width, height, components, data.data(), bytes_per_texel * width);
         } else {
             data = imagesData[level].GetImage8BitPerChannel(sRGBifPossible);
             bytes_per_texel = int(imagesData[level].GetComponentsCount());
+            stbi_write_png(path_to_this_mipmap.c_str(), width, height, components, data.data(), bytes_per_texel * width);
         }
-
-        stbi_write_png(path_to_this_mipmap.c_str(), width, height, components, data.data(), bytes_per_texel * width);
     }
 }
 
@@ -494,7 +494,7 @@ NormalImage::NormalImage(const tinygltf::Image &gltf_image,
                                         model_folder,
                                         wrap_S, wrap_T,
                                         false,
-                                        false),
+                                        true),
                            scale(in_scale)
 {
 }
