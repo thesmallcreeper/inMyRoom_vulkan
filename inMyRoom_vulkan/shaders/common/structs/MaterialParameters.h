@@ -8,6 +8,10 @@ struct MaterialParameters
     UINT_T baseColorTexture;
     UINT_T baseColorTexCoord;
 
+    UINT_T normalTexture;
+    UINT_T normalTexCoord;
+
+    FLOAT_T normalScale;
     FLOAT_T alphaCutoff;
 };
 

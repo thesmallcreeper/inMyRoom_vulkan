@@ -14,7 +14,9 @@ public:
 
     void SetImage(const std::vector<uint8_t>& data, bool is_srgb);
     void SetImage(const std::vector<uint16_t>& data);
-    std::vector<std::byte> GetImage(bool srgb, bool _16bit) const;
+    std::vector<std::byte> GetImage8BitPerChannel(bool srgb) const;
+    std::vector<std::byte> GetImage16BitPerChannel() const;
+    std::vector<std::byte> GetImageA2R10G10B10() const;
 
     size_t GetWidth() const {return width;}
     size_t GetHeight() const {return height;}
@@ -40,6 +42,7 @@ private:
     static uint8_t FloatToSRGB(float value);
     static uint8_t FloatToR8(float value);
     static uint16_t FloatToR16(float value);
+    static uint32_t FloatToRx(float value, uint32_t max);
 
     static size_t WrapAddress(glTFsamplerWrap wrap, size_t size, int address);
 
@@ -53,34 +56,30 @@ private:
     std::vector<float> floatBuffer;
 };
 
-class LinearImage
+class TextureImage
 {
 public:
-    LinearImage(const tinygltf::Image& gltf_image,
-                std::string identifier_string,
-                std::string model_folder,
-                glTFsamplerWrap wrap_S,
-                glTFsamplerWrap wrap_T,
-                bool sRGB,
-                bool saveAs16bit);
+    TextureImage(const tinygltf::Image& gltf_image,
+                 std::string identifier_string,
+                 std::string model_folder,
+                 glTFsamplerWrap wrap_S,
+                 glTFsamplerWrap wrap_T,
+                 bool sRGB,
+                 bool saveAs16bit);
 
     void RetrieveMipmaps(size_t min_x, size_t min_y);
     void SaveMipmaps() const;
 
     const std::vector<ImageData>& GetMipmaps() const {assert(not imagesData.empty()); return imagesData;}
-    // const std::vector<float>& GetReverseScaleFactors() const {return reverseScaleFactors;}
 
-private:
-    ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) const;
+protected:
+    virtual ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) const = 0;
 
     std::optional<ImageData> LoadMipmapFromDisk(size_t level);
     void SaveMipmapToDisk(size_t level) const;
 
-    void ScaleComponents(const std::vector<float>& scales);
-    std::vector<float> GetComponentsMax() const;
-private:
+protected:
     std::vector<ImageData> imagesData;
-    // std::vector<float> reverseScaleFactors;
 
     const tinygltf::Image* glTFimage_ptr;
     std::string identifierString;
@@ -89,4 +88,36 @@ private:
     glTFsamplerWrap wrap_T;
     bool sRGBifPossible;
     bool saveAs16bit;
+};
+
+class LinearImage
+    : public TextureImage
+{
+public:
+    LinearImage(const tinygltf::Image& gltf_image,
+                std::string identifier_string,
+                std::string model_folder,
+                glTFsamplerWrap wrap_S,
+                glTFsamplerWrap wrap_T);
+
+private:
+    ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) const override;
+};
+
+class NormalImage
+    : public TextureImage
+{
+public:
+    NormalImage(const tinygltf::Image& gltf_image,
+                std::string identifier_string,
+                std::string model_folder,
+                glTFsamplerWrap wrap_S,
+                glTFsamplerWrap wrap_T,
+                float scale);
+
+private:
+    ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) const override;
+
+private:
+    float scale = 1.f;
 };

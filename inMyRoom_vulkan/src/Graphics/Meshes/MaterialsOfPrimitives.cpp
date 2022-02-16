@@ -27,6 +27,22 @@ void MaterialsOfPrimitives::AddDefaultTextures()
                                                                                  vk::Format::eR8G8B8A8Srgb);
 
     }
+    // Normal texture
+    {
+        ImageData image(4, 4, 4, glTFsamplerWrap::repeat, glTFsamplerWrap::repeat);
+
+        std::vector<uint16_t> image_data(4 * 4 * 4, 0);
+        for(size_t i = 0; i < image_data.size(); i += 4) {
+            image_data[i]     = uint16_t(-1) >> 1;
+            image_data[i + 1] = uint16_t(-1) >> 1;
+            image_data[i + 2] = uint16_t(-1);
+            image_data[i + 3] = uint16_t(-1);
+        }
+        image.SetImage(image_data);
+
+        defaultNormalTextureIndex = texturesOfMaterials_ptr->AddTextureAndMipmaps(std::vector(1, image),
+                                                                                  vk::Format::eA2R10G10B10UnormPack32);
+    }
 }
 
 void MaterialsOfPrimitives::AddDefaultMaterial()
@@ -40,7 +56,13 @@ void MaterialsOfPrimitives::AddDefaultMaterial()
     this_materialAbout.definitionStringPairs.emplace_back("IS_OPAQUE", "");
 
     this_materialParameters.baseColorTexture = defaultColorTextureIndex;
+    this_materialParameters.baseColorFactors = glm::vec4(1.f, 1.f, 1.f, 1.f);
+    this_materialParameters.baseColorTexCoord = 0;
+    this_materialParameters.alphaCutoff = 0.5f;
 
+    this_materialParameters.normalTexture = defaultNormalTextureIndex;
+    this_materialParameters.normalTexCoord = 0;
+    this_materialParameters.normalScale = 0.f;
 
     materialsAbout.emplace_back(this_materialAbout);
     materialsParameters.emplace_back(this_materialParameters);
@@ -77,6 +99,33 @@ struct std::hash<ColorTextureSpecs> {
     }
 };
 
+struct NormalTextureSpecs {
+    const tinygltf::Image* image_ptr = nullptr;
+    glTFsamplerWrap wrap_S = glTFsamplerWrap::repeat;
+    glTFsamplerWrap wrap_T = glTFsamplerWrap::repeat;
+    float scale = 1.f;
+
+    bool operator==(const NormalTextureSpecs& rhs) const {
+        return image_ptr == rhs.image_ptr &&
+               wrap_S == rhs.wrap_S &&
+               wrap_T == rhs.wrap_T &&
+               scale == rhs.scale;
+    }
+};
+
+template <>
+struct std::hash<NormalTextureSpecs> {
+    inline std::size_t operator()(const NormalTextureSpecs& rhs) const noexcept{
+        size_t hash = 0;
+        hash_combine( hash, std::hash<const tinygltf::Image*>{}(rhs.image_ptr));
+        hash_combine( hash, std::hash<glTFsamplerWrap>{}(rhs.wrap_S));
+        hash_combine( hash, std::hash<glTFsamplerWrap>{}(rhs.wrap_T));
+        hash_combine( hash, std::hash<float>{}(rhs.scale));
+        return hash;
+    }
+};
+
+
 void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, const std::string& model_folder)
 {
     assert(!hasBeenFlashed);
@@ -84,6 +133,8 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
     modelToMaterialIndexOffset_umap.emplace(const_cast<tinygltf::Model*>(&model), GetMaterialsCount());
 
     std::unordered_map<ColorTextureSpecs, size_t> colorTextureSpecsToTextureIndex_umap;
+    std::unordered_map<NormalTextureSpecs, size_t> normalTextureSpecsToTextureIndex_umap;
+
     for (size_t this_material_index = 0; this_material_index != model.materials.size(); ++this_material_index) {
         const tinygltf::Material& this_material = model.materials[this_material_index];
 
@@ -118,12 +169,13 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
 
             this_materialParameters.baseColorFactors = this_material_base_color_factors;
         }
+        {   // alphaCutoff
+            this_materialParameters.alphaCutoff = float(this_material.alphaCutoff);
+        }
         {   // baseColorTexture
             if (this_material.pbrMetallicRoughness.baseColorTexture.index != -1) {
                 const tinygltf::Texture& color_texture = model.textures[this_material.pbrMetallicRoughness.baseColorTexture.index];
                 if(color_texture.source != -1) {
-                    this_materialAbout.definitionStringPairs.emplace_back("USE_BASE_COLOR_TEXTURE_TEXCOORD0", "");
-
                     ColorTextureSpecs colorTextureSpecs = {};
                     colorTextureSpecs.image_ptr = &model.images[color_texture.source];
                     if(color_texture.sampler != -1) {
@@ -140,8 +192,7 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
                                                    (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_colorTexture",
                                                    model_folder,
                                                    colorTextureSpecs.wrap_S,
-                                                   colorTextureSpecs.wrap_T,
-                                                   true, false};
+                                                   colorTextureSpecs.wrap_T};
 
                         color_image.RetrieveMipmaps(16, 16);
                         size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(color_image.GetMipmaps(),
@@ -157,21 +208,58 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
                 }
             } else {
                 this_materialParameters.baseColorTexture = defaultColorTextureIndex;
-                this_materialAbout.color_texcooord = 0;
             }
 
-            if (this_material.pbrMetallicRoughness.baseColorTexture.texCoord != -1) {
-                this_materialParameters.baseColorTexCoord = this_material.pbrMetallicRoughness.baseColorTexture.texCoord;
-                this_materialAbout.color_texcooord = this_material.pbrMetallicRoughness.baseColorTexture.texCoord;
+            this_materialParameters.baseColorTexCoord = this_material.pbrMetallicRoughness.baseColorTexture.texCoord;
+            this_materialAbout.color_texcooord = this_material.pbrMetallicRoughness.baseColorTexture.texCoord;
+        }
+        {   // normalTexture
+            if (this_material.normalTexture.index != -1) {
+                const tinygltf::Texture& normal_texture = model.textures[this_material.normalTexture.index];
+                if(normal_texture.source != -1) {
+                    NormalTextureSpecs normalTextureSpecs = {};
+                    normalTextureSpecs.image_ptr = &model.images[normal_texture.source];
+                    normalTextureSpecs.scale = float(this_material.normalTexture.scale);
+                    if(normal_texture.sampler != -1) {
+                        const tinygltf::Sampler& this_sampler = model.samplers[normal_texture.sampler];
+                        normalTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
+                        normalTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
+                    }
+
+                    auto search = normalTextureSpecsToTextureIndex_umap.find(normalTextureSpecs);
+                    if(search != normalTextureSpecsToTextureIndex_umap.end()) {
+                        this_materialParameters.normalTexture = uint32_t(search->second);
+                        this_materialParameters.normalScale = normalTextureSpecs.scale;
+                    } else {
+                        NormalImage normal_image = {*normalTextureSpecs.image_ptr,
+                                                    (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_normalTexture",
+                                                    model_folder,
+                                                    normalTextureSpecs.wrap_S,
+                                                    normalTextureSpecs.wrap_T,
+                                                    normalTextureSpecs.scale};
+
+                        normal_image.RetrieveMipmaps(16, 16);
+                        size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(normal_image.GetMipmaps(),
+                                                                                             vk::Format::eA2R10G10B10UnormPack32);
+
+                        this_materialParameters.normalTexture = uint32_t(texture_index);
+                        this_materialParameters.normalScale = normalTextureSpecs.scale;
+
+                        normal_image.SaveMipmaps();
+                    }
+
+                } else {
+                    this_materialParameters.normalTexture = defaultNormalTextureIndex;
+                    this_materialParameters.normalScale = 0.f;
+                }
             } else {
-                this_materialParameters.baseColorTexCoord = 0;
-                this_materialAbout.color_texcooord = 0;
+                this_materialParameters.normalTexture = defaultNormalTextureIndex;
+                this_materialParameters.normalScale = 0.f;
             }
+
+            this_materialParameters.normalTexCoord = this_material.normalTexture.texCoord;
         }
 
-        {   // alphaCutoff
-            this_materialParameters.alphaCutoff = float(this_material.alphaCutoff);
-        }
 
         materialsAbout.emplace_back(this_materialAbout);
         materialsParameters.emplace_back(this_materialParameters);

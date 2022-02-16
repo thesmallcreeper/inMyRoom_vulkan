@@ -5,6 +5,10 @@
 #include <filesystem>
 #include <iostream>
 
+#include "glm/vec4.hpp"
+#include "glm/vec3.hpp"
+#include "glm/mat4x4.hpp"
+
 #include "stb_image.h"
 #include "stb_image_write.h"
 
@@ -54,42 +58,83 @@ void ImageData::SetImage(const std::vector<uint16_t> &data)
     }
 }
 
-std::vector<std::byte> ImageData::GetImage(bool srgb, bool _16bit) const
+std::vector<std::byte> ImageData::GetImage8BitPerChannel(bool srgb) const
 {
-    assert(not (srgb && _16bit));
 
-    size_t buffer_size = width * height * componentsCount * (_16bit ? 2 : 1);
+    size_t buffer_size = width * height * componentsCount;
 
     std::vector<std::byte> buffer(buffer_size);
+    auto buffer_ptr = reinterpret_cast<uint8_t*>(buffer.data());
 
-    if (not _16bit) {
-        auto buffer_ptr = reinterpret_cast<uint8_t*>(buffer.data());
+    for (size_t i = 0; i != width; ++i) {
+        for (size_t j = 0; j != height; ++j) {
+            for (size_t k = 0; k != componentsCount; ++k) {
+                float component = GetComponent(int(i), int(j), k);
 
-        for (size_t i = 0; i != width; ++i) {
-            for (size_t j = 0; j != height; ++j) {
-                for (size_t k = 0; k != componentsCount; ++k) {
-                    float component = GetComponent(int(i), int(j), k);
+                uint8_t data = 0;
+                if (srgb) data = FloatToSRGB(component);
+                else data = FloatToR8(component);
 
-                    uint8_t data = 0;
-                    if (srgb) data = FloatToSRGB(component);
-                    else data = FloatToR8(component);
-
-                    buffer_ptr[(j * width + i) * componentsCount + k] = data;
-                }
+                buffer_ptr[(j * width + i) * componentsCount + k] = data;
             }
         }
-    } else {
-        auto buffer_ptr = reinterpret_cast<uint16_t*>(buffer.data());
+    }
 
-        for (size_t i = 0; i != width; ++i) {
-            for (size_t j = 0; j != height; ++j) {
-                for (size_t k = 0; k != componentsCount; ++k) {
-                    float component = GetComponent(int(i), int(j), k);
+    return buffer;
+}
 
-                    uint16_t data = FloatToR16(component);
-                    buffer_ptr[(j * width + i) * componentsCount + k] = data;
+std::vector<std::byte> ImageData::GetImage16BitPerChannel() const
+{
+    size_t buffer_size = width * height * componentsCount * 2;
+
+    std::vector<std::byte> buffer(buffer_size);
+    auto buffer_ptr = reinterpret_cast<uint16_t*>(buffer.data());
+
+    for (size_t i = 0; i != width; ++i) {
+        for (size_t j = 0; j != height; ++j) {
+            for (size_t k = 0; k != componentsCount; ++k) {
+                float component = GetComponent(int(i), int(j), k);
+
+                uint16_t data = FloatToR16(component);
+                buffer_ptr[(j * width + i) * componentsCount + k] = data;
+            }
+        }
+    }
+
+    return buffer;
+}
+
+std::vector<std::byte> ImageData::GetImageA2R10G10B10() const
+{
+    assert(componentsCount == 3 || componentsCount == 4);
+
+    size_t buffer_byte_size = width * height * sizeof(uint32_t);
+
+    std::vector<std::byte> buffer(buffer_byte_size);
+    auto buffer_ptr = reinterpret_cast<uint32_t*>(buffer.data());
+
+    for (size_t i = 0; i != width; ++i) {
+        for (size_t j = 0; j != height; ++j) {
+            uint32_t data_r, data_g, data_b, data_a;
+
+            {
+                float component_r = GetComponent(int(i), int(j), 0);
+                data_r = FloatToRx(component_r, 0x03FF);
+            } {
+                float component_g = GetComponent(int(i), int(j), 1);
+                data_g = FloatToRx(component_g, 0x03FF);
+            } {
+                float component_b = GetComponent(int(i), int(j), 2);
+                data_b = FloatToRx(component_b, 0x03FF);
+            } {
+                if (componentsCount == 3) data_a = 0x0000;
+                else {
+                    float component_a = GetComponent(int(i), int(j), 3);
+                    data_a = FloatToRx(component_a, 0x0003);
                 }
             }
+
+            buffer_ptr[(j * width + i)] = data_a << 30 | data_r << 20 | data_g << 10 | data_b ;
         }
     }
 
@@ -162,21 +207,21 @@ uint8_t ImageData::FloatToSRGB(float value)
 
 uint8_t ImageData::FloatToR8(float value)
 {
-    value = std::max(value, 0.f);
-    value = std::min(value, 1.f);
-
-    float denormalized_value = std::round(value * float(std::numeric_limits<uint8_t>::max()));
-    uint8_t quantized_value = uint8_t(denormalized_value);
-    return quantized_value;
+    return uint8_t(FloatToRx(value, std::numeric_limits<uint8_t>::max()));
 }
 
 uint16_t ImageData::FloatToR16(float value)
 {
+    return uint16_t(FloatToRx(value, std::numeric_limits<uint16_t>::max()));
+}
+
+uint32_t ImageData::FloatToRx(float value, uint32_t max)
+{
     value = std::max(value, 0.f);
     value = std::min(value, 1.f);
 
-    float denormalized_value = std::round(value * float(std::numeric_limits<uint16_t>::max()));
-    uint16_t quantized_value = uint16_t(denormalized_value);
+    float denormalized_value = std::round(value * float(max));
+    auto quantized_value = uint32_t(denormalized_value);
     return quantized_value;
 }
 
@@ -249,9 +294,9 @@ void ImageData::BiasComponents(const std::vector<float> &bias)
 }
 
 
-LinearImage::LinearImage(const tinygltf::Image &gltf_image, std::string identifier_string, std::string model_folder,
-                         glTFsamplerWrap in_wrap_S, glTFsamplerWrap in_wrap_T,
-                         bool in_sRGB, bool in_saveAs16bit)
+TextureImage::TextureImage(const tinygltf::Image &gltf_image, std::string identifier_string, std::string model_folder,
+                           glTFsamplerWrap in_wrap_S, glTFsamplerWrap in_wrap_T,
+                           bool in_sRGB, bool in_saveAs16bit)
     : glTFimage_ptr(&gltf_image),
       identifierString(std::move(identifier_string)),
       modelFolder(std::move(model_folder)),
@@ -262,7 +307,7 @@ LinearImage::LinearImage(const tinygltf::Image &gltf_image, std::string identifi
 {
 }
 
-void LinearImage::RetrieveMipmaps(size_t min_x, size_t min_y)
+void TextureImage::RetrieveMipmaps(size_t min_x, size_t min_y)
 {
     assert(glTFimage_ptr->width != -1);
     assert(glTFimage_ptr->height != -1);
@@ -317,25 +362,9 @@ void LinearImage::RetrieveMipmaps(size_t min_x, size_t min_y)
         this_mipmap_factor *= 2;
         ++this_mipmap_level;
     } while (this_mipmap_width >= min_x && this_mipmap_height >= min_y);
-
-//    // Scale them
-//    {
-//        assert(reverseScaleFactors.empty());
-//        std::vector<float> components_max = GetComponentsMax();
-//
-//        std::vector<float> normalize_scales;
-//        for (float this_max: components_max) {
-//            if(this_max == 0.f) this_max = 1.f;
-//            normalize_scales.emplace_back(1.f / this_max);
-//            reverseScaleFactors.emplace_back(this_max);
-//        }
-//
-//        ScaleComponents(normalize_scales);
-//    }
-
 }
 
-std::optional<ImageData> LinearImage::LoadMipmapFromDisk(size_t level)
+std::optional<ImageData> TextureImage::LoadMipmapFromDisk(size_t level)
 {
     std::string path_to_mipmap = modelFolder + "/mipmaps/" + identifierString + "/mipmap_" + std::to_string(level) + ".png";
     if (std::filesystem::exists(path_to_mipmap)) {
@@ -372,14 +401,14 @@ std::optional<ImageData> LinearImage::LoadMipmapFromDisk(size_t level)
     }
 }
 
-void LinearImage::SaveMipmaps() const
+void TextureImage::SaveMipmaps() const
 {
     for(size_t level = 0; level != imagesData.size(); ++level) {
         SaveMipmapToDisk(level);
     }
 }
 
-void LinearImage::SaveMipmapToDisk(size_t level) const
+void TextureImage::SaveMipmapToDisk(size_t level) const
 {
     std::string path_to_mipmaps_folder = modelFolder + "/mipmaps";
     if (not std::filesystem::exists(path_to_mipmaps_folder))
@@ -398,12 +427,10 @@ void LinearImage::SaveMipmapToDisk(size_t level) const
         std::vector<std::byte> data;
         int bytes_per_texel = 0;
         if (saveAs16bit) {
-            data = imagesData[level].GetImage(false, true);
+            data = imagesData[level].GetImage16BitPerChannel();
             bytes_per_texel = int(imagesData[level].GetComponentsCount()) * 2;
         } else {
-            if (sRGBifPossible) data = imagesData[level].GetImage(true, false);
-            else data = imagesData[level].GetImage(false, false);
-
+            data = imagesData[level].GetImage8BitPerChannel(sRGBifPossible);
             bytes_per_texel = int(imagesData[level].GetComponentsCount());
         }
 
@@ -411,28 +438,18 @@ void LinearImage::SaveMipmapToDisk(size_t level) const
     }
 }
 
-std::vector<float> LinearImage::GetComponentsMax() const
+LinearImage::LinearImage(const tinygltf::Image &gltf_image,
+                         std::string identifier_string,
+                         std::string model_folder,
+                         glTFsamplerWrap wrap_S,
+                         glTFsamplerWrap wrap_T)
+                         : TextureImage(gltf_image,
+                                        identifier_string,
+                                        model_folder,
+                                        wrap_S, wrap_T,
+                                        true,
+                                        false)
 {
-    assert(imagesData.size());
-
-    std::vector<float> components_max = imagesData[0].GetComponentsMax();
-    for(size_t i = 1; i != imagesData.size(); ++i) {
-        std::vector<float> this_max = imagesData[i].GetComponentsMax();
-
-        assert(this_max.size() == components_max.size());
-        for (size_t comp = 0; comp != components_max.size(); ++comp) {
-            components_max[comp] = std::max(this_max[comp], components_max[comp]);
-        }
-    }
-
-    return components_max;
-}
-
-void LinearImage::ScaleComponents(const std::vector<float> &scales)
-{
-    for( auto& this_imageData: imagesData) {
-        this_imageData.ScaleComponents(scales);
-    }
 }
 
 ImageData LinearImage::CreateMipmap(const ImageData &reference, size_t dimension_factor) const
@@ -464,6 +481,67 @@ ImageData LinearImage::CreateMipmap(const ImageData &reference, size_t dimension
     }
 
     return mipmap_imageData;
-
 }
+
+NormalImage::NormalImage(const tinygltf::Image &gltf_image,
+                         std::string identifier_string,
+                         std::string model_folder,
+                         glTFsamplerWrap wrap_S,
+                         glTFsamplerWrap wrap_T,
+                         float in_scale)
+                         : TextureImage(gltf_image,
+                                        identifier_string,
+                                        model_folder,
+                                        wrap_S, wrap_T,
+                                        false,
+                                        false),
+                           scale(in_scale)
+{
+}
+
+ImageData NormalImage::CreateMipmap(const ImageData &reference, size_t dimension_factor) const
+{
+    if (dimension_factor == 1)
+        return reference;
+
+    assert(reference.GetComponentsCount() == 4);
+    ImageData mipmap_imageData(reference.GetWidth() / dimension_factor, reference.GetHeight() / dimension_factor,
+                               4, reference.GetWrapS(), reference.GetWrapT());
+
+    // Box filter
+    for (size_t x = 0; x != mipmap_imageData.GetWidth(); ++x) {
+        for (size_t y = 0; y != mipmap_imageData.GetWidth(); ++y) {
+            glm::vec3 sum_value = glm::vec3(0.f, 0.f, 0.f);
+            for (size_t i = 0; i != dimension_factor; ++i) {
+                for (size_t j = 0; j != dimension_factor; ++j) {
+                    glm::vec3 this_value;
+                    this_value.x = reference.GetComponent(int(x*dimension_factor + i), int(y*dimension_factor + j),
+                                                         0);
+                    this_value.y = reference.GetComponent(int(x*dimension_factor + i), int(y*dimension_factor + j),
+                                                          1);
+                    this_value.z = reference.GetComponent(int(x*dimension_factor + i), int(y*dimension_factor + j),
+                                                          2);
+
+                    this_value = this_value * 2.f - 1.f;
+                    this_value.x *= scale;
+                    this_value.y *= scale;
+                    sum_value += glm::normalize(this_value);
+                }
+            }
+
+            glm::vec3 value = glm::normalize(sum_value);
+            value.x /= scale;
+            value.y /= scale;
+            value = (value + 1.f) / 2.f;
+
+            mipmap_imageData.SetComponent(x, y, 0, value.x);
+            mipmap_imageData.SetComponent(x, y, 1, value.y);
+            mipmap_imageData.SetComponent(x, y, 2, value.z);
+            mipmap_imageData.SetComponent(x, y, 3, 1.f);
+        }
+    }
+
+    return mipmap_imageData;
+}
+
 

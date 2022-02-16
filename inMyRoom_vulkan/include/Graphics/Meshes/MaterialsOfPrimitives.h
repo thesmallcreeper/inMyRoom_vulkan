@@ -53,6 +53,7 @@ private: // data
 
     // Default textures
     uint32_t defaultColorTextureIndex = -1;
+    uint32_t defaultNormalTextureIndex = -1;
 
     // set: 0, bind: 0, UBO with material parameters
     // set: 0, bind: 1, array Sampler+Image

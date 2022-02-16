@@ -170,14 +170,16 @@ std::vector<std::byte> TexturesOfMaterials::GetImageFromImageData(const ImageDat
     if (image_data.GetComponentsCount() == 1 && format==vk::Format::eR8Srgb ||
        image_data.GetComponentsCount() == 2 && format==vk::Format::eR8G8Srgb ||
        image_data.GetComponentsCount() == 4 && format==vk::Format::eR8G8B8A8Srgb) {
-        return image_data.GetImage(true, false);
+        return image_data.GetImage8BitPerChannel(true);
     } else if (image_data.GetComponentsCount() == 1 && format==vk::Format::eR8Unorm ||
               image_data.GetComponentsCount() == 2 && format==vk::Format::eR8G8Unorm ||
               image_data.GetComponentsCount() == 4 && format==vk::Format::eR8G8B8A8Unorm) {
-        return image_data.GetImage(false, false);
+        return image_data.GetImage8BitPerChannel(false);
     } else if (image_data.GetComponentsCount() == 1 && format==vk::Format::eR16Unorm ||
               image_data.GetComponentsCount() == 2 && format==vk::Format::eR16G16Unorm ||
               image_data.GetComponentsCount() == 4 && format==vk::Format::eR16G16B16A16Unorm)  {
-        return image_data.GetImage(false, true);
+        return image_data.GetImage16BitPerChannel();
+    } else if (image_data.GetComponentsCount() == 4 && format==vk::Format::eA2R10G10B10UnormPack32) {
+        return image_data.GetImageA2R10G10B10();
     } else {assert(0); return {};}
 }
