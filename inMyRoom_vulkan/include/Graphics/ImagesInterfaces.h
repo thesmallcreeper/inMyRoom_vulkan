@@ -11,6 +11,7 @@ class ImageData
 public:
     ImageData(size_t width, size_t height, size_t components,
               glTFsamplerWrap wrap_S, glTFsamplerWrap wrap_T);
+    ImageData(const ImageData& image_data, std::vector<bool> channel_select);
 
     void SetImage(const std::vector<uint8_t>& data, bool is_srgb);
     void SetImage(const std::vector<uint16_t>& data);
@@ -73,7 +74,7 @@ public:
     const std::vector<ImageData>& GetMipmaps() const {assert(not imagesData.empty()); return imagesData;}
 
 protected:
-    virtual ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) const = 0;
+    virtual ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) = 0;
 
     std::optional<ImageData> LoadMipmapFromDisk(size_t level);
     void SaveMipmapToDisk(size_t level) const;
@@ -90,18 +91,18 @@ protected:
     bool saveAs16bit;
 };
 
-class LinearImage
+class ColorImage
     : public TextureImage
 {
 public:
-    LinearImage(const tinygltf::Image& gltf_image,
-                std::string identifier_string,
-                std::string model_folder,
-                glTFsamplerWrap wrap_S,
-                glTFsamplerWrap wrap_T);
+    ColorImage(const tinygltf::Image& gltf_image,
+               std::string identifier_string,
+               std::string model_folder,
+               glTFsamplerWrap wrap_S,
+               glTFsamplerWrap wrap_T);
 
 private:
-    ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) const override;
+    ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) override;
 };
 
 class NormalImage
@@ -115,9 +116,35 @@ public:
                 glTFsamplerWrap wrap_T,
                 float scale);
 
+    const std::unordered_map<uint32_t, ImageData>& GetWidthToLengthsDataUmap() const {return widthToLengthsData;}
+
 private:
-    ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) const override;
+    ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) override;
 
 private:
     float scale = 1.f;
+    std::unordered_map<uint32_t, ImageData> widthToLengthsData;
+};
+
+class MetallicRoughnessImage
+    : public TextureImage
+{
+public:
+    MetallicRoughnessImage(const tinygltf::Image& gltf_image,
+                           std::string identifier_string,
+                           std::string model_folder,
+                           glTFsamplerWrap wrap_S,
+                           glTFsamplerWrap wrap_T,
+                           float metallic_factor,
+                           float roughness_factor,
+                           const std::unordered_map<uint32_t, ImageData>& widthToLengthsData);
+
+private:
+    ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) override;
+
+private:
+    float metallic_factor;
+    float roughness_factor;
+
+    const std::unordered_map<uint32_t, ImageData>& widthToLengthsData;
 };

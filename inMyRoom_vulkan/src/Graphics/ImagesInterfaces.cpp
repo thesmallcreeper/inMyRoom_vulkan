@@ -23,6 +23,32 @@ ImageData::ImageData(size_t in_width, size_t in_height, size_t in_components,
     floatBuffer.resize(width * height * componentsCount);
 }
 
+ImageData::ImageData(const ImageData &image_data, std::vector<bool> channel_select)
+    : width(image_data.width),
+      height(image_data.height),
+      wrap_S(image_data.wrap_S),
+      wrap_T(image_data.wrap_T)
+{
+    assert(image_data.componentsCount == channel_select.size());
+
+    componentsCount = 0;
+    for(bool channel_bool: channel_select) {
+        if (channel_bool) ++componentsCount;
+    }
+
+    floatBuffer.resize(width * height * componentsCount);
+
+    for (size_t i = 0; i != width * height; ++i) {
+        size_t comp = 0;
+        for (size_t j = 0; j != channel_select.size(); ++j) {
+            if (channel_select[j]) {
+                floatBuffer[i * componentsCount + comp] = image_data.floatBuffer[i * image_data.componentsCount + j];
+                ++comp;
+            }
+        }
+    }
+}
+
 void ImageData::SetImage(const std::vector<uint8_t> &data, bool is_srgb)
 {
     assert(data.size() == width * height * componentsCount);
@@ -438,11 +464,11 @@ void TextureImage::SaveMipmapToDisk(size_t level) const
     }
 }
 
-LinearImage::LinearImage(const tinygltf::Image &gltf_image,
-                         std::string identifier_string,
-                         std::string model_folder,
-                         glTFsamplerWrap wrap_S,
-                         glTFsamplerWrap wrap_T)
+ColorImage::ColorImage(const tinygltf::Image &gltf_image,
+                       std::string identifier_string,
+                       std::string model_folder,
+                       glTFsamplerWrap wrap_S,
+                       glTFsamplerWrap wrap_T)
                          : TextureImage(gltf_image,
                                         identifier_string,
                                         model_folder,
@@ -452,7 +478,7 @@ LinearImage::LinearImage(const tinygltf::Image &gltf_image,
 {
 }
 
-ImageData LinearImage::CreateMipmap(const ImageData &reference, size_t dimension_factor) const
+ImageData ColorImage::CreateMipmap(const ImageData &reference, size_t dimension_factor)
 {
     if (dimension_factor == 1)
         return reference;
@@ -499,7 +525,7 @@ NormalImage::NormalImage(const tinygltf::Image &gltf_image,
 {
 }
 
-ImageData NormalImage::CreateMipmap(const ImageData &reference, size_t dimension_factor) const
+ImageData NormalImage::CreateMipmap(const ImageData &reference, size_t dimension_factor)
 {
     if (dimension_factor == 1)
         return reference;
@@ -507,6 +533,9 @@ ImageData NormalImage::CreateMipmap(const ImageData &reference, size_t dimension
     assert(reference.GetComponentsCount() == 4);
     ImageData mipmap_imageData(reference.GetWidth() / dimension_factor, reference.GetHeight() / dimension_factor,
                                4, reference.GetWrapS(), reference.GetWrapT());
+
+    ImageData length_data(reference.GetWidth() / dimension_factor, reference.GetHeight() / dimension_factor,
+                          1, reference.GetWrapS(), reference.GetWrapT());
 
     // Box filter
     for (size_t x = 0; x != mipmap_imageData.GetWidth(); ++x) {
@@ -529,7 +558,10 @@ ImageData NormalImage::CreateMipmap(const ImageData &reference, size_t dimension
                 }
             }
 
-            glm::vec3 value = glm::normalize(sum_value);
+            glm::vec3 value_unormalized = sum_value / float(dimension_factor * dimension_factor);
+            float length = glm::length(value_unormalized);
+
+            glm::vec3 value = glm::normalize(value_unormalized);
             value.x /= scale;
             value.y /= scale;
             value = (value + 1.f) / 2.f;
@@ -538,10 +570,71 @@ ImageData NormalImage::CreateMipmap(const ImageData &reference, size_t dimension
             mipmap_imageData.SetComponent(x, y, 1, value.y);
             mipmap_imageData.SetComponent(x, y, 2, value.z);
             mipmap_imageData.SetComponent(x, y, 3, 1.f);
+
+            length_data.SetComponent(x, y, 0, length);
+        }
+    }
+
+    widthToLengthsData.emplace(length_data.GetWidth(), std::move(length_data));
+    return mipmap_imageData;
+}
+
+
+MetallicRoughnessImage::MetallicRoughnessImage(const tinygltf::Image &gltf_image,
+                                               std::string identifier_string,
+                                               std::string model_folder,
+                                               glTFsamplerWrap wrap_S,
+                                               glTFsamplerWrap wrap_T,
+                                               float in_metallic_factor,
+                                               float in_roughness_factor,
+                                               const std::unordered_map<uint32_t, ImageData> &in_widthToLengthsData)
+                                               : TextureImage(gltf_image,
+                                                              identifier_string,
+                                                              model_folder,
+                                                              wrap_S, wrap_T,
+                                                              false,
+                                                              true),
+                                                 metallic_factor(in_metallic_factor),
+                                                 roughness_factor(in_roughness_factor),
+                                                 widthToLengthsData(in_widthToLengthsData)
+{
+}
+
+ImageData MetallicRoughnessImage::CreateMipmap(const ImageData &reference, size_t dimension_factor)
+{
+    if (dimension_factor == 1)
+        return reference;
+
+    assert(reference.GetComponentsCount() == 4);
+    ImageData mipmap_imageData(reference.GetWidth() / dimension_factor, reference.GetHeight() / dimension_factor,
+                               4, reference.GetWrapS(), reference.GetWrapT());
+
+    bool should_apply_roughness_normal_correction = widthToLengthsData.find(mipmap_imageData.GetWidth()) != widthToLengthsData.end();
+
+    for (size_t x = 0; x != mipmap_imageData.GetWidth(); ++x) {
+        for (size_t y = 0; y != mipmap_imageData.GetWidth(); ++y) {
+            float roughness_sum = 0.f;
+            float metallic_sum = 0.f;
+            for (size_t i = 0; i != dimension_factor; ++i) {
+                for (size_t j = 0; j != dimension_factor; ++j) {
+                    roughness_sum += reference.GetComponent(int(x*dimension_factor + i), int(y*dimension_factor + j),
+                                                           1);
+                    metallic_sum += reference.GetComponent(int(x*dimension_factor + i), int(y*dimension_factor + j),
+                                                           2);
+                }
+            }
+
+            float metallic_value = metallic_sum / float(dimension_factor*dimension_factor);
+            float roughness_value = roughness_sum / float(dimension_factor*dimension_factor);
+
+            // TODO: roughness correction
+
+            mipmap_imageData.SetComponent(x, y, 0, 1.f);
+            mipmap_imageData.SetComponent(x, y, 1, roughness_value);
+            mipmap_imageData.SetComponent(x, y, 2, metallic_value);
+            mipmap_imageData.SetComponent(x, y, 3, 1.f);
         }
     }
 
     return mipmap_imageData;
 }
-
-

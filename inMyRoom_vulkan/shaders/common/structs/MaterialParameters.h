@@ -11,8 +11,13 @@ struct MaterialParameters
     UINT_T normalTexture;
     UINT_T normalTexCoord;
 
-    FLOAT_T normalScale;
+    UINT_T metallicRoughnessTexture;
+    UINT_T metallicRoughnessTexCoord;
+
     FLOAT_T alphaCutoff;
+    FLOAT_T normalScale;
+    FLOAT_T metallicFactor;
+    FLOAT_T roughnessFactor;
 };
 
 #define FILE_MATERIAL_PARAMETERS
