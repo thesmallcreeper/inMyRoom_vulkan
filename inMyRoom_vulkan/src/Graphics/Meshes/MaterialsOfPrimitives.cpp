@@ -19,9 +19,7 @@ void MaterialsOfPrimitives::AddDefaultTextures()
     // Color texture
     {
         ImageData image(4, 4, 4, glTFsamplerWrap::repeat, glTFsamplerWrap::repeat);
-
-        std::vector<uint8_t> image_data(4 * 4 * 4, 0);
-        image.SetImage(image_data, false);
+        image.BiasComponents({0.3f ,0.3f ,0.3f, 1.f});
 
         defaultColorTextureIndex = texturesOfMaterials_ptr->AddTextureAndMipmaps(std::vector(1, image),
                                                                                  vk::Format::eR8G8B8A8Srgb);
@@ -30,15 +28,7 @@ void MaterialsOfPrimitives::AddDefaultTextures()
     // Normal texture
     {
         ImageData image(4, 4, 4, glTFsamplerWrap::repeat, glTFsamplerWrap::repeat);
-
-        std::vector<uint16_t> image_data(4 * 4 * 4, 0);
-        for(size_t i = 0; i < image_data.size(); i += 4) {
-            image_data[i]     = uint16_t(-1) >> 1;
-            image_data[i + 1] = uint16_t(-1) >> 1;
-            image_data[i + 2] = uint16_t(-1);
-            image_data[i + 3] = uint16_t(-1);
-        }
-        image.SetImage(image_data);
+        image.BiasComponents({0.5f, 0.5f, 1.f, 1.f});
 
         defaultNormalTextureIndex = texturesOfMaterials_ptr->AddTextureAndMipmaps(std::vector(1, image),
                                                                                   vk::Format::eA2R10G10B10UnormPack32);
@@ -46,13 +36,7 @@ void MaterialsOfPrimitives::AddDefaultTextures()
     // MetallicRoughness texture
     {
         ImageData image(4, 4, 2, glTFsamplerWrap::repeat, glTFsamplerWrap::repeat);
-
-        std::vector<uint16_t> image_data(4 * 4 * 2, 0);
-        for(size_t i = 0; i < image_data.size(); i += 2) {
-            image_data[i]     = uint16_t(-1);
-            image_data[i + 1] = uint16_t(-1);
-        }
-        image.SetImage(image_data);
+        image.BiasComponents({1.f, 1.f});
 
         defaultMetallicRoughnessTextureIndex = texturesOfMaterials_ptr->AddTextureAndMipmaps(std::vector(1, image),
                                                                                              vk::Format::eR16G16Unorm);
@@ -79,8 +63,6 @@ void MaterialsOfPrimitives::AddDefaultMaterial()
     this_materialParameters.normalScale = 0.f;
 
     this_materialParameters.metallicRoughnessTexture = defaultMetallicRoughnessTextureIndex;
-    this_materialParameters.metallicFactor = 0.f;
-    this_materialParameters.roughnessFactor = 1.f;
 
     materialsAbout.emplace_back(this_materialAbout);
     materialsParameters.emplace_back(this_materialParameters);
@@ -228,36 +210,33 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
         {   // baseColorTexture
             if (this_material.pbrMetallicRoughness.baseColorTexture.index != -1) {
                 const tinygltf::Texture& color_texture = model.textures[this_material.pbrMetallicRoughness.baseColorTexture.index];
-                if(color_texture.source != -1) {
-                    ColorTextureSpecs colorTextureSpecs = {};
-                    colorTextureSpecs.image_ptr = &model.images[color_texture.source];
-                    if(color_texture.sampler != -1) {
-                        const tinygltf::Sampler& this_sampler = model.samplers[color_texture.sampler];
-                        colorTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
-                        colorTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
-                    }
 
-                    auto search = colorTextureSpecsToTextureIndex_umap.find(colorTextureSpecs);
-                    if(search != colorTextureSpecsToTextureIndex_umap.end()) {
-                        this_materialParameters.baseColorTexture = uint32_t(search->second);
-                    } else {
-                        ColorImage color_image = {*colorTextureSpecs.image_ptr,
-                                                   (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_colorTexture",
-                                                  model_folder,
-                                                  colorTextureSpecs.wrap_S,
-                                                  colorTextureSpecs.wrap_T};
+                ColorTextureSpecs colorTextureSpecs = {};
+                colorTextureSpecs.image_ptr = &model.images[color_texture.source];
+                if(color_texture.sampler != -1) {
+                    const tinygltf::Sampler& this_sampler = model.samplers[color_texture.sampler];
+                    colorTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
+                    colorTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
+                }
 
-                        color_image.RetrieveMipmaps(16, 16);
-                        size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(color_image.GetMipmaps(),
-                                                                                             vk::Format::eR8G8B8A8Srgb);
-                        this_materialParameters.baseColorTexture = uint32_t(texture_index);
-
-                        color_image.SaveMipmaps();
-
-                        colorTextureSpecsToTextureIndex_umap.emplace(colorTextureSpecs, texture_index);
-                    }
+                auto search = colorTextureSpecsToTextureIndex_umap.find(colorTextureSpecs);
+                if(search != colorTextureSpecsToTextureIndex_umap.end()) {
+                    this_materialParameters.baseColorTexture = uint32_t(search->second);
                 } else {
-                    this_materialParameters.baseColorTexture = defaultColorTextureIndex;
+                    ColorImage color_image = {colorTextureSpecs.image_ptr,
+                                              (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_colorTexture",
+                                              model_folder,
+                                              colorTextureSpecs.wrap_S,
+                                              colorTextureSpecs.wrap_T};
+
+                    color_image.RetrieveMipmaps(16, 16);
+                    size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(color_image.GetMipmaps(),
+                                                                                         vk::Format::eR8G8B8A8Srgb);
+                    this_materialParameters.baseColorTexture = uint32_t(texture_index);
+
+                    color_image.SaveMipmaps();
+
+                    colorTextureSpecsToTextureIndex_umap.emplace(colorTextureSpecs, texture_index);
                 }
             } else {
                 this_materialParameters.baseColorTexture = defaultColorTextureIndex;
@@ -269,44 +248,39 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
         {   // normalTexture
             if (this_material.normalTexture.index != -1) {
                 const tinygltf::Texture& normal_texture = model.textures[this_material.normalTexture.index];
-                if(normal_texture.source != -1) {
-                    NormalTextureSpecs normalTextureSpecs = {};
-                    normalTextureSpecs.image_ptr = &model.images[normal_texture.source];
-                    normalTextureSpecs.scale = float(this_material.normalTexture.scale);
-                    if(normal_texture.sampler != -1) {
-                        const tinygltf::Sampler& this_sampler = model.samplers[normal_texture.sampler];
-                        normalTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
-                        normalTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
-                    }
 
-                    auto search = normalTextureSpecsToTextureIndex_umap.find(normalTextureSpecs);
-                    if(search != normalTextureSpecsToTextureIndex_umap.end()) {
-                        this_materialParameters.normalTexture = uint32_t(search->second);
-                        this_materialParameters.normalScale = normalTextureSpecs.scale;
-                    } else {
-                        NormalImage normal_image = {*normalTextureSpecs.image_ptr,
-                                                    (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_normalTexture",
-                                                    model_folder,
-                                                    normalTextureSpecs.wrap_S,
-                                                    normalTextureSpecs.wrap_T,
-                                                    normalTextureSpecs.scale};
+                NormalTextureSpecs normalTextureSpecs = {};
+                normalTextureSpecs.image_ptr = &model.images[normal_texture.source];
+                normalTextureSpecs.scale = float(this_material.normalTexture.scale);
+                if(normal_texture.sampler != -1) {
+                    const tinygltf::Sampler& this_sampler = model.samplers[normal_texture.sampler];
+                    normalTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
+                    normalTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
+                }
 
-                        normal_image.RetrieveMipmaps(16, 16);
-                        size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(normal_image.GetMipmaps(),
-                                                                                             vk::Format::eA2R10G10B10UnormPack32);
-
-                        this_materialParameters.normalTexture = uint32_t(texture_index);
-                        this_materialParameters.normalScale = normalTextureSpecs.scale;
-
-                        normal_image.SaveMipmaps();
-
-                        normalTextureSpecsToTextureIndex_umap.emplace(normalTextureSpecs, texture_index);
-                        normalTextureSpecsToNormalImage_umap.emplace(normalTextureSpecs, std::move(normal_image));
-                    }
-
+                auto search = normalTextureSpecsToTextureIndex_umap.find(normalTextureSpecs);
+                if(search != normalTextureSpecsToTextureIndex_umap.end()) {
+                    this_materialParameters.normalTexture = uint32_t(search->second);
+                    this_materialParameters.normalScale = normalTextureSpecs.scale;
                 } else {
-                    this_materialParameters.normalTexture = defaultNormalTextureIndex;
-                    this_materialParameters.normalScale = 0.f;
+                    NormalImage normal_image = {normalTextureSpecs.image_ptr,
+                                                (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_normalTexture",
+                                                model_folder,
+                                                normalTextureSpecs.wrap_S,
+                                                normalTextureSpecs.wrap_T,
+                                                normalTextureSpecs.scale};
+
+                    normal_image.RetrieveMipmaps(16, 16);
+                    size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(normal_image.GetMipmaps(),
+                                                                                         vk::Format::eA2R10G10B10UnormPack32);
+
+                    this_materialParameters.normalTexture = uint32_t(texture_index);
+                    this_materialParameters.normalScale = normalTextureSpecs.scale;
+
+                    normal_image.SaveMipmaps();
+
+                    normalTextureSpecsToTextureIndex_umap.emplace(normalTextureSpecs, texture_index);
+                    normalTextureSpecsToNormalImage_umap.emplace(normalTextureSpecs, std::move(normal_image));
                 }
             } else {
                 this_materialParameters.normalTexture = defaultNormalTextureIndex;
@@ -315,87 +289,127 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
 
             this_materialParameters.normalTexCoord = this_material.normalTexture.texCoord;
         }
-        {   // metallicRoughnessFactors
-            this_materialParameters.metallicFactor = float(this_material.pbrMetallicRoughness.metallicFactor);
-            this_materialParameters.roughnessFactor = float(this_material.pbrMetallicRoughness.roughnessFactor);
-        }
         {   // metallicRoughnessTexture
             if(this_material.pbrMetallicRoughness.metallicRoughnessTexture.index != -1) {
                 const tinygltf::Texture& metallicRoughness_texture = model.textures[this_material.pbrMetallicRoughness.metallicRoughnessTexture.index];
-                if(metallicRoughness_texture.source != -1) {
-                    MetallicRoughnessTextureSpecs metallicRoughnessTextureSpecs = {};
-                    metallicRoughnessTextureSpecs.image_ptr = &model.images[metallicRoughness_texture.source];
-                    metallicRoughnessTextureSpecs.metallic_factor = float(this_material.pbrMetallicRoughness.metallicFactor);
-                    metallicRoughnessTextureSpecs.roughness_factor = float(this_material.pbrMetallicRoughness.roughnessFactor);
-                    if(metallicRoughness_texture.sampler != -1) {
-                        const tinygltf::Sampler& this_sampler = model.samplers[metallicRoughness_texture.sampler];
+
+                MetallicRoughnessTextureSpecs metallicRoughnessTextureSpecs = {};
+                metallicRoughnessTextureSpecs.image_ptr = &model.images[metallicRoughness_texture.source];
+                metallicRoughnessTextureSpecs.metallic_factor = float(this_material.pbrMetallicRoughness.metallicFactor);
+                metallicRoughnessTextureSpecs.roughness_factor = float(this_material.pbrMetallicRoughness.roughnessFactor);
+                if(metallicRoughness_texture.sampler != -1) {
+                    const tinygltf::Sampler& this_sampler = model.samplers[metallicRoughness_texture.sampler];
+                    metallicRoughnessTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
+                    metallicRoughnessTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
+                }
+
+                // In order to search for normal length data
+                if(this_material.normalTexture.index != -1) {
+                    const tinygltf::Texture &normal_texture = model.textures[this_material.normalTexture.index];
+
+                    metallicRoughnessTextureSpecs.normalTextureSpecs.image_ptr = &model.images[normal_texture.source];
+                    metallicRoughnessTextureSpecs.normalTextureSpecs.scale = float(this_material.normalTexture.scale);
+                    if (normal_texture.sampler != -1) {
+                        const tinygltf::Sampler &this_sampler = model.samplers[normal_texture.sampler];
+                        metallicRoughnessTextureSpecs.normalTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
+                        metallicRoughnessTextureSpecs.normalTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
+                    }
+                }
+
+                auto search = metallicRoughnessTextureSpecsToTextureIndex_umap.find(metallicRoughnessTextureSpecs);
+                if(search != metallicRoughnessTextureSpecsToTextureIndex_umap.end()) {
+                    this_materialParameters.metallicRoughnessTexture = uint32_t(search->second);
+                } else {
+                    MetallicRoughnessImage metallicRoughness_image = {metallicRoughnessTextureSpecs.image_ptr,
+                                                                      (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_metallicRoughnessTexture",
+                                                                      model_folder,
+                                                                      metallicRoughnessTextureSpecs.wrap_S,
+                                                                      metallicRoughnessTextureSpecs.wrap_T,
+                                                                      metallicRoughnessTextureSpecs.metallic_factor,
+                                                                      metallicRoughnessTextureSpecs.roughness_factor,
+                                                                      (normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs) != normalTextureSpecsToNormalImage_umap.end()) ?
+                                                                            normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs)->second.GetWidthToLengthsDataUmap() :
+                                                                            std::unordered_map<uint32_t, ImageData>()};
+
+                    metallicRoughness_image.RetrieveMipmaps(16, 16);
+
+                    std::vector<ImageData> images_two_channels;
+                    for(const ImageData& this_image:metallicRoughness_image.GetMipmaps()) {
+                        std::vector<bool> channel_select = {false, true, true, false};
+                        images_two_channels.emplace_back(this_image, channel_select);
+                    }
+                    size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(images_two_channels,
+                                                                                         vk::Format::eR16G16Unorm);
+
+                    this_materialParameters.metallicRoughnessTexture = uint32_t(texture_index);
+
+                    metallicRoughness_image.SaveMipmaps();
+
+                    metallicRoughnessTextureSpecsToTextureIndex_umap.emplace(metallicRoughnessTextureSpecs, texture_index);
+                }
+
+            } else {
+                // If there is no metallic roughness map then create one!
+
+                MetallicRoughnessTextureSpecs metallicRoughnessTextureSpecs = {};
+                metallicRoughnessTextureSpecs.image_ptr = nullptr;
+                metallicRoughnessTextureSpecs.metallic_factor = float(this_material.pbrMetallicRoughness.metallicFactor);
+                metallicRoughnessTextureSpecs.roughness_factor = float(this_material.pbrMetallicRoughness.roughnessFactor);
+
+                // In order to search for normal length data
+                if(this_material.normalTexture.index != -1) {
+                    const tinygltf::Texture &normal_texture = model.textures[this_material.normalTexture.index];
+
+                    metallicRoughnessTextureSpecs.normalTextureSpecs.image_ptr = &model.images[normal_texture.source];
+                    metallicRoughnessTextureSpecs.normalTextureSpecs.scale = float(this_material.normalTexture.scale);
+                    if (normal_texture.sampler != -1) {
+                        const tinygltf::Sampler &this_sampler = model.samplers[normal_texture.sampler];
                         metallicRoughnessTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
                         metallicRoughnessTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
+                        metallicRoughnessTextureSpecs.normalTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
+                        metallicRoughnessTextureSpecs.normalTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
                     }
-
-                    // In order to search for normal length data
-                    if(this_material.normalTexture.index != -1) {
-                        const tinygltf::Texture &normal_texture = model.textures[this_material.normalTexture.index];
-                        if (normal_texture.source != -1) {
-                            metallicRoughnessTextureSpecs.normalTextureSpecs.image_ptr = &model.images[normal_texture.source];
-                            metallicRoughnessTextureSpecs.normalTextureSpecs.scale = float(this_material.normalTexture.scale);
-                            if (normal_texture.sampler != -1) {
-                                const tinygltf::Sampler &this_sampler = model.samplers[normal_texture.sampler];
-                                metallicRoughnessTextureSpecs.normalTextureSpecs.wrap_S = static_cast<glTFsamplerWrap>(this_sampler.wrapS);
-                                metallicRoughnessTextureSpecs.normalTextureSpecs.wrap_T = static_cast<glTFsamplerWrap>(this_sampler.wrapT);
-                            }
-                        }
-                    }
-
-                    auto search = metallicRoughnessTextureSpecsToTextureIndex_umap.find(metallicRoughnessTextureSpecs);
-                    if(search != metallicRoughnessTextureSpecsToTextureIndex_umap.end()) {
-                        this_materialParameters.metallicRoughnessTexture = uint32_t(search->second);
-                    } else {
-                        MetallicRoughnessImage metallicRoughness_image = {*metallicRoughnessTextureSpecs.image_ptr,
-                                                                          (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_metallicRoughnessTexture",
-                                                                          model_folder,
-                                                                          metallicRoughnessTextureSpecs.wrap_S,
-                                                                          metallicRoughnessTextureSpecs.wrap_T,
-                                                                          metallicRoughnessTextureSpecs.metallic_factor,
-                                                                          metallicRoughnessTextureSpecs.roughness_factor,
-                                                                          (normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs) != normalTextureSpecsToNormalImage_umap.end()) ?
-                                                                                normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs)->second.GetWidthToLengthsDataUmap() :
-                                                                                std::unordered_map<uint32_t, ImageData>()};
-
-                        metallicRoughness_image.RetrieveMipmaps(16, 16);
-
-                        std::vector<ImageData> images_two_channels;
-                        for(const ImageData& this_image:metallicRoughness_image.GetMipmaps()) {
-                            std::vector<bool> channel_select = {false, true, true, false};
-                            images_two_channels.emplace_back(this_image, channel_select);
-                        }
-                        size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(images_two_channels,
-                                                                                             vk::Format::eR16G16Unorm);
-
-                        this_materialParameters.metallicRoughnessTexture = uint32_t(texture_index);
-
-                        metallicRoughness_image.SaveMipmaps();
-
-                        metallicRoughnessTextureSpecsToTextureIndex_umap.emplace(metallicRoughnessTextureSpecs, texture_index);
-                    }
-
-                } else {
-                    // TODO: Create a roughness texture
-
-                    this_materialParameters.metallicRoughnessTexture = defaultMetallicRoughnessTextureIndex;
                 }
-            } else {
-                this_materialParameters.metallicRoughnessTexture = defaultMetallicRoughnessTextureIndex;
+
+                auto search = metallicRoughnessTextureSpecsToTextureIndex_umap.find(metallicRoughnessTextureSpecs);
+                if(search != metallicRoughnessTextureSpecsToTextureIndex_umap.end()) {
+                    this_materialParameters.metallicRoughnessTexture = uint32_t(search->second);
+                } else {
+                    MetallicRoughnessImage metallicRoughness_image = {nullptr,
+                                                                      (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_metallicRoughnessTexture",
+                                                                      model_folder,
+                                                                      metallicRoughnessTextureSpecs.wrap_S,
+                                                                      metallicRoughnessTextureSpecs.wrap_T,
+                                                                      metallicRoughnessTextureSpecs.metallic_factor,
+                                                                      metallicRoughnessTextureSpecs.roughness_factor,
+                                                                      (normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs) != normalTextureSpecsToNormalImage_umap.end()) ?
+                                                                            normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs)->second.GetWidthToLengthsDataUmap() :
+                                                                            std::unordered_map<uint32_t, ImageData>()};
+
+                    metallicRoughness_image.RetrieveMipmaps(16, 16);
+
+                    std::vector<ImageData> images_two_channels;
+                    for (const ImageData &this_image: metallicRoughness_image.GetMipmaps()) {
+                        std::vector<bool> channel_select = {false, true, true, false};
+                        images_two_channels.emplace_back(this_image, channel_select);
+                    }
+                    size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(images_two_channels,
+                                                                                         vk::Format::eR16G16Unorm);
+
+                    this_materialParameters.metallicRoughnessTexture = uint32_t(texture_index);
+
+                    metallicRoughness_image.SaveMipmaps();
+
+                    metallicRoughnessTextureSpecsToTextureIndex_umap.emplace(metallicRoughnessTextureSpecs, texture_index);
+                }
             }
 
             this_materialParameters.metallicRoughnessTexCoord = this_material.pbrMetallicRoughness.metallicRoughnessTexture.texCoord;
         }
 
-
         materialsAbout.emplace_back(this_materialAbout);
         materialsParameters.emplace_back(this_materialParameters);
     }
-
 }
 
 void MaterialsOfPrimitives::FlashDevice(std::pair<vk::Queue, uint32_t> queue)

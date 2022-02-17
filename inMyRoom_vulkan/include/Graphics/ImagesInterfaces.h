@@ -60,7 +60,7 @@ private:
 class TextureImage
 {
 public:
-    TextureImage(const tinygltf::Image& gltf_image,
+    TextureImage(const tinygltf::Image* gltf_image_ptr,
                  std::string identifier_string,
                  std::string model_folder,
                  glTFsamplerWrap wrap_S,
@@ -95,7 +95,7 @@ class ColorImage
     : public TextureImage
 {
 public:
-    ColorImage(const tinygltf::Image& gltf_image,
+    ColorImage(const tinygltf::Image* gltf_image_ptr,
                std::string identifier_string,
                std::string model_folder,
                glTFsamplerWrap wrap_S,
@@ -109,7 +109,7 @@ class NormalImage
     : public TextureImage
 {
 public:
-    NormalImage(const tinygltf::Image& gltf_image,
+    NormalImage(const tinygltf::Image* gltf_image_ptr,
                 std::string identifier_string,
                 std::string model_folder,
                 glTFsamplerWrap wrap_S,
@@ -130,7 +130,7 @@ class MetallicRoughnessImage
     : public TextureImage
 {
 public:
-    MetallicRoughnessImage(const tinygltf::Image& gltf_image,
+    MetallicRoughnessImage(const tinygltf::Image* gltf_image_ptr,
                            std::string identifier_string,
                            std::string model_folder,
                            glTFsamplerWrap wrap_S,

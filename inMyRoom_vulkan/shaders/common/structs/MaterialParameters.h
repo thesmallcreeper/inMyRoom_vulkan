@@ -16,8 +16,6 @@ struct MaterialParameters
 
     FLOAT_T alphaCutoff;
     FLOAT_T normalScale;
-    FLOAT_T metallicFactor;
-    FLOAT_T roughnessFactor;
 };
 
 #define FILE_MATERIAL_PARAMETERS
