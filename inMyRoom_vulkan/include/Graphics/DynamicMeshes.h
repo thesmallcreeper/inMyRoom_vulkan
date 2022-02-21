@@ -46,6 +46,8 @@ struct DynamicMeshInfo {
     vma::Allocation updateScratchAllocation;
 
     size_t meshIndex                = -1;
+
+    bool shouldBeDeleted            = false;
 };
 
 struct DynamicMeshComputePushConstants {
@@ -87,7 +89,7 @@ public:
 
 private:
     std::unordered_map<size_t, DynamicMeshInfo> indexToDynamicMeshInfo_umap;
-    std::vector<std::pair<DynamicMeshInfo, uint32_t>> dynamicMeshToBeRemovedCountdown;
+    std::vector<std::pair<size_t, uint32_t>> indexToBeRemovedCountdown;
 
     vk::DescriptorPool      descriptorPool;
     vk::DescriptorSet       descriptorSets[3];

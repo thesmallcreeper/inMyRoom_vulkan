@@ -21,7 +21,7 @@ std::vector<T_out> transformRange(const std::byte* begin, const std::byte* end,
     std::vector<T_out> ret_vec;
     while (ptr != ptr_end)
     {
-        std::array<T_in, bunch_in_size> bunch;
+        std::array<T_in, bunch_in_size> bunch = {};
         std::copy(ptr, ptr + bunch_in_size, bunch.data());
 
         if constexpr(std::is_integral_v<T_data> && std::is_floating_point_v<T_in>) {
@@ -172,6 +172,9 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                     normal.emplace_back(this_vec[4 * i + 3]);
                 }
             }
+        } else {
+            // TODO: fallback
+            assert(0);
         }
     }
 
@@ -232,6 +235,9 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                     }
                 }
             }
+        } else {
+            // TODO: fallback
+            assert(0);
         }
     }
 
@@ -353,7 +359,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                 if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
                     std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
                                                                   +[](const std::array<float, 3> &in) -> std::array<float, 4> {
-                                                                  std::array<float,4> out;
+                                                                  std::array<float,4> out = {};
                                                                   out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
                                                                   return out;});
 
@@ -361,7 +367,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                 } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
                     std::vector attribute = transformRange<uint8_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
                                                                     +[](const std::array<float, 3> &in) -> std::array<float, 4> {
-                                                                    std::array<float,4> out;
+                                                                    std::array<float,4> out = {};
                                                                     out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
                                                                     return out;});
 
@@ -369,7 +375,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                 } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
                     std::vector attribute = transformRange<uint16_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
                                                                      +[](const std::array<float, 3> &in) -> std::array<float, 4> {
-                                                                     std::array<float,4> out;
+                                                                     std::array<float,4> out = {};
                                                                      out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 1.f;
                                                                      return out;});
 
@@ -404,7 +410,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                         if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
                             std::vector target = transformRange<float>(target_begin_end_ptr.first, target_begin_end_ptr.second,
                                                                        +[](const std::array<float, 3> &in) -> std::array<float, 4> {
-                                                                        std::array<float,4> out;
+                                                                        std::array<float,4> out = {};
                                                                         out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 0.f;
                                                                         return out;});
 
@@ -412,7 +418,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                         } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
                             std::vector target = transformRange<uint8_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
                                                                          +[](const std::array<float, 3> &in) -> std::array<float, 4> {
-                                                                          std::array<float,4> out;
+                                                                          std::array<float,4> out = {};
                                                                           out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 0.f;
                                                                           return out;});
 
@@ -420,7 +426,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                         } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
                             std::vector target = transformRange<uint16_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
                                                                           +[](const std::array<float, 3> &in) -> std::array<float, 4> {
-                                                                           std::array<float,4> out;
+                                                                           std::array<float,4> out = {};
                                                                            out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 0.f;
                                                                            return out;});
 
@@ -428,7 +434,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                         } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_byte)) {
                             std::vector target = transformRange<int8_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
                                                                         +[](const std::array<float, 3> &in) -> std::array<float, 4> {
-                                                                         std::array<float,4> out;
+                                                                         std::array<float,4> out = {};
                                                                          out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 0.f;
                                                                          return out;});
 
@@ -436,7 +442,7 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
                         } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_short)) {
                             std::vector target = transformRange<int16_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
                                                                          +[](const std::array<float, 3> &in) -> std::array<float, 4> {
-                                                                          std::array<float,4> out;
+                                                                          std::array<float,4> out = {};
                                                                           out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = 0.f;
                                                                           return out;});
 
@@ -750,15 +756,15 @@ void PrimitivesOfMeshes::AddDefaultPrimitive()
         default_primitiveInitializationData.texcoords.emplace_back(0.5f);
         default_primitiveInitializationData.texcoords.emplace_back(0.5f);
 
-        default_primitiveInitializationData.color.emplace_back(0.0f);
-        default_primitiveInitializationData.color.emplace_back(0.0f);
-        default_primitiveInitializationData.color.emplace_back(0.0f);
-        default_primitiveInitializationData.color.emplace_back(0.0f);
-    }
+        // Align
+        default_primitiveInitializationData.texcoords.emplace_back(0.5f);
+        default_primitiveInitializationData.texcoords.emplace_back(0.5f);
 
-    // Align
-    default_primitiveInitializationData.texcoords.emplace_back(0.f);
-    default_primitiveInitializationData.texcoords.emplace_back(0.f);
+        default_primitiveInitializationData.color.emplace_back(1.0f);
+        default_primitiveInitializationData.color.emplace_back(1.0f);
+        default_primitiveInitializationData.color.emplace_back(1.0f);
+        default_primitiveInitializationData.color.emplace_back(1.0f);
+    }
 
     primitivesInitializationData.emplace_back(default_primitiveInitializationData);
 }

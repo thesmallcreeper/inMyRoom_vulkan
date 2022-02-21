@@ -1,6 +1,7 @@
 #include "Graphics/Renderers/Renderer.h"
 
 #include "Graphics/Graphics.h"
+#include "Graphics/HelperUtils.h"
 
 Renderer::Renderer(class Graphics* in_graphics_ptr,
                    vk::Device in_device,
@@ -18,7 +19,8 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
     InitSemaphoresAndFences();
     InitCommandBuffers();
     InitPrimitivesSet();
-    InitFullscreenPipeline();
+    InitShadePipeline();
+    InitToneMapPipeline();
 }
 
 Renderer::~Renderer()
@@ -46,8 +48,12 @@ Renderer::~Renderer()
     device.destroy(visibilityImageView);
     vma_allocator.destroyImage(visibilityImage, visibilityAllocation);
 
+    device.destroy(photometricResultImageView);
+    vma_allocator.destroyImage(photometricResultImage, photometricResultAllocation);
+
     device.destroy(descriptorPool);
-    device.destroy(primitivesInstanceDescriptorSetLayout);
+    device.destroy(rendererDescriptorSetLayout);
+    device.destroy(toneMapDescriptorSetLayout);
 
     vma_allocator.destroyBuffer(primitivesInstanceBuffer, primitivesInstanceAllocation);
     vma_allocator.destroyBuffer(fullscreenBuffer, fullscreenAllocation);
@@ -206,6 +212,135 @@ void Renderer::InitImages()
 
         visibilityImageView = device.createImageView(imageView_create_info).value;
     }
+
+    {   // photometricResult image
+        photometricResultImageCreateInfo.imageType = vk::ImageType::e2D;
+        photometricResultImageCreateInfo.format = vk::Format::eR32G32B32A32Sfloat;
+        photometricResultImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        photometricResultImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        photometricResultImageCreateInfo.extent.depth = 1;
+        photometricResultImageCreateInfo.mipLevels = 1;
+        photometricResultImageCreateInfo.arrayLayers = 1;
+        photometricResultImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        photometricResultImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        photometricResultImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment;
+        photometricResultImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        photometricResultImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(photometricResultImageCreateInfo, image_allocation_info).value;
+        photometricResultImage = createImage_result.first;
+        photometricResultAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = photometricResultImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = photometricResultImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        photometricResultImageView = device.createImageView(imageView_create_info).value;
+
+        // Initialize
+        OneShotCommandBuffer one_shot_command_buffer(device);
+        vk::CommandBuffer command_buffer = one_shot_command_buffer.BeginCommandRecord(graphicsQueue);
+
+        vk::ImageMemoryBarrier init_image_barrier;
+        init_image_barrier.image = photometricResultImage;
+        init_image_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
+        init_image_barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+        init_image_barrier.oldLayout = vk::ImageLayout::eUndefined;
+        init_image_barrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        init_image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        init_image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        init_image_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                               0, 1, 0, 1};
+
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eBottomOfPipe,
+                                       vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       0, nullptr,
+                                       0, nullptr,
+                                       1, &init_image_barrier);
+
+        one_shot_command_buffer.EndAndSubmitCommands();
+    }
+}
+
+void Renderer::InitTLASes()
+{
+    // Get required sizes
+    vk::AccelerationStructureBuildSizesInfoKHR build_size_info;
+    {
+        vk::AccelerationStructureGeometryKHR instances;
+        instances.geometryType = vk::GeometryTypeKHR::eInstances;
+        instances.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
+
+        vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
+        geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+        geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
+        geometry_info.geometryCount = 1;
+        geometry_info.pGeometries = &instances;
+
+        build_size_info = device.getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice,
+                                                                       geometry_info,
+                                                                       graphics_ptr->GetMaxInstancesCount());
+    }
+    TLASesHalfSize = build_size_info.accelerationStructureSize;
+    // TODO: Vendor specific
+    TLASesHalfSize += (TLASesHalfSize % 256 != 0) ? 256 - TLASesHalfSize % 256 : 0;
+
+    // Create buffer for acceleration structures
+    {
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = TLASesHalfSize * 2;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo allocation_create_info;
+        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto create_buffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
+        assert(create_buffer_result.result == vk::Result::eSuccess);
+        TLASesBuffer = create_buffer_result.value.first;
+        TLASesAllocation = create_buffer_result.value.second;
+    }
+
+    // Create TLASes
+    for(size_t i = 0; i != 2; ++i) {
+        vk::AccelerationStructureCreateInfoKHR TLAS_create_info;
+        TLAS_create_info.buffer = TLASesBuffer;
+        TLAS_create_info.size = build_size_info.accelerationStructureSize;
+        TLAS_create_info.offset = i * TLASesHalfSize;
+        TLAS_create_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+        auto TLAS_create_result = device.createAccelerationStructureKHR(TLAS_create_info);
+        assert(TLAS_create_result.result == vk::Result::eSuccess);
+        TLASesHandles[i] = TLAS_create_result.value;
+        TLASesDeviceAddresses[i] = device.getAccelerationStructureAddressKHR({TLASesHandles[i]});
+    }
+
+    // Create scratch build buffer
+    {
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = build_size_info.buildScratchSize;
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo allocation_create_info;
+        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        TLASbuildScratchBuffer = createBuffer_result.value.first;
+        TLASbuildScratchAllocation = createBuffer_result.value.second;
+    }
 }
 
 void Renderer::InitDescriptors()
@@ -214,13 +349,14 @@ void Renderer::InitDescriptors()
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 2);
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eAccelerationStructureKHR, 2);
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eInputAttachment, 2);
-        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 2,
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eInputAttachment, 2 * 2);
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 2 * 2,
                                                                  descriptor_pool_sizes);
 
         descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
     }
-    {   // Create primitivesInstanceSet layout
+
+    {   // Create renderer layout
         std::vector<vk::DescriptorSetLayoutBinding> bindings;
         {   // Buffer
             vk::DescriptorSetLayoutBinding buffer_binding;
@@ -251,20 +387,46 @@ void Renderer::InitDescriptors()
         }
 
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
-        primitivesInstanceDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+        rendererDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
     }
-    {   // Allocate
+    {   // Create tonemap layout
+        std::vector<vk::DescriptorSetLayoutBinding> bindings;
+        {
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 0;
+            attach_binding.descriptorType = vk::DescriptorType::eInputAttachment;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+            bindings.emplace_back(attach_binding);
+        }
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
+        toneMapDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+    }
+
+    {   // Allocate renderer sets
         std::vector<vk::DescriptorSetLayout> layouts;
-        layouts.emplace_back(primitivesInstanceDescriptorSetLayout);
-        layouts.emplace_back(primitivesInstanceDescriptorSetLayout);
+        layouts.emplace_back(rendererDescriptorSetLayout);
+        layouts.emplace_back(rendererDescriptorSetLayout);
 
         vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
         std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
-        primitivesInstanceDescriptorSets[0] = descriptor_sets[0];
-        primitivesInstanceDescriptorSets[1] = descriptor_sets[1];
+        rendererDescriptorSets[0] = descriptor_sets[0];
+        rendererDescriptorSets[1] = descriptor_sets[1];
+    }
+    {   // Allocate tonemap sets
+        std::vector<vk::DescriptorSetLayout> layouts;
+        layouts.emplace_back(toneMapDescriptorSetLayout);
+        layouts.emplace_back(toneMapDescriptorSetLayout);
+
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
+        std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
+        toneMapDescriptorSets[0] = descriptor_sets[0];
+        toneMapDescriptorSets[1] = descriptor_sets[1];
     }
 
-    {   // Write descriptors
+    {   // Write descriptors of renderer sets
         std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
 
         std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> descriptor_buffer_infos_uptrs;
@@ -275,7 +437,7 @@ void Renderer::InitDescriptors()
             descriptor_buffer_info_uptr->range  = primitivesInstanceBufferHalfsize;
 
             vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[0];
+            write_descriptor_set.dstSet = rendererDescriptorSets[0];
             write_descriptor_set.dstBinding = 0;
             write_descriptor_set.dstArrayElement = 0;
             write_descriptor_set.descriptorCount = 1;
@@ -292,7 +454,7 @@ void Renderer::InitDescriptors()
             descriptor_buffer_info_uptr->range  = primitivesInstanceBufferHalfsize;
 
             vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[1];
+            write_descriptor_set.dstSet = rendererDescriptorSets[1];
             write_descriptor_set.dstBinding = 0;
             write_descriptor_set.dstArrayElement = 0;
             write_descriptor_set.descriptorCount = 1;
@@ -311,7 +473,7 @@ void Renderer::InitDescriptors()
             descriptor_image_info_uptr->sampler = nullptr;
 
             vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[0];
+            write_descriptor_set.dstSet = rendererDescriptorSets[0];
             write_descriptor_set.dstBinding = 1;
             write_descriptor_set.dstArrayElement = 0;
             write_descriptor_set.descriptorCount = 1;
@@ -328,7 +490,7 @@ void Renderer::InitDescriptors()
             descriptor_image_info_uptr->sampler = nullptr;
 
             vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[1];
+            write_descriptor_set.dstSet = rendererDescriptorSets[1];
             write_descriptor_set.dstBinding = 1;
             write_descriptor_set.dstArrayElement = 0;
             write_descriptor_set.descriptorCount = 1;
@@ -346,7 +508,7 @@ void Renderer::InitDescriptors()
             acceleration_structures_pnext_uptr->pAccelerationStructures = &TLASesHandles[0];
 
             vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[0];
+            write_descriptor_set.dstSet = rendererDescriptorSets[0];
             write_descriptor_set.dstBinding = 2;
             write_descriptor_set.dstArrayElement = 0;
             write_descriptor_set.descriptorCount = 1;
@@ -362,7 +524,7 @@ void Renderer::InitDescriptors()
             acceleration_structures_pnext_uptr->pAccelerationStructures = &TLASesHandles[1];
 
             vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = primitivesInstanceDescriptorSets[1];
+            write_descriptor_set.dstSet = rendererDescriptorSets[1];
             write_descriptor_set.dstBinding = 2;
             write_descriptor_set.dstArrayElement = 0;
             write_descriptor_set.descriptorCount = 1;
@@ -375,12 +537,54 @@ void Renderer::InitDescriptors()
 
         device.updateDescriptorSets(writes_descriptor_set, {});
     }
+
+    {   // Write descriptors of tonemap sets
+        std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
+
+        std::vector<std::unique_ptr<vk::DescriptorImageInfo>> descriptor_image_infos_uptrs;
+        {
+            auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
+            descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            descriptor_image_info_uptr->imageView = photometricResultImageView;
+            descriptor_image_info_uptr->sampler = nullptr;
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = toneMapDescriptorSets[0];
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
+            write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
+
+            descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+        {
+            auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
+            descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            descriptor_image_info_uptr->imageView = photometricResultImageView;
+            descriptor_image_info_uptr->sampler = nullptr;
+
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = toneMapDescriptorSets[1];
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = 1;
+            write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
+            write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
+
+            descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
+            writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+
+        device.updateDescriptorSets(writes_descriptor_set, {});
+    }
 }
 
 void Renderer::InitRenderpasses()
 {
     // Attachments
-    vk::AttachmentDescription attachment_descriptions[3];
+    vk::AttachmentDescription attachment_descriptions[4];
 
     attachment_descriptions[0].format = visibilityImageCreateInfo.format;
     attachment_descriptions[0].samples = vk::SampleCountFlagBits::e1;
@@ -400,20 +604,29 @@ void Renderer::InitRenderpasses()
     attachment_descriptions[1].initialLayout = vk::ImageLayout::eUndefined;
     attachment_descriptions[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
-    attachment_descriptions[2].format = graphics_ptr->GetSwapchainCreateInfo().imageFormat;
+    attachment_descriptions[2].format = photometricResultImageCreateInfo.format;
     attachment_descriptions[2].samples = vk::SampleCountFlagBits::e1;
-    attachment_descriptions[2].loadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[2].loadOp = vk::AttachmentLoadOp::eLoad;
     attachment_descriptions[2].storeOp = vk::AttachmentStoreOp::eStore;
-    attachment_descriptions[2].stencilLoadOp = vk::AttachmentLoadOp::eClear;
-    attachment_descriptions[2].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    attachment_descriptions[2].initialLayout = vk::ImageLayout::eUndefined;
-    attachment_descriptions[2].finalLayout = vk::ImageLayout::ePresentSrcKHR;
+    attachment_descriptions[2].stencilLoadOp = vk::AttachmentLoadOp::eLoad;
+    attachment_descriptions[2].stencilStoreOp = vk::AttachmentStoreOp::eStore;
+    attachment_descriptions[2].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    attachment_descriptions[2].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+
+    attachment_descriptions[3].format = graphics_ptr->GetSwapchainCreateInfo().imageFormat;
+    attachment_descriptions[3].samples = vk::SampleCountFlagBits::e1;
+    attachment_descriptions[3].loadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[3].storeOp = vk::AttachmentStoreOp::eStore;
+    attachment_descriptions[3].stencilLoadOp = vk::AttachmentLoadOp::eClear;
+    attachment_descriptions[3].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    attachment_descriptions[3].initialLayout = vk::ImageLayout::eUndefined;
+    attachment_descriptions[3].finalLayout = vk::ImageLayout::ePresentSrcKHR;
 
     // Subpasses
     std::vector<vk::SubpassDescription> subpasses;
     std::vector<vk::SubpassDependency> dependencies;
 
-    // Subpass 0
+    // Subpass 0 (visibility)
     std::vector<vk::AttachmentReference> visibility_colorAttachments_refs;
     {
         vk::AttachmentReference visibilityAttach_ref;
@@ -442,43 +655,77 @@ void Renderer::InitRenderpasses()
     subpasses.emplace_back(visibility_subpass_description);
     dependencies.emplace_back(visibility_subpass_dependency);
 
-    // Subpass 1
-    std::vector<vk::AttachmentReference> texture_colorAttachments_refs;
+    // Subpass 1 (shading)
+    std::vector<vk::AttachmentReference> shade_colorAttachments_refs;
     {
         vk::AttachmentReference colorAttach_ref;
         colorAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         colorAttach_ref.attachment = 2;
-        texture_colorAttachments_refs.emplace_back(colorAttach_ref);
+        shade_colorAttachments_refs.emplace_back(colorAttach_ref);
     }
 
-    std::vector<vk::AttachmentReference> texture_inputAttachments_refs;
+    std::vector<vk::AttachmentReference> shade_inputAttachments_refs;
     {
         vk::AttachmentReference inputAttach_ref;
         inputAttach_ref.layout = vk::ImageLayout::eShaderReadOnlyOptimal;
         inputAttach_ref.attachment = 0;
-        texture_inputAttachments_refs.emplace_back(inputAttach_ref);
+        shade_inputAttachments_refs.emplace_back(inputAttach_ref);
     }
 
-    vk::SubpassDescription texture_subpass_description;
-    texture_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    texture_subpass_description.setColorAttachments(texture_colorAttachments_refs);
-    texture_subpass_description.setInputAttachments(texture_inputAttachments_refs);
+    vk::SubpassDescription shade_subpass_description;
+    shade_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    shade_subpass_description.setColorAttachments(shade_colorAttachments_refs);
+    shade_subpass_description.setInputAttachments(shade_inputAttachments_refs);
 
-    vk::SubpassDependency texture_subpass_dependency;
-    texture_subpass_dependency.srcSubpass = 0;
-    texture_subpass_dependency.dstSubpass = 1;
-    texture_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    texture_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
-    texture_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-    texture_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eInputAttachmentRead;
-    texture_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+    vk::SubpassDependency shade_subpass_dependency;
+    shade_subpass_dependency.srcSubpass = 0;
+    shade_subpass_dependency.dstSubpass = 1;
+    shade_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    shade_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
+    shade_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+    shade_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eInputAttachmentRead;
+    shade_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
-    subpasses.emplace_back(texture_subpass_description);
-    dependencies.emplace_back(texture_subpass_dependency);
+    subpasses.emplace_back(shade_subpass_description);
+    dependencies.emplace_back(shade_subpass_dependency);
+
+    // Subpass 2 (tonemap)
+    std::vector<vk::AttachmentReference> toneMap_colorAttachments_refs;
+    {
+        vk::AttachmentReference colorAttach_ref;
+        colorAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        colorAttach_ref.attachment = 3;
+        toneMap_colorAttachments_refs.emplace_back(colorAttach_ref);
+    }
+
+    std::vector<vk::AttachmentReference> toneMap_inputAttachments_refs;
+    {
+        vk::AttachmentReference inputAttach_ref;
+        inputAttach_ref.layout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        inputAttach_ref.attachment = 2;
+        toneMap_inputAttachments_refs.emplace_back(inputAttach_ref);
+    }
+
+    vk::SubpassDescription toneMap_subpass_description;
+    toneMap_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    toneMap_subpass_description.setColorAttachments(toneMap_colorAttachments_refs);
+    toneMap_subpass_description.setInputAttachments(toneMap_inputAttachments_refs);
+
+    vk::SubpassDependency toneMap_subpass_dependency;
+    toneMap_subpass_dependency.srcSubpass = 1;
+    toneMap_subpass_dependency.dstSubpass = 2;
+    toneMap_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    toneMap_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
+    toneMap_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+    toneMap_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eInputAttachmentRead;
+    toneMap_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+    subpasses.emplace_back(toneMap_subpass_description);
+    dependencies.emplace_back(toneMap_subpass_dependency);
 
     // Renderpass
     vk::RenderPassCreateInfo renderpass_create_info;
-    renderpass_create_info.attachmentCount = 3;
+    renderpass_create_info.attachmentCount = 4;
     renderpass_create_info.pAttachments = attachment_descriptions;
     renderpass_create_info.setSubpasses(subpasses);
     renderpass_create_info.setDependencies(dependencies);
@@ -493,6 +740,7 @@ void Renderer::InitFramebuffers()
         std::vector<vk::ImageView> attachments;
         attachments.emplace_back(visibilityImageView);
         attachments.emplace_back(depthImageView);
+        attachments.emplace_back(photometricResultImageView);
         attachments.emplace_back(swapchain_imageview);
 
         vk::FramebufferCreateInfo framebuffer_createInfo;
@@ -761,8 +1009,10 @@ void Renderer::InitPrimitivesSet()
     }
 }
 
-void Renderer::InitFullscreenPipeline()
+void Renderer::InitShadePipeline()
 {
+    printf("-Initializing \"Shade Pass\" pipeline\n");
+
     std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
     shadersDefinitionStringPairs.emplace_back("TEXTURES_COUNT", std::to_string(graphics_ptr->GetTexturesOfMaterials()->GetTexturesCount()));
     shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
@@ -777,8 +1027,13 @@ void Renderer::InitFullscreenPipeline()
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetMatricesDescriptionSetLayout());
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorLayout());
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSetLayout());
-        descriptor_sets_layouts.emplace_back(primitivesInstanceDescriptorSetLayout);
+        descriptor_sets_layouts.emplace_back(rendererDescriptorSetLayout);
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
+
+        std::vector<vk::PushConstantRange> push_constant_range;
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 4 * 4);
+
+        pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
         fullscreenPipelineLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
     }
@@ -874,12 +1129,12 @@ void Renderer::InitFullscreenPipeline()
         vk::PipelineColorBlendAttachmentState color_blend_attachment;
         color_blend_attachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
                                                 vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
-        color_blend_attachment.blendEnable = VK_FALSE;
+        color_blend_attachment.blendEnable = VK_TRUE;
         color_blend_attachment.srcColorBlendFactor = vk::BlendFactor::eOne;
-        color_blend_attachment.dstColorBlendFactor = vk::BlendFactor::eZero;
+        color_blend_attachment.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
         color_blend_attachment.colorBlendOp = vk::BlendOp::eAdd;
         color_blend_attachment.srcAlphaBlendFactor = vk::BlendFactor::eOne;
-        color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+        color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eOne;
         color_blend_attachment.alphaBlendOp = vk::BlendOp::eAdd;
 
         color_blend_create_info.logicOpEnable = VK_FALSE;
@@ -891,7 +1146,7 @@ void Renderer::InitFullscreenPipeline()
         // PipelineShaderStageCreateInfo
         std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
 
-        ShadersSpecs shaders_specs {"Texture-Pass Shaders", shadersDefinitionStringPairs};
+        ShadersSpecs shaders_specs {"Shade-Pass Shaders", shadersDefinitionStringPairs};
         ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
         assert(shader_set.abortedDueToDefinition == false);
@@ -919,88 +1174,185 @@ void Renderer::InitFullscreenPipeline()
     }
 }
 
-void Renderer::InitTLASes()
+void Renderer::InitToneMapPipeline()
 {
-    // Get required sizes
-    vk::AccelerationStructureBuildSizesInfoKHR build_size_info;
-    {
-        vk::AccelerationStructureGeometryKHR instances;
-        instances.geometryType = vk::GeometryTypeKHR::eInstances;
-        instances.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
+    printf("-Initializing \"Tone-Map Pass\" pipeline\n");
 
-        vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
-        geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-        geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
-        geometry_info.geometryCount = 1;
-        geometry_info.pGeometries = &instances;
+    std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
+    shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_SET", std::to_string(0));
+    shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_BIND", std::to_string(0));
 
-        build_size_info = device.getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice,
-                                                                       geometry_info,
-                                                                       graphics_ptr->GetMaxInstancesCount());
-    }
-    TLASesHalfSize = build_size_info.accelerationStructureSize;
-    TLASesHalfSize += (TLASesHalfSize % 256 != 0) ? 256 - TLASesHalfSize % 256 : 0;
+    {   // Pipeline layout tone map
+        vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
 
-    // Create buffer for acceleration structures
-    {
-        vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = TLASesHalfSize * 2;
-        buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
-        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+        std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
+        descriptor_sets_layouts.emplace_back(toneMapDescriptorSetLayout);
+        pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
-        vma::AllocationCreateInfo allocation_create_info;
-        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+        std::vector<vk::PushConstantRange> push_constant_range;
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 4);
 
-        auto create_buffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
-        assert(create_buffer_result.result == vk::Result::eSuccess);
-        TLASesBuffer = create_buffer_result.value.first;
-        TLASesAllocation = create_buffer_result.value.second;
+        pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
+
+        toneMapPipelineLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
     }
 
-    // Create TLASes
-    for(size_t i = 0; i != 2; ++i) {
-        vk::AccelerationStructureCreateInfoKHR TLAS_create_info;
-        TLAS_create_info.buffer = TLASesBuffer;
-        TLAS_create_info.size = build_size_info.accelerationStructureSize;
-        TLAS_create_info.offset = i * TLASesHalfSize;
-        TLAS_create_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-        auto TLAS_create_result = device.createAccelerationStructureKHR(TLAS_create_info);
-        assert(TLAS_create_result.result == vk::Result::eSuccess);
-        TLASesHandles[i] = TLAS_create_result.value;
-        TLASesDeviceAddresses[i] = device.getAccelerationStructureAddressKHR({TLASesHandles[i]});
+    {   // Pipeline layout
+        vk::GraphicsPipelineCreateInfo pipeline_create_info;
+
+        // PipelineVertexInputStateCreateInfo
+        vk::PipelineVertexInputStateCreateInfo vertex_input_state_create_info;
+        std::vector<vk::VertexInputBindingDescription> vertex_input_binding_descriptions;
+        std::vector<vk::VertexInputAttributeDescription> vertex_input_attribute_descriptions;
+
+        uint32_t binding_index = 0;
+        uint32_t location_index = 0;
+
+        vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                       uint32_t(4 * sizeof(float)),
+                                                       vk::VertexInputRate::eVertex);
+        vertex_input_attribute_descriptions.emplace_back(location_index++, binding_index,
+                                                         vk::Format::eR32G32B32A32Sfloat,
+                                                         0);
+
+        ++binding_index;
+
+        vertex_input_state_create_info.setVertexBindingDescriptions(vertex_input_binding_descriptions);
+        vertex_input_state_create_info.setVertexAttributeDescriptions(vertex_input_attribute_descriptions);
+
+        pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
+
+        // PipelineInputAssemblyStateCreateInfo
+        vk::PipelineInputAssemblyStateCreateInfo input_assembly_state_create_info;
+        input_assembly_state_create_info.topology = vk::PrimitiveTopology::eTriangleFan;
+
+        pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info;
+
+        // PipelineViewportStateCreateInfo
+        vk::PipelineViewportStateCreateInfo viewport_state_create_info;
+
+        uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+
+        vk::Viewport viewport {0.f, 0.f,
+                               float(width), float(height),
+                               0.f, 1.f};
+        viewport_state_create_info.viewportCount = 1;
+        viewport_state_create_info.pViewports = &viewport;
+
+        vk::Rect2D scissor {{0, 0}, {width, height}};
+        viewport_state_create_info.scissorCount = 1;
+        viewport_state_create_info.pScissors = &scissor;
+
+        pipeline_create_info.pViewportState = &viewport_state_create_info;
+
+        // PipelineRasterizationStateCreateInfo
+        vk::PipelineRasterizationStateCreateInfo rasterization_state_create_info;
+        rasterization_state_create_info.depthBiasClamp = VK_FALSE;
+        rasterization_state_create_info.rasterizerDiscardEnable = VK_FALSE;
+        rasterization_state_create_info.polygonMode = vk::PolygonMode::eFill;
+        rasterization_state_create_info.cullMode = vk::CullModeFlagBits::eNone;
+        rasterization_state_create_info.frontFace = vk::FrontFace::eCounterClockwise;
+        rasterization_state_create_info.lineWidth = 1.f;
+
+        pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
+
+        // PipelineMultisampleStateCreateInfo
+        vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
+        multisample_state_create_info.sampleShadingEnable = VK_FALSE;
+        multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
+        multisample_state_create_info.minSampleShading = 1.0f;
+        multisample_state_create_info.pSampleMask = nullptr;
+        multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
+        multisample_state_create_info.alphaToOneEnable = VK_FALSE;
+
+        pipeline_create_info.pMultisampleState = &multisample_state_create_info;
+
+        // PipelineDepthStencilStateCreateInfo
+        vk::PipelineDepthStencilStateCreateInfo depth_state_create_info;
+        depth_state_create_info.depthTestEnable = VK_FALSE;
+        depth_state_create_info.depthWriteEnable = VK_FALSE;
+        depth_state_create_info.depthCompareOp = vk::CompareOp::eLess;
+        depth_state_create_info.depthBoundsTestEnable = VK_FALSE;
+        depth_state_create_info.stencilTestEnable = VK_FALSE;
+        depth_state_create_info.minDepthBounds = 0.f;
+        depth_state_create_info.maxDepthBounds = 1.f;
+
+        pipeline_create_info.pDepthStencilState = &depth_state_create_info;
+
+        // PipelineColorBlendAttachmentState
+        vk::PipelineColorBlendStateCreateInfo color_blend_create_info;
+        vk::PipelineColorBlendAttachmentState color_blend_attachment;
+        color_blend_attachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        color_blend_attachment.blendEnable = VK_FALSE;
+        color_blend_attachment.srcColorBlendFactor = vk::BlendFactor::eOne;
+        color_blend_attachment.dstColorBlendFactor = vk::BlendFactor::eZero;
+        color_blend_attachment.colorBlendOp = vk::BlendOp::eAdd;
+        color_blend_attachment.srcAlphaBlendFactor = vk::BlendFactor::eOne;
+        color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+        color_blend_attachment.alphaBlendOp = vk::BlendOp::eAdd;
+
+        color_blend_create_info.logicOpEnable = VK_FALSE;
+        color_blend_create_info.attachmentCount = 1;
+        color_blend_create_info.pAttachments = &color_blend_attachment;
+
+        pipeline_create_info.pColorBlendState = &color_blend_create_info;
+
+        // PipelineShaderStageCreateInfo
+        std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
+
+        ShadersSpecs shaders_specs {"ToneMap-Pass Shaders", shadersDefinitionStringPairs};
+        ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
+
+        assert(shader_set.abortedDueToDefinition == false);
+
+        vk::PipelineShaderStageCreateInfo vertex_shader_stage;
+        vertex_shader_stage.stage = vk::ShaderStageFlagBits::eVertex;
+        vertex_shader_stage.module = shader_set.vertexShaderModule;
+        vertex_shader_stage.pName = "main";
+        shaders_stage_create_infos.emplace_back(vertex_shader_stage);
+
+        vk::PipelineShaderStageCreateInfo fragment_shader_stage;
+        fragment_shader_stage.stage = vk::ShaderStageFlagBits::eFragment;
+        fragment_shader_stage.module = shader_set.fragmentShaderModule;
+        fragment_shader_stage.pName = "main";
+        shaders_stage_create_infos.emplace_back(fragment_shader_stage);
+
+        pipeline_create_info.setStages(shaders_stage_create_infos);
+
+        // etc
+        pipeline_create_info.layout = toneMapPipelineLayout;
+        pipeline_create_info.renderPass = renderpass;
+        pipeline_create_info.subpass = 2;
+
+        toneMapPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
     }
-
-    // Create scratch build buffer
-    {
-        vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = build_size_info.buildScratchSize;
-        buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
-
-        vma::AllocationCreateInfo allocation_create_info;
-        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
-
-        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
-        assert(createBuffer_result.result == vk::Result::eSuccess);
-        TLASbuildScratchBuffer = createBuffer_result.value.first;
-        TLASbuildScratchAllocation = createBuffer_result.value.second;
-    }
-
-
 }
 
-void Renderer::DrawFrame(ViewportFrustum viewport,
-                         std::vector<ModelMatrices>&& matrices,
-                         std::vector<DrawInfo>&& draw_infos)
+void Renderer::DrawFrame(ViewportFrustum in_viewport,
+                         std::vector<ModelMatrices>&& in_matrices,
+                         std::vector<DrawInfo>&& in_draw_infos)
 {
     ++frameCount;
+    if(viewportFreeze) {
+        ++viewportFreezedFrameCount;
+        ++viewportInRowFreezedFrameCount;
+    } else {
+        viewport = in_viewport;
+        matrices = std::move(in_matrices);
+        draw_infos = std::move(in_draw_infos);
+        viewportInRowFreezedFrameCount = 1;
+    }
 
-    size_t buffer_index = frameCount % 2;
+    size_t buffer_index = (frameCount - viewportFreezedFrameCount) % 2;
     size_t commandBuffer_index = frameCount % 3;
 
-    graphics_ptr->GetDynamicMeshes()->SwapDescriptorSet(frameCount);
-    std::vector<PrimitiveInstanceParameters> primitive_instance_parameters = CreatePrimitivesInstanceParameters(draw_infos);
-    std::vector<vk::AccelerationStructureInstanceKHR> TLAS_instances = CreateTLASinstances(draw_infos, matrices, buffer_index);
+    if (not viewportFreeze) {
+        graphics_ptr->GetDynamicMeshes()->SwapDescriptorSet(frameCount - viewportFreezedFrameCount);
+        primitive_instance_parameters = CreatePrimitivesInstanceParameters(draw_infos);
+        TLAS_instances = CreateTLASinstances(draw_infos, matrices, buffer_index);
+    }
 
     vk::CommandBuffer command_buffer = commandBuffers[commandBuffer_index];
     command_buffer.reset();
@@ -1012,7 +1364,7 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
                                                           0,
                                                           presentImageAvailableSemaphores[commandBuffer_index]).value;
 
-    RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchain_index, uint32_t(TLAS_instances.size()), draw_infos, frustum_culling);
+    RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchain_index, frustum_culling);
 
     // Submit but hold until write host
     vk::SubmitInfo submit_info;
@@ -1050,40 +1402,42 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
         device.waitSemaphores(host_wait_info, uint64_t(-1));
     }
 
-    graphics_ptr->WriteCameraMarticesBuffers(viewport,
-                                             matrices,
-                                             draw_infos,
-                                             buffer_index);
+    if (not viewportFreeze) {
+        graphics_ptr->WriteCameraMarticesBuffers(viewport,
+                                                 matrices,
+                                                 draw_infos,
+                                                 buffer_index);
 
-    {
-        memcpy((std::byte*)(primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferHalfsize,
-               primitive_instance_parameters.data(),
-               primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
-        vma_allocator.flushAllocation(primitivesInstanceAllocation,
-                                      buffer_index * primitivesInstanceBufferHalfsize,
-                                      primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
-    }
+        {
+            memcpy((std::byte *) (primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferHalfsize,
+                   primitive_instance_parameters.data(),
+                   primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
+            vma_allocator.flushAllocation(primitivesInstanceAllocation,
+                                          buffer_index * primitivesInstanceBufferHalfsize,
+                                          primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
+        }
 
-    {
-        memcpy((std::byte*)(TLASesInstancesAllocInfo.pMappedData) + buffer_index * TLASesInstancesHalfSize,
-               TLAS_instances.data(),
-               TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
+        {
+            memcpy((std::byte *) (TLASesInstancesAllocInfo.pMappedData) + buffer_index * TLASesInstancesHalfSize,
+                   TLAS_instances.data(),
+                   TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
 
-        vma_allocator.flushAllocation(TLASesInstancesAllocation,
-                                      buffer_index * TLASesInstancesHalfSize,
-                                      TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
-    }
+            vma_allocator.flushAllocation(TLASesInstancesAllocation,
+                                          buffer_index * TLASesInstancesHalfSize,
+                                          TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
+        }
 
-    {
-        std::array<std::array<glm::vec4, 4>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
-                                                               viewport.GetFullscreenpassTriangleNormals()};
+        {
+            std::array<std::array<glm::vec4, 4>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
+                                                                   viewport.GetFullscreenpassTriangleNormals()};
 
-        memcpy((std::byte*)(fullscreenAllocInfo.pMappedData) + buffer_index * fullscreenBufferHalfsize,
-               vertex_data.data(),
-               fullscreenBufferHalfsize);
-        vma_allocator.flushAllocation(fullscreenAllocation,
-                                      buffer_index * fullscreenBufferHalfsize,
-                                      fullscreenBufferHalfsize);
+            memcpy((std::byte *) (fullscreenAllocInfo.pMappedData) + buffer_index * fullscreenBufferHalfsize,
+                   vertex_data.data(),
+                   fullscreenBufferHalfsize);
+            vma_allocator.flushAllocation(fullscreenAllocation,
+                                          buffer_index * fullscreenBufferHalfsize,
+                                          fullscreenBufferHalfsize);
+        }
     }
 
     //
@@ -1106,83 +1460,84 @@ void Renderer::DrawFrame(ViewportFrustum viewport,
     present_info.pImageIndices = &swapchain_index;
 
     graphicsQueue.first.presentKHR(present_info);
-
 }
 
 void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
                                    uint32_t buffer_index,
                                    uint32_t swapchain_index,
-                                   uint32_t TLAS_primitive_count,
-                                   const std::vector<DrawInfo>& draw_infos,
                                    const FrustumCulling& frustum_culling)
 {
     command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
     // Update dynamic meshes
-    std::vector<DrawInfo> dynamic_meshes_draw_infos;
-    for(const DrawInfo& this_draw_info : draw_infos) {
-        if (this_draw_info.isSkin || this_draw_info.hasMorphTargets)
-            dynamic_meshes_draw_infos.emplace_back(this_draw_info);
-    }
-    graphics_ptr->GetDynamicMeshes()->RecordTransformations(command_buffer, dynamic_meshes_draw_infos);
-
-    // Update TLAS
-    vk::AccelerationStructureGeometryKHR geometry_instance;
-    geometry_instance.geometryType = vk::GeometryTypeKHR::eInstances;
-    geometry_instance.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
-    geometry_instance.geometry.instances.arrayOfPointers = VK_FALSE;
-    geometry_instance.geometry.instances.data = device.getBufferAddress(TLASesInstancesBuffer) + buffer_index * TLASesInstancesHalfSize;
-
-    vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
-    geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-    geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
-    geometry_info.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
-    geometry_info.dstAccelerationStructure = TLASesHandles[buffer_index];
-    geometry_info.geometryCount = 1;
-    geometry_info.pGeometries = &geometry_instance;
-    geometry_info.scratchData = device.getBufferAddress(TLASbuildScratchBuffer);
-
-    vk::AccelerationStructureBuildRangeInfoKHR build_range = {};
-    build_range.primitiveCount = TLAS_primitive_count;
-
-    vk::AccelerationStructureBuildRangeInfoKHR* indirection = &build_range;
-    command_buffer.buildAccelerationStructuresKHR(1, &geometry_info, &indirection);
-
-    // -- Barrier --
-    {
-        vk::BufferMemoryBarrier this_memory_barrier;
-        this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
-        this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
-        this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        this_memory_barrier.buffer = TLASesBuffer;
-        this_memory_barrier.offset = buffer_index * TLASesHalfSize;
-        this_memory_barrier.size = TLASesHalfSize;
-
-        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
-                                       vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-                                       vk::DependencyFlagBits::eByRegion,
-                                       {},
-                                       this_memory_barrier,
-                                       {});
+    if (not viewportFreeze) {
+        std::vector<DrawInfo> dynamic_meshes_draw_infos;
+        for (const DrawInfo &this_draw_info: draw_infos) {
+            if (this_draw_info.isSkin || this_draw_info.hasMorphTargets)
+                dynamic_meshes_draw_infos.emplace_back(this_draw_info);
+        }
+        graphics_ptr->GetDynamicMeshes()->RecordTransformations(command_buffer, dynamic_meshes_draw_infos);
     }
 
+    // Rebuild TLAS
+    if (not viewportFreeze) {
+        vk::AccelerationStructureGeometryKHR geometry_instance;
+        geometry_instance.geometryType = vk::GeometryTypeKHR::eInstances;
+        geometry_instance.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
+        geometry_instance.geometry.instances.arrayOfPointers = VK_FALSE;
+        geometry_instance.geometry.instances.data = device.getBufferAddress(TLASesInstancesBuffer) + buffer_index * TLASesInstancesHalfSize;
+
+        vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
+        geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
+        geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
+        geometry_info.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
+        geometry_info.dstAccelerationStructure = TLASesHandles[buffer_index];
+        geometry_info.geometryCount = 1;
+        geometry_info.pGeometries = &geometry_instance;
+        geometry_info.scratchData = device.getBufferAddress(TLASbuildScratchBuffer);
+
+        vk::AccelerationStructureBuildRangeInfoKHR build_range = {};
+        build_range.primitiveCount = TLAS_instances.size();
+
+        vk::AccelerationStructureBuildRangeInfoKHR *indirection = &build_range;
+        command_buffer.buildAccelerationStructuresKHR(1, &geometry_info, &indirection);
+
+        // -- Barrier --
+        {
+            vk::BufferMemoryBarrier this_memory_barrier;
+            this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
+            this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+            this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            this_memory_barrier.buffer = TLASesBuffer;
+            this_memory_barrier.offset = buffer_index * TLASesHalfSize;
+            this_memory_barrier.size = TLASesHalfSize;
+
+            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
+                                           vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+                                           vk::DependencyFlagBits::eByRegion,
+                                           {},
+                                           this_memory_barrier,
+                                           {});
+        }
+    }
 
     // Render begin
     vk::RenderPassBeginInfo render_pass_begin_info;
-    vk::ClearValue clear_values[3];
+    vk::ClearValue clear_values[4];
     render_pass_begin_info.renderPass = renderpass;
     render_pass_begin_info.framebuffer = framebuffers[swapchain_index];
     render_pass_begin_info.renderArea.offset = vk::Offset2D(0, 0);
     render_pass_begin_info.renderArea.extent = graphics_ptr->GetSwapchainCreateInfo().imageExtent;
 
     std::array<uint32_t, 4> visibility_clear = {0, 0, 0, 0};
+    std::array<float, 4> color_clear = {0.0f, 0.0f, 0.f, 0.f};
     clear_values[0].color.uint32 = visibility_clear;
     clear_values[1].depthStencil.depth = 1.f;
-    std::array<float, 4> color_clear = {0.04f, 0.08f, 0.f, 1.f};
     clear_values[2].color.float32 = color_clear;
+    clear_values[3].color.float32 = color_clear;
 
-    render_pass_begin_info.clearValueCount = 3;
+    render_pass_begin_info.clearValueCount = 4;
     render_pass_begin_info.pClearValues = clear_values;
 
     command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
@@ -1299,7 +1654,7 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
 
     command_buffer.nextSubpass(vk::SubpassContents::eInline);
 
-    // Texture pass
+    // Shade pass
     {
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fullscreenPipeline);
 
@@ -1308,13 +1663,48 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
         descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(buffer_index));
         descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorSet());
         descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
-        descriptor_sets.emplace_back(primitivesInstanceDescriptorSets[buffer_index]);
+        descriptor_sets.emplace_back(rendererDescriptorSets[buffer_index]);
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                           fullscreenPipelineLayout,
                                           0,
                                           descriptor_sets,
                                           {});
+
+        std::array<uint32_t, 4> push_constants = {graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
+                                                  graphics_ptr->GetSwapchainCreateInfo().imageExtent.height,
+                                                  uint32_t(frameCount),
+                                                  viewportInRowFreezedFrameCount == 1 ? uint32_t(true) : uint32_t(false)};
+        command_buffer.pushConstants(fullscreenPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, 4 * 4, push_constants.data());
+
+        std::vector<vk::Buffer> buffers;
+        std::vector<vk::DeviceSize> offsets;
+
+        buffers.emplace_back(fullscreenBuffer);
+        offsets.emplace_back(buffer_index * fullscreenBufferHalfsize);
+
+        command_buffer.bindVertexBuffers(0, buffers, offsets);
+
+        command_buffer.draw(4, 1, 0, 0);
+    }
+
+    command_buffer.nextSubpass(vk::SubpassContents::eInline);
+
+    // Tone map pass
+    {
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, toneMapPipeline);
+
+        std::vector<vk::DescriptorSet> descriptor_sets;
+        descriptor_sets.emplace_back(toneMapDescriptorSets[buffer_index]);
+
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                          toneMapPipelineLayout,
+                                          0,
+                                          descriptor_sets,
+                                          {});
+
+        std::array<float, 1> push_constants = { 1.f / float(viewportInRowFreezedFrameCount) };
+        command_buffer.pushConstants(toneMapPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, 4, push_constants.data());
 
         std::vector<vk::Buffer> buffers;
         std::vector<vk::DeviceSize> offsets;
@@ -1430,13 +1820,13 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
                 this_primitiveInstanceParameters.colorOffset = dynamic_primitives_info[i].colorByteOffset / sizeof(glm::vec4);
                 this_primitiveInstanceParameters.colorDescriptorIndex = descriptor_index;
             } else {
-                if (primitives_info[i].texcoordsByteOffset != -1) {
+                if (primitives_info[i].colorByteOffset != -1) {
                     this_primitiveInstanceParameters.colorStepMultiplier = 1;
-                    this_primitiveInstanceParameters.colorOffset = primitives_info[i].texcoordsByteOffset / sizeof(glm::vec4);
+                    this_primitiveInstanceParameters.colorOffset = primitives_info[i].colorByteOffset / sizeof(glm::vec4);
                     this_primitiveInstanceParameters.colorDescriptorIndex = 0;
                 } else {
                     this_primitiveInstanceParameters.colorStepMultiplier = 0;
-                    this_primitiveInstanceParameters.colorOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().colorByteOffset / sizeof(glm::vec2);
+                    this_primitiveInstanceParameters.colorOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().colorByteOffset / sizeof(glm::vec4);
                     this_primitiveInstanceParameters.colorDescriptorIndex = 0;
                 }
             }

@@ -19,6 +19,7 @@ public:
 
 private:
     void InitBuffers();
+    void InitTLASes();
     void InitDescriptors();
     void InitImages();
     void InitFramebuffers();
@@ -26,14 +27,12 @@ private:
     void InitSemaphoresAndFences();
     void InitCommandBuffers();
     void InitPrimitivesSet();
-    void InitFullscreenPipeline();
-    void InitTLASes();
+    void InitShadePipeline();
+    void InitToneMapPipeline();
 
     void RecordCommandBuffer(vk::CommandBuffer command_buffer,
                              uint32_t buffer_index,
                              uint32_t swapchain_index,
-                             uint32_t TLAS_primitive_count,
-                             const std::vector<DrawInfo>& draw_infos,
                              const FrustumCulling& frustum_culling);
 
     std::vector<PrimitiveInstanceParameters> CreatePrimitivesInstanceParameters(std::vector<DrawInfo>& draw_infos) const;
@@ -42,8 +41,17 @@ private:
                                                                           uint32_t buffer_index) const;
 
 private:
+    ViewportFrustum         viewport;
+    std::vector<ModelMatrices> matrices;
+    std::vector<DrawInfo>   draw_infos;
+
+    std::vector<PrimitiveInstanceParameters> primitive_instance_parameters;
+    std::vector<vk::AccelerationStructureInstanceKHR> TLAS_instances;
+
     std::pair<vk::Queue, uint32_t> graphicsQueue;
     size_t                  frameCount = 0;
+    size_t                  viewportFreezedFrameCount = 0;
+    size_t                  viewportInRowFreezedFrameCount = 0;
 
     vk::Buffer              primitivesInstanceBuffer;
     vma::Allocation         primitivesInstanceAllocation;
@@ -70,8 +78,10 @@ private:
     vma::Allocation         TLASbuildScratchAllocation;
 
     vk::DescriptorPool      descriptorPool;
-    vk::DescriptorSet       primitivesInstanceDescriptorSets[2];
-    vk::DescriptorSetLayout primitivesInstanceDescriptorSetLayout;
+    vk::DescriptorSet       rendererDescriptorSets[2];
+    vk::DescriptorSetLayout rendererDescriptorSetLayout;
+    vk::DescriptorSet       toneMapDescriptorSets[2];
+    vk::DescriptorSetLayout toneMapDescriptorSetLayout;
 
     vk::Image               depthImage;
     vma::Allocation         depthAllocation;
@@ -82,6 +92,13 @@ private:
     vma::Allocation         visibilityAllocation;
     vk::ImageCreateInfo     visibilityImageCreateInfo;
     vk::ImageView           visibilityImageView;
+
+    vk::Image               photometricResultImage;
+    vma::Allocation         photometricResultAllocation;
+    vk::ImageCreateInfo     photometricResultImageCreateInfo;
+    vk::ImageView           photometricResultImageView;
+
+    // TODO float4 image
 
     vk::RenderPass          renderpass;
 
@@ -100,4 +117,7 @@ private:
 
     vk::Pipeline            fullscreenPipeline;
     vk::PipelineLayout      fullscreenPipelineLayout;
+
+    vk::Pipeline            toneMapPipeline;
+    vk::PipelineLayout      toneMapPipelineLayout;
 };

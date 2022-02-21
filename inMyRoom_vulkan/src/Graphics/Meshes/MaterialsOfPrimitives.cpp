@@ -19,7 +19,7 @@ void MaterialsOfPrimitives::AddDefaultTextures()
     // Color texture
     {
         ImageData image(4, 4, 4, glTFsamplerWrap::repeat, glTFsamplerWrap::repeat);
-        image.BiasComponents({0.3f ,0.3f ,0.3f, 1.f});
+        image.BiasComponents({1.f ,1.f ,1.f, 1.f});
 
         defaultColorTextureIndex = texturesOfMaterials_ptr->AddTextureAndMipmaps(std::vector(1, image),
                                                                                  vk::Format::eR8G8B8A8Srgb);
@@ -54,7 +54,7 @@ void MaterialsOfPrimitives::AddDefaultMaterial()
     this_materialAbout.definitionStringPairs.emplace_back("IS_OPAQUE", "");
 
     this_materialParameters.baseColorTexture = defaultColorTextureIndex;
-    this_materialParameters.baseColorFactors = glm::vec4(1.f, 1.f, 1.f, 1.f);
+    this_materialParameters.baseColorFactors = glm::vec4(0.3f, 0.3f, 0.3f, 1.f);
     this_materialParameters.baseColorTexCoord = 0;
     this_materialParameters.alphaCutoff = 0.5f;
 

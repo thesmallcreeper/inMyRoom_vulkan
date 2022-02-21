@@ -16,7 +16,9 @@ enum class eventInputIDenums
     /*Quit key bind*/
     SHOULD_CLOSE,
 	/*Debug culling key bind*/
-	TOGGLE_CULLING_DEBUG
+	TOGGLE_CULLING_DEBUG,
+    /*Freeze viewport key bind*/
+    TOGGLE_VIEWPORT_FREEZE
 };
 
 class Engine;
@@ -92,7 +94,7 @@ private:
             std::make_pair(std::bind(&InputManager::MoveUp, this), std::bind(&InputManager::StopMovingUp, this))
         },
         {"Exit", std::make_pair(std::bind(&InputManager::AddToQueue, this, eventInputIDenums::SHOULD_CLOSE), nullptr)},
-        {"CullingDebug", std::make_pair(std::bind(&InputManager::AddToQueue, this, eventInputIDenums::TOGGLE_CULLING_DEBUG), nullptr)}
+        {"ViewportFreeze", std::make_pair(std::bind(&InputManager::AddToQueue, this, eventInputIDenums::TOGGLE_VIEWPORT_FREEZE), nullptr)}
     };
 
     std::unordered_map<std::string, int> buttomAliasToKey_map =

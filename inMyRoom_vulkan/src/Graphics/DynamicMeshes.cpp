@@ -337,9 +337,10 @@ void DynamicMeshes::RemoveDynamicMeshSafe(size_t index)
     assert(hasBeenFlashed);
 
     assert(indexToDynamicMeshInfo_umap.find(index) != indexToDynamicMeshInfo_umap.end());
-    dynamicMeshToBeRemovedCountdown.emplace_back(indexToDynamicMeshInfo_umap.find(index)->second, removeCountdown);
+    assert(indexToDynamicMeshInfo_umap.find(index)->second.shouldBeDeleted == false);
+    indexToDynamicMeshInfo_umap.find(index)->second.shouldBeDeleted = true;
 
-    indexToDynamicMeshInfo_umap.erase(index);
+    indexToBeRemovedCountdown.emplace_back(index, removeCountdown);
 }
 
 void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
@@ -360,17 +361,19 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
     }
 
     for (auto& this_pair : indexToDynamicMeshInfo_umap) {
-        vk::Buffer buffer = this_pair.second.buffer;
-        size_t halfSize = this_pair.second.halfSize;
+        if (not this_pair.second.shouldBeDeleted) {
+            vk::Buffer buffer = this_pair.second.buffer;
+            size_t halfSize = this_pair.second.halfSize;
 
-        vk::DescriptorBufferInfo this_descriptor_buffer_info;
-        this_descriptor_buffer_info.buffer = buffer;
-        this_descriptor_buffer_info.offset = buffer_index * halfSize;
-        this_descriptor_buffer_info.range = halfSize;
+            vk::DescriptorBufferInfo this_descriptor_buffer_info;
+            this_descriptor_buffer_info.buffer = buffer;
+            this_descriptor_buffer_info.offset = buffer_index * halfSize;
+            this_descriptor_buffer_info.range = halfSize;
 
-        this_pair.second.descriptorIndex = descriptor_buffer_infos.size();
+            this_pair.second.descriptorIndex = descriptor_buffer_infos.size();
 
-        descriptor_buffer_infos.emplace_back(this_descriptor_buffer_info);
+            descriptor_buffer_infos.emplace_back(this_descriptor_buffer_info);
+        }
     }
 
     vk::WriteDescriptorSet write_descriptor_set;
@@ -388,23 +391,30 @@ void DynamicMeshes::CompleteRemovesSafe()
 {
     assert(hasBeenFlashed);
 
-    std::vector<std::pair<DynamicMeshInfo, uint32_t>> new_bufferToBeRemovedCountdown;
-    for(const auto& this_pair : dynamicMeshToBeRemovedCountdown) {
+    std::vector<std::pair<size_t, uint32_t>> new_bufferToBeRemovedCountdown;
+    for(const auto& this_pair : indexToBeRemovedCountdown) {
         if (this_pair.second == 0) {
-            vma_allocator.destroyBuffer(this_pair.first.buffer, this_pair.first.allocation);
-            if (this_pair.first.hasDynamicBLAS) {
-                device.destroy(this_pair.first.BLASesHandles[0]);
-                device.destroy(this_pair.first.BLASesHandles[1]);
-                vma_allocator.destroyBuffer(this_pair.first.BLASesBuffer, this_pair.first.BLASesAllocation);
-                vma_allocator.destroyBuffer(this_pair.first.updateScratchBuffer, this_pair.first.updateScratchAllocation);
+            assert(indexToDynamicMeshInfo_umap.find(this_pair.first) != indexToDynamicMeshInfo_umap.end());
+
+            DynamicMeshInfo& this_dynamicMeshInfo = indexToDynamicMeshInfo_umap.find(this_pair.first)->second;
+            assert(this_dynamicMeshInfo.shouldBeDeleted == true);
+
+            vma_allocator.destroyBuffer(this_dynamicMeshInfo.buffer, this_dynamicMeshInfo.allocation);
+            if (this_dynamicMeshInfo.hasDynamicBLAS) {
+                device.destroy(this_dynamicMeshInfo.BLASesHandles[0]);
+                device.destroy(this_dynamicMeshInfo.BLASesHandles[1]);
+                vma_allocator.destroyBuffer(this_dynamicMeshInfo.BLASesBuffer, this_dynamicMeshInfo.BLASesAllocation);
+                vma_allocator.destroyBuffer(this_dynamicMeshInfo.updateScratchBuffer, this_dynamicMeshInfo.updateScratchAllocation);
             }
+
+            indexToDynamicMeshInfo_umap.erase(this_pair.first);
         } else {
             new_bufferToBeRemovedCountdown.emplace_back(this_pair.first,
                                                         this_pair.second - 1);
         }
     }
 
-    dynamicMeshToBeRemovedCountdown = std::move(new_bufferToBeRemovedCountdown);
+    indexToBeRemovedCountdown = std::move(new_bufferToBeRemovedCountdown);
 }
 
 void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,

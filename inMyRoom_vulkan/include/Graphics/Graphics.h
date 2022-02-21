@@ -68,6 +68,8 @@ public:
                                     const std::vector<DrawInfo>& draw_infos,
                                     size_t buffer_index);
 
+    void ToggleViewportFreeze();
+
     // TODO: Get the f out
     void ToggleCullingDebugging();
 

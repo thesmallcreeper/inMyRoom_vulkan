@@ -248,9 +248,16 @@ void Graphics::InitShadersSetsFamiliesCache()
     }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "Texture-Pass Shaders";
-        this_shaderSetInitInfo.fragmentShaderSourceFilename = "texturePass_glsl.frag";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "texturePass_glsl.vert";
+        this_shaderSetInitInfo.shadersSetFamilyName = "Shade-Pass Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "shadePass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "shadePass_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "ToneMap-Pass Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "toneMapPass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "toneMapPass_glsl.vert";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
 }
@@ -350,7 +357,9 @@ void Graphics::DrawFrame()
 
     renderer_uptr->DrawFrame(camera_viewport, std::move(matrices), std::move(draw_infos));
 
-    dynamicMeshes_uptr->CompleteRemovesSafe();
+    if (not renderer_uptr->IsFreezed()) {
+        dynamicMeshes_uptr->CompleteRemovesSafe();
+    }
 }
 
 void Graphics::ToggleCullingDebugging()
@@ -376,6 +385,12 @@ QueuesList Graphics::GetQueuesList() const
 vk::SwapchainKHR Graphics::GetSwapchain() const
 {
     return engine_ptr->GetSwapchain();
+}
+
+void Graphics::ToggleViewportFreeze()
+{
+    assert(renderer_uptr.get());
+    renderer_uptr->ToggleViewportFreeze();
 }
 
 size_t Graphics::GetSubgroupSize() const

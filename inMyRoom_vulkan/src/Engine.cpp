@@ -108,14 +108,19 @@ void Engine::Run()
         {
             switch (this_event)
             {
-            case eventInputIDenums::SHOULD_CLOSE:
+                case eventInputIDenums::SHOULD_CLOSE:
                 {
                     breakMainLoop = true;
                     break;
                 }
-            case eventInputIDenums::TOGGLE_CULLING_DEBUG:
+                case eventInputIDenums::TOGGLE_CULLING_DEBUG:
                 {
                     graphics_uptr->ToggleCullingDebugging();
+                    break;
+                }
+                case eventInputIDenums::TOGGLE_VIEWPORT_FREEZE:
+                {
+                    graphics_uptr->ToggleViewportFreeze();
                     break;
                 }
             }

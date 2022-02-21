@@ -20,9 +20,15 @@ public:
     virtual void DrawFrame(ViewportFrustum viewport,
                            std::vector<ModelMatrices>&& matrices,
                            std::vector<DrawInfo>&& draw_infos) {}
+
+    virtual void ToggleViewportFreeze() { viewportFreeze = !viewportFreeze; }
+    virtual bool IsFreezed() const {return viewportFreeze;}
+
 protected:
     class Graphics* const graphics_ptr;
 
     vk::Device device;
     vma::Allocator vma_allocator;
+
+    bool viewportFreeze = false;
 };
