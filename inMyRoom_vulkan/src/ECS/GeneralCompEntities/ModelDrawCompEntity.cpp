@@ -73,6 +73,7 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
 
 void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
                                       const DynamicMeshComp* dynamicMeshComp_ptr,
+                                      const glm::mat4& viewport_matrix,
                                       std::vector<ModelMatrices>& model_matrices,
                                       std::vector<DrawInfo>& draw_infos) const
 {
@@ -84,11 +85,11 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
         this_draw_info.dontCull = disableCulling;
 
         if (not isSkin && not hasMorphTargets) {
-            glm::mat4 pos_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+            glm::mat4 pos_matrix = viewport_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             glm::mat4 normal_matrix = glm::adjointTranspose(pos_matrix);
             model_matrices.emplace_back(ModelMatrices({pos_matrix, normal_matrix}));
         } else {
-            glm::mat4 parent_pos_matrix = nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
+            glm::mat4 parent_pos_matrix = viewport_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             glm::mat4 parent_normal_matrix = glm::adjointTranspose(parent_pos_matrix);
             model_matrices.emplace_back(ModelMatrices({parent_pos_matrix, parent_normal_matrix}));
 

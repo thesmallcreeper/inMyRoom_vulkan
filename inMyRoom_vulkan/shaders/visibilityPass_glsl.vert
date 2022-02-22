@@ -41,8 +41,7 @@ layout (push_constant) uniform PushConstants
 // Main!
 void main()
 {
-    vec4 world_position = model_matrices[matrixOffset].positionMatrix * app_position;
-    vec4 view_position = viewMatrix * world_position;
+    vec4 view_position = model_matrices[matrixOffset].positionMatrix * app_position;
 
     gl_Position = projectionMatrix * view_position;
 

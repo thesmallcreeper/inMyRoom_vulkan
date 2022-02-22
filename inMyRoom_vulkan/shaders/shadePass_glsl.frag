@@ -10,6 +10,7 @@
 #include "common/structs/PrimitiveInstanceParameters.h"
 #include "common/intersectOriginTriangle.glsl"
 #include "common/rng.glsl"
+#include "common/brdf.glsl"
 
 //
 // In
@@ -146,8 +147,8 @@ void main()
 
     // Get view matrix
     uint matrixOffset = uint(primitivesInstancesParameters[frag_primitiveInstance].matricesOffset);
-    mat4x4 pos_matrix = viewMatrix * model_matrices[matrixOffset].positionMatrix;
-    mat4x4 norm_matrix = viewMatrix * model_matrices[matrixOffset].normalMatrix;
+    mat4x4 pos_matrix = model_matrices[matrixOffset].positionMatrix;
+    mat4x4 norm_matrix = model_matrices[matrixOffset].normalMatrix;
 
     // Intersect triangle
     uint pos_descriptorIndex = uint(primitivesInstancesParameters[frag_primitiveInstance].positionDescriptorIndex);
@@ -161,10 +162,10 @@ void main()
 
     IntersectOriginTriangleResult intersect_result = IntersectOriginTriangle(vec3(vert_0), edge_1, edge_2, ray_dir);
 
-    vec3 face_normal_cameraspace = normalize(cross(edge_1, edge_2));
-    float dot_face_ray = dot(face_normal_cameraspace, ray_dir);
+    vec3 face_normal = normalize(cross(edge_1, edge_2));
+    float dot_face_ray = dot(face_normal, ray_dir);
     if (dot_face_ray > 0.f) {
-        face_normal_cameraspace = - face_normal_cameraspace;
+        face_normal = - face_normal;
     }
 
     // Interpolate vertices
@@ -268,46 +269,54 @@ void main()
     // Evaluate
     vec4 color = text_color * this_materialParameters.baseColorFactors * vertex_color;
     vec3 normal = vertices_tangent * text_normal.x + vertices_bitangent * text_normal.y + vertices_normal * text_normal.z;
+    vec3 normal_tangent = normalize(vertices_tangent - dot(vertices_tangent, normal) * normal);
+    vec3 normal_bitangent = cross(normal, normal_tangent);
     float roughness = roughness_metallic_pair.x;
     float metallic = roughness_metallic_pair.y;
 
     // Ray trace the sky
     vec3 out_sum = vec3(0.f, 0.f, 0.f);
 
-    vec3 face_normal = vec3(inverseViewMatrix * vec4(face_normal_cameraspace, 0.f));
-    face_normal = normalize(face_normal);
+    vec3 sun_color = vec3(1.f, 0.9f, 0.9f) * 1.6e9f;
+    vec3 light_dir_world = normalize(vec3(-0.1f, -0.8f, 0.4f));
+    vec3 light_dir = vec3(viewMatrix * vec4(light_dir_world, 0.f));
+    vec3 light_dir_tangent = vec3(viewMatrix * vec4(0.f, 0.f, 1.f, 0.f));
+    light_dir_tangent = normalize(light_dir_tangent - dot(light_dir_tangent, light_dir) * light_dir);
+    vec3 light_dir_bitangent = cross(light_dir, light_dir_tangent);
+    float light_cone_halfarc_rads = 0.266f * 0.01745329252f;
 
-    vec3 sun_color = vec3(1.f, 1.f, 1.f);
-    vec3 light_dir = normalize(vec3(-0.1f, -0.8f, 0.4f));
-    if (dot(light_dir, face_normal) > -0.0046456f) {
-        vec3 origin_pos_camera = intersect_result.distance * vec3(ray_dir);
-        vec4 origin_pos_world = inverseViewMatrix * vec4(origin_pos_camera, 1.f);
+    if (dot(light_dir, face_normal) > -sin(light_cone_halfarc_rads)) {
+        vec3 origin_pos = intersect_result.distance * vec3(ray_dir);
 
         uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameIndex);
 
         uint max_iterators = 16;
         for (uint i = 0; i != max_iterators; ++i) {
+            vec3 random_light_dir_zaxis = RandomDirInCone(cos(light_cone_halfarc_rads), rng_state);
+            vec3 random_light_dir = light_dir_bitangent * random_light_dir_zaxis.x + light_dir_tangent * random_light_dir_zaxis.y + light_dir * random_light_dir_zaxis.z;
+            float random_light_dir_pdf = RandomDirInConePDF(cos(light_cone_halfarc_rads));
 
-            rayQueryEXT query;
-            rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, origin_pos_world.xyz, 0.001f, light_dir, 10000.f);
-            while (rayQueryProceedEXT(query)) {
-                if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
-                    ConfirmNonOpaqueIntersection(query);
+            if (dot(light_dir, random_light_dir) > 0.f) {
+                rayQueryEXT query;
+                rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, origin_pos.xyz, 0.001f, random_light_dir, 10000.f);
+                while (rayQueryProceedEXT(query)) {
+                    if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
+                        ConfirmNonOpaqueIntersection(query);
+                    }
                 }
-            }
 
-            if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
-                out_sum += sun_color;
+                if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
+                    out_sum += dot(normal, random_light_dir) * sun_color * BRDF(color.xyz, roughness, metallic, -ray_dir, random_light_dir, normal) / random_light_dir_pdf;
+                }
             }
         }
         out_sum /= float(max_iterators);
     }
-    out_sum += vec3(0.05f, 0.05f, 0.05f);
 
-    // Color
+    // Color out
     if (alpha_one != 0) {
-        color_out = vec4(out_sum * color.xyz, 1.f);
+        color_out = vec4(out_sum, 1.f);
     } else {
-        color_out = vec4(out_sum * color.xyz, 0.f);
+        color_out = vec4(out_sum, 0.f);
     }
 }

@@ -16,7 +16,8 @@ public:
     explicit ModelDrawComp(ECSwrapper* const in_ecs_wrapper_ptr);
     ~ModelDrawComp() override;
 
-    void AddDrawInfos(std::vector<ModelMatrices>& matrices,
+    void AddDrawInfos(const glm::mat4& viewport_matrix,
+                      std::vector<ModelMatrices>& matrices,
                       std::vector<DrawInfo>& draw_infos);
     void ToBeRemovedCallback(const std::vector<std::pair<Entity, Entity>>& callback_ranges) override;
 };

@@ -349,11 +349,11 @@ void Graphics::EndModelsLoad()
 
 void Graphics::DrawFrame()
 {
+    ViewportFrustum camera_viewport = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
+
     std::vector<ModelMatrices> matrices;
     std::vector<DrawInfo> draw_infos;
-    modelDrawComp_uptr->AddDrawInfos(matrices, draw_infos);
-
-    ViewportFrustum camera_viewport = cameraComp_uptr->GetBindedCameraEntity()->cullingViewportFrustum;
+    modelDrawComp_uptr->AddDrawInfos(camera_viewport.GetViewMatrix(), matrices, draw_infos);
 
     renderer_uptr->DrawFrame(camera_viewport, std::move(matrices), std::move(draw_infos));
 

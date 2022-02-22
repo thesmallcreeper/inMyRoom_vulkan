@@ -27,6 +27,7 @@ public:
 
     void AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
                      const DynamicMeshComp* dynamicMeshComp_ptr,
+                     const glm::mat4& viewport_matrix,
                      std::vector<ModelMatrices>& model_matrices,
                      std::vector<DrawInfo>& draw_infos) const;
 

@@ -11,7 +11,8 @@ ModelDrawComp::~ModelDrawComp()
 {
 }
 
-void ModelDrawComp::AddDrawInfos(std::vector<ModelMatrices>& matrices,
+void ModelDrawComp::AddDrawInfos(const glm::mat4& viewport_matrix,
+                                 std::vector<ModelMatrices>& matrices,
                                  std::vector<DrawInfo>& draw_infos)
 {
     auto nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);
@@ -27,6 +28,7 @@ void ModelDrawComp::AddDrawInfos(std::vector<ModelMatrices>& matrices,
         for(auto& this_comp_entity: this_container)
             this_comp_entity.AddDrawInfo(nodeGlobalMatrixComp_ptr,
                                          skinComp_ptr,
+                                         viewport_matrix,
                                          matrices,
                                          draw_infos);
     }

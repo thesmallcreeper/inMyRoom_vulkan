@@ -17,6 +17,8 @@ layout (push_constant) uniform PushConstants
 
 void main()
 {
-    vec4 color = vec4(vec3(subpassLoad(colorInput)) * scale, 1.f);
+    float exposure = 1.f / 0.8e5f;
+
+    vec4 color = vec4(vec3(subpassLoad(colorInput)) * scale * exposure, 1.f);
     color_out = color;
 }
