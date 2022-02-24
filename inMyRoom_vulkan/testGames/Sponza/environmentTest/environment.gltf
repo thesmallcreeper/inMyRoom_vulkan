@@ -1,0 +1,344 @@
+{
+    "asset" : {
+        "generator" : "Khronos glTF Blender I/O v1.7.33",
+        "version" : "2.0"
+    },
+    "scene" : 0,
+    "scenes" : [
+        {
+            "name" : "Scene",
+            "nodes" : [
+                3
+            ]
+        }
+    ],
+    "nodes" : [
+        {
+            "mesh" : 0,
+            "name" : "Dielectric0"
+        },
+        {
+            "mesh" : 1,
+            "name" : "Dielectric0-Black",
+            "translation" : [
+                0,
+                -1.985867977142334,
+                0
+            ]
+        },
+        {
+            "mesh" : 2,
+            "name" : "Metallic0"
+        },
+        {
+            "children" : [
+                0,
+                1,
+                2
+            ],
+            "name" : "ENV_Spheres",
+            "translation" : [
+                -0.5564079284667969,
+                4.774584770202637,
+                -1.0962677001953125
+            ]
+        }
+    ],
+    "materials" : [
+        {
+            "doubleSided" : true,
+            "name" : "DielectricSpheresMat",
+            "pbrMetallicRoughness" : {
+                "metallicRoughnessTexture" : {
+                    "index" : 0
+                }
+            }
+        },
+        {
+            "doubleSided" : true,
+            "name" : "DielectricSpheresMat.001",
+            "pbrMetallicRoughness" : {
+                "baseColorFactor" : [
+                    0,
+                    0,
+                    0,
+                    1
+                ],
+                "metallicRoughnessTexture" : {
+                    "index" : 1
+                }
+            }
+        },
+        {
+            "doubleSided" : true,
+            "name" : "MetallicSpheresMat",
+            "pbrMetallicRoughness" : {
+                "metallicRoughnessTexture" : {
+                    "index" : 2
+                }
+            }
+        }
+    ],
+    "meshes" : [
+        {
+            "name" : "Dielectric0_N3D2",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 0,
+                        "NORMAL" : 1,
+                        "TANGENT" : 2,
+                        "TEXCOORD_0" : 3
+                    },
+                    "indices" : 4,
+                    "material" : 0
+                }
+            ]
+        },
+        {
+            "name" : "Dielectric0_N3D",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 5,
+                        "NORMAL" : 6,
+                        "TANGENT" : 7,
+                        "TEXCOORD_0" : 8
+                    },
+                    "indices" : 4,
+                    "material" : 1
+                }
+            ]
+        },
+        {
+            "name" : "Metallic0_N3D",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 9,
+                        "NORMAL" : 10,
+                        "TANGENT" : 11,
+                        "TEXCOORD_0" : 12
+                    },
+                    "indices" : 4,
+                    "material" : 2
+                }
+            ]
+        }
+    ],
+    "textures" : [
+        {
+            "sampler" : 0,
+            "source" : 0
+        },
+        {
+            "sampler" : 0,
+            "source" : 0
+        },
+        {
+            "sampler" : 0,
+            "source" : 1
+        }
+    ],
+    "images" : [
+        {
+            "mimeType" : "image/jpeg",
+            "name" : "roughness_metallic_1",
+            "uri" : "roughness_metallic_1.jpg"
+        },
+        {
+            "mimeType" : "image/jpeg",
+            "name" : "roughness_metallic_0",
+            "uri" : "roughness_metallic_0.jpg"
+        }
+    ],
+    "accessors" : [
+        {
+            "bufferView" : 0,
+            "componentType" : 5126,
+            "count" : 4598,
+            "max" : [
+                10.647041320800781,
+                -0.3529590368270874,
+                0.6470409631729126
+            ],
+            "min" : [
+                -10.647041320800781,
+                -1.6470409631729126,
+                -0.6470409631729126
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 1,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 2,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC4"
+        },
+        {
+            "bufferView" : 3,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 4,
+            "componentType" : 5123,
+            "count" : 25344,
+            "type" : "SCALAR"
+        },
+        {
+            "bufferView" : 5,
+            "componentType" : 5126,
+            "count" : 4598,
+            "max" : [
+                10.647041320800781,
+                -0.3529590368270874,
+                0.6470409631729126
+            ],
+            "min" : [
+                -10.647041320800781,
+                -1.6470409631729126,
+                -0.6470409631729126
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 6,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 7,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC4"
+        },
+        {
+            "bufferView" : 8,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 9,
+            "componentType" : 5126,
+            "count" : 4598,
+            "max" : [
+                10.647041320800781,
+                1.6470409631729126,
+                0.6470409631729126
+            ],
+            "min" : [
+                -10.647041320800781,
+                0.3529590368270874,
+                -0.6470409631729126
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 10,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 11,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC4"
+        },
+        {
+            "bufferView" : 12,
+            "componentType" : 5126,
+            "count" : 4598,
+            "type" : "VEC2"
+        }
+    ],
+    "bufferViews" : [
+        {
+            "buffer" : 0,
+            "byteLength" : 55176,
+            "byteOffset" : 0
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 55176,
+            "byteOffset" : 55176
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 73568,
+            "byteOffset" : 110352
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 36784,
+            "byteOffset" : 183920
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 50688,
+            "byteOffset" : 220704
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 55176,
+            "byteOffset" : 271392
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 55176,
+            "byteOffset" : 326568
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 73568,
+            "byteOffset" : 381744
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 36784,
+            "byteOffset" : 455312
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 55176,
+            "byteOffset" : 492096
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 55176,
+            "byteOffset" : 547272
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 73568,
+            "byteOffset" : 602448
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 36784,
+            "byteOffset" : 676016
+        }
+    ],
+    "samplers" : [
+        {
+            "magFilter" : 9729,
+            "minFilter" : 9987
+        }
+    ],
+    "buffers" : [
+        {
+            "byteLength" : 712800,
+            "uri" : "environment.bin"
+        }
+    ]
+}

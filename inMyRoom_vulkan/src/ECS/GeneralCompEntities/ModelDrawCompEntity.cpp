@@ -102,7 +102,7 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
 
                 glm::mat4 inverse_parent_matrix = glm::inverse(parent_pos_matrix);
                 for(Entity relative_entity: dynamic_mesh_entity.jointRelativeEntities) {
-                    glm::mat4 joint_pos_matrix = inverse_parent_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
+                    glm::mat4 joint_pos_matrix = inverse_parent_matrix * viewport_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity + relative_entity).globalMatrix;
                     glm::mat4 joint_normal_matrix = glm::adjointTranspose(joint_pos_matrix);
                     model_matrices.emplace_back(ModelMatrices({joint_pos_matrix, joint_normal_matrix}));
                 }

@@ -628,7 +628,7 @@ ImageData MetallicRoughnessImage::CreateMipmap(const ImageData &reference, size_
         assert(reference.GetComponentsCount() == 4);
 
         ImageData mipmap_imageData(reference);
-        mipmap_imageData.BiasComponents({1.f, roughness_factor, metallic_factor, 1.f});
+        mipmap_imageData.ScaleComponents({1.f, roughness_factor, metallic_factor, 1.f});
 
         return mipmap_imageData;
     } else {

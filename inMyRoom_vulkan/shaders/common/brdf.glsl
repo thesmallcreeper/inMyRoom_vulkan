@@ -6,7 +6,7 @@
 float GGXdistribution(float a, float NdotH) {
     float NdotH_squared = NdotH * NdotH;
     float a_squared = a * a;
-    float divisor = (NdotH_squared * (a_squared - 1.f) + 1.f);
+    float divisor = NdotH_squared * (a_squared - 1.f) + 1.f;
     float D = a_squared / (M_PI * divisor * divisor);
     return D;
 }

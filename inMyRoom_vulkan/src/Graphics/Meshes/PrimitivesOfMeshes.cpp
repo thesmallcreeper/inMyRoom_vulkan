@@ -261,17 +261,29 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
                 if (accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
                     std::vector attribute = transformRange<float>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
-                                                                  +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+                                                                  +[](const std::array<float, 2> &in) -> std::array<float, 2> {
+                                                                      std::array<float, 2> out = {};
+                                                                      out[0] = in[0]; out[1] = in[1];
+                                                                       return out;
+                                                                  });
 
                     attributeAndTargets.emplace_back(std::move(attribute));
                 } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
                     std::vector attribute = transformRange<uint8_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
-                                                                    +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+                                                                    +[](const std::array<float, 2> &in) -> std::array<float, 2> {
+                                                                        std::array<float, 2> out = {};
+                                                                        out[0] = in[0]; out[1] = in[1];
+                                                                        return out;
+                                                                    });
 
                     attributeAndTargets.emplace_back(std::move(attribute));
                 } else if (accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
                     std::vector attribute = transformRange<uint16_t>(pair_begin_end_ptr.first, pair_begin_end_ptr.second,
-                                                                     +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+                                                                     +[](const std::array<float, 2> &in) -> std::array<float, 2> {
+                                                                         std::array<float, 2> out = {};
+                                                                         out[0] = in[0]; out[1] = in[1];
+                                                                         return out;
+                                                                     });
 
                     attributeAndTargets.emplace_back(std::move(attribute));
                 } else assert (0);
@@ -286,27 +298,47 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
 
                         if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_float)) {
                             std::vector target = transformRange<float>(target_begin_end_ptr.first, target_begin_end_ptr.second,
-                                                                          +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+                                                                       +[](const std::array<float, 2> &in) -> std::array<float, 2> {
+                                                                          std::array<float, 2> out = {};
+                                                                          out[0] = in[0]; out[1] = in[1];
+                                                                          return out;
+                                                                       });
 
                             attributeAndTargets.emplace_back(std::move(target));
                         } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_byte)) {
                             std::vector target = transformRange<uint8_t>(target_begin_end_ptr.first, target_begin_end_ptr.second,
-                                                                            +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+                                                                         +[](const std::array<float, 2> &in) -> std::array<float, 2> {
+                                                                            std::array<float, 2> out = {};
+                                                                            out[0] = in[0]; out[1] = in[1];
+                                                                            return out;
+                                                                        });
 
                             attributeAndTargets.emplace_back(std::move(target));
                         } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_unsigned_short)) {
                             std::vector target = transformRange<uint16_t>(target_begin_end_ptr.first,target_begin_end_ptr.second,
-                                                                          +[](const std::array<float, 2> &in) -> std::array<float, 2> { return in; });
+                                                                          +[](const std::array<float, 2> &in) -> std::array<float, 2> {
+                                                                              std::array<float, 2> out = {};
+                                                                              out[0] = in[0]; out[1] = in[1];
+                                                                              return out;
+                                                                          });
 
                             attributeAndTargets.emplace_back(std::move(target));
                         } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_byte)) {
                             std::vector target = transformRange<int8_t>(target_begin_end_ptr.first,target_begin_end_ptr.second,
-                                                                        +[](const std::array<float, 2> &in) -> std::array<float, 2> {return in;});
+                                                                        +[](const std::array<float, 2> &in) -> std::array<float, 2> {
+                                                                            std::array<float, 2> out = {};
+                                                                            out[0] = in[0]; out[1] = in[1];
+                                                                            return out;
+                                                                        });
 
                             attributeAndTargets.emplace_back(std::move(target));
                         } else if (target_accessor.componentType == static_cast<int>(glTFcomponentType::type_short)) {
                             std::vector target = transformRange<int16_t>(target_begin_end_ptr.first,target_begin_end_ptr.second,
-                                                                         +[](const std::array<float, 2> &in) -> std::array<float, 2> { return in; });
+                                                                         +[](const std::array<float, 2> &in) -> std::array<float, 2> {
+                                                                             std::array<float, 2> out = {};
+                                                                             out[0] = in[0]; out[1] = in[1];
+                                                                             return out;
+                                                                         });
 
                             attributeAndTargets.emplace_back(std::move(target));
                         } else assert(0);

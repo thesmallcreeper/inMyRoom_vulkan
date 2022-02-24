@@ -38,10 +38,11 @@ vec3 RandomDirInCone(float cosMaxTheta, inout uint rngState) {
     float u_0 = RandomFloat(rngState);
     float u_1 = RandomFloat(rngState);
 
+    float cosTheta = (1.f - u_0) + u_0 * cosMaxTheta;
+    float sinTheta = sqrt(1.f - cosTheta * cosTheta);
+    float phi = u_1 * 2.f * M_PI;
+
     vec3 return_vector;
-    float cosTheta = (1 - u_0) + u_0 * cosMaxTheta;
-    float sinTheta = sqrt(1 - cosTheta * cosTheta);
-    float phi = u_1 * 2 * M_PI;
     return_vector.x = cos(phi) * sinTheta;
     return_vector.y = sin(phi) * sinTheta;
     return_vector.z = cosTheta;
@@ -50,5 +51,56 @@ vec3 RandomDirInCone(float cosMaxTheta, inout uint rngState) {
 }
 
 float RandomDirInConePDF(float cosMaxTheta) {
-    return 1 / (2.f * M_PI * (1.f - cosMaxTheta));
+    return 1.f / (2.f * M_PI * (1.f - cosMaxTheta));
+}
+
+vec3 RandomGXXhalfvector(float roughness, inout uint rngState) {
+    float a = roughness * roughness;
+
+    float u_0 = RandomFloat(rngState);
+    float u_1 = RandomFloat(rngState);
+
+    float cosTheta = sqrt(1.f - u_0 / ((a*a - 1.f) * u_0 + 1.f));
+    float sinTheta = sqrt(1.f - cosTheta * cosTheta);
+
+    float cosPhi = cos(2.f * M_PI * u_1);
+    float sinPhi = sin(2.f * M_PI * u_1);
+
+    vec3 return_vector;
+    return_vector.x = cosPhi * sinTheta;
+    return_vector.y = sinPhi * sinTheta;
+    return_vector.z = cosTheta;
+
+    return return_vector;
+}
+
+float RandomGXXhalfvectorPDF(float roughness, float NdotH) {
+    float a = roughness * roughness;
+
+    float a_squared = a * a;
+    float NdotH_squared = NdotH*NdotH;
+
+    float divisor = NdotH_squared * (a_squared - 1.f) + 1.f;
+    float distribution = a_squared / (M_PI * divisor * divisor);
+    return distribution * NdotH;
+}
+
+vec3 RandomCosinWeightedHemi(inout uint rngState) {
+    float u_0 = RandomFloat(rngState);
+    float u_1 = RandomFloat(rngState);
+
+    float cosPhi = cos(2.f * M_PI * u_1);
+    float sinPhi = sin(2.f * M_PI * u_1);
+    float u_0_sqrt = sqrt(u_0);
+
+    vec3 return_vector;
+    return_vector.x = u_0_sqrt * cosPhi;
+    return_vector.y = u_0_sqrt * sinPhi;
+    return_vector.z = sqrt(1.f - u_0);
+
+    return return_vector;
+}
+
+float RandomCosinWeightedHemiPDF(float NdotH) {
+    return NdotH / M_PI;
 }
