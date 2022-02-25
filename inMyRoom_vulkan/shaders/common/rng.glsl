@@ -39,7 +39,7 @@ vec3 RandomDirInCone(float cosMaxTheta, inout uint rngState) {
     float u_1 = RandomFloat(rngState);
 
     float cosTheta = (1.f - u_0) + u_0 * cosMaxTheta;
-    float sinTheta = sqrt(1.f - cosTheta * cosTheta);
+    float sinTheta = sqrt(1.f - min(cosTheta * cosTheta, 1.f));
     float phi = u_1 * 2.f * M_PI;
 
     vec3 return_vector;
@@ -60,8 +60,8 @@ vec3 RandomGXXhalfvector(float roughness, inout uint rngState) {
     float u_0 = RandomFloat(rngState);
     float u_1 = RandomFloat(rngState);
 
-    float cosTheta = sqrt(1.f - u_0 / ((a*a - 1.f) * u_0 + 1.f));
-    float sinTheta = sqrt(1.f - cosTheta * cosTheta);
+    float cosTheta = sqrt((1.f - u_0) / ((a*a - 1.f) * u_0 + 1.f));
+    float sinTheta = sqrt(1.f - min(cosTheta * cosTheta, 1.f));
 
     float cosPhi = cos(2.f * M_PI * u_1);
     float sinPhi = sin(2.f * M_PI * u_1);

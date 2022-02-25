@@ -12,8 +12,8 @@
 #include "common/rng.glsl"
 #include "common/brdf.glsl"
 
-#define DOT_ANGLE_SLACK 0.005f
-#define MIN_ROUGHNESS 0.01f
+#define DOT_ANGLE_SLACK 0.01f
+#define MIN_ROUGHNESS 0.04f
 
 //
 // In
@@ -336,7 +336,8 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     // Bounce!
     vec3 viewVector_normalspace = transpose(mat3(normal_tangent, normal_bitangent, normal)) * viewVector;
 
-    float cosine_weighted_chance = (1.f - metallic) * 0.4f + 0.2f;
+    float cosine_weighted_chance = (1.f - metallic) * 0.3f + 0.15f;
+    //float cosine_weighted_chance = 0.2f;
 
     float u_0 = RandomFloat(rng_state);
     vec3 ray_bounce_normalspace;
@@ -355,7 +356,9 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     if (dot(bounce_halfvector_normalspace, viewVector_normalspace) > DOT_ANGLE_SLACK &&
         dot(ray_bounce, face_normal) > DOT_ANGLE_SLACK &&
         dot(viewVector, normal) > DOT_ANGLE_SLACK &&
-        dot(ray_bounce, normal) > DOT_ANGLE_SLACK)
+        dot(ray_bounce, normal) > DOT_ANGLE_SLACK &&
+        bounce_halfvector_normalspace.z > DOT_ANGLE_SLACK &&
+        ray_bounce_normalspace.z > DOT_ANGLE_SLACK)
     {
         float ray_bounce_PDF_cosin = RandomCosinWeightedHemiPDF(ray_bounce_normalspace.z);
 

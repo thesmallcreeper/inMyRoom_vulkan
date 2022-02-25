@@ -46,7 +46,6 @@
     ],
     "materials" : [
         {
-            "doubleSided" : true,
             "name" : "DielectricSpheresMat",
             "pbrMetallicRoughness" : {
                 "metallicRoughnessTexture" : {
@@ -55,7 +54,6 @@
             }
         },
         {
-            "doubleSided" : true,
             "name" : "DielectricSpheresMat.001",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
@@ -70,7 +68,6 @@
             }
         },
         {
-            "doubleSided" : true,
             "name" : "MetallicSpheresMat",
             "pbrMetallicRoughness" : {
                 "metallicRoughnessTexture" : {
