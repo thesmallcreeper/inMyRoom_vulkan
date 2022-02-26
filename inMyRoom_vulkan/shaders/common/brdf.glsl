@@ -11,21 +11,22 @@ float GGXdistribution(float a, float NdotH) {
     return D;
 }
 
+// Smith Joint GGX
 float SmithsVisibility(vec3 eye, vec3 light, vec3 normal, float a) {
     float a_squared = a * a;
 
     float NdotL = dot(normal, light);
-    float NdotL_abs = abs(NdotL);
-    float NdotL_squared = NdotL * NdotL;
-
     float NdotV = dot(normal, eye);
-    float NdotV_abs = abs(NdotV);
-    float NdotV_squared = NdotV * NdotV;
 
-    float divisor_1 = NdotL_abs + sqrt(a_squared + (1.f - a_squared) * NdotL_squared);
-    float divisor_2 = NdotV_abs + sqrt(a_squared + (1.f - a_squared) * NdotV_squared);
+    float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - a_squared) + a_squared);
+    float GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - a_squared) + a_squared);
 
-    return divisor_1 * divisor_2;
+    float GGX = GGXV + GGXL;
+    if (GGX > 0.0)
+    {
+        return 0.5 / GGX;
+    }
+    return 0.0;
 }
 
 vec3 BRDF(vec3 baseColor, float roughness, float metallic, vec3 eye, vec3 light, vec3 normal) {

@@ -13,7 +13,7 @@
 #include "common/brdf.glsl"
 
 #define DOT_ANGLE_SLACK 0.01f
-#define MIN_ROUGHNESS 0.04f
+#define MIN_ROUGHNESS 0.0625f
 
 //
 // In
@@ -336,13 +336,12 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     // Bounce!
     vec3 viewVector_normalspace = transpose(mat3(normal_tangent, normal_bitangent, normal)) * viewVector;
 
-    float cosine_weighted_chance = (1.f - metallic) * 0.3f + 0.15f;
-    //float cosine_weighted_chance = 0.2f;
+    float cosine_weighted_chance = (1.f - metallic) * 0.48f + 0.02f;
 
     float u_0 = RandomFloat(rng_state);
     vec3 ray_bounce_normalspace;
     vec3 bounce_halfvector_normalspace;
-    if ( u_0 <= cosine_weighted_chance ) {
+    if ( u_0 < cosine_weighted_chance ) {
         ray_bounce_normalspace = RandomCosinWeightedHemi(rng_state);
         bounce_halfvector_normalspace = normalize(ray_bounce_normalspace + viewVector_normalspace);
     } else {
@@ -357,6 +356,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         dot(ray_bounce, face_normal) > DOT_ANGLE_SLACK &&
         dot(viewVector, normal) > DOT_ANGLE_SLACK &&
         dot(ray_bounce, normal) > DOT_ANGLE_SLACK &&
+        !isnan(bounce_halfvector_normalspace.x) &&
         bounce_halfvector_normalspace.z > DOT_ANGLE_SLACK &&
         ray_bounce_normalspace.z > DOT_ANGLE_SLACK)
     {
@@ -408,7 +408,7 @@ void main()
     vec3 light_factor = vec3(1.f);
     vec3 color_sum = vec3(0.f);
 
-    uint max_depth = 8;
+    uint max_depth = 6;
     uint i = 0;
     while(true) {
         BounceEvaluation eval = EvaluateBounce(primitive_instance, triangle_index,
