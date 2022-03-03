@@ -10,6 +10,7 @@
 #include "glm/gtx/quaternion.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
+#include "glm/matrix.hpp"
 
 #include "common/structs/ModelMatrices.h"
 

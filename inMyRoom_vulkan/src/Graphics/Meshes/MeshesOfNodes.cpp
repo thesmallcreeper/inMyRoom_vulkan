@@ -68,9 +68,13 @@ size_t MeshesOfNodes::GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model)
     return search->second;
 }
 
-void MeshesOfNodes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
+void MeshesOfNodes::FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>> queues)
 {
     assert(not hasBeenFlashed);
+
+    std::vector<uint32_t> share_families_indices;
+    std::transform(queues.begin(), queues.end(), std::back_inserter(share_families_indices),
+                   [](const auto& pair){return pair.second;});
 
     for(auto& this_mesh : meshes) {
         std::vector<vk::AccelerationStructureGeometryKHR> geometries;
@@ -114,7 +118,8 @@ void MeshesOfNodes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
                 vk::BufferCreateInfo buffer_create_info;
                 buffer_create_info.size = build_size_info.accelerationStructureSize;
                 buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
-                buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+                buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
+                buffer_create_info.setQueueFamilyIndices(share_families_indices);
 
                 vma::AllocationCreateInfo allocation_create_info;
                 allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
@@ -157,7 +162,7 @@ void MeshesOfNodes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
             geometry_info.dstAccelerationStructure  = this_mesh.meshBLAS.handle;
 
             OneShotCommandBuffer one_shot_command_buffer(device);
-            vk::CommandBuffer command_buffer = one_shot_command_buffer.BeginCommandRecord(queue);
+            vk::CommandBuffer command_buffer = one_shot_command_buffer.BeginCommandRecord(queues[0]);
 
             vk::AccelerationStructureBuildRangeInfoKHR* indirection_ptr = geometries_ranges.data();
             command_buffer.buildAccelerationStructuresKHR(1, &geometry_info, &indirection_ptr);

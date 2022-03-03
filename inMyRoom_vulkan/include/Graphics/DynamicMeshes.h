@@ -28,14 +28,16 @@ struct DynamicMeshInfo {
     };
 
     std::vector<DynamicPrimitiveInfo> dynamicPrimitives;
+    size_t meshIndex                = -1;
 
     vk::Buffer buffer;
     vma::Allocation allocation;
     size_t halfSize                 =  0;
-    size_t descriptorIndex          = -1;
+    size_t descriptorIndexOffset    = -1;
 
-    bool hasDynamicBLAS             = false;
+    bool hasDynamicShape            = false;
 
+    // BLAS
     vk::AccelerationStructureKHR BLASesHandles[2];
     uint64_t BLASesDeviceAddresses[2] = {0, 0};
     vk::Buffer BLASesBuffer;
@@ -45,7 +47,11 @@ struct DynamicMeshInfo {
     vk::Buffer updateScratchBuffer;
     vma::Allocation updateScratchAllocation;
 
-    size_t meshIndex                = -1;
+    // AABB
+    vk::Buffer AABBsBuffer;
+    vma::Allocation AABBsAllocation;
+    vma::AllocationInfo AABBsAllocInfo;
+    size_t AABBsBufferHalfsize;
 
     bool shouldBeDeleted            = false;
 };
@@ -62,6 +68,7 @@ struct DynamicMeshComputePushConstants {
     uint32_t step_multiplier = 1;
     uint32_t resultDescriptorIndex = 0;
     uint32_t resultOffset = -1;
+    uint32_t AABBresultOffset = -1;
     std::array<float, MAX_MORPH_WEIGHTS> morph_weights = {};
 };
 
@@ -73,35 +80,69 @@ public:
                   size_t max_dynamicMeshes);
     ~DynamicMeshes();
 
-    void FlashDevice();
+    void FlashDevice(std::pair<vk::Queue, uint32_t> queue);
 
     const DynamicMeshInfo& GetDynamicMeshInfo(size_t index) const;
     size_t AddDynamicMesh(size_t mesh_index);
     void RemoveDynamicMeshSafe(size_t index);
 
-    void RecordTransformations(vk::CommandBuffer command_buffer,
-                               const std::vector<DrawInfo>& draw_infos);
+    std::vector<vk::BufferMemoryBarrier> GetGenericTransformRangesBarriers(const std::vector<DrawInfo> &draw_infos,
+                                                                           uint32_t buffer_index) const;
+    std::vector<vk::BufferMemoryBarrier> GetGenericBLASrangesBarriers(const std::vector<DrawInfo> &draw_infos,
+                                                                      uint32_t buffer_index) const;
 
-    vk::DescriptorSet GetDescriptorSet() {return descriptorSets[swapIndex % 3];}
-    vk::DescriptorSetLayout GetDescriptorLayout() {return descriptorSetLayout;}
+    void ObtainTransformRanges(vk::CommandBuffer command_buffer,
+                               const std::vector<DrawInfo>& draw_infos,
+                               uint32_t source_family_index) const;
+    void RecordTransformations(vk::CommandBuffer command_buffer,
+                               const std::vector<DrawInfo>& draw_infos) const;
+
+    // Transform and BLAS update sync with semaphore!
+
+    void ObtainBLASranges(vk::CommandBuffer command_buffer,
+                          const std::vector<DrawInfo>& draw_infos,
+                          uint32_t source_family_index) const;
+    void RecordBLASupdate(vk::CommandBuffer command_buffer,
+                          const std::vector<DrawInfo>& draw_infos) const;
+
+    // After BLAS update, the TLAS update should follow!
+
+    void TransferTransformAndBLASranges(vk::CommandBuffer command_buffer,
+                                        const std::vector<DrawInfo>& draw_infos,
+                                        uint32_t dst_family_index) const;
+
+
+    vk::DescriptorSet GetDescriptorSet() const {return verticesDescriptorSets[swapIndex % 3];}
+    vk::DescriptorSetLayout GetDescriptorLayout() const {return verticesDescriptorSetLayout;}
     void SwapDescriptorSet(size_t swap_index);
     void CompleteRemovesSafe();
 
 private:
+    vk::DescriptorSet GetAABBsDescriptorSet() const {return AABBsAndScratchDescriptorSets[swapIndex % 3];}
+    vk::DescriptorSetLayout GetAABBsDescriptorLayout() const {return AABBsAndScratchDescriptorSetLayout;}
+
+private:
+    const size_t max_dynamicMeshes;
+
     std::unordered_map<size_t, DynamicMeshInfo> indexToDynamicMeshInfo_umap;
     std::vector<std::pair<size_t, uint32_t>> indexToBeRemovedCountdown;
 
     vk::DescriptorPool      descriptorPool;
-    vk::DescriptorSet       descriptorSets[3];
-    vk::DescriptorSetLayout descriptorSetLayout;
-    const size_t max_dynamicMeshes;
+    vk::DescriptorSet       verticesDescriptorSets[3];
+    vk::DescriptorSetLayout verticesDescriptorSetLayout;
+    vk::DescriptorSet       AABBsAndScratchDescriptorSets[3];
+    vk::DescriptorSetLayout AABBsAndScratchDescriptorSetLayout;
 
-    vk::PipelineLayout  computeLayout;
+    vk::PipelineLayout  position_computeLayout;
     vk::Pipeline        positionCompPipeline;
+    vk::PipelineLayout  generic_computeLayout;
     vk::Pipeline        normalCompPipeline;
     vk::Pipeline        tangentCompPipeline;
     vk::Pipeline        texcoordsCompPipeline;
     vk::Pipeline        colorCompPipeline;
+
+    vk::Buffer              AABBinitDataBuffer;
+    vma::Allocation         AABBinitDataAllocation;
 
     bool hasBeenFlashed = false;
 
@@ -109,11 +150,13 @@ private:
     vma::Allocator vma_allocator;
 
     class Graphics* const graphics_ptr;
+    uint32_t queue_family_index;
 
     size_t indexCounter = 0;
     size_t swapIndex = 0;
 
     const uint32_t waveSize;
+    const uint32_t accumulateLocalSize;
     const uint32_t maxMorphWeights = MAX_MORPH_WEIGHTS;
     const uint32_t removeCountdown = 2;
 };

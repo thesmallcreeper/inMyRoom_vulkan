@@ -6,13 +6,14 @@
 Renderer::Renderer(class Graphics* in_graphics_ptr,
                    vk::Device in_device,
                    vma::Allocator in_vma_allocator)
-    : RendererBase(in_graphics_ptr, in_device, in_vma_allocator)
+    : RendererBase(in_graphics_ptr, in_device, in_vma_allocator),
+      graphicsQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
+      computeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[0])
 {
-    graphicsQueue = graphics_ptr->GetQueuesList().graphicsQueues[0];
+    TLASinstance_uptr = std::make_unique<TLASinstance>(device, vma_allocator, computeQueue.second, graphics_ptr->GetMaxInstancesCount());
 
     InitBuffers();
     InitImages();
-    InitTLASes();
     InitDescriptors();
     InitRenderpasses();
     InitFramebuffers();
@@ -25,7 +26,8 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
 
 Renderer::~Renderer()
 {
-    device.destroy(commandPool);
+    device.destroy(graphicsCommandPool);
+    device.destroy(computeCommandPool);
 
     device.destroy(readyForPresentSemaphores[0]);
     device.destroy(readyForPresentSemaphores[1]);
@@ -33,7 +35,9 @@ Renderer::~Renderer()
     device.destroy(presentImageAvailableSemaphores[0]);
     device.destroy(presentImageAvailableSemaphores[1]);
     device.destroy(presentImageAvailableSemaphores[2]);
-    device.destroy(submitFinishTimelineSemaphore);
+    device.destroy(graphicsFinishTimelineSemaphore);
+    device.destroy(transformsFinishTimelineSemaphore);
+    device.destroy(xLASupdateFinishTimelineSemaphore);
     device.destroy(hostWriteFinishTimelineSemaphore);
 
     for(auto& this_framebuffer : framebuffers) {
@@ -58,11 +62,7 @@ Renderer::~Renderer()
     vma_allocator.destroyBuffer(primitivesInstanceBuffer, primitivesInstanceAllocation);
     vma_allocator.destroyBuffer(fullscreenBuffer, fullscreenAllocation);
 
-    device.destroy(TLASesHandles[0]);
-    device.destroy(TLASesHandles[1]);
-    vma_allocator.destroyBuffer(TLASesBuffer, TLASesAllocation);
-    vma_allocator.destroyBuffer(TLASbuildScratchBuffer, TLASbuildScratchAllocation);
-    vma_allocator.destroyBuffer(TLASesInstancesBuffer, TLASesInstancesAllocation);
+    TLASinstance_uptr.reset();
 }
 
 void Renderer::InitBuffers()
@@ -110,30 +110,6 @@ void Renderer::InitBuffers()
         assert(createBuffer_result.result == vk::Result::eSuccess);
         fullscreenBuffer = createBuffer_result.value.first;
         fullscreenAllocation = createBuffer_result.value.second;
-    }
-
-    // TLASesInstancesBuffer
-    {
-        TLASesInstancesHalfSize = sizeof(vk::AccelerationStructureInstanceKHR) * graphics_ptr->GetMaxInstancesCount();
-
-        vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = TLASesInstancesHalfSize * 2;
-        buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR
-                | vk::BufferUsageFlagBits::eTransferDst
-                | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
-
-        vma::AllocationCreateInfo buffer_allocation_create_info;
-        buffer_allocation_create_info.usage = vma::MemoryUsage::eCpuToGpu;
-        buffer_allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
-
-        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info,
-                                                              buffer_allocation_create_info,
-                                                              TLASesInstancesAllocInfo);
-
-        assert(createBuffer_result.result == vk::Result::eSuccess);
-        TLASesInstancesBuffer = createBuffer_result.value.first;
-        TLASesInstancesAllocation = createBuffer_result.value.second;
     }
 }
 
@@ -271,75 +247,6 @@ void Renderer::InitImages()
                                        1, &init_image_barrier);
 
         one_shot_command_buffer.EndAndSubmitCommands();
-    }
-}
-
-void Renderer::InitTLASes()
-{
-    // Get required sizes
-    vk::AccelerationStructureBuildSizesInfoKHR build_size_info;
-    {
-        vk::AccelerationStructureGeometryKHR instances;
-        instances.geometryType = vk::GeometryTypeKHR::eInstances;
-        instances.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
-
-        vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
-        geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-        geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
-        geometry_info.geometryCount = 1;
-        geometry_info.pGeometries = &instances;
-
-        build_size_info = device.getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice,
-                                                                       geometry_info,
-                                                                       graphics_ptr->GetMaxInstancesCount());
-    }
-    TLASesHalfSize = build_size_info.accelerationStructureSize;
-    // TODO: Vendor specific
-    TLASesHalfSize += (TLASesHalfSize % 256 != 0) ? 256 - TLASesHalfSize % 256 : 0;
-
-    // Create buffer for acceleration structures
-    {
-        vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = TLASesHalfSize * 2;
-        buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
-        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
-
-        vma::AllocationCreateInfo allocation_create_info;
-        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
-
-        auto create_buffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
-        assert(create_buffer_result.result == vk::Result::eSuccess);
-        TLASesBuffer = create_buffer_result.value.first;
-        TLASesAllocation = create_buffer_result.value.second;
-    }
-
-    // Create TLASes
-    for(size_t i = 0; i != 2; ++i) {
-        vk::AccelerationStructureCreateInfoKHR TLAS_create_info;
-        TLAS_create_info.buffer = TLASesBuffer;
-        TLAS_create_info.size = build_size_info.accelerationStructureSize;
-        TLAS_create_info.offset = i * TLASesHalfSize;
-        TLAS_create_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-        auto TLAS_create_result = device.createAccelerationStructureKHR(TLAS_create_info);
-        assert(TLAS_create_result.result == vk::Result::eSuccess);
-        TLASesHandles[i] = TLAS_create_result.value;
-        TLASesDeviceAddresses[i] = device.getAccelerationStructureAddressKHR({TLASesHandles[i]});
-    }
-
-    // Create scratch build buffer
-    {
-        vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = build_size_info.buildScratchSize;
-        buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
-
-        vma::AllocationCreateInfo allocation_create_info;
-        allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
-
-        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info, allocation_create_info);
-        assert(createBuffer_result.result == vk::Result::eSuccess);
-        TLASbuildScratchBuffer = createBuffer_result.value.first;
-        TLASbuildScratchAllocation = createBuffer_result.value.second;
     }
 }
 
@@ -502,10 +409,11 @@ void Renderer::InitDescriptors()
         }
 
         std::vector<std::unique_ptr<vk::WriteDescriptorSetAccelerationStructureKHR>> acceleration_structures_pnext_uptrs;
+        vk::AccelerationStructureKHR handles[2] = {TLASinstance_uptr->GetTLAShandle(0), TLASinstance_uptr->GetTLAShandle(1)};
         {
             auto acceleration_structures_pnext_uptr = std::make_unique<vk::WriteDescriptorSetAccelerationStructureKHR>();
             acceleration_structures_pnext_uptr->accelerationStructureCount = 1;
-            acceleration_structures_pnext_uptr->pAccelerationStructures = &TLASesHandles[0];
+            acceleration_structures_pnext_uptr->pAccelerationStructures = &handles[0];
 
             vk::WriteDescriptorSet write_descriptor_set;
             write_descriptor_set.dstSet = rendererDescriptorSets[0];
@@ -521,7 +429,7 @@ void Renderer::InitDescriptors()
         {
             auto acceleration_structures_pnext_uptr = std::make_unique<vk::WriteDescriptorSetAccelerationStructureKHR>();
             acceleration_structures_pnext_uptr->accelerationStructureCount = 1;
-            acceleration_structures_pnext_uptr->pAccelerationStructures = &TLASesHandles[1];
+            acceleration_structures_pnext_uptr->pAccelerationStructures = &handles[1];
 
             vk::WriteDescriptorSet write_descriptor_set;
             write_descriptor_set.dstSet = rendererDescriptorSets[1];
@@ -647,9 +555,9 @@ void Renderer::InitRenderpasses()
     vk::SubpassDependency visibility_subpass_dependency;
     visibility_subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     visibility_subpass_dependency.dstSubpass = 0;
-    visibility_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eLateFragmentTests;
+    visibility_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eAllGraphics;
     visibility_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
-    visibility_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
+    visibility_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
     visibility_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
 
     subpasses.emplace_back(visibility_subpass_description);
@@ -773,17 +681,6 @@ void Renderer::InitSemaphoresAndFences()
         presentImageAvailableSemaphores[2] = device.createSemaphore(semaphore_create_info).value;
     }
 
-    {   // submitFinishTimelineSemaphore
-        vk::SemaphoreTypeCreateInfo semaphore_type_info;
-        semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
-        semaphore_type_info.initialValue = 0;
-
-        vk::SemaphoreCreateInfo semaphore_create_info;
-        semaphore_create_info.pNext = &semaphore_type_info;
-
-        submitFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
-    }
-
     {   // hostWriteFinishTimelineSemaphore
         vk::SemaphoreTypeCreateInfo semaphore_type_info;
         semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
@@ -794,26 +691,80 @@ void Renderer::InitSemaphoresAndFences()
 
         hostWriteFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
     }
-    vk::SemaphoreCreateInfo semaphore_create_info;
+
+    {   // transformsFinishTimelineSemaphore
+        vk::SemaphoreTypeCreateInfo semaphore_type_info;
+        semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
+        semaphore_type_info.initialValue = 0;
+
+        vk::SemaphoreCreateInfo semaphore_create_info;
+        semaphore_create_info.pNext = &semaphore_type_info;
+
+        transformsFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
+    }
+
+    {   // xLASupdateFinishTimelineSemaphore
+        vk::SemaphoreTypeCreateInfo semaphore_type_info;
+        semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
+        semaphore_type_info.initialValue = 0;
+
+        vk::SemaphoreCreateInfo semaphore_create_info;
+        semaphore_create_info.pNext = &semaphore_type_info;
+
+        xLASupdateFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
+    }
+
+    {   // graphicsFinishTimelineSemaphore
+        vk::SemaphoreTypeCreateInfo semaphore_type_info;
+        semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
+        semaphore_type_info.initialValue = 0;
+
+        vk::SemaphoreCreateInfo semaphore_create_info;
+        semaphore_create_info.pNext = &semaphore_type_info;
+
+        graphicsFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
+    }
 }
 
 void Renderer::InitCommandBuffers()
 {
-    vk::CommandPoolCreateInfo command_pool_create_info;
-    command_pool_create_info.flags = vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
-    command_pool_create_info.queueFamilyIndex = graphicsQueue.second;
+    {   // graphics command buffers
+        vk::CommandPoolCreateInfo command_pool_create_info;
+        command_pool_create_info.flags = vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+        command_pool_create_info.queueFamilyIndex = graphicsQueue.second;
 
-    commandPool = device.createCommandPool(command_pool_create_info).value;
+        graphicsCommandPool = device.createCommandPool(command_pool_create_info).value;
 
-    vk::CommandBufferAllocateInfo command_buffer_alloc_info;
-    command_buffer_alloc_info.commandPool = commandPool;
-    command_buffer_alloc_info.level = vk::CommandBufferLevel::ePrimary;
-    command_buffer_alloc_info.commandBufferCount = 3;
+        vk::CommandBufferAllocateInfo command_buffer_alloc_info;
+        command_buffer_alloc_info.commandPool = graphicsCommandPool;
+        command_buffer_alloc_info.level = vk::CommandBufferLevel::ePrimary;
+        command_buffer_alloc_info.commandBufferCount = 3;
 
-    auto command_buffers = device.allocateCommandBuffers(command_buffer_alloc_info).value;
-    commandBuffers[0] = command_buffers[0];
-    commandBuffers[1] = command_buffers[1];
-    commandBuffers[2] = command_buffers[2];
+        auto command_buffers = device.allocateCommandBuffers(command_buffer_alloc_info).value;
+        graphicsCommandBuffers[0] = command_buffers[0];
+        graphicsCommandBuffers[1] = command_buffers[1];
+        graphicsCommandBuffers[2] = command_buffers[2];
+    }
+    {   // compute command buffers
+        vk::CommandPoolCreateInfo command_pool_create_info;
+        command_pool_create_info.flags = vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+        command_pool_create_info.queueFamilyIndex = computeQueue.second;
+
+        computeCommandPool = device.createCommandPool(command_pool_create_info).value;
+
+        vk::CommandBufferAllocateInfo command_buffer_alloc_info;
+        command_buffer_alloc_info.commandPool = computeCommandPool;
+        command_buffer_alloc_info.level = vk::CommandBufferLevel::ePrimary;
+        command_buffer_alloc_info.commandBufferCount = 6;
+
+        auto command_buffers = device.allocateCommandBuffers(command_buffer_alloc_info).value;
+        transformCommandBuffers[0] = command_buffers[0];
+        transformCommandBuffers[1] = command_buffers[1];
+        transformCommandBuffers[2] = command_buffers[2];
+        xLASCommandBuffers[0] = command_buffers[3];
+        xLASCommandBuffers[1] = command_buffers[4];
+        xLASCommandBuffers[2] = command_buffers[5];
+    }
 }
 
 void Renderer::InitPrimitivesSet()
@@ -1336,58 +1287,202 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
 {
     ++frameCount;
     if(viewportFreeze) {
-        ++viewportFreezedFrameCount;
-        ++viewportInRowFreezedFrameCount;
+        if (viewportFreezeState == ViewportFreezeStates::ready) {
+            viewportFreezeState = ViewportFreezeStates::next_frame_freeze;
+        } else if (viewportFreezeState == ViewportFreezeStates::next_frame_freeze
+           || viewportFreezeState == ViewportFreezeStates::frozen) {
+            viewportFreezeState = ViewportFreezeStates::frozen;
+        }
     } else {
+        if (viewportFreezeState == ViewportFreezeStates::ready
+         || viewportFreezeState == ViewportFreezeStates::next_frame_unfreeze) {
+            viewportFreezeState = ViewportFreezeStates::ready;
+        } else if (viewportFreezeState == ViewportFreezeStates::frozen) {
+            viewportFreezeState = ViewportFreezeStates::next_frame_unfreeze;
+        }
+    }
+
+    if (viewportFreezeState == ViewportFreezeStates::ready
+      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
         viewport = in_viewport;
         matrices = std::move(in_matrices);
-        draw_infos = std::move(in_draw_infos);
+        drawInfos = std::move(in_draw_infos);
         viewportInRowFreezedFrameCount = 1;
+
+        drawDynamicMeshInfos.clear();
+        for(const auto& draw_info : drawInfos) {
+            if (draw_info.dynamicMeshIndex != -1)
+                drawDynamicMeshInfos.emplace_back(draw_info);
+        }
+    } else {
+        ++viewportFreezedFrameCount;
+        ++viewportInRowFreezedFrameCount;
     }
 
     size_t buffer_index = (frameCount - viewportFreezedFrameCount) % 2;
     size_t commandBuffer_index = frameCount % 3;
+    size_t freezable_commandBuffer_index = (frameCount - viewportFreezedFrameCount) % 3;
 
-    if (not viewportFreeze) {
+    std::vector<std::unique_ptr<vk::TimelineSemaphoreSubmitInfo>> timeline_semaphore_infos;
+    std::vector<std::unique_ptr<std::vector<vk::Semaphore>>> semaphore_vectors;
+    std::vector<std::unique_ptr<std::vector<vk::PipelineStageFlags>>> pipelineStageFlags_vectors;
+    std::vector<std::unique_ptr<std::vector<uint64_t>>> semaphore_values_vectors;
+
+    std::vector<vk::SubmitInfo> compute_submit_infos;
+    if (viewportFreezeState == ViewportFreezeStates::ready
+     || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
         graphics_ptr->GetDynamicMeshes()->SwapDescriptorSet(frameCount - viewportFreezedFrameCount);
-        primitive_instance_parameters = CreatePrimitivesInstanceParameters(draw_infos);
-        TLAS_instances = CreateTLASinstances(draw_infos, matrices, buffer_index);
+        primitive_instance_parameters = CreatePrimitivesInstanceParameters();
+        TLAS_instances = TLASinstance::CreateTLASinstances(drawInfos, matrices, buffer_index, graphics_ptr);
+
+        {
+            vk::CommandBuffer &transform_command_buffer = transformCommandBuffers[freezable_commandBuffer_index];
+            transform_command_buffer.reset();
+            transform_command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+            if (frameCount > 2) graphics_ptr->GetDynamicMeshes()->ObtainTransformRanges(transform_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
+            graphics_ptr->GetDynamicMeshes()->RecordTransformations(transform_command_buffer, drawDynamicMeshInfos);
+
+            transform_command_buffer.end();
+
+            vk::SubmitInfo transform_submit_info;
+            std::unique_ptr<vk::TimelineSemaphoreSubmitInfo> transform_timeline_semaphore_info = std::make_unique<vk::TimelineSemaphoreSubmitInfo>();
+            transform_submit_info.pNext = transform_timeline_semaphore_info.get();
+            transform_submit_info.commandBufferCount = 1;
+            transform_submit_info.pCommandBuffers = &transform_command_buffer;
+            // Transform wait
+            auto transform_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+            auto transform_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
+            auto transform_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+            transform_wait_semaphores->emplace_back(hostWriteFinishTimelineSemaphore);
+            transform_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
+            transform_wait_semaphores_values->emplace_back(frameCount);
+            transform_submit_info.setWaitSemaphores(*transform_wait_semaphores);
+            transform_submit_info.setWaitDstStageMask(*transform_wait_pipeline_stages);
+            transform_timeline_semaphore_info->setWaitSemaphoreValues(*transform_wait_semaphores_values);
+            // Transform signal
+            auto transform_signal_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+            auto transform_signal_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+            transform_signal_semaphores->emplace_back(transformsFinishTimelineSemaphore);
+            transform_signal_semaphores_values->emplace_back(frameCount);
+            transform_submit_info.setSignalSemaphores(*transform_signal_semaphores);
+            transform_timeline_semaphore_info->setSignalSemaphoreValues(*transform_signal_semaphores_values);
+
+            compute_submit_infos.emplace_back(transform_submit_info);
+            timeline_semaphore_infos.emplace_back(std::move(transform_timeline_semaphore_info));
+            semaphore_vectors.emplace_back(std::move(transform_wait_semaphores));
+            pipelineStageFlags_vectors.emplace_back(std::move(transform_wait_pipeline_stages));
+            semaphore_values_vectors.emplace_back(std::move(transform_wait_semaphores_values));
+            semaphore_vectors.emplace_back(std::move(transform_signal_semaphores));
+            semaphore_values_vectors.emplace_back(std::move(transform_signal_semaphores_values));
+        }
+        {
+            vk::CommandBuffer &xLAS_command_buffer = xLASCommandBuffers[freezable_commandBuffer_index];
+            xLAS_command_buffer.reset();
+            xLAS_command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+            if (frameCount > 2) graphics_ptr->GetDynamicMeshes()->ObtainBLASranges(xLAS_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
+            graphics_ptr->GetDynamicMeshes()->RecordBLASupdate(xLAS_command_buffer, drawDynamicMeshInfos);
+            if (frameCount > 2) TLASinstance_uptr->ObtainTLASranges(xLAS_command_buffer, buffer_index, graphicsQueue.second);
+            TLASinstance_uptr->RecordTLASupdate(xLAS_command_buffer, buffer_index, TLAS_instances.size());
+            graphics_ptr->GetDynamicMeshes()->TransferTransformAndBLASranges(xLAS_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
+            TLASinstance_uptr->TransferTLASrange(xLAS_command_buffer, buffer_index, graphicsQueue.second);
+
+            xLAS_command_buffer.end();
+
+            vk::SubmitInfo xLAS_submit_info;
+            std::unique_ptr<vk::TimelineSemaphoreSubmitInfo> xLAS_timeline_semaphore_info = std::make_unique<vk::TimelineSemaphoreSubmitInfo>();
+            xLAS_submit_info.pNext = xLAS_timeline_semaphore_info.get();
+            xLAS_submit_info.commandBufferCount = 1;
+            xLAS_submit_info.pCommandBuffers = &xLAS_command_buffer;
+            // xLAS wait
+            auto xLAS_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+            auto xLAS_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
+            auto xLAS_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+            xLAS_wait_semaphores->emplace_back(transformsFinishTimelineSemaphore);
+            xLAS_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
+            xLAS_wait_semaphores_values->emplace_back(frameCount);
+            xLAS_submit_info.setWaitSemaphores(*xLAS_wait_semaphores);
+            xLAS_submit_info.setWaitDstStageMask(*xLAS_wait_pipeline_stages);
+            xLAS_timeline_semaphore_info->setWaitSemaphoreValues(*xLAS_wait_semaphores_values);
+            // xLAS signal
+            auto xLAS_signal_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+            auto xLAS_signal_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+            xLAS_signal_semaphores->emplace_back(xLASupdateFinishTimelineSemaphore);
+            xLAS_signal_semaphores_values->emplace_back(frameCount);
+            xLAS_submit_info.setSignalSemaphores(*xLAS_signal_semaphores);
+            xLAS_timeline_semaphore_info->setSignalSemaphoreValues(*xLAS_signal_semaphores_values);
+
+            compute_submit_infos.emplace_back(xLAS_submit_info);
+            timeline_semaphore_infos.emplace_back(std::move(xLAS_timeline_semaphore_info));
+            semaphore_vectors.emplace_back(std::move(xLAS_wait_semaphores));
+            pipelineStageFlags_vectors.emplace_back(std::move(xLAS_wait_pipeline_stages));
+            semaphore_values_vectors.emplace_back(std::move(xLAS_wait_semaphores_values));
+            semaphore_vectors.emplace_back(std::move(xLAS_signal_semaphores));
+            semaphore_values_vectors.emplace_back(std::move(xLAS_signal_semaphores_values));
+        }
     }
-
-    vk::CommandBuffer command_buffer = commandBuffers[commandBuffer_index];
-    command_buffer.reset();
-
-    FrustumCulling frustum_culling;
-    frustum_culling.SetFrustumPlanes(viewport.GetWorldSpacePlanesOfFrustum());
 
     uint32_t swapchain_index = device.acquireNextImageKHR(graphics_ptr->GetSwapchain(),
                                                           0,
                                                           presentImageAvailableSemaphores[commandBuffer_index]).value;
 
-    RecordCommandBuffer(command_buffer, uint32_t(buffer_index), swapchain_index, frustum_culling);
+    std::vector<vk::SubmitInfo> graphics_submit_infos;
+    {
+        FrustumCulling frustum_culling;
+        frustum_culling.SetFrustumPlanes(viewport.GetWorldSpacePlanesOfFrustum());
 
-    // Submit but hold until write host
-    vk::SubmitInfo submit_info;
-    vk::TimelineSemaphoreSubmitInfo timeline_semaphore_info;
-    submit_info.pNext = &timeline_semaphore_info;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-    /// wait for
-    std::array<vk::Semaphore, 2> wait_semaphores = {hostWriteFinishTimelineSemaphore, presentImageAvailableSemaphores[commandBuffer_index]};
-    std::array<vk::PipelineStageFlags, 2> wait_pipeline_stages = {vk::PipelineStageFlagBits::eTopOfPipe ,vk::PipelineStageFlagBits::eColorAttachmentOutput};
-    submit_info.setWaitSemaphores(wait_semaphores);
-    submit_info.setWaitDstStageMask(wait_pipeline_stages);
-    std::array<uint64_t, 2> wait_semaphores_values = {frameCount, 0};
-    timeline_semaphore_info.setWaitSemaphoreValues(wait_semaphores_values);
-    /// signal
-    std::array<vk::Semaphore, 2> signal_semaphores = {submitFinishTimelineSemaphore, readyForPresentSemaphores[commandBuffer_index]};
-    submit_info.setSignalSemaphores(signal_semaphores);
-    std::array<uint64_t, 2> signal_semaphores_values = {frameCount, 0};
-    timeline_semaphore_info.setSignalSemaphoreValues(signal_semaphores_values);
+        vk::CommandBuffer& graphics_command_buffer = graphicsCommandBuffers[commandBuffer_index];
+        graphics_command_buffer.reset();
+        RecordGraphicsCommandBuffer(graphics_command_buffer,
+                                    uint32_t(buffer_index),
+                                    swapchain_index,
+                                    frustum_culling);
 
-    std::vector<vk::SubmitInfo> submit_infos;
-    submit_infos.emplace_back(submit_info);
-    graphicsQueue.first.submit(submit_infos);
+        vk::SubmitInfo graphics_submit_info;
+        std::unique_ptr<vk::TimelineSemaphoreSubmitInfo> graphics_timeline_semaphore_info = std::make_unique<vk::TimelineSemaphoreSubmitInfo>();
+        graphics_submit_info.pNext = graphics_timeline_semaphore_info.get();
+        graphics_submit_info.commandBufferCount = 1;
+        graphics_submit_info.pCommandBuffers = &graphics_command_buffer;
+        // Graphics wait
+        auto graphics_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+        auto graphics_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
+        auto graphics_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+        if (not viewportFreeze) {
+            graphics_wait_semaphores->emplace_back(xLASupdateFinishTimelineSemaphore);
+            graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
+            graphics_wait_semaphores_values->emplace_back(frameCount);
+        }
+        graphics_wait_semaphores->emplace_back(presentImageAvailableSemaphores[commandBuffer_index]);
+        graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        graphics_wait_semaphores_values->emplace_back(0);
+        graphics_submit_info.setWaitSemaphores(*graphics_wait_semaphores);
+        graphics_submit_info.setWaitDstStageMask(*graphics_wait_pipeline_stages);
+        graphics_timeline_semaphore_info->setWaitSemaphoreValues(*graphics_wait_semaphores_values);
+        // Graphics signal
+        auto graphics_signal_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+        auto graphics_signal_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+        graphics_signal_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
+        graphics_signal_semaphores_values->emplace_back(frameCount);
+        graphics_signal_semaphores->emplace_back(readyForPresentSemaphores[commandBuffer_index]);
+        graphics_signal_semaphores_values->emplace_back(0);
+        graphics_submit_info.setSignalSemaphores(*graphics_signal_semaphores);
+        graphics_timeline_semaphore_info->setSignalSemaphoreValues(*graphics_signal_semaphores_values);
+
+        graphics_submit_infos.emplace_back(graphics_submit_info);
+        timeline_semaphore_infos.emplace_back(std::move(graphics_timeline_semaphore_info));
+        semaphore_vectors.emplace_back(std::move(graphics_wait_semaphores));
+        pipelineStageFlags_vectors.emplace_back(std::move(graphics_wait_pipeline_stages));
+        semaphore_values_vectors.emplace_back(std::move(graphics_wait_semaphores_values));
+        semaphore_vectors.emplace_back(std::move(graphics_signal_semaphores));
+        semaphore_values_vectors.emplace_back(std::move(graphics_signal_semaphores_values));
+
+    }
+
+    // Submit!
+    if (compute_submit_infos.size())
+        computeQueue.first.submit(compute_submit_infos);
+    graphicsQueue.first.submit(graphics_submit_infos);
 
     //
     // Wait! Wait for write buffers (-2)
@@ -1396,48 +1491,15 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
 
         vk::SemaphoreWaitInfo host_wait_info;
         host_wait_info.semaphoreCount = 1;
-        host_wait_info.pSemaphores = &submitFinishTimelineSemaphore;
+        host_wait_info.pSemaphores = &graphicsFinishTimelineSemaphore;
         host_wait_info.pValues = &wait_value;
 
         device.waitSemaphores(host_wait_info, uint64_t(-1));
     }
 
-    if (not viewportFreeze) {
-        graphics_ptr->WriteCameraMarticesBuffers(viewport,
-                                                 matrices,
-                                                 draw_infos,
-                                                 buffer_index);
-
-        {
-            memcpy((std::byte *) (primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferHalfsize,
-                   primitive_instance_parameters.data(),
-                   primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
-            vma_allocator.flushAllocation(primitivesInstanceAllocation,
-                                          buffer_index * primitivesInstanceBufferHalfsize,
-                                          primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
-        }
-
-        {
-            memcpy((std::byte *) (TLASesInstancesAllocInfo.pMappedData) + buffer_index * TLASesInstancesHalfSize,
-                   TLAS_instances.data(),
-                   TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
-
-            vma_allocator.flushAllocation(TLASesInstancesAllocation,
-                                          buffer_index * TLASesInstancesHalfSize,
-                                          TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
-        }
-
-        {
-            std::array<std::array<glm::vec4, 4>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
-                                                                   viewport.GetFullscreenpassTriangleNormals()};
-
-            memcpy((std::byte *) (fullscreenAllocInfo.pMappedData) + buffer_index * fullscreenBufferHalfsize,
-                   vertex_data.data(),
-                   fullscreenBufferHalfsize);
-            vma_allocator.flushAllocation(fullscreenAllocation,
-                                          buffer_index * fullscreenBufferHalfsize,
-                                          fullscreenBufferHalfsize);
-        }
+    if (viewportFreezeState == ViewportFreezeStates::ready
+     || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
+        WriteInitHostBuffers(buffer_index);
     }
 
     //
@@ -1462,64 +1524,41 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
     graphicsQueue.first.presentKHR(present_info);
 }
 
-void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
-                                   uint32_t buffer_index,
-                                   uint32_t swapchain_index,
-                                   const FrustumCulling& frustum_culling)
+void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
+                                           uint32_t buffer_index,
+                                           uint32_t swapchain_index,
+                                           const FrustumCulling& frustum_culling)
 {
     command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
-    // Update dynamic meshes
-    if (not viewportFreeze) {
-        std::vector<DrawInfo> dynamic_meshes_draw_infos;
-        for (const DrawInfo &this_draw_info: draw_infos) {
-            if (this_draw_info.isSkin || this_draw_info.hasMorphTargets)
-                dynamic_meshes_draw_infos.emplace_back(this_draw_info);
-        }
-        graphics_ptr->GetDynamicMeshes()->RecordTransformations(command_buffer, dynamic_meshes_draw_infos);
+    // Obtain ownerships
+    std::vector<vk::BufferMemoryBarrier> ownership_obtain_memory_barriers;
+    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, buffer_index)) {
+        this_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eShaderRead;
+        this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
+        ownership_obtain_memory_barriers.emplace_back(this_barrier);
+    }
+    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, buffer_index)) {
+        this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+        this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
+        ownership_obtain_memory_barriers.emplace_back(this_barrier);
+    }
+    {
+        auto this_barrier = TLASinstance_uptr->GetGenericTLASrangesBarrier(buffer_index);
+        this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+        this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
+        ownership_obtain_memory_barriers.emplace_back(this_barrier);
     }
 
-    // Rebuild TLAS
-    if (not viewportFreeze) {
-        vk::AccelerationStructureGeometryKHR geometry_instance;
-        geometry_instance.geometryType = vk::GeometryTypeKHR::eInstances;
-        geometry_instance.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
-        geometry_instance.geometry.instances.arrayOfPointers = VK_FALSE;
-        geometry_instance.geometry.instances.data = device.getBufferAddress(TLASesInstancesBuffer) + buffer_index * TLASesInstancesHalfSize;
-
-        vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
-        geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-        geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
-        geometry_info.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
-        geometry_info.dstAccelerationStructure = TLASesHandles[buffer_index];
-        geometry_info.geometryCount = 1;
-        geometry_info.pGeometries = &geometry_instance;
-        geometry_info.scratchData = device.getBufferAddress(TLASbuildScratchBuffer);
-
-        vk::AccelerationStructureBuildRangeInfoKHR build_range = {};
-        build_range.primitiveCount = TLAS_instances.size();
-
-        vk::AccelerationStructureBuildRangeInfoKHR *indirection = &build_range;
-        command_buffer.buildAccelerationStructuresKHR(1, &geometry_info, &indirection);
-
-        // -- Barrier --
-        {
-            vk::BufferMemoryBarrier this_memory_barrier;
-            this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
-            this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
-            this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            this_memory_barrier.buffer = TLASesBuffer;
-            this_memory_barrier.offset = buffer_index * TLASesHalfSize;
-            this_memory_barrier.size = TLASesHalfSize;
-
-            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
-                                           vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-                                           vk::DependencyFlagBits::eByRegion,
-                                           {},
-                                           this_memory_barrier,
-                                           {});
-        }
+    if (ownership_obtain_memory_barriers.size()
+     && (viewportFreezeState == ViewportFreezeStates::ready
+      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze)) {
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+                                       vk::PipelineStageFlagBits::eVertexInput | vk::PipelineStageFlagBits::eFragmentShader,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       ownership_obtain_memory_barriers,
+                                       {});
     }
 
     // Render begin
@@ -1543,7 +1582,7 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
     command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
     // Visibility pass
-    for (const DrawInfo& this_draw: draw_infos) {
+    for (const DrawInfo& this_draw: drawInfos) {
         struct DrawPrimitiveInfo {
             DrawPrimitiveInfo(size_t in_primitiveIndex,
                               PrimitiveInfo in_primitiveInfo,
@@ -1719,10 +1758,40 @@ void Renderer::RecordCommandBuffer(vk::CommandBuffer command_buffer,
 
     command_buffer.endRenderPass();
 
+    // Tranfer ownerships
+    std::vector<vk::BufferMemoryBarrier> ownership_transfer_memory_barriers;
+    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, buffer_index)) {
+        this_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
+        this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
+        ownership_transfer_memory_barriers.emplace_back(this_barrier);
+    }
+    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, buffer_index)) {
+        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+        this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
+        ownership_transfer_memory_barriers.emplace_back(this_barrier);
+    }
+    {
+        auto this_barrier = TLASinstance_uptr->GetGenericTLASrangesBarrier(buffer_index);
+        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+        this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
+        ownership_transfer_memory_barriers.emplace_back(this_barrier);
+    }
+
+    if (ownership_transfer_memory_barriers.size()
+     && (viewportFreezeState == ViewportFreezeStates::ready
+      || viewportFreezeState == ViewportFreezeStates::next_frame_unfreeze)) {
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eFragmentShader,
+                                       vk::PipelineStageFlagBits::eBottomOfPipe,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       ownership_transfer_memory_barriers,
+                                       {});
+    }
+
     command_buffer.end();
 }
 
-std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesInstanceParameters(std::vector<DrawInfo>& draw_infos) const
+std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesInstanceParameters()
 {
     std::vector<PrimitiveInstanceParameters> return_vector;
 
@@ -1737,14 +1806,14 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
     default_instance_parameters.colorOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().colorByteOffset / sizeof(glm::vec4);
     return_vector.emplace_back(default_instance_parameters);
 
-    for (DrawInfo& this_draw_info : draw_infos) {
+    for (DrawInfo& this_draw_info : drawInfos) {
         this_draw_info.primitivesInstanceOffset = return_vector.size();
 
         std::vector<PrimitiveInfo> primitives_info;
         std::vector<DynamicMeshInfo::DynamicPrimitiveInfo> dynamic_primitives_info;
         uint32_t descriptor_index = 0;
         if (this_draw_info.dynamicMeshIndex != -1) {
-            descriptor_index = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex).descriptorIndex;
+            descriptor_index = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex).descriptorIndexOffset + 1;
             dynamic_primitives_info = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex).dynamicPrimitives;
             for (const auto& this_dynamic_primitive_info: dynamic_primitives_info) {
                 const PrimitiveInfo &this_primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive_info.primitiveIndex);
@@ -1838,47 +1907,34 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
     return return_vector;
 }
 
-std::vector<vk::AccelerationStructureInstanceKHR> Renderer::CreateTLASinstances(const std::vector<DrawInfo>& draw_infos,
-                                                                                const std::vector<ModelMatrices>& matrices,
-                                                                                uint32_t buffer_index) const
+void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
 {
-    std::vector<vk::AccelerationStructureInstanceKHR> return_vector;
-    for (const auto& this_draw_info : draw_infos) {
-        if (this_draw_info.dynamicMeshIndex != -1) {
-            const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex);
-            const DynamicMeshInfo& dynamic_mesh_info = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex);
-            if (dynamic_mesh_info.hasDynamicBLAS) {
-                vk::AccelerationStructureInstanceKHR instance;
-                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset].positionMatrix;
-                instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
-                                       matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
-                                       matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };
-                instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
-                instance.mask = 0xFF;
-                instance.instanceShaderBindingTableRecordOffset = 0;
-                instance.flags = mesh_info.meshBLAS.disableFaceCulling ? uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable) : 0;
-                instance.accelerationStructureReference = dynamic_mesh_info.BLASesDeviceAddresses[buffer_index];
+    graphics_ptr->WriteCameraMarticesBuffers(viewport,
+                                             matrices,
+                                             drawInfos,
+                                             buffer_index);
 
-                return_vector.emplace_back(instance);
-            }
-        } else {
-            const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex);
-            if (mesh_info.meshBLAS.hasBLAS) {
-                vk::AccelerationStructureInstanceKHR instance;
-                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset].positionMatrix;
-                instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
-                                       matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
-                                       matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };
-                instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
-                instance.mask = 0xFF;
-                instance.instanceShaderBindingTableRecordOffset = 0;
-                instance.flags = mesh_info.meshBLAS.disableFaceCulling ? uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable) : 0;
-                instance.accelerationStructureReference = mesh_info.meshBLAS.deviceAddress;
+    TLASinstance_uptr->WriteHostInstanceBuffer(TLAS_instances,
+                                               buffer_index);
 
-                return_vector.emplace_back(instance);
-            }
-        }
+    {
+        memcpy((std::byte *) (primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferHalfsize,
+               primitive_instance_parameters.data(),
+               primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
+        vma_allocator.flushAllocation(primitivesInstanceAllocation,
+                                      buffer_index * primitivesInstanceBufferHalfsize,
+                                      primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
     }
 
-    return return_vector;
+    {
+        std::array<std::array<glm::vec4, 4>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
+                                                               viewport.GetFullscreenpassTriangleNormals()};
+
+        memcpy((std::byte *) (fullscreenAllocInfo.pMappedData) + buffer_index * fullscreenBufferHalfsize,
+               vertex_data.data(),
+               fullscreenBufferHalfsize);
+        vma_allocator.flushAllocation(fullscreenAllocation,
+                                      buffer_index * fullscreenBufferHalfsize,
+                                      fullscreenBufferHalfsize);
+    }
 }

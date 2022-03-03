@@ -80,6 +80,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan_device_extensions.emplace_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+    vulkan_device_extensions.emplace_back(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
 
     vk::PhysicalDeviceFeatures vulkan_device_features;
     vulkan_device_features.samplerAnisotropy = VK_TRUE;
@@ -102,13 +103,19 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     acceleratationStructure_device_feature.accelerationStructure = VK_TRUE;
     vk::PhysicalDeviceRayQueryFeaturesKHR rayQuery_device_feature;
     rayQuery_device_feature.rayQuery = VK_TRUE;
+    vk::PhysicalDeviceRobustness2FeaturesEXT robustness_device_feature;
+    robustness_device_feature.nullDescriptor = VK_TRUE;
+    vk::PhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size_control_feature;
+    subgroup_size_control_feature.subgroupSizeControl = VK_TRUE;
 
     void* pNext = &vulkan11_device_features;
     vulkan11_device_features.pNext = &vulkan12_device_features;
     vulkan12_device_features.pNext = &acceleratationStructure_device_feature;
     acceleratationStructure_device_feature.pNext = &rayQuery_device_feature;
+    rayQuery_device_feature.pNext = &robustness_device_feature;
+    robustness_device_feature.pNext = &subgroup_size_control_feature;
     CreateDevice(selected_device,
-                 1, 0, 0,
+                 1, 1, 0,
                  vulkan_device_extensions,
                  vulkan_device_features,
                  pNext);

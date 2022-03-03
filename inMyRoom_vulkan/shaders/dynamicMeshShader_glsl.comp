@@ -2,8 +2,12 @@
 
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_shader_16bit_storage : require
+#extension GL_KHR_shader_subgroup_arithmetic: require
 
 #include "common/structs/ModelMatrices.h"
+#include "common/structs/AABB.h"
+
+#include "common/structs/FloatComperableUsingInt.h"
 
 #ifdef USE_VEC2
     #define VEC vec2
@@ -28,7 +32,8 @@ layout (push_constant) uniform PushConstants
     layout(offset = 32) uint step_multiplier;
     layout(offset = 36) uint resultDescriptorIndex;
     layout(offset = 40) uint resultOffset;
-    layout(offset = 44) float morph_weights[MAX_MORPH_WEIGHTS];
+    layout(offset = 44) uint AABBresultOffset;
+    layout(offset = 48) float morph_weights[MAX_MORPH_WEIGHTS];
 };
 
 // Description sets
@@ -57,6 +62,18 @@ layout( std430, set = 2, binding = 0 ) buffer vec4verticesBuffersDescriptors
 {
     vec4 vertices[];
 } vec4verticesBuffers [];
+
+#ifdef AABB_ACCUMULATE
+layout( std430, set = 3, binding = 0 ) buffer AABBsBuffersDescriptors
+{
+    AABBintCasted AABBs[];
+} MeshesAABBs[];
+#endif
+
+#ifdef AABB_ACCUMULATE
+// Shared
+shared AABB local_AABBs[LOCAL_SIZE_X / WAVE_SIZE];
+#endif
 
 vec4 CalucateSkinJoint(uint matrix_index, uint inverse_matrix_index, vec4 vertex)
 {
@@ -125,6 +142,47 @@ void main()
     VEC result = morphed_vertex;
     #endif
 
-    verticesBuffers[resultDescriptorIndex].vertices[resultOffset + x * step_multiplier] = result;
+    verticesBuffers[resultDescriptorIndex + 1].vertices[resultOffset + x * step_multiplier] = result;
+
+    #ifdef AABB_ACCUMULATE
+    uint tile_index = gl_LocalInvocationID.x / WAVE_SIZE;
+
+    vec3 subgroup_max = subgroupMax(result.xyz);
+    vec3 subgroup_min = subgroupMin(result.xyz);
+
+    AABB subgroup_AABB;
+    subgroup_AABB.max_coords = subgroup_max;
+    subgroup_AABB.min_coords = subgroup_min;
+
+    if (subgroupElect()) {
+        local_AABBs[tile_index] = subgroup_AABB;
+    }
+
+    // --- Barrier ---
+    barrier();
+
+    if (gl_LocalInvocationID.x < LOCAL_SIZE_X / WAVE_SIZE) {
+        AABB this_AABB = local_AABBs[gl_LocalInvocationID.x];
+
+        vec3 group_max = subgroupMax(this_AABB.max_coords);
+        vec3 group_min = subgroupMin(this_AABB.min_coords);
+
+        AABB group_AABB;
+        group_AABB.max_coords = group_max.xyz;
+        group_AABB.min_coords = group_min.xyz;
+
+        if (subgroupElect()) {
+            // Dirty tricks for IEEE 754, NaNs and +-Infs aside we can comprare floats x, y
+            atomicMax(MeshesAABBs[resultDescriptorIndex].AABBs[AABBresultOffset].max_coords_intCasted.x, FloatComparableUsingInt(group_AABB.max_coords.x));
+            atomicMax(MeshesAABBs[resultDescriptorIndex].AABBs[AABBresultOffset].max_coords_intCasted.y, FloatComparableUsingInt(group_AABB.max_coords.y));
+            atomicMax(MeshesAABBs[resultDescriptorIndex].AABBs[AABBresultOffset].max_coords_intCasted.z, FloatComparableUsingInt(group_AABB.max_coords.z));
+
+            atomicMin(MeshesAABBs[resultDescriptorIndex].AABBs[AABBresultOffset].min_coords_intCasted.x, FloatComparableUsingInt(group_AABB.min_coords.x));
+            atomicMin(MeshesAABBs[resultDescriptorIndex].AABBs[AABBresultOffset].min_coords_intCasted.y, FloatComparableUsingInt(group_AABB.min_coords.y));
+            atomicMin(MeshesAABBs[resultDescriptorIndex].AABBs[AABBresultOffset].min_coords_intCasted.z, FloatComparableUsingInt(group_AABB.min_coords.z));
+        }
+    }
+
+    #endif
 }
 

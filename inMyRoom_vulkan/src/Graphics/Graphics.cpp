@@ -16,6 +16,7 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, vk::Dev
      vma_allocator(in_vma_allocator)
 {
     graphicsQueue = engine_ptr->GetQueuesList().graphicsQueues[0];
+    computeQueue = engine_ptr->GetQueuesList().dedicatedComputeQueues[0];
 
     std::cout << "Initializing camera buffers\n";
     InitBuffers();
@@ -77,10 +78,13 @@ void Graphics::InitBuffers()
 
     // Create matrices buffer
     {
+        std::vector<uint32_t> share_families_indices = {graphicsQueue.second, computeQueue.second};
+
         vk::BufferCreateInfo buffer_create_info;
         buffer_create_info.size = sizeof(ModelMatrices) * maxInstances * 2;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
-        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+        buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
+        buffer_create_info.setQueueFamilyIndices(share_families_indices);
 
         vma::AllocationCreateInfo buffer_allocation_create_info;
         buffer_allocation_create_info.usage = vma::MemoryUsage::eCpuToGpu;
@@ -338,10 +342,10 @@ void Graphics::EndModelsLoad()
     // Flashing device
     std::cout << "Flashing device\n";
     materialsOfPrimitives_uptr->FlashDevice(graphicsQueue);
-    primitivesOfMeshes_uptr->FlashDevice(graphicsQueue);
-    meshesOfNodes_uptr->FlashDevice(graphicsQueue);
-    skinsOfMeshes_uptr->FlashDevice(graphicsQueue);
-    dynamicMeshes_uptr->FlashDevice();
+    primitivesOfMeshes_uptr->FlashDevice({graphicsQueue, computeQueue});
+    meshesOfNodes_uptr->FlashDevice({graphicsQueue, computeQueue});
+    skinsOfMeshes_uptr->FlashDevice(computeQueue);
+    dynamicMeshes_uptr->FlashDevice(computeQueue);
 
     std::cout << "Initializing renderer\n";
     InitRenderer();

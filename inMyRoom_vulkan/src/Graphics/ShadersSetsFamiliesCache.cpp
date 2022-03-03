@@ -232,6 +232,8 @@ std::vector<uint32_t>
 
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
+    options.SetTargetSpirv(shaderc_spirv_version_1_4);
+    options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
 
     // Add defines
     for (const auto& this_pair: definition_pairs) {

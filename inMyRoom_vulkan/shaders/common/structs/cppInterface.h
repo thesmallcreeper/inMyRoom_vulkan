@@ -9,10 +9,15 @@
     #define VEC3        alignas(16) glm::vec3
     #define VEC2        alignas(8) glm::vec2
 
+    #define IVEC4        alignas(16) glm::ivec4
+    #define IVEC3        alignas(16) glm::ivec3
+    #define IVEC2        alignas(8) glm::ivec2
+
     #define FLOAT_T     alignas(4) float
     #define UINT_T      alignas(4) uint32_t
     #define UINT16_T    alignas(2) uint16_t
     #define UINT8_T     alignas(1) uint8_t
+
 #else
     #define MAT4        mat4
     #define MAT3        mat3
@@ -21,6 +26,10 @@
     #define VEC4        vec4
     #define VEC3        vec3
     #define VEC2        vec2
+
+    #define IVEC4       ivec4
+    #define IVEC3       ivec3
+    #define IVEC2       ivec2
 
     #define FLOAT_T     float
     #define UINT_T      uint

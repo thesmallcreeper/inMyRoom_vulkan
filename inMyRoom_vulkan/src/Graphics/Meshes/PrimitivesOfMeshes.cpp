@@ -845,9 +845,13 @@ OBBtree PrimitivesOfMeshes::GetOBBtreeAndReset()
 }
 
 
-void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
+void PrimitivesOfMeshes::FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>> queues)
 {
     assert(hasBeenFlashed == false);
+
+    std::vector<uint32_t> share_families_indices;
+    std::transform(queues.begin(), queues.end(), std::back_inserter(share_families_indices),
+                   [](const auto& pair){return pair.second;});
     
     size_t indices_size_bytes = GetIndicesBufferSize();
     size_t vertices_size_bytes = GetVerticesBufferSize();
@@ -863,7 +867,8 @@ void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
                 | vk::BufferUsageFlagBits::eStorageBuffer
                 | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR
                 | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+        buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
+        buffer_create_info.setQueueFamilyIndices(share_families_indices);
 
         vma::AllocationCreateInfo allocation_create_info;
         allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
@@ -881,7 +886,7 @@ void PrimitivesOfMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
     CopyIndicesToBuffer(dst_ptr);
     CopyVerticesToBuffer(dst_ptr, indices_size_bytes);
 
-    vk::CommandBuffer command_buffer = staging_buffer.BeginCommandRecord(queue);
+    vk::CommandBuffer command_buffer = staging_buffer.BeginCommandRecord(queues[0]);
     vk::Buffer copy_buffer = staging_buffer.GetBuffer();
 
     vk::BufferCopy copy_region;

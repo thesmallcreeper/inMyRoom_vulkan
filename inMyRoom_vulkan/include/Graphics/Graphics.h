@@ -85,6 +85,7 @@ private:
 
 private:
     std::pair<vk::Queue, uint32_t> graphicsQueue;
+    std::pair<vk::Queue, uint32_t> computeQueue;
 
     std::unique_ptr<RendererBase> renderer_uptr;
 

@@ -116,7 +116,7 @@ public:
     size_t AddPrimitive(const tinygltf::Model& model,
                         const tinygltf::Primitive& primitive);
 
-    void FlashDevice(std::pair<vk::Queue, uint32_t> queue);
+    void FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>> queues);
 
     void StartRecordOBBtree();
     OBBtree GetOBBtreeAndReset();

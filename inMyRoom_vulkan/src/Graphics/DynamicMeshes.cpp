@@ -1,16 +1,20 @@
 #include "Graphics/DynamicMeshes.h"
 #include "Graphics/Graphics.h"
+#include "Graphics/HelperUtils.h"
 #include <iostream>
+
+#include "common/structs/AABB.h"
 
 DynamicMeshes::DynamicMeshes(Graphics* in_graphics_ptr,
                              vk::Device in_device,
                              vma::Allocator in_vma_allocator,
                              size_t in_max_dynamicMeshes)
-    :graphics_ptr(in_graphics_ptr),
-     device(in_device),
-     vma_allocator(in_vma_allocator),
-     max_dynamicMeshes(in_max_dynamicMeshes),
-     waveSize(graphics_ptr->GetSubgroupSize())
+    : graphics_ptr(in_graphics_ptr),
+      device(in_device),
+      vma_allocator(in_vma_allocator),
+      max_dynamicMeshes(in_max_dynamicMeshes),
+      waveSize(graphics_ptr->GetSubgroupSize()),
+      accumulateLocalSize(1024)
 {
 }
 
@@ -18,36 +22,43 @@ DynamicMeshes::~DynamicMeshes()
 {
     assert(hasBeenFlashed);
 
-    device.destroy(descriptorSetLayout);
+    device.destroy(verticesDescriptorSetLayout);
+    device.destroy(AABBsAndScratchDescriptorSetLayout);
     device.destroy(descriptorPool);
 
     for (const auto& this_pair : indexToDynamicMeshInfo_umap) {
         vma_allocator.destroyBuffer(this_pair.second.buffer, this_pair.second.allocation);
-        if(this_pair.second.hasDynamicBLAS) {
+        if(this_pair.second.hasDynamicShape) {
             device.destroy(this_pair.second.BLASesHandles[0]);
             device.destroy(this_pair.second.BLASesHandles[1]);
             vma_allocator.destroyBuffer(this_pair.second.BLASesBuffer, this_pair.second.BLASesAllocation);
             vma_allocator.destroyBuffer(this_pair.second.updateScratchBuffer, this_pair.second.updateScratchAllocation);
+
+            vma_allocator.destroyBuffer(this_pair.second.AABBsBuffer, this_pair.second.AABBsAllocation);
         }
     }
+
+    vma_allocator.destroyBuffer(AABBinitDataBuffer, AABBinitDataAllocation);
 }
 
 
-void DynamicMeshes::FlashDevice()
+void DynamicMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
 {
     assert(not hasBeenFlashed);
 
-    uint32_t max_descriptor_per_set = uint32_t(max_dynamicMeshes + 1);
+    queue_family_index = queue.second;
 
+    auto max_descriptor_per_set = uint32_t(max_dynamicMeshes + 1);
     // Description sets
     {   // Create descriptor pool
-        vk::DescriptorPoolSize descriptor_pool_size = {vk::DescriptorType::eStorageBuffer, max_descriptor_per_set * 3};
-        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 3,
+        vk::DescriptorPoolSize descriptor_pool_size = {vk::DescriptorType::eStorageBuffer, max_descriptor_per_set * (3 + 3)};
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 6,
                                                                  1 , &descriptor_pool_size);
 
         descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
     }
-    {   // Create descriptor layouts
+    // verticesDescriptorSets
+    {   // Create descriptor layouts (verticesDescriptorSets)
         vk::DescriptorSetLayoutBinding binding_layout;
         binding_layout.binding = 0;
         binding_layout.descriptorType = vk::DescriptorType::eStorageBuffer;
@@ -62,13 +73,13 @@ void DynamicMeshes::FlashDevice()
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &binding_layout);
         descriptor_set_layout_create_info.pNext = &binding_flags;
 
-        descriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+        verticesDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
     }
-    {   // Create descriptor sets
+    {   // Create descriptor sets (verticesDescriptorSets)
         std::vector<vk::DescriptorSetLayout> descriptor_set_layouts;
-        descriptor_set_layouts.emplace_back(descriptorSetLayout);
-        descriptor_set_layouts.emplace_back(descriptorSetLayout);
-        descriptor_set_layouts.emplace_back(descriptorSetLayout);
+        descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
+        descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
+        descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
 
         uint32_t counts[3];
         counts[0] = max_descriptor_per_set - 1;
@@ -83,9 +94,50 @@ void DynamicMeshes::FlashDevice()
         descriptor_set_allocate_info.pNext = &set_counts;
 
         auto descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
-        descriptorSets[0] = descriptor_sets[0];
-        descriptorSets[1] = descriptor_sets[1];
-        descriptorSets[2] = descriptor_sets[2];
+        verticesDescriptorSets[0] = descriptor_sets[0];
+        verticesDescriptorSets[1] = descriptor_sets[1];
+        verticesDescriptorSets[2] = descriptor_sets[2];
+    }
+    // AABBsAndScratchDescriptorSets
+    {   // Create descriptor layouts (AABBsAndScratchDescriptorSets)
+        vk::DescriptorSetLayoutBinding binding_layout;
+        binding_layout.binding = 0;
+        binding_layout.descriptorType = vk::DescriptorType::eStorageBuffer;
+        binding_layout.descriptorCount = max_descriptor_per_set - 1;
+        binding_layout.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+        vk::DescriptorSetLayoutBindingFlagsCreateInfo binding_flags;
+        vk::DescriptorBindingFlags flags =  vk::DescriptorBindingFlagBits::eVariableDescriptorCount | vk::DescriptorBindingFlagBits::ePartiallyBound;
+        binding_flags.bindingCount = 1;
+        binding_flags.pBindingFlags = &flags;
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &binding_layout);
+        descriptor_set_layout_create_info.pNext = &binding_flags;
+
+        AABBsAndScratchDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+    }
+    {   // Create descriptor sets (AABBsAndScratchDescriptorSets)
+        std::vector<vk::DescriptorSetLayout> descriptor_set_layouts;
+        descriptor_set_layouts.emplace_back(AABBsAndScratchDescriptorSetLayout);
+        descriptor_set_layouts.emplace_back(AABBsAndScratchDescriptorSetLayout);
+        descriptor_set_layouts.emplace_back(AABBsAndScratchDescriptorSetLayout);
+
+        uint32_t counts[3];
+        counts[0] = max_descriptor_per_set - 1;
+        counts[1] = max_descriptor_per_set - 1;
+        counts[2] = max_descriptor_per_set - 1;
+
+        vk::DescriptorSetVariableDescriptorCountAllocateInfo set_counts;
+        set_counts.descriptorSetCount = 3;
+        set_counts.pDescriptorCounts = counts;
+
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, descriptor_set_layouts);
+        descriptor_set_allocate_info.pNext = &set_counts;
+
+        auto descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
+        AABBsAndScratchDescriptorSets[0] = descriptor_sets[0];
+        AABBsAndScratchDescriptorSets[1] = descriptor_sets[1];
+        AABBsAndScratchDescriptorSets[2] = descriptor_sets[2];
     }
 
     // Compute pipelines
@@ -93,34 +145,48 @@ void DynamicMeshes::FlashDevice()
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
 
         std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
+        std::vector<vk::PushConstantRange> push_constant_range;
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetMatricesDescriptionSetLayout());
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetSkinsOfMeshesPtr()->GetDescriptorSetLayout());
         descriptor_sets_layouts.emplace_back(this->GetDescriptorLayout());
-        pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
-
-        std::vector<vk::PushConstantRange> push_constant_range;
         push_constant_range.emplace_back(vk::ShaderStageFlagBits::eCompute, 0, uint32_t( sizeof(DynamicMeshComputePushConstants)) );
-        pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
+        {
+            pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
+            pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
-        computeLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
+            generic_computeLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
+        }
+        {
+            descriptor_sets_layouts.emplace_back(this->GetAABBsDescriptorLayout());
+            pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
+            pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
+
+            position_computeLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
+        }
     }
     {   // Create pipelines
         std::vector<std::pair<std::string, std::string>> commonDefinitionStringPairs;
         commonDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
         commonDefinitionStringPairs.emplace_back("INVERSE_MATRICES_COUNT", std::to_string(graphics_ptr->GetSkinsOfMeshesPtr()->GetCountOfInverseBindMatrices()));
         commonDefinitionStringPairs.emplace_back("MAX_MORPH_WEIGHTS", std::to_string(maxMorphWeights));
-        commonDefinitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(waveSize));
+        commonDefinitionStringPairs.emplace_back("WAVE_SIZE", std::to_string(waveSize));
         {   // Position compute pipeline
             std::vector<std::pair<std::string, std::string>> shaderDefinitionStringPairs = commonDefinitionStringPairs;
             shaderDefinitionStringPairs.emplace_back("USE_SKIN", "");
+            shaderDefinitionStringPairs.emplace_back("AABB_ACCUMULATE", "");
+            shaderDefinitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(accumulateLocalSize));
             ShadersSpecs shaders_specs = {"Dynamic Mesh Evaluation Shader", shaderDefinitionStringPairs};
             ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
+            vk::PipelineShaderStageRequiredSubgroupSizeCreateInfoEXT require_stable_subgroup_size;
+            require_stable_subgroup_size.requiredSubgroupSize = waveSize;
+
             vk::ComputePipelineCreateInfo compute_pipeline_create_info;
+            compute_pipeline_create_info.stage.pNext = &require_stable_subgroup_size;
             compute_pipeline_create_info.stage.stage = vk::ShaderStageFlagBits::eCompute;
             compute_pipeline_create_info.stage.module = shader_set.computeShaderModule;
             compute_pipeline_create_info.stage.pName = "main";
-            compute_pipeline_create_info.layout = computeLayout;
+            compute_pipeline_create_info.layout = position_computeLayout;
 
             positionCompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
         }
@@ -130,6 +196,7 @@ void DynamicMeshes::FlashDevice()
             shaderDefinitionStringPairs.emplace_back("USE_NORMAL_MATRIX", "");
             shaderDefinitionStringPairs.emplace_back("ZERO_W", "");
             shaderDefinitionStringPairs.emplace_back("NORMALIZE", "");
+            shaderDefinitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(waveSize));
             ShadersSpecs shaders_specs = {"Dynamic Mesh Evaluation Shader", shaderDefinitionStringPairs};
             ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
@@ -137,7 +204,7 @@ void DynamicMeshes::FlashDevice()
             compute_pipeline_create_info.stage.stage = vk::ShaderStageFlagBits::eCompute;
             compute_pipeline_create_info.stage.module = shader_set.computeShaderModule;
             compute_pipeline_create_info.stage.pName = "main";
-            compute_pipeline_create_info.layout = computeLayout;
+            compute_pipeline_create_info.layout = generic_computeLayout;
 
             normalCompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
         }
@@ -146,6 +213,7 @@ void DynamicMeshes::FlashDevice()
             shaderDefinitionStringPairs.emplace_back("USE_SKIN", "");
             shaderDefinitionStringPairs.emplace_back("ZERO_W", "");
             shaderDefinitionStringPairs.emplace_back("NORMALIZE", "");
+            shaderDefinitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(waveSize));
             ShadersSpecs shaders_specs = {"Dynamic Mesh Evaluation Shader", shaderDefinitionStringPairs};
             ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
@@ -153,13 +221,14 @@ void DynamicMeshes::FlashDevice()
             compute_pipeline_create_info.stage.stage = vk::ShaderStageFlagBits::eCompute;
             compute_pipeline_create_info.stage.module = shader_set.computeShaderModule;
             compute_pipeline_create_info.stage.pName = "main";
-            compute_pipeline_create_info.layout = computeLayout;
+            compute_pipeline_create_info.layout = generic_computeLayout;
 
             tangentCompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
         }
         {   // texcoord compute pipeline
             std::vector<std::pair<std::string, std::string>> shaderDefinitionStringPairs = commonDefinitionStringPairs;
             shaderDefinitionStringPairs.emplace_back("USE_VEC2", "");
+            shaderDefinitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(waveSize));
             ShadersSpecs shaders_specs = {"Dynamic Mesh Evaluation Shader", shaderDefinitionStringPairs};
             ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
@@ -167,12 +236,13 @@ void DynamicMeshes::FlashDevice()
             compute_pipeline_create_info.stage.stage = vk::ShaderStageFlagBits::eCompute;
             compute_pipeline_create_info.stage.module = shader_set.computeShaderModule;
             compute_pipeline_create_info.stage.pName = "main";
-            compute_pipeline_create_info.layout = computeLayout;
+            compute_pipeline_create_info.layout = generic_computeLayout;
 
             texcoordsCompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
         }
         {   // color compute pipeline
             std::vector<std::pair<std::string, std::string>> shaderDefinitionStringPairs = commonDefinitionStringPairs;
+            shaderDefinitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(waveSize));
             ShadersSpecs shaders_specs = {"Dynamic Mesh Evaluation Shader", shaderDefinitionStringPairs};
             ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
@@ -180,10 +250,48 @@ void DynamicMeshes::FlashDevice()
             compute_pipeline_create_info.stage.stage = vk::ShaderStageFlagBits::eCompute;
             compute_pipeline_create_info.stage.module = shader_set.computeShaderModule;
             compute_pipeline_create_info.stage.pName = "main";
-            compute_pipeline_create_info.layout = computeLayout;
+            compute_pipeline_create_info.layout = generic_computeLayout;
 
             colorCompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
         }
+    }
+
+    // Create AABB init data buffer
+    {
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = sizeof(AABB);
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer
+                | vk::BufferUsageFlagBits::eTransferDst
+                | vk::BufferUsageFlagBits::eTransferSrc;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+        vma::AllocationCreateInfo buffer_allocation_create_info;
+        buffer_allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info,
+                                                              buffer_allocation_create_info);
+        assert(createBuffer_result.result == vk::Result::eSuccess);
+        AABBinitDataBuffer = createBuffer_result.value.first;
+        AABBinitDataAllocation = createBuffer_result.value.second;
+    }
+    {
+        StagingBuffer staging_buffer(device, vma_allocator, sizeof(AABB));
+
+        AABBintCasted AABB_init = {};
+        AABB_init.max_coords_intCasted = glm::ivec3(0x80000000, 0x80000000, 0x80000000);
+        AABB_init.min_coords_intCasted = glm::ivec3(0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF);
+        memcpy(staging_buffer.GetDstPtr(), &AABB_init, sizeof(AABB));
+
+        vk::CommandBuffer command_buffer = staging_buffer.BeginCommandRecord(queue);
+        vk::Buffer copy_buffer = staging_buffer.GetBuffer();
+
+        vk::BufferCopy copy_region;
+        copy_region.srcOffset = 0;
+        copy_region.dstOffset = 0;
+        copy_region.size = sizeof(AABB);
+        command_buffer.copyBuffer(copy_buffer, AABBinitDataBuffer, 1, &copy_region);
+
+        staging_buffer.EndAndSubmitCommands();
     }
 
     hasBeenFlashed = true;
@@ -209,7 +317,7 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
     // Primitives info creation
     std::vector<DynamicMeshInfo::DynamicPrimitiveInfo> dynamicPrimitiveInfos;
 
-    size_t offset = 0;
+    size_t buffer_offset = 0;
     std::vector<size_t> primitives_info_indices = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).primitivesIndex;
     for (size_t this_primitiveInfo_index : primitives_info_indices) {
         const PrimitiveInfo& this_primitiveInfo = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_primitiveInfo_index);
@@ -219,16 +327,16 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
         this_dynamicPrimitiveInfo.primitiveIndex = this_primitiveInfo_index;
 
         if (this_primitiveInfo.positionMorphTargets > 0 || isSkin) {
-            this_dynamicPrimitiveInfo.positionByteOffset = offset;
-            offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
+            this_dynamicPrimitiveInfo.positionByteOffset = buffer_offset;
+            buffer_offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
         }
         if (this_primitiveInfo.normalMorphTargets > 0 || isSkin) {
-            this_dynamicPrimitiveInfo.normalByteOffset = offset;
-            offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
+            this_dynamicPrimitiveInfo.normalByteOffset = buffer_offset;
+            buffer_offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
         }
         if (this_primitiveInfo.tangentMorphTargets > 0 || isSkin) {
-            this_dynamicPrimitiveInfo.tangentByteOffset = offset;
-            offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
+            this_dynamicPrimitiveInfo.tangentByteOffset = buffer_offset;
+            buffer_offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
         }
         if (this_primitiveInfo.texcoordsMorphTargets > 0) {
             this_dynamicPrimitiveInfo.texcoordsCount  = this_primitiveInfo.texcoordsCount;
@@ -236,12 +344,12 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
             size_t size_in_byte = this_primitiveInfo.verticesCount * sizeof(float) * 2 * this_primitiveInfo.texcoordsCount;
             size_in_byte += (size_in_byte % 16 == 8) ? 8 : 0;
 
-            this_dynamicPrimitiveInfo.texcoordsByteOffset = offset;
-            offset += size_in_byte;
+            this_dynamicPrimitiveInfo.texcoordsByteOffset = buffer_offset;
+            buffer_offset += size_in_byte;
         }
         if (this_primitiveInfo.colorMorphTargets > 0) {
-            this_dynamicPrimitiveInfo.colorByteOffset = offset;
-            offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
+            this_dynamicPrimitiveInfo.colorByteOffset = buffer_offset;
+            buffer_offset += this_primitiveInfo.verticesCount * sizeof(float) * 4;
         }
 
         dynamicPrimitiveInfos.emplace_back(this_dynamicPrimitiveInfo);
@@ -252,7 +360,7 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
     dynamicMeshInfo.dynamicPrimitives = std::move(dynamicPrimitiveInfos);
     // Create vertices buffer
     {
-        size_t buffer_size = 2 * offset;
+        size_t buffer_size = 2 * buffer_offset;
         vk::BufferCreateInfo buffer_create_info;
         buffer_create_info.size = buffer_size;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer
@@ -272,10 +380,10 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
     }
 
     // BLAS creation
-    dynamicMeshInfo.hasDynamicBLAS = std::find_if(dynamicMeshInfo.dynamicPrimitives.begin(), dynamicMeshInfo.dynamicPrimitives.end(),
-                                                  [](const auto& primitive) {return primitive.positionByteOffset != -1;}) != dynamicMeshInfo.dynamicPrimitives.end()
-                                     && graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.hasBLAS;
-    if (dynamicMeshInfo.hasDynamicBLAS) {
+    dynamicMeshInfo.hasDynamicShape = std::find_if(dynamicMeshInfo.dynamicPrimitives.begin(), dynamicMeshInfo.dynamicPrimitives.end(),
+                                                   [](const auto& primitive) {return primitive.positionByteOffset != -1;}) != dynamicMeshInfo.dynamicPrimitives.end()
+                                      && graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.hasBLAS;
+    if (dynamicMeshInfo.hasDynamicShape) {
         dynamicMeshInfo.BLASesHalfSize = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.bufferSize;
         size_t scratch_buffer_size = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(mesh_index).meshBLAS.updateScratchBufferSize;
 
@@ -324,6 +432,29 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
             dynamicMeshInfo.updateScratchBuffer = createBuffer_result.value.first;
             dynamicMeshInfo.updateScratchAllocation = createBuffer_result.value.second;
         }
+
+        // AABBs buffer
+        {
+            size_t buffer_size = 2 * sizeof(AABB) * primitives_info_indices.size();
+            vk::BufferCreateInfo buffer_create_info;
+            buffer_create_info.size = buffer_size;
+            buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer
+                    | vk::BufferUsageFlagBits::eTransferSrc
+                    | vk::BufferUsageFlagBits::eTransferDst;
+            buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+
+            vma::AllocationCreateInfo allocation_create_info;
+            allocation_create_info.usage = vma::MemoryUsage::eGpuToCpu;
+            allocation_create_info.flags = vma::AllocationCreateFlagBits::eMapped;
+
+            auto createBuffer_result = vma_allocator.createBuffer(buffer_create_info,
+                                                                  allocation_create_info,
+                                                                  dynamicMeshInfo.AABBsAllocInfo);
+            assert(createBuffer_result.result == vk::Result::eSuccess);
+            dynamicMeshInfo.AABBsBuffer = createBuffer_result.value.first;
+            dynamicMeshInfo.AABBsAllocation = createBuffer_result.value.second;
+            dynamicMeshInfo.AABBsBufferHalfsize = buffer_size / 2;
+        }
     }
 
     size_t index = indexCounter++;
@@ -350,41 +481,78 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
     swapIndex = swap_index;
 
     size_t buffer_index = swapIndex % 2;
-    std::vector<vk::DescriptorBufferInfo> descriptor_buffer_infos;
+    std::vector<vk::DescriptorBufferInfo> vertices_descriptor_buffer_infos;
+    std::vector<vk::DescriptorBufferInfo> AABBsAndScratch_descriptor_buffer_infos;
 
     {   // Static primitives buffer
         vk::DescriptorBufferInfo primitives_buffer_info;
         primitives_buffer_info.buffer = graphics_ptr->GetPrimitivesOfMeshes()->GetBuffer();
         primitives_buffer_info.offset = 0;
         primitives_buffer_info.range = VK_WHOLE_SIZE;
-        descriptor_buffer_infos.emplace_back(primitives_buffer_info);
+        vertices_descriptor_buffer_infos.emplace_back(primitives_buffer_info);
     }
 
+    size_t index = 0;
     for (auto& this_pair : indexToDynamicMeshInfo_umap) {
         if (not this_pair.second.shouldBeDeleted) {
-            vk::Buffer buffer = this_pair.second.buffer;
-            size_t halfSize = this_pair.second.halfSize;
+            {
+                vk::Buffer buffer = this_pair.second.buffer;
+                size_t halfSize = this_pair.second.halfSize;
 
-            vk::DescriptorBufferInfo this_descriptor_buffer_info;
-            this_descriptor_buffer_info.buffer = buffer;
-            this_descriptor_buffer_info.offset = buffer_index * halfSize;
-            this_descriptor_buffer_info.range = halfSize;
+                vk::DescriptorBufferInfo this_vertices_descriptor_buffer_info;
+                this_vertices_descriptor_buffer_info.buffer = buffer;
+                this_vertices_descriptor_buffer_info.offset = buffer_index * halfSize;
+                this_vertices_descriptor_buffer_info.range = halfSize;
 
-            this_pair.second.descriptorIndex = descriptor_buffer_infos.size();
+                vertices_descriptor_buffer_infos.emplace_back(this_vertices_descriptor_buffer_info);
+            }
 
-            descriptor_buffer_infos.emplace_back(this_descriptor_buffer_info);
+            if (this_pair.second.hasDynamicShape) {
+                vk::Buffer AABBs_buffer = this_pair.second.AABBsBuffer;
+                size_t AABBs_halfSize = this_pair.second.AABBsBufferHalfsize;
+                vk::DescriptorBufferInfo this_AABBs_descriptor_buffer_info;
+                this_AABBs_descriptor_buffer_info.buffer = AABBs_buffer;
+                this_AABBs_descriptor_buffer_info.offset = buffer_index * AABBs_halfSize;
+                this_AABBs_descriptor_buffer_info.range = AABBs_halfSize;
+
+                AABBsAndScratch_descriptor_buffer_infos.emplace_back(this_AABBs_descriptor_buffer_info);
+            } else {
+                vk::DescriptorBufferInfo null_descriptor_buffer_info;
+                null_descriptor_buffer_info.buffer = VK_NULL_HANDLE;
+                null_descriptor_buffer_info.offset = 0;
+                null_descriptor_buffer_info.range = VK_WHOLE_SIZE;
+
+                AABBsAndScratch_descriptor_buffer_infos.emplace_back(null_descriptor_buffer_info);
+            }
+
+            this_pair.second.descriptorIndexOffset = index++;
         }
     }
 
-    vk::WriteDescriptorSet write_descriptor_set;
-    write_descriptor_set.dstSet = this->GetDescriptorSet();
-    write_descriptor_set.dstBinding = 0;
-    write_descriptor_set.dstArrayElement = 0;
-    write_descriptor_set.descriptorCount = uint32_t(descriptor_buffer_infos.size());
-    write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
-    write_descriptor_set.pBufferInfo = descriptor_buffer_infos.data();
+    std::vector<vk::WriteDescriptorSet> write_descriptor_sets;
+    std::vector<vk::CopyDescriptorSet> copy_descriptor_sets;
+    if (vertices_descriptor_buffer_infos.size()){
+        vk::WriteDescriptorSet write_descriptor_set;
+        write_descriptor_set.dstSet = this->GetDescriptorSet();
+        write_descriptor_set.dstBinding = 0;
+        write_descriptor_set.dstArrayElement = 0;
+        write_descriptor_set.descriptorCount = uint32_t(vertices_descriptor_buffer_infos.size());
+        write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+        write_descriptor_set.pBufferInfo = vertices_descriptor_buffer_infos.data();
+        write_descriptor_sets.emplace_back(write_descriptor_set);
+    }
+    if (AABBsAndScratch_descriptor_buffer_infos.size()){
+        vk::WriteDescriptorSet write_descriptor_set;
+        write_descriptor_set.dstSet = this->GetAABBsDescriptorSet();
+        write_descriptor_set.dstBinding = 0;
+        write_descriptor_set.dstArrayElement = 0;
+        write_descriptor_set.descriptorCount = uint32_t(AABBsAndScratch_descriptor_buffer_infos.size());
+        write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+        write_descriptor_set.pBufferInfo = AABBsAndScratch_descriptor_buffer_infos.data();
+        write_descriptor_sets.emplace_back(write_descriptor_set);
+    }
 
-    device.updateDescriptorSets(1, &write_descriptor_set, 0, nullptr);
+    device.updateDescriptorSets(write_descriptor_sets, copy_descriptor_sets);
 }
 
 void DynamicMeshes::CompleteRemovesSafe()
@@ -400,11 +568,13 @@ void DynamicMeshes::CompleteRemovesSafe()
             assert(this_dynamicMeshInfo.shouldBeDeleted == true);
 
             vma_allocator.destroyBuffer(this_dynamicMeshInfo.buffer, this_dynamicMeshInfo.allocation);
-            if (this_dynamicMeshInfo.hasDynamicBLAS) {
+            if (this_dynamicMeshInfo.hasDynamicShape) {
                 device.destroy(this_dynamicMeshInfo.BLASesHandles[0]);
                 device.destroy(this_dynamicMeshInfo.BLASesHandles[1]);
                 vma_allocator.destroyBuffer(this_dynamicMeshInfo.BLASesBuffer, this_dynamicMeshInfo.BLASesAllocation);
                 vma_allocator.destroyBuffer(this_dynamicMeshInfo.updateScratchBuffer, this_dynamicMeshInfo.updateScratchAllocation);
+
+                vma_allocator.destroyBuffer(this_dynamicMeshInfo.AABBsBuffer, this_dynamicMeshInfo.AABBsAllocation);
             }
 
             indexToDynamicMeshInfo_umap.erase(this_pair.first);
@@ -418,24 +588,65 @@ void DynamicMeshes::CompleteRemovesSafe()
 }
 
 void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
-                                           const std::vector<DrawInfo>& draw_infos)
+                                          const std::vector<DrawInfo>& draw_infos) const
 {
     assert(hasBeenFlashed);
+    size_t buffer_index = swapIndex % 2;
+
+    // Clear AABBs
+    std::vector<vk::BufferMemoryBarrier> AABBs_clear_memory_barriers;
+    for (const auto &draw_info: draw_infos) {
+        const DynamicMeshInfo &dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
+
+        if (dynamic_mesh_info.hasDynamicShape) {
+            std::vector<vk::BufferCopy> regions;
+            for (size_t i = 0; i != dynamic_mesh_info.dynamicPrimitives.size(); ++i) {
+                vk::BufferCopy this_region = {};
+                this_region.srcOffset = 0;
+                this_region.dstOffset = buffer_index * dynamic_mesh_info.AABBsBufferHalfsize + i * sizeof(AABB);
+                this_region.size = sizeof(AABB);
+
+                regions.emplace_back(this_region);
+            }
+            command_buffer.copyBuffer(AABBinitDataBuffer, dynamic_mesh_info.AABBsBuffer, regions);
+
+            vk::BufferMemoryBarrier this_memory_barrier;
+            this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+            this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
+            this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            this_memory_barrier.buffer = dynamic_mesh_info.AABBsBuffer;
+            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.AABBsBufferHalfsize;
+            this_memory_barrier.size = dynamic_mesh_info.AABBsBufferHalfsize;
+
+            AABBs_clear_memory_barriers.emplace_back(this_memory_barrier);
+        }
+    }
+
+    if (AABBs_clear_memory_barriers.size()) {
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                       vk::PipelineStageFlagBits::eComputeShader,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       AABBs_clear_memory_barriers,
+                                       {});
+    }
 
     // Calculate transformations
-    std::vector<vk::DescriptorSet> descriptor_sets;
-    descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(swapIndex));
-    descriptor_sets.emplace_back(graphics_ptr->GetSkinsOfMeshesPtr()->GetDescriptorSet());
-    descriptor_sets.emplace_back(this->GetDescriptorSet());
+    std::vector<vk::DescriptorSet> generic_descriptor_sets;
+    generic_descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(swapIndex));
+    generic_descriptor_sets.emplace_back(graphics_ptr->GetSkinsOfMeshesPtr()->GetDescriptorSet());
+    generic_descriptor_sets.emplace_back(this->GetDescriptorSet());
 
-    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, computeLayout, 0, descriptor_sets, {});
+    for (const auto &draw_info: draw_infos) {
+        const DynamicMeshInfo &dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
+        for (size_t i = 0; i != dynamic_mesh_info.dynamicPrimitives.size(); ++i) {
+            const DynamicMeshInfo::DynamicPrimitiveInfo &this_dynamic_primitive = dynamic_mesh_info.dynamicPrimitives[i];
+            const PrimitiveInfo &this_primitive = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive.primitiveIndex);
 
-    std::vector<vk::BufferMemoryBarrier> buffer_memory_barries;
-    for (const auto& draw_info : draw_infos) {
-        const DynamicMeshInfo& dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
-        for (const DynamicMeshInfo::DynamicPrimitiveInfo& this_dynamic_primitive : dynamic_mesh_info.dynamicPrimitives) {
-            const PrimitiveInfo& this_primitive = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive.primitiveIndex);
-
+            std::vector<vk::DescriptorSet> position_descriptor_sets = generic_descriptor_sets;
+            position_descriptor_sets.emplace_back(this->GetAABBsDescriptorSet());
+            command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, position_computeLayout, 0, position_descriptor_sets, {});
             if (this_dynamic_primitive.positionByteOffset != -1) {
                 command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, positionCompPipeline);
 
@@ -454,16 +665,18 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
-                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
+                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndexOffset);
                 push_constants.resultOffset = uint32_t(this_dynamic_primitive.positionByteOffset / (sizeof(float) * 4));
+                push_constants.AABBresultOffset = uint32_t(i);
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                           push_constants.morph_weights.begin());
-                command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+                command_buffer.pushConstants(position_computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
 
-                command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+                command_buffer.dispatch(uint32_t(this_primitive.verticesCount + accumulateLocalSize - 1) / accumulateLocalSize, 1, 1);
             }
 
+            command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, generic_computeLayout, 0, generic_descriptor_sets, {});
             if (this_dynamic_primitive.normalByteOffset != -1) {
                 command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, normalCompPipeline);
 
@@ -482,14 +695,14 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
-                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
+                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndexOffset);
                 push_constants.resultOffset = uint32_t(this_dynamic_primitive.normalByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                           push_constants.morph_weights.begin());
-                command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+                command_buffer.pushConstants(generic_computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
 
-                command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+                command_buffer.dispatch(uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
             }
 
             if (this_dynamic_primitive.tangentByteOffset != -1) {
@@ -510,14 +723,14 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
-                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
+                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndexOffset);
                 push_constants.resultOffset = uint32_t(this_dynamic_primitive.tangentByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                           push_constants.morph_weights.begin());
-                command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+                command_buffer.pushConstants(generic_computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
 
-                command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+                command_buffer.dispatch(uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
             }
 
             if (this_dynamic_primitive.colorByteOffset != -1) {
@@ -536,18 +749,18 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                 push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                 push_constants.size_x = uint32_t(this_primitive.verticesCount);
                 push_constants.step_multiplier = 1;
-                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
+                push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndexOffset);
                 push_constants.resultOffset = uint32_t(this_dynamic_primitive.colorByteOffset / (sizeof(float) * 4));
                 std::copy(draw_info.weights.begin(),
                           draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                           push_constants.morph_weights.begin());
-                command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+                command_buffer.pushConstants(generic_computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
 
-                command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+                command_buffer.dispatch(uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
             }
 
             if (this_dynamic_primitive.texcoordsByteOffset != -1) {
-                for(size_t i = 0; i != this_dynamic_primitive.texcoordsCount; i++) {
+                for (size_t j = 0; j != this_dynamic_primitive.texcoordsCount; j++) {
                     command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, texcoordsCompPipeline);
 
                     assert(this_primitive.texcoordsByteOffset % (sizeof(float) * 4) == 0);
@@ -556,45 +769,60 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                     DynamicMeshComputePushConstants push_constants;
                     push_constants.matrixOffset = uint32_t(draw_info.matricesOffset);
                     push_constants.inverseMatricesOffset = uint32_t(draw_info.inverseMatricesOffset);
-                    push_constants.verticesOffset = uint32_t(this_primitive.texcoordsByteOffset / (sizeof(float) * 2) + i);
+                    push_constants.verticesOffset = uint32_t(this_primitive.texcoordsByteOffset / (sizeof(float) * 2) + j);
                     push_constants.jointsOffset = 0;
                     push_constants.weightsOffset = 0;
                     push_constants.jointsGroupsCount = 0;
                     push_constants.morphTargets = std::min(uint32_t(draw_info.weights.size()), maxMorphWeights);
                     push_constants.size_x = uint32_t(this_primitive.verticesCount);
                     push_constants.step_multiplier = uint32_t(this_dynamic_primitive.texcoordsCount);
-                    push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndex);
-                    push_constants.resultOffset = uint32_t(this_dynamic_primitive.texcoordsByteOffset / (sizeof(float) * 4) + i);
+                    push_constants.resultDescriptorIndex = uint32_t(dynamic_mesh_info.descriptorIndexOffset);
+                    push_constants.resultOffset = uint32_t(this_dynamic_primitive.texcoordsByteOffset / (sizeof(float) * 4) + j);
                     std::copy(draw_info.weights.begin(),
                               draw_info.weights.begin() + std::min(draw_info.weights.size(), push_constants.morph_weights.size()),
                               push_constants.morph_weights.begin());
-                    command_buffer.pushConstants(computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
+                    command_buffer.pushConstants(generic_computeLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(DynamicMeshComputePushConstants), &push_constants);
 
-                    command_buffer.dispatch( uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
+                    command_buffer.dispatch(uint32_t(this_primitive.verticesCount + waveSize - 1) / waveSize, 1, 1);
                 }
             }
         }
-
-        vk::BufferMemoryBarrier this_memory_barrier;
-        this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
-        this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eAccelerationStructureWriteKHR;
-        this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        this_memory_barrier.buffer = dynamic_mesh_info.buffer;
-        this_memory_barrier.offset = (swapIndex % 2) * dynamic_mesh_info.halfSize;
-        this_memory_barrier.size = dynamic_mesh_info.halfSize;
-
-        buffer_memory_barries.emplace_back(this_memory_barrier);
     }
 
-    if (buffer_memory_barries.size()) {
+    // Make AABBs host visible
+    std::vector<vk::BufferMemoryBarrier> AABBs_hostvisible_memory_barriers;
+    for (const auto &draw_info: draw_infos) {
+        const DynamicMeshInfo &dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
+
+        if (dynamic_mesh_info.hasDynamicShape) {
+            vk::BufferMemoryBarrier this_memory_barrier;
+            this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+            this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eHostRead;
+            this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            this_memory_barrier.buffer = dynamic_mesh_info.AABBsBuffer;
+            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.AABBsBufferHalfsize;
+            this_memory_barrier.size = dynamic_mesh_info.AABBsBufferHalfsize;
+
+            AABBs_hostvisible_memory_barriers.emplace_back(this_memory_barrier);
+        }
+    }
+
+    if (AABBs_hostvisible_memory_barriers.size()) {
         command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
-                                       vk::PipelineStageFlagBits::eVertexInput | vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
+                                       vk::PipelineStageFlagBits::eHost,
                                        vk::DependencyFlagBits::eByRegion,
                                        {},
-                                       buffer_memory_barries,
+                                       AABBs_hostvisible_memory_barriers,
                                        {});
     }
+}
+
+void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
+                                     const std::vector<DrawInfo>& draw_infos) const
+{
+    assert(hasBeenFlashed);
+    size_t buffer_index = swapIndex % 2;
 
     // Update BLASes
     std::vector<vk::BufferMemoryBarrier> BLAS_memory_barries;
@@ -606,7 +834,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
         const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(draw_info.meshIndex);
         const DynamicMeshInfo& dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
 
-        if (dynamic_mesh_info.hasDynamicBLAS) {
+        if (dynamic_mesh_info.hasDynamicShape) {
             uint64_t dynamic_buffer_address = device.getBufferAddress(dynamic_mesh_info.buffer);
 
             std::vector<vk::AccelerationStructureGeometryKHR> geometries;
@@ -658,7 +886,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.buffer = dynamic_mesh_info.BLASesBuffer;
-            this_memory_barrier.offset = (swapIndex % 2) * dynamic_mesh_info.BLASesHalfSize;
+            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.BLASesHalfSize;
             this_memory_barrier.size = dynamic_mesh_info.BLASesHalfSize;
 
             BLAS_memory_barries.emplace_back(this_memory_barrier);
@@ -672,6 +900,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
 
         command_buffer.buildAccelerationStructuresKHR(infos, ranges_of_infos_ptrs);
 
+        // Ready for TLAS update
         command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
                                        vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
                                        vk::DependencyFlagBits::eByRegion,
@@ -679,7 +908,138 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                                        BLAS_memory_barries,
                                        {});
     }
-
 }
 
+void DynamicMeshes::ObtainTransformRanges(vk::CommandBuffer command_buffer,
+                                          const std::vector<DrawInfo>& draw_infos,
+                                          uint32_t source_family_index) const
+{
+    assert(hasBeenFlashed);
+    size_t buffer_index = swapIndex % 2;
 
+    if (queue_family_index == source_family_index)
+        return;
+
+    // Obtain ownerships
+    std::vector<vk::BufferMemoryBarrier> ownership_obtain_memory_barriers;
+    for (auto this_barrier: GetGenericTransformRangesBarriers(draw_infos, buffer_index)) {
+        this_barrier.dstAccessMask = vk::AccessFlagBits::eShaderWrite;
+        this_barrier.srcQueueFamilyIndex = source_family_index;
+        ownership_obtain_memory_barriers.emplace_back(this_barrier);
+    }
+
+    if (ownership_obtain_memory_barriers.size()) {
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+                                       vk::PipelineStageFlagBits::eComputeShader,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       ownership_obtain_memory_barriers,
+                                       {});
+    }
+}
+
+void DynamicMeshes::ObtainBLASranges(vk::CommandBuffer command_buffer,
+                                     const std::vector<DrawInfo> &draw_infos,
+                                     uint32_t source_family_index) const
+{
+    assert(hasBeenFlashed);
+    size_t buffer_index = swapIndex % 2;
+
+    if (queue_family_index == source_family_index)
+        return;
+
+    // Obtain ownerships
+    std::vector<vk::BufferMemoryBarrier> ownership_obtain_memory_barriers;
+    for (auto this_barrier: GetGenericBLASrangesBarriers(draw_infos, buffer_index)) {
+        this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
+        this_barrier.srcQueueFamilyIndex = source_family_index;
+        ownership_obtain_memory_barriers.emplace_back(this_barrier);
+    }
+
+    if (ownership_obtain_memory_barriers.size()) {
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+                                       vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       ownership_obtain_memory_barriers,
+                                       {});
+    }
+}
+
+void DynamicMeshes::TransferTransformAndBLASranges(vk::CommandBuffer command_buffer,
+                                                   const std::vector<DrawInfo> &draw_infos,
+                                                   uint32_t dst_family_index) const
+{
+    assert(hasBeenFlashed);
+    size_t buffer_index = swapIndex % 2;
+
+    if (queue_family_index == dst_family_index)
+        return;
+
+    // Transfer ownerships
+    std::vector<vk::BufferMemoryBarrier> ownership_give_memory_barriers;
+    for (auto this_barrier: GetGenericTransformRangesBarriers(draw_infos, buffer_index)) {
+        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+        this_barrier.dstQueueFamilyIndex = dst_family_index;
+        ownership_give_memory_barriers.emplace_back(this_barrier);
+    }
+    for (auto this_barrier: GetGenericBLASrangesBarriers(draw_infos, buffer_index)) {
+        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
+        this_barrier.dstQueueFamilyIndex = dst_family_index;
+        ownership_give_memory_barriers.emplace_back(this_barrier);
+    }
+
+    if (ownership_give_memory_barriers.size()) {
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
+                                       vk::PipelineStageFlagBits::eBottomOfPipe,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       ownership_give_memory_barriers,
+                                       {});
+    }
+}
+
+std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericTransformRangesBarriers(const std::vector<DrawInfo> &draw_infos,
+                                                                                      uint32_t buffer_index) const
+{
+    std::vector<vk::BufferMemoryBarrier> barriers;
+    for (const auto &draw_info: draw_infos) {
+        const DynamicMeshInfo &dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
+        {
+            vk::BufferMemoryBarrier this_memory_barrier;
+            this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
+            this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eNoneKHR;
+            this_memory_barrier.srcQueueFamilyIndex = queue_family_index;
+            this_memory_barrier.dstQueueFamilyIndex = queue_family_index;
+            this_memory_barrier.buffer = dynamic_mesh_info.buffer;
+            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.halfSize;
+            this_memory_barrier.size = dynamic_mesh_info.halfSize;
+
+            barriers.emplace_back(this_memory_barrier);
+        }
+    }
+
+    return barriers;
+}
+
+std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericBLASrangesBarriers(const std::vector<DrawInfo> &draw_infos, uint32_t buffer_index) const
+{
+    std::vector<vk::BufferMemoryBarrier> barriers;
+    for (const auto &draw_info: draw_infos) {
+        const DynamicMeshInfo &dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
+        if (dynamic_mesh_info.hasDynamicShape) {
+            vk::BufferMemoryBarrier this_memory_barrier;
+            this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
+            this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eNoneKHR;
+            this_memory_barrier.srcQueueFamilyIndex = queue_family_index;
+            this_memory_barrier.dstQueueFamilyIndex = queue_family_index;
+            this_memory_barrier.buffer = dynamic_mesh_info.BLASesBuffer;
+            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.BLASesHalfSize;
+            this_memory_barrier.size = dynamic_mesh_info.BLASesHalfSize;
+
+            barriers.emplace_back(this_memory_barrier);
+        }
+    }
+
+    return barriers;
+}

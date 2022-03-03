@@ -12,7 +12,7 @@
 #include "common/rng.glsl"
 #include "common/brdf.glsl"
 
-#define DOT_ANGLE_SLACK 0.01f
+#define DOT_ANGLE_SLACK 0.01745f
 #define MIN_ROUGHNESS 0.0625f
 
 //
@@ -336,7 +336,22 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     // Bounce!
     vec3 viewVector_normalspace = transpose(mat3(normal_tangent, normal_bitangent, normal)) * viewVector;
 
-    float cosine_weighted_chance = (1.f - metallic) * 0.48f + 0.02f;
+    vec3 Hmax = normalize(normalize(vec3(-viewVector.x, -viewVector.y, 0.f)) + viewVector);
+    if (isnan(Hmax.x) || isnan(Hmax.y)) Hmax = vec3(0.f, 0.f, 1.f);
+
+    float NdotV = dot(normal, viewVector);
+    float HmaxDotV = dot(Hmax, viewVector);
+
+    float e_specular_refl = 0.04f + (1.f - 0.04f) * pow(1.f - NdotV, 5.f);
+    float e_specular_refl_G = GGXdistribution(roughness * roughness, 1.f);
+    float e_specular_max_angle = 0.04f + (1.f - 0.04f) * pow(1.f - HmaxDotV, 5.f);
+    float e_specular_max_angle_G = GGXdistribution(roughness * roughness, Hmax.z);
+    float e_specular_dialectric = mix(e_specular_refl, e_specular_max_angle, e_specular_refl_G / (e_specular_refl_G + e_specular_max_angle_G));
+    float e_specular = mix(e_specular_dialectric, 1.f, metallic);
+
+    float e_diffuse = mix((1.f / M_PI) * (1.f - 0.04f), 0.f, metallic);
+
+    float cosine_weighted_chance = e_diffuse / (e_specular + e_diffuse);
 
     float u_0 = RandomFloat(rng_state);
     vec3 ray_bounce_normalspace;

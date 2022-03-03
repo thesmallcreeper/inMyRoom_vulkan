@@ -39,7 +39,7 @@ vec3 BRDF(vec3 baseColor, float roughness, float metallic, vec3 eye, vec3 light,
     vec3 c_diff = mix(baseColor.rgb, vec3(0.f), metallic);
     vec3 f0 = mix(vec3(0.04f), baseColor.rgb, metallic);
 
-    vec3 F = f0 + (vec3(1.f) - f0) * pow(1.f - max(HdotL, 0.f), 5);
+    vec3 F = f0 + (vec3(1.f) - f0) * pow(1.f - max(HdotL, 0.f), 5.f);
 
     vec3 f_diffuse = (vec3(1.f) - F) * (1.f / M_PI) * c_diff;
     vec3 f_specular = F * GGXdistribution(a, NdotH) * SmithsVisibility(eye, light, normal, a);

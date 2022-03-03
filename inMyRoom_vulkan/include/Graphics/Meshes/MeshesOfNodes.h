@@ -50,7 +50,7 @@ public: // functions
     size_t GetMeshIndexOffsetOfModel(const tinygltf::Model& in_model) const;
     const MeshInfo& GetMeshInfo(size_t this_mesh_index) const {assert(hasBeenFlashed); return meshes[this_mesh_index];};
 
-    void FlashDevice(std::pair<vk::Queue, uint32_t> queue);
+    void FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>> queues);
 
 private: // data
     std::vector<MeshInfo> meshes;
