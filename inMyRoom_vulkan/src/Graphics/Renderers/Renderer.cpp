@@ -3,6 +3,8 @@
 #include "Graphics/Graphics.h"
 #include "Graphics/HelperUtils.h"
 
+#include <iostream>
+
 Renderer::Renderer(class Graphics* in_graphics_ptr,
                    vk::Device in_device,
                    vma::Allocator in_vma_allocator)
@@ -38,7 +40,7 @@ Renderer::~Renderer()
     device.destroy(graphicsFinishTimelineSemaphore);
     device.destroy(transformsFinishTimelineSemaphore);
     device.destroy(xLASupdateFinishTimelineSemaphore);
-    device.destroy(hostWriteFinishTimelineSemaphore);
+    device.destroy(commandBufferFinishTimelineSemaphore);
 
     for(auto& this_framebuffer : framebuffers) {
         device.destroy(this_framebuffer);
@@ -57,7 +59,7 @@ Renderer::~Renderer()
 
     device.destroy(descriptorPool);
     device.destroy(rendererDescriptorSetLayout);
-    device.destroy(toneMapDescriptorSetLayout);
+    device.destroy(hostDescriptorSetLayout);
 
     vma_allocator.destroyBuffer(primitivesInstanceBuffer, primitivesInstanceAllocation);
     vma_allocator.destroyBuffer(fullscreenBuffer, fullscreenAllocation);
@@ -69,11 +71,11 @@ void Renderer::InitBuffers()
 {
     // primitivesInstanceBuffer
     {
-        primitivesInstanceBufferHalfsize = sizeof(PrimitiveInstanceParameters) * graphics_ptr->GetMaxInstancesCount();
-        primitivesInstanceBufferHalfsize += (primitivesInstanceBufferHalfsize % 16 == 0) ? 0 : 16 - primitivesInstanceBufferHalfsize % 16;
+        primitivesInstanceBufferPartSize = sizeof(PrimitiveInstanceParameters) * graphics_ptr->GetMaxInstancesCount();
+        primitivesInstanceBufferPartSize += (primitivesInstanceBufferPartSize % 16 == 0) ? 0 : 16 - primitivesInstanceBufferPartSize % 16;
 
         vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = primitivesInstanceBufferHalfsize * 2;
+        buffer_create_info.size = primitivesInstanceBufferPartSize * 3;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
@@ -92,10 +94,10 @@ void Renderer::InitBuffers()
 
     // full-screen pass
     {
-        fullscreenBufferHalfsize = sizeof(glm::vec4) * 8 ;
+        fullscreenBufferPartSize = sizeof(glm::vec4) * 8 ;
 
         vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = fullscreenBufferHalfsize * 2;
+        buffer_create_info.size = fullscreenBufferPartSize * 3;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
@@ -254,16 +256,15 @@ void Renderer::InitDescriptors()
 {
     {   // Create descriptor pool
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 2);
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eAccelerationStructureKHR, 2);
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 3);
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eInputAttachment, 2 * 2);
-        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 2 * 2,
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 2 + 3,
                                                                  descriptor_pool_sizes);
 
         descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
     }
 
-    {   // Create renderer layout
+    {   // Create host layout
         std::vector<vk::DescriptorSetLayoutBinding> bindings;
         {   // Buffer
             vk::DescriptorSetLayoutBinding buffer_binding;
@@ -274,31 +275,13 @@ void Renderer::InitDescriptors()
 
             bindings.emplace_back(buffer_binding);
         }
-        {   // Input attachment
-            vk::DescriptorSetLayoutBinding attach_binding;
-            attach_binding.binding = 1;
-            attach_binding.descriptorType = vk::DescriptorType::eInputAttachment;
-            attach_binding.descriptorCount = 1;
-            attach_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
-
-            bindings.emplace_back(attach_binding);
-        }
-        {   // TLAS
-            vk::DescriptorSetLayoutBinding TLAS_binding;
-            TLAS_binding.binding = 2;
-            TLAS_binding.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
-            TLAS_binding.descriptorCount = 1;
-            TLAS_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
-
-            bindings.emplace_back(TLAS_binding);
-        }
 
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
-        rendererDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+        hostDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
     }
-    {   // Create tonemap layout
+    {   // Create renderer layout
         std::vector<vk::DescriptorSetLayoutBinding> bindings;
-        {
+        {   // Input attachment
             vk::DescriptorSetLayoutBinding attach_binding;
             attach_binding.binding = 0;
             attach_binding.descriptorType = vk::DescriptorType::eInputAttachment;
@@ -307,11 +290,32 @@ void Renderer::InitDescriptors()
 
             bindings.emplace_back(attach_binding);
         }
+        {   // Photometric result
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 1;
+            attach_binding.descriptorType = vk::DescriptorType::eInputAttachment;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+            bindings.emplace_back(attach_binding);
+        }
 
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
-        toneMapDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+        rendererDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
     }
 
+    {   // Allocate host sets
+        std::vector<vk::DescriptorSetLayout> layouts;
+        layouts.emplace_back(hostDescriptorSetLayout);
+        layouts.emplace_back(hostDescriptorSetLayout);
+        layouts.emplace_back(hostDescriptorSetLayout);
+
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
+        std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
+        hostDescriptorSets[0] = descriptor_sets[0];
+        hostDescriptorSets[1] = descriptor_sets[1];
+        hostDescriptorSets[2] = descriptor_sets[2];
+    }
     {   // Allocate renderer sets
         std::vector<vk::DescriptorSetLayout> layouts;
         layouts.emplace_back(rendererDescriptorSetLayout);
@@ -322,29 +326,20 @@ void Renderer::InitDescriptors()
         rendererDescriptorSets[0] = descriptor_sets[0];
         rendererDescriptorSets[1] = descriptor_sets[1];
     }
-    {   // Allocate tonemap sets
-        std::vector<vk::DescriptorSetLayout> layouts;
-        layouts.emplace_back(toneMapDescriptorSetLayout);
-        layouts.emplace_back(toneMapDescriptorSetLayout);
 
-        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
-        std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
-        toneMapDescriptorSets[0] = descriptor_sets[0];
-        toneMapDescriptorSets[1] = descriptor_sets[1];
-    }
 
-    {   // Write descriptors of renderer sets
+    {   // Write descriptors of host sets
         std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
 
         std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> descriptor_buffer_infos_uptrs;
-        {
+        for (size_t i = 0; i != 3; ++i) {
             auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
             descriptor_buffer_info_uptr->buffer = primitivesInstanceBuffer;
-            descriptor_buffer_info_uptr->offset = 0;
-            descriptor_buffer_info_uptr->range  = primitivesInstanceBufferHalfsize;
+            descriptor_buffer_info_uptr->offset = i * primitivesInstanceBufferPartSize;
+            descriptor_buffer_info_uptr->range = primitivesInstanceBufferPartSize;
 
             vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = rendererDescriptorSets[0];
+            write_descriptor_set.dstSet = hostDescriptorSets[i];
             write_descriptor_set.dstBinding = 0;
             write_descriptor_set.dstArrayElement = 0;
             write_descriptor_set.descriptorCount = 1;
@@ -352,141 +347,57 @@ void Renderer::InitDescriptors()
             write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
 
             descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
-        }
-        {
-            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
-            descriptor_buffer_info_uptr->buffer = primitivesInstanceBuffer;
-            descriptor_buffer_info_uptr->offset = primitivesInstanceBufferHalfsize;
-            descriptor_buffer_info_uptr->range  = primitivesInstanceBufferHalfsize;
-
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = rendererDescriptorSets[1];
-            write_descriptor_set.dstBinding = 0;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
-            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
-
-            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
-        }
-
-        std::vector<std::unique_ptr<vk::DescriptorImageInfo>> descriptor_image_infos_uptrs;
-        {
-            auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
-            descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-            descriptor_image_info_uptr->imageView = visibilityImageView;
-            descriptor_image_info_uptr->sampler = nullptr;
-
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = rendererDescriptorSets[0];
-            write_descriptor_set.dstBinding = 1;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
-            write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
-
-            descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
-        }
-        {
-            auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
-            descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-            descriptor_image_info_uptr->imageView = visibilityImageView;
-            descriptor_image_info_uptr->sampler = nullptr;
-
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = rendererDescriptorSets[1];
-            write_descriptor_set.dstBinding = 1;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
-            write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
-
-            descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
-        }
-
-        std::vector<std::unique_ptr<vk::WriteDescriptorSetAccelerationStructureKHR>> acceleration_structures_pnext_uptrs;
-        vk::AccelerationStructureKHR handles[2] = {TLASinstance_uptr->GetTLAShandle(0), TLASinstance_uptr->GetTLAShandle(1)};
-        {
-            auto acceleration_structures_pnext_uptr = std::make_unique<vk::WriteDescriptorSetAccelerationStructureKHR>();
-            acceleration_structures_pnext_uptr->accelerationStructureCount = 1;
-            acceleration_structures_pnext_uptr->pAccelerationStructures = &handles[0];
-
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = rendererDescriptorSets[0];
-            write_descriptor_set.dstBinding = 2;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
-            write_descriptor_set.pNext = acceleration_structures_pnext_uptr.get();
-
-            acceleration_structures_pnext_uptrs.emplace_back(std::move(acceleration_structures_pnext_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
-        }
-        {
-            auto acceleration_structures_pnext_uptr = std::make_unique<vk::WriteDescriptorSetAccelerationStructureKHR>();
-            acceleration_structures_pnext_uptr->accelerationStructureCount = 1;
-            acceleration_structures_pnext_uptr->pAccelerationStructures = &handles[1];
-
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = rendererDescriptorSets[1];
-            write_descriptor_set.dstBinding = 2;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
-            write_descriptor_set.pNext = acceleration_structures_pnext_uptr.get();
-
-            acceleration_structures_pnext_uptrs.emplace_back(std::move(acceleration_structures_pnext_uptr));
             writes_descriptor_set.emplace_back(write_descriptor_set);
         }
 
         device.updateDescriptorSets(writes_descriptor_set, {});
     }
-
-    {   // Write descriptors of tonemap sets
+    {   // Write descriptors of renderer sets
         std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
-
+        std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> descriptor_buffer_infos_uptrs;
         std::vector<std::unique_ptr<vk::DescriptorImageInfo>> descriptor_image_infos_uptrs;
-        {
-            auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
-            descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-            descriptor_image_info_uptr->imageView = photometricResultImageView;
-            descriptor_image_info_uptr->sampler = nullptr;
+        std::vector<std::unique_ptr<vk::WriteDescriptorSetAccelerationStructureKHR>> acceleration_structures_pnext_uptrs;
 
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = toneMapDescriptorSets[0];
-            write_descriptor_set.dstBinding = 0;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
-            write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
+        for (size_t i = 0; i != 2; ++i) {
+            {
+                auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
+                descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+                descriptor_image_info_uptr->imageView = visibilityImageView;
+                descriptor_image_info_uptr->sampler = nullptr;
 
-            descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
-        }
-        {
-            auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
-            descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-            descriptor_image_info_uptr->imageView = photometricResultImageView;
-            descriptor_image_info_uptr->sampler = nullptr;
+                vk::WriteDescriptorSet write_descriptor_set;
+                write_descriptor_set.dstSet = rendererDescriptorSets[i];
+                write_descriptor_set.dstBinding = 0;
+                write_descriptor_set.dstArrayElement = 0;
+                write_descriptor_set.descriptorCount = 1;
+                write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
+                write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
 
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = toneMapDescriptorSets[1];
-            write_descriptor_set.dstBinding = 0;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
-            write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
+                descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
+                writes_descriptor_set.emplace_back(write_descriptor_set);
+            }
+            {
+                auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
+                descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+                descriptor_image_info_uptr->imageView = photometricResultImageView;
+                descriptor_image_info_uptr->sampler = nullptr;
 
-            descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
+                vk::WriteDescriptorSet write_descriptor_set;
+                write_descriptor_set.dstSet = rendererDescriptorSets[i];
+                write_descriptor_set.dstBinding = 1;
+                write_descriptor_set.dstArrayElement = 0;
+                write_descriptor_set.descriptorCount = 1;
+                write_descriptor_set.descriptorType = vk::DescriptorType::eInputAttachment;
+                write_descriptor_set.pImageInfo = descriptor_image_info_uptr.get();
+
+                descriptor_image_infos_uptrs.emplace_back(std::move(descriptor_image_info_uptr));
+                writes_descriptor_set.emplace_back(write_descriptor_set);
+            }
         }
 
         device.updateDescriptorSets(writes_descriptor_set, {});
     }
+
 }
 
 void Renderer::InitRenderpasses()
@@ -681,17 +592,6 @@ void Renderer::InitSemaphoresAndFences()
         presentImageAvailableSemaphores[2] = device.createSemaphore(semaphore_create_info).value;
     }
 
-    {   // hostWriteFinishTimelineSemaphore
-        vk::SemaphoreTypeCreateInfo semaphore_type_info;
-        semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
-        semaphore_type_info.initialValue = 0;
-
-        vk::SemaphoreCreateInfo semaphore_create_info;
-        semaphore_create_info.pNext = &semaphore_type_info;
-
-        hostWriteFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
-    }
-
     {   // transformsFinishTimelineSemaphore
         vk::SemaphoreTypeCreateInfo semaphore_type_info;
         semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
@@ -723,6 +623,17 @@ void Renderer::InitSemaphoresAndFences()
         semaphore_create_info.pNext = &semaphore_type_info;
 
         graphicsFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
+    }
+
+    {   // commandBufferFinishTimelineSemaphore
+        vk::SemaphoreTypeCreateInfo semaphore_type_info;
+        semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
+        semaphore_type_info.initialValue = 0;
+
+        vk::SemaphoreCreateInfo semaphore_create_info;
+        semaphore_create_info.pNext = &semaphore_type_info;
+
+        commandBufferFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
     }
 }
 
@@ -978,7 +889,9 @@ void Renderer::InitShadePipeline()
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetMatricesDescriptionSetLayout());
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorLayout());
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSetLayout());
+        descriptor_sets_layouts.emplace_back(hostDescriptorSetLayout);
         descriptor_sets_layouts.emplace_back(rendererDescriptorSetLayout);
+        descriptor_sets_layouts.emplace_back(TLASinstance_uptr->GetDescriptorSetLayout());
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
@@ -1131,13 +1044,13 @@ void Renderer::InitToneMapPipeline()
 
     std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
     shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_SET", std::to_string(0));
-    shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_BIND", std::to_string(0));
+    shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_BIND", std::to_string(1));
 
     {   // Pipeline layout tone map
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
 
         std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
-        descriptor_sets_layouts.emplace_back(toneMapDescriptorSetLayout);
+        descriptor_sets_layouts.emplace_back(rendererDescriptorSetLayout);
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
@@ -1319,9 +1232,27 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         ++viewportInRowFreezedFrameCount;
     }
 
-    size_t buffer_index = (frameCount - viewportFreezedFrameCount) % 2;
-    size_t commandBuffer_index = frameCount % 3;
+    size_t hostvisible_freezeable_buffer_index = (frameCount - viewportFreezedFrameCount) % 3;
+    size_t hostvisible_buffer_index = frameCount % 3;
+    size_t device_freezeable_buffer_index = (frameCount - viewportFreezedFrameCount) % 2;
+    size_t device_buffer_index = frameCount % 2;
+
     size_t freezable_commandBuffer_index = (frameCount - viewportFreezedFrameCount) % 3;
+    size_t commandBuffer_index = frameCount % 3;
+
+    //
+    // Wait! Wait for write buffers (-3)
+    if (frameCount > 3) {
+        uint64_t wait_value = uint64_t(frameCount - 3);
+
+        vk::SemaphoreWaitInfo host_wait_info;
+        host_wait_info.semaphoreCount = 1;
+        host_wait_info.pSemaphores = &commandBufferFinishTimelineSemaphore;
+        host_wait_info.pValues = &wait_value;
+
+        device.waitSemaphores(host_wait_info, uint64_t(-1));
+
+    }
 
     std::vector<std::unique_ptr<vk::TimelineSemaphoreSubmitInfo>> timeline_semaphore_infos;
     std::vector<std::unique_ptr<std::vector<vk::Semaphore>>> semaphore_vectors;
@@ -1333,7 +1264,7 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
         graphics_ptr->GetDynamicMeshes()->SwapDescriptorSet(frameCount - viewportFreezedFrameCount);
         primitive_instance_parameters = CreatePrimitivesInstanceParameters();
-        TLAS_instances = TLASinstance::CreateTLASinstances(drawInfos, matrices, buffer_index, graphics_ptr);
+        TLAS_instances = TLASinstance::CreateTLASinstances(drawInfos, matrices, device_freezeable_buffer_index, graphics_ptr);
 
         {
             vk::CommandBuffer &transform_command_buffer = transformCommandBuffers[freezable_commandBuffer_index];
@@ -1354,9 +1285,11 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
             auto transform_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
             auto transform_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
             auto transform_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
-            transform_wait_semaphores->emplace_back(hostWriteFinishTimelineSemaphore);
-            transform_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
-            transform_wait_semaphores_values->emplace_back(frameCount);
+            if (frameCount > 2) {
+                transform_wait_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
+                transform_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
+                transform_wait_semaphores_values->emplace_back(frameCount - 2);
+            }
             transform_submit_info.setWaitSemaphores(*transform_wait_semaphores);
             transform_submit_info.setWaitDstStageMask(*transform_wait_pipeline_stages);
             transform_timeline_semaphore_info->setWaitSemaphoreValues(*transform_wait_semaphores_values);
@@ -1383,10 +1316,10 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
 
             if (frameCount > 2) graphics_ptr->GetDynamicMeshes()->ObtainBLASranges(xLAS_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
             graphics_ptr->GetDynamicMeshes()->RecordBLASupdate(xLAS_command_buffer, drawDynamicMeshInfos);
-            if (frameCount > 2) TLASinstance_uptr->ObtainTLASranges(xLAS_command_buffer, buffer_index, graphicsQueue.second);
-            TLASinstance_uptr->RecordTLASupdate(xLAS_command_buffer, buffer_index, TLAS_instances.size());
+            if (frameCount > 2) TLASinstance_uptr->ObtainTLASranges(xLAS_command_buffer, device_freezeable_buffer_index, graphicsQueue.second);
+            TLASinstance_uptr->RecordTLASupdate(xLAS_command_buffer, hostvisible_freezeable_buffer_index, device_freezeable_buffer_index, TLAS_instances.size());
             graphics_ptr->GetDynamicMeshes()->TransferTransformAndBLASranges(xLAS_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
-            TLASinstance_uptr->TransferTLASrange(xLAS_command_buffer, buffer_index, graphicsQueue.second);
+            TLASinstance_uptr->TransferTLASrange(xLAS_command_buffer, device_freezeable_buffer_index, graphicsQueue.second);
 
             xLAS_command_buffer.end();
 
@@ -1400,7 +1333,7 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
             auto xLAS_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
             auto xLAS_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
             xLAS_wait_semaphores->emplace_back(transformsFinishTimelineSemaphore);
-            xLAS_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
+            xLAS_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
             xLAS_wait_semaphores_values->emplace_back(frameCount);
             xLAS_submit_info.setWaitSemaphores(*xLAS_wait_semaphores);
             xLAS_submit_info.setWaitDstStageMask(*xLAS_wait_pipeline_stages);
@@ -1421,6 +1354,9 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
             semaphore_vectors.emplace_back(std::move(xLAS_signal_semaphores));
             semaphore_values_vectors.emplace_back(std::move(xLAS_signal_semaphores_values));
         }
+
+        // Write host buffers
+        WriteInitHostBuffers(hostvisible_freezeable_buffer_index);
     }
 
     uint32_t swapchain_index = device.acquireNextImageKHR(graphics_ptr->GetSwapchain(),
@@ -1435,7 +1371,9 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         vk::CommandBuffer& graphics_command_buffer = graphicsCommandBuffers[commandBuffer_index];
         graphics_command_buffer.reset();
         RecordGraphicsCommandBuffer(graphics_command_buffer,
-                                    uint32_t(buffer_index),
+                                    uint32_t(hostvisible_freezeable_buffer_index),
+                                    uint32_t(device_freezeable_buffer_index),
+                                    uint32_t(device_buffer_index),
                                     swapchain_index,
                                     frustum_culling);
 
@@ -1448,7 +1386,8 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         auto graphics_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
         auto graphics_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
         auto graphics_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
-        if (not viewportFreeze) {
+        if (viewportFreezeState == ViewportFreezeStates::ready
+         || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
             graphics_wait_semaphores->emplace_back(xLASupdateFinishTimelineSemaphore);
             graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
             graphics_wait_semaphores_values->emplace_back(frameCount);
@@ -1463,6 +1402,8 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         auto graphics_signal_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
         auto graphics_signal_semaphores_values = std::make_unique<std::vector<uint64_t>>();
         graphics_signal_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
+        graphics_signal_semaphores_values->emplace_back(frameCount);
+        graphics_signal_semaphores->emplace_back(commandBufferFinishTimelineSemaphore);
         graphics_signal_semaphores_values->emplace_back(frameCount);
         graphics_signal_semaphores->emplace_back(readyForPresentSemaphores[commandBuffer_index]);
         graphics_signal_semaphores_values->emplace_back(0);
@@ -1484,34 +1425,6 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         computeQueue.first.submit(compute_submit_infos);
     graphicsQueue.first.submit(graphics_submit_infos);
 
-    //
-    // Wait! Wait for write buffers (-2)
-    {
-        uint64_t wait_value = uint64_t( std::max(int64_t(frameCount - 2), int64_t(0)) );
-
-        vk::SemaphoreWaitInfo host_wait_info;
-        host_wait_info.semaphoreCount = 1;
-        host_wait_info.pSemaphores = &graphicsFinishTimelineSemaphore;
-        host_wait_info.pValues = &wait_value;
-
-        device.waitSemaphores(host_wait_info, uint64_t(-1));
-    }
-
-    if (viewportFreezeState == ViewportFreezeStates::ready
-     || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
-        WriteInitHostBuffers(buffer_index);
-    }
-
-    //
-    // Signal host write finish semaphore
-    {
-        vk::SemaphoreSignalInfo host_signal_info;
-        host_signal_info.semaphore = hostWriteFinishTimelineSemaphore;
-        host_signal_info.value = uint64_t(frameCount);
-
-        device.signalSemaphore(host_signal_info);
-    }
-
     // Present
     vk::PresentInfoKHR present_info;
     vk::SwapchainKHR swapchain = graphics_ptr->GetSwapchain();
@@ -1525,7 +1438,9 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
 }
 
 void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
-                                           uint32_t buffer_index,
+                                           uint32_t freezable_host_buffer_index,
+                                           uint32_t freezable_device_buffer_index,
+                                           uint32_t device_buffer_index,
                                            uint32_t swapchain_index,
                                            const FrustumCulling& frustum_culling)
 {
@@ -1533,18 +1448,18 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
     // Obtain ownerships
     std::vector<vk::BufferMemoryBarrier> ownership_obtain_memory_barriers;
-    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, buffer_index)) {
+    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
         this_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eShaderRead;
         this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
         ownership_obtain_memory_barriers.emplace_back(this_barrier);
     }
-    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, buffer_index)) {
+    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
         this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
         this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
         ownership_obtain_memory_barriers.emplace_back(this_barrier);
     }
     {
-        auto this_barrier = TLASinstance_uptr->GetGenericTLASrangesBarrier(buffer_index);
+        auto this_barrier = TLASinstance_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
         this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
         this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
         ownership_obtain_memory_barriers.emplace_back(this_barrier);
@@ -1636,8 +1551,8 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
             vk::PipelineLayout pipeline_layout = primitivesPipelineLayouts[this_draw_primitive_info.primitiveIndex];
             std::vector<vk::DescriptorSet> descriptor_sets;
-            descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(buffer_index));
-            descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(buffer_index));
+            descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_host_buffer_index));
+            descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_host_buffer_index));
             if (this_material.masked)
                 descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
 
@@ -1662,7 +1577,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
             // Position
             if (this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset != -1) {
-                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + buffer_index * this_draw_primitive_info.dynamicBufferHalfSize);
+                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + freezable_device_buffer_index * this_draw_primitive_info.dynamicBufferHalfSize);
                 buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
             } else {
                 offsets.emplace_back(this_draw_primitive_info.primitiveInfo.positionByteOffset);
@@ -1673,7 +1588,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
             if (this_material.masked) {
                 if (this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset != -1) {
                     offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2)
-                                        + buffer_index * this_draw_primitive_info.dynamicBufferHalfSize );
+                                        + freezable_device_buffer_index * this_draw_primitive_info.dynamicBufferHalfSize );
                     buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
                 } else {
                     offsets.emplace_back(this_draw_primitive_info.primitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2) );
@@ -1698,11 +1613,13 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fullscreenPipeline);
 
         std::vector<vk::DescriptorSet> descriptor_sets;
-        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(buffer_index));
-        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(buffer_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_host_buffer_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_host_buffer_index));
         descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorSet());
         descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
-        descriptor_sets.emplace_back(rendererDescriptorSets[buffer_index]);
+        descriptor_sets.emplace_back(hostDescriptorSets[freezable_host_buffer_index]);
+        descriptor_sets.emplace_back(rendererDescriptorSets[device_buffer_index]);
+        descriptor_sets.emplace_back(TLASinstance_uptr->GetDescriptorSet(freezable_device_buffer_index));
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                           fullscreenPipelineLayout,
@@ -1720,7 +1637,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         std::vector<vk::DeviceSize> offsets;
 
         buffers.emplace_back(fullscreenBuffer);
-        offsets.emplace_back(buffer_index * fullscreenBufferHalfsize);
+        offsets.emplace_back(freezable_host_buffer_index * fullscreenBufferPartSize);
 
         command_buffer.bindVertexBuffers(0, buffers, offsets);
 
@@ -1734,7 +1651,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, toneMapPipeline);
 
         std::vector<vk::DescriptorSet> descriptor_sets;
-        descriptor_sets.emplace_back(toneMapDescriptorSets[buffer_index]);
+        descriptor_sets.emplace_back(rendererDescriptorSets[device_buffer_index]);
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                           toneMapPipelineLayout,
@@ -1749,7 +1666,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         std::vector<vk::DeviceSize> offsets;
 
         buffers.emplace_back(fullscreenBuffer);
-        offsets.emplace_back(buffer_index * fullscreenBufferHalfsize);
+        offsets.emplace_back(freezable_host_buffer_index * fullscreenBufferPartSize);
 
         command_buffer.bindVertexBuffers(0, buffers, offsets);
 
@@ -1760,18 +1677,18 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
     // Tranfer ownerships
     std::vector<vk::BufferMemoryBarrier> ownership_transfer_memory_barriers;
-    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, buffer_index)) {
+    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
         this_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
         this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
         ownership_transfer_memory_barriers.emplace_back(this_barrier);
     }
-    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, buffer_index)) {
+    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
         this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
         this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
         ownership_transfer_memory_barriers.emplace_back(this_barrier);
     }
     {
-        auto this_barrier = TLASinstance_uptr->GetGenericTLASrangesBarrier(buffer_index);
+        auto this_barrier = TLASinstance_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
         this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
         this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
         ownership_transfer_memory_barriers.emplace_back(this_barrier);
@@ -1918,11 +1835,11 @@ void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
                                                buffer_index);
 
     {
-        memcpy((std::byte *) (primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferHalfsize,
+        memcpy((std::byte *) (primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferPartSize,
                primitive_instance_parameters.data(),
                primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
         vma_allocator.flushAllocation(primitivesInstanceAllocation,
-                                      buffer_index * primitivesInstanceBufferHalfsize,
+                                      buffer_index * primitivesInstanceBufferPartSize,
                                       primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
     }
 
@@ -1930,11 +1847,11 @@ void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
         std::array<std::array<glm::vec4, 4>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
                                                                viewport.GetFullscreenpassTriangleNormals()};
 
-        memcpy((std::byte *) (fullscreenAllocInfo.pMappedData) + buffer_index * fullscreenBufferHalfsize,
+        memcpy((std::byte *) (fullscreenAllocInfo.pMappedData) + buffer_index * fullscreenBufferPartSize,
                vertex_data.data(),
-               fullscreenBufferHalfsize);
+               fullscreenBufferPartSize);
         vma_allocator.flushAllocation(fullscreenAllocation,
-                                      buffer_index * fullscreenBufferHalfsize,
-                                      fullscreenBufferHalfsize);
+                                      buffer_index * fullscreenBufferPartSize,
+                                      fullscreenBufferPartSize);
     }
 }

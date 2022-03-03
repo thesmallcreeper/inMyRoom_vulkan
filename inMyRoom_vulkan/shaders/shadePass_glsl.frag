@@ -71,11 +71,11 @@ layout (set = 4, binding = 0) readonly buffer primitivesInstancesBufferDescripto
     PrimitiveInstanceParameters primitivesInstancesParameters[INSTANCES_COUNT];
 };
 
-/// 4, 1
-layout (input_attachment_index = 0, set = 4, binding = 1) uniform usubpassInput visibilityInput;
+/// 5, 0
+layout (input_attachment_index = 0, set = 5, binding = 0) uniform usubpassInput visibilityInput;
 
-/// 4, 2
-layout(set = 4, binding = 2) uniform accelerationStructureEXT topLevelAS;
+/// 6, 0
+layout(set = 6, binding = 0) uniform accelerationStructureEXT topLevelAS;
 
 //
 // Push constants

@@ -480,7 +480,7 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
 
     swapIndex = swap_index;
 
-    size_t buffer_index = swapIndex % 2;
+    size_t device_buffer_index = swapIndex % 2;
     std::vector<vk::DescriptorBufferInfo> vertices_descriptor_buffer_infos;
     std::vector<vk::DescriptorBufferInfo> AABBsAndScratch_descriptor_buffer_infos;
 
@@ -501,7 +501,7 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
 
                 vk::DescriptorBufferInfo this_vertices_descriptor_buffer_info;
                 this_vertices_descriptor_buffer_info.buffer = buffer;
-                this_vertices_descriptor_buffer_info.offset = buffer_index * halfSize;
+                this_vertices_descriptor_buffer_info.offset = device_buffer_index * halfSize;
                 this_vertices_descriptor_buffer_info.range = halfSize;
 
                 vertices_descriptor_buffer_infos.emplace_back(this_vertices_descriptor_buffer_info);
@@ -512,7 +512,7 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
                 size_t AABBs_halfSize = this_pair.second.AABBsBufferHalfsize;
                 vk::DescriptorBufferInfo this_AABBs_descriptor_buffer_info;
                 this_AABBs_descriptor_buffer_info.buffer = AABBs_buffer;
-                this_AABBs_descriptor_buffer_info.offset = buffer_index * AABBs_halfSize;
+                this_AABBs_descriptor_buffer_info.offset = device_buffer_index * AABBs_halfSize;
                 this_AABBs_descriptor_buffer_info.range = AABBs_halfSize;
 
                 AABBsAndScratch_descriptor_buffer_infos.emplace_back(this_AABBs_descriptor_buffer_info);
@@ -591,7 +591,8 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                                           const std::vector<DrawInfo>& draw_infos) const
 {
     assert(hasBeenFlashed);
-    size_t buffer_index = swapIndex % 2;
+    size_t device_buffer_index = swapIndex % 2;
+    size_t host_buffer_index = swapIndex % 3;
 
     // Clear AABBs
     std::vector<vk::BufferMemoryBarrier> AABBs_clear_memory_barriers;
@@ -603,7 +604,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             for (size_t i = 0; i != dynamic_mesh_info.dynamicPrimitives.size(); ++i) {
                 vk::BufferCopy this_region = {};
                 this_region.srcOffset = 0;
-                this_region.dstOffset = buffer_index * dynamic_mesh_info.AABBsBufferHalfsize + i * sizeof(AABB);
+                this_region.dstOffset = device_buffer_index * dynamic_mesh_info.AABBsBufferHalfsize + i * sizeof(AABB);
                 this_region.size = sizeof(AABB);
 
                 regions.emplace_back(this_region);
@@ -616,7 +617,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.buffer = dynamic_mesh_info.AABBsBuffer;
-            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.AABBsBufferHalfsize;
+            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.AABBsBufferHalfsize;
             this_memory_barrier.size = dynamic_mesh_info.AABBsBufferHalfsize;
 
             AABBs_clear_memory_barriers.emplace_back(this_memory_barrier);
@@ -634,7 +635,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
 
     // Calculate transformations
     std::vector<vk::DescriptorSet> generic_descriptor_sets;
-    generic_descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(swapIndex));
+    generic_descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(host_buffer_index));
     generic_descriptor_sets.emplace_back(graphics_ptr->GetSkinsOfMeshesPtr()->GetDescriptorSet());
     generic_descriptor_sets.emplace_back(this->GetDescriptorSet());
 
@@ -801,7 +802,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.buffer = dynamic_mesh_info.AABBsBuffer;
-            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.AABBsBufferHalfsize;
+            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.AABBsBufferHalfsize;
             this_memory_barrier.size = dynamic_mesh_info.AABBsBufferHalfsize;
 
             AABBs_hostvisible_memory_barriers.emplace_back(this_memory_barrier);
@@ -822,7 +823,8 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
                                      const std::vector<DrawInfo>& draw_infos) const
 {
     assert(hasBeenFlashed);
-    size_t buffer_index = swapIndex % 2;
+    size_t device_buffer_index = swapIndex % 2;
+    size_t host_buffer_index = swapIndex % 3;
 
     // Update BLASes
     std::vector<vk::BufferMemoryBarrier> BLAS_memory_barries;
@@ -886,7 +888,7 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
             this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.buffer = dynamic_mesh_info.BLASesBuffer;
-            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.BLASesHalfSize;
+            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.BLASesHalfSize;
             this_memory_barrier.size = dynamic_mesh_info.BLASesHalfSize;
 
             BLAS_memory_barries.emplace_back(this_memory_barrier);

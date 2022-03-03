@@ -12,10 +12,14 @@ TLASinstance::TLASinstance(vk::Device in_device,
 {
     InitBuffers();
     InitTLASes();
+    InitDescriptos();
 }
 
 TLASinstance::~TLASinstance()
 {
+    device.destroy(descriptorPool);
+    device.destroy(TLASdescriptorSetLayout);
+
     device.destroy(TLASesHandles[0]);
     device.destroy(TLASesHandles[1]);
     vma_allocator.destroyBuffer(TLASesBuffer, TLASesAllocation);
@@ -26,10 +30,10 @@ TLASinstance::~TLASinstance()
 void TLASinstance::InitBuffers()
 {
     {   // TLASesInstancesBuffer
-        TLASesInstancesHalfSize = sizeof(vk::AccelerationStructureInstanceKHR) * maxInstances;
+        TLASesInstancesPartSize = sizeof(vk::AccelerationStructureInstanceKHR) * maxInstances;
 
         vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = TLASesInstancesHalfSize * 2;
+        buffer_create_info.size = TLASesInstancesPartSize * 3;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR
                                    | vk::BufferUsageFlagBits::eTransferDst
                                    | vk::BufferUsageFlagBits::eShaderDeviceAddress;
@@ -118,9 +122,76 @@ void TLASinstance::InitTLASes()
     }
 }
 
+void TLASinstance::InitDescriptos()
+{
+    {   // Create descriptor pool
+        std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eAccelerationStructureKHR, 2);
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 2,
+                                                                 descriptor_pool_sizes);
+
+        descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
+    }
+
+    {   // Create layout
+        std::vector<vk::DescriptorSetLayoutBinding> bindings;
+        {   // TLAS
+            vk::DescriptorSetLayoutBinding TLAS_binding;
+            TLAS_binding.binding = 0;
+            TLAS_binding.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
+            TLAS_binding.descriptorCount = 1;
+            TLAS_binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+            bindings.emplace_back(TLAS_binding);
+        }
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
+        TLASdescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+    }
+
+    {   // Allocate sets
+        std::vector<vk::DescriptorSetLayout> layouts;
+        layouts.emplace_back(TLASdescriptorSetLayout);
+        layouts.emplace_back(TLASdescriptorSetLayout);
+
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
+        std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
+        TLASdescriptorSets[0] = descriptor_sets[0];
+        TLASdescriptorSets[1] = descriptor_sets[1];
+    }
+
+    {   // Write descriptors of renderer sets
+        std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
+        std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> descriptor_buffer_infos_uptrs;
+        std::vector<std::unique_ptr<vk::DescriptorImageInfo>> descriptor_image_infos_uptrs;
+        std::vector<std::unique_ptr<vk::WriteDescriptorSetAccelerationStructureKHR>> acceleration_structures_pnext_uptrs;
+        std::vector<vk::AccelerationStructureKHR> TLAS_handles = {GetTLAShandle(0), GetTLAShandle(1)};
+
+        for (size_t i = 0; i != 2; ++i) {
+                auto acceleration_structures_pnext_uptr = std::make_unique<vk::WriteDescriptorSetAccelerationStructureKHR>();
+                acceleration_structures_pnext_uptr->accelerationStructureCount = 1;
+                acceleration_structures_pnext_uptr->pAccelerationStructures = &TLAS_handles[i];
+
+                vk::WriteDescriptorSet write_descriptor_set;
+                write_descriptor_set.dstSet = TLASdescriptorSets[i];
+                write_descriptor_set.dstBinding = 0;
+                write_descriptor_set.dstArrayElement = 0;
+                write_descriptor_set.descriptorCount = 1;
+                write_descriptor_set.descriptorType = vk::DescriptorType::eAccelerationStructureKHR;
+                write_descriptor_set.pNext = acceleration_structures_pnext_uptr.get();
+
+                acceleration_structures_pnext_uptrs.emplace_back(std::move(acceleration_structures_pnext_uptr));
+                writes_descriptor_set.emplace_back(write_descriptor_set);
+        }
+
+        device.updateDescriptorSets(writes_descriptor_set, {});
+    }
+}
+
+
 std::vector<vk::AccelerationStructureInstanceKHR> TLASinstance::CreateTLASinstances(const std::vector<DrawInfo>& draw_infos,
                                                                                     const std::vector<ModelMatrices>& matrices,
-                                                                                    uint32_t buffer_index,
+                                                                                    uint32_t device_buffer_index,
                                                                                     Graphics *graphics_ptr)
 {
     std::vector<vk::AccelerationStructureInstanceKHR> return_vector;
@@ -138,7 +209,7 @@ std::vector<vk::AccelerationStructureInstanceKHR> TLASinstance::CreateTLASinstan
                 instance.mask = 0xFF;
                 instance.instanceShaderBindingTableRecordOffset = 0;
                 instance.flags = mesh_info.meshBLAS.disableFaceCulling ? uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable) : 0;
-                instance.accelerationStructureReference = dynamic_mesh_info.BLASesDeviceAddresses[buffer_index];
+                instance.accelerationStructureReference = dynamic_mesh_info.BLASesDeviceAddresses[device_buffer_index];
 
                 return_vector.emplace_back(instance);
             }
@@ -165,20 +236,21 @@ std::vector<vk::AccelerationStructureInstanceKHR> TLASinstance::CreateTLASinstan
 }
 
 void TLASinstance::RecordTLASupdate(vk::CommandBuffer command_buffer,
-                                    uint32_t buffer_index,
+                                    uint32_t host_buffer_index,
+                                    uint32_t device_buffer_index,
                                     uint32_t TLAS_instances_count)
 {
     vk::AccelerationStructureGeometryKHR geometry_instance;
     geometry_instance.geometryType = vk::GeometryTypeKHR::eInstances;
     geometry_instance.geometry.instances.sType = vk::StructureType::eAccelerationStructureGeometryInstancesDataKHR;
     geometry_instance.geometry.instances.arrayOfPointers = VK_FALSE;
-    geometry_instance.geometry.instances.data = device.getBufferAddress(TLASesInstancesBuffer) + buffer_index * TLASesInstancesHalfSize;
+    geometry_instance.geometry.instances.data = device.getBufferAddress(TLASesInstancesBuffer) + host_buffer_index * TLASesInstancesPartSize;
 
     vk::AccelerationStructureBuildGeometryInfoKHR geometry_info;
     geometry_info.type = vk::AccelerationStructureTypeKHR::eTopLevel;
     geometry_info.flags = vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace;
     geometry_info.mode = vk::BuildAccelerationStructureModeKHR::eBuild;
-    geometry_info.dstAccelerationStructure = TLASesHandles[buffer_index];
+    geometry_info.dstAccelerationStructure = TLASesHandles[device_buffer_index];
     geometry_info.geometryCount = 1;
     geometry_info.pGeometries = &geometry_instance;
     geometry_info.scratchData = device.getBufferAddress(TLASbuildScratchBuffer);
@@ -191,13 +263,13 @@ void TLASinstance::RecordTLASupdate(vk::CommandBuffer command_buffer,
 }
 
 void TLASinstance::TransferTLASrange(vk::CommandBuffer command_buffer,
-                                     uint32_t buffer_index,
+                                     uint32_t device_buffer_index,
                                      uint32_t dst_family_index)
 {
     if (queue_family_index == dst_family_index)
         return;
 
-    vk::BufferMemoryBarrier this_memory_barrier = GetGenericTLASrangesBarrier(buffer_index);
+    vk::BufferMemoryBarrier this_memory_barrier = GetGenericTLASrangesBarrier(device_buffer_index);
     this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
     this_memory_barrier.dstQueueFamilyIndex = dst_family_index;
 
@@ -210,13 +282,13 @@ void TLASinstance::TransferTLASrange(vk::CommandBuffer command_buffer,
 }
 
 void TLASinstance::ObtainTLASranges(vk::CommandBuffer command_buffer,
-                                    uint32_t buffer_index,
+                                    uint32_t device_buffer_index,
                                     uint32_t source_family_index)
 {
     if (queue_family_index == source_family_index)
         return;
 
-    vk::BufferMemoryBarrier this_memory_barrier = GetGenericTLASrangesBarrier(buffer_index);
+    vk::BufferMemoryBarrier this_memory_barrier = GetGenericTLASrangesBarrier(device_buffer_index);
     this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
     this_memory_barrier.srcQueueFamilyIndex = source_family_index;
 
@@ -229,15 +301,15 @@ void TLASinstance::ObtainTLASranges(vk::CommandBuffer command_buffer,
 }
 
 void TLASinstance::WriteHostInstanceBuffer(const std::vector<vk::AccelerationStructureInstanceKHR>& TLAS_instances,
-                                           uint32_t buffer_index) const
+                                           uint32_t host_buffer_index) const
 {
     {
-        memcpy((std::byte *) (TLASesInstancesAllocInfo.pMappedData) + buffer_index * TLASesInstancesHalfSize,
+        memcpy((std::byte *) (TLASesInstancesAllocInfo.pMappedData) + host_buffer_index * TLASesInstancesPartSize,
                TLAS_instances.data(),
                TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
 
         vma_allocator.flushAllocation(TLASesInstancesAllocation,
-                                      buffer_index * TLASesInstancesHalfSize,
+                                      host_buffer_index * TLASesInstancesPartSize,
                                       TLAS_instances.size() * sizeof(vk::AccelerationStructureInstanceKHR));
     }
 }

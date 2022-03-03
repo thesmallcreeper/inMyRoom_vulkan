@@ -38,9 +38,11 @@ private:
     void InitToneMapPipeline();
 
     void RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
-                                    uint32_t buffer_index,
-                                    uint32_t swapchain_index,
-                                    const FrustumCulling& frustum_culling);
+                                     uint32_t freezable_host_buffer_index,
+                                     uint32_t freezable_device_buffer_index,
+                                     uint32_t device_buffer_index,
+                                     uint32_t swapchain_index,
+                                     const FrustumCulling& frustum_culling);
 
     std::vector<PrimitiveInstanceParameters> CreatePrimitivesInstanceParameters();
 
@@ -63,20 +65,21 @@ private:
     vk::Buffer              primitivesInstanceBuffer;
     vma::Allocation         primitivesInstanceAllocation;
     vma::AllocationInfo     primitivesInstanceAllocInfo;
-    size_t                  primitivesInstanceBufferHalfsize;
+    size_t                  primitivesInstanceBufferPartSize;
 
     vk::Buffer              fullscreenBuffer;
     vma::Allocation         fullscreenAllocation;
     vma::AllocationInfo     fullscreenAllocInfo;
-    size_t                  fullscreenBufferHalfsize;
+    size_t                  fullscreenBufferPartSize;
 
     std::unique_ptr<TLASinstance> TLASinstance_uptr;
 
     vk::DescriptorPool      descriptorPool;
+    vk::DescriptorSet       hostDescriptorSets[3];
+    vk::DescriptorSetLayout hostDescriptorSetLayout;
     vk::DescriptorSet       rendererDescriptorSets[2];
     vk::DescriptorSetLayout rendererDescriptorSetLayout;
-    vk::DescriptorSet       toneMapDescriptorSets[2];
-    vk::DescriptorSetLayout toneMapDescriptorSetLayout;
+
 
     vk::Image               depthImage;
     vma::Allocation         depthAllocation;
@@ -99,10 +102,10 @@ private:
 
     vk::Semaphore           readyForPresentSemaphores[3];
     vk::Semaphore           presentImageAvailableSemaphores[3];
-    vk::Semaphore           hostWriteFinishTimelineSemaphore;
     vk::Semaphore           transformsFinishTimelineSemaphore;
     vk::Semaphore           xLASupdateFinishTimelineSemaphore;
     vk::Semaphore           graphicsFinishTimelineSemaphore;
+    vk::Semaphore           commandBufferFinishTimelineSemaphore;
 
     vk::CommandPool         graphicsCommandPool;
     vk::CommandBuffer       graphicsCommandBuffers[3];

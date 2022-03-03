@@ -44,10 +44,10 @@ public:
     ShadersSetsFamiliesCache* GetShadersSetsFamiliesCache() const {return shadersSetsFamiliesCache_uptr.get();}
 
     vk::DescriptorSetLayout GetCameraDescriptionSetLayout() {return cameraDescriptorSetLayout;}
-    vk::DescriptorSet GetCameraDescriptionSet(size_t frame_index) {return cameraDescriptorSets[frame_index % 2];}
+    vk::DescriptorSet GetCameraDescriptionSet(size_t index) {return cameraDescriptorSets[index];}
 
     vk::DescriptorSetLayout GetMatricesDescriptionSetLayout() {return matricesDescriptorSetLayout;}
-    vk::DescriptorSet GetMatricesDescriptionSet(size_t frame_index) {return matricesDescriptorSets[frame_index % 2];}
+    vk::DescriptorSet GetMatricesDescriptionSet(size_t index) {return matricesDescriptorSets[index];}
 
     vk::SwapchainCreateInfoKHR GetSwapchainCreateInfo() const;
     std::vector<vk::ImageView> GetSwapchainImageViews() const;
@@ -98,9 +98,9 @@ private:
     vma::AllocationInfo     matricesAllocInfo;
 
     vk::DescriptorPool      descriptorPool;
-    vk::DescriptorSet       cameraDescriptorSets[2];
+    vk::DescriptorSet       cameraDescriptorSets[3];
     vk::DescriptorSetLayout cameraDescriptorSetLayout;
-    vk::DescriptorSet       matricesDescriptorSets[2];
+    vk::DescriptorSet       matricesDescriptorSets[3];
     vk::DescriptorSetLayout matricesDescriptorSetLayout;
 
     std::unique_ptr<AnimationActorComp> animationActorComp_uptr;

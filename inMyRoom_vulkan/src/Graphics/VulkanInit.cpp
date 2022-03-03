@@ -74,7 +74,6 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan_device_extensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
-    vulkan_device_extensions.emplace_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
@@ -168,7 +167,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
 
     // Select swapchain images count
     auto surface_capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface).value;
-    uint32_t swapchain_images_count = std::max(uint32_t(3), surface_capabilities.minImageCount);
+    uint32_t swapchain_images_count = std::max(uint32_t(4), surface_capabilities.minImageCount);
 
     //
     // Create swapchain!
