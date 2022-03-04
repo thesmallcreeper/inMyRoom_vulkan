@@ -1,0 +1,86 @@
+#version 460
+
+#extension GL_KHR_shader_subgroup_arithmetic: require
+
+#include "common/structs/Histogram.h"
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = 1, local_size_z = 1) in;
+
+// Descriptos
+
+layout (set = 0, binding = 0) buffer histogramBuffer {
+    Histogram histogram;
+};
+
+layout (set = 0, binding = 1, rgba32f) uniform readonly image2D image_input;
+
+// Shared
+shared Histogram local_histograms[LOCAL_SIZE_X/WAVE_SIZE];
+
+// Push constants
+
+layout (push_constant) uniform PushConstants
+{
+    uint size_x;
+    uint size_y;
+
+    float min_luminance_log2;
+    float max_luminance_log2;
+    float scale;
+};
+
+
+void main()
+{
+    uint subgroups = LOCAL_SIZE_X / WAVE_SIZE;
+    uint subgroup_id = gl_LocalInvocationID.x / WAVE_SIZE;
+    uint subgroup_invocation_id = gl_LocalInvocationID.x - subgroup_id * WAVE_SIZE;
+
+    Histogram this_histogram;
+    // Init histogram
+    for (uint i = 0; i != HISTOGRAM_BUCKETS_COUNT; ++i) {
+        this_histogram.buckets[i] = 0.f;
+    }
+
+    // Per invocation histogram
+    float luminance_log2_range = max_luminance_log2 - min_luminance_log2;
+    float inv_luminance_log2_range = 1.f / luminance_log2_range;
+    for (uint y = subgroup_id; y < size_y; y += subgroups) {
+        for (uint x = subgroup_invocation_id; x < size_x; x += WAVE_SIZE) {
+            ivec2 coords = ivec2(x, y);
+
+            vec3 rgb_values = scale * imageLoad(image_input, coords).xyz;
+            float max_value = max(rgb_values.x, max(rgb_values.y, rgb_values.z));
+
+            float max_value_log2 = log2(max_value);
+
+            float interpolation_value = (max_value_log2 - min_luminance_log2) * inv_luminance_log2_range;
+
+            int bucket_index_unbound = int(round(float(HISTOGRAM_BUCKETS_COUNT - 1) * interpolation_value));
+            uint bucket_index = max(bucket_index_unbound, 0);
+            bucket_index = min(bucket_index, HISTOGRAM_BUCKETS_COUNT - 1);
+
+            this_histogram.buckets[bucket_index] += 1.f;
+        }
+    }
+
+    // Per subgroup histogram
+    for (uint i = 0; i != HISTOGRAM_BUCKETS_COUNT; ++i) {
+        float subgroup_sum = subgroupAdd(this_histogram.buckets[i]);
+        if (subgroupElect()) {
+            local_histograms[subgroup_id].buckets[i] = subgroup_sum;
+        }
+    }
+
+    // --- Barrier ---
+    barrier();
+
+    // Per group histogram
+    if (gl_LocalInvocationID.x < HISTOGRAM_BUCKETS_COUNT) {
+        float bucket_sum = 0.f;
+        for (uint i = 0; i != subgroups; ++i) {
+            bucket_sum += local_histograms[i].buckets[gl_LocalInvocationID.x];
+        }
+        histogram.buckets[gl_LocalInvocationID.x] = bucket_sum;
+    }
+}

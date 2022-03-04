@@ -1,7 +1,9 @@
 #pragma once
 #include "Graphics/RendererBase.h"
 
-#include "Graphics/TLASinstance.h"
+#include "Graphics/TLASbuilder.h"
+#include "Graphics/Exposure.h"
+
 #include "Geometry/FrustumCulling.h"
 
 enum class ViewportFreezeStates {
@@ -27,8 +29,10 @@ public:
 
 private:
     void InitBuffers();
-    void InitDescriptors();
     void InitImages();
+    void InitExposure();
+    void InitTLAS();
+    void InitDescriptors();
     void InitFramebuffers();
     void InitRenderpasses();
     void InitSemaphoresAndFences();
@@ -57,7 +61,8 @@ private:
     std::vector<vk::AccelerationStructureInstanceKHR> TLAS_instances;
 
     std::pair<vk::Queue, uint32_t> graphicsQueue;
-    std::pair<vk::Queue, uint32_t> computeQueue;
+    std::pair<vk::Queue, uint32_t> meshComputeQueue;
+    std::pair<vk::Queue, uint32_t> exposureComputeQueue;
     size_t                  frameCount = 0;
     size_t                  viewportFreezedFrameCount = 0;
     size_t                  viewportInRowFreezedFrameCount = 0;
@@ -72,14 +77,14 @@ private:
     vma::AllocationInfo     fullscreenAllocInfo;
     size_t                  fullscreenBufferPartSize;
 
-    std::unique_ptr<TLASinstance> TLASinstance_uptr;
+    std::unique_ptr<TLASbuilder> TLASbuilder_uptr;
+    std::unique_ptr<Exposure> exposure_uptr;
 
     vk::DescriptorPool      descriptorPool;
     vk::DescriptorSet       hostDescriptorSets[3];
     vk::DescriptorSetLayout hostDescriptorSetLayout;
     vk::DescriptorSet       rendererDescriptorSets[2];
     vk::DescriptorSetLayout rendererDescriptorSetLayout;
-
 
     vk::Image               depthImage;
     vma::Allocation         depthAllocation;
@@ -91,21 +96,22 @@ private:
     vk::ImageCreateInfo     visibilityImageCreateInfo;
     vk::ImageView           visibilityImageView;
 
-    vk::Image               photometricResultImage;
-    vma::Allocation         photometricResultAllocation;
+    vk::Image               photometricResultImages[2];
+    vma::Allocation         photometricResultAllocations[2];
+    vk::ImageView           photometricResultImageViews[2];
     vk::ImageCreateInfo     photometricResultImageCreateInfo;
-    vk::ImageView           photometricResultImageView;
 
     vk::RenderPass          renderpass;
 
-    std::vector<vk::Framebuffer> framebuffers;
+    std::vector<vk::Framebuffer> framebuffers[2];
 
     vk::Semaphore           readyForPresentSemaphores[3];
     vk::Semaphore           presentImageAvailableSemaphores[3];
     vk::Semaphore           transformsFinishTimelineSemaphore;
     vk::Semaphore           xLASupdateFinishTimelineSemaphore;
+//    vk::Semaphore           allowPreviousFrameHistogramTimelineSemaphore;
     vk::Semaphore           graphicsFinishTimelineSemaphore;
-    vk::Semaphore           commandBufferFinishTimelineSemaphore;
+    vk::Semaphore           histogramFinishTimelineSemaphore;
 
     vk::CommandPool         graphicsCommandPool;
     vk::CommandBuffer       graphicsCommandBuffers[3];
@@ -113,6 +119,7 @@ private:
     vk::CommandPool         computeCommandPool;
     vk::CommandBuffer       transformCommandBuffers[3];
     vk::CommandBuffer       xLASCommandBuffers[3];
+    vk::CommandBuffer       exposureCommandBuffers[3];
 
     std::vector<vk::Pipeline>       primitivesPipelines;
     std::vector<vk::PipelineLayout> primitivesPipelineLayouts;

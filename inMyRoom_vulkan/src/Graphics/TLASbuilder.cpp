@@ -1,10 +1,10 @@
-#include "Graphics/TLASinstance.h"
+#include "Graphics/TLASbuilder.h"
 #include "Graphics/Graphics.h"
 
-TLASinstance::TLASinstance(vk::Device in_device,
-                           vma::Allocator in_vma_allocator,
-                           uint32_t in_queue_family_index,
-                           size_t max_instances)
+TLASbuilder::TLASbuilder(vk::Device in_device,
+                         vma::Allocator in_vma_allocator,
+                         uint32_t in_queue_family_index,
+                         size_t max_instances)
     :device(in_device),
      vma_allocator(in_vma_allocator),
      queue_family_index(in_queue_family_index),
@@ -15,7 +15,7 @@ TLASinstance::TLASinstance(vk::Device in_device,
     InitDescriptos();
 }
 
-TLASinstance::~TLASinstance()
+TLASbuilder::~TLASbuilder()
 {
     device.destroy(descriptorPool);
     device.destroy(TLASdescriptorSetLayout);
@@ -27,7 +27,7 @@ TLASinstance::~TLASinstance()
     vma_allocator.destroyBuffer(TLASesInstancesBuffer, TLASesInstancesAllocation);
 }
 
-void TLASinstance::InitBuffers()
+void TLASbuilder::InitBuffers()
 {
     {   // TLASesInstancesBuffer
         TLASesInstancesPartSize = sizeof(vk::AccelerationStructureInstanceKHR) * maxInstances;
@@ -53,7 +53,7 @@ void TLASinstance::InitBuffers()
     }
 }
 
-void TLASinstance::InitTLASes()
+void TLASbuilder::InitTLASes()
 {
     // Get required sizes
     vk::AccelerationStructureBuildSizesInfoKHR build_size_info;
@@ -122,7 +122,7 @@ void TLASinstance::InitTLASes()
     }
 }
 
-void TLASinstance::InitDescriptos()
+void TLASbuilder::InitDescriptos()
 {
     {   // Create descriptor pool
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
@@ -189,10 +189,10 @@ void TLASinstance::InitDescriptos()
 }
 
 
-std::vector<vk::AccelerationStructureInstanceKHR> TLASinstance::CreateTLASinstances(const std::vector<DrawInfo>& draw_infos,
-                                                                                    const std::vector<ModelMatrices>& matrices,
-                                                                                    uint32_t device_buffer_index,
-                                                                                    Graphics *graphics_ptr)
+std::vector<vk::AccelerationStructureInstanceKHR> TLASbuilder::CreateTLASinstances(const std::vector<DrawInfo>& draw_infos,
+                                                                                   const std::vector<ModelMatrices>& matrices,
+                                                                                   uint32_t device_buffer_index,
+                                                                                   Graphics *graphics_ptr)
 {
     std::vector<vk::AccelerationStructureInstanceKHR> return_vector;
     for (const auto& this_draw_info : draw_infos) {
@@ -235,10 +235,10 @@ std::vector<vk::AccelerationStructureInstanceKHR> TLASinstance::CreateTLASinstan
     return return_vector;
 }
 
-void TLASinstance::RecordTLASupdate(vk::CommandBuffer command_buffer,
-                                    uint32_t host_buffer_index,
-                                    uint32_t device_buffer_index,
-                                    uint32_t TLAS_instances_count)
+void TLASbuilder::RecordTLASupdate(vk::CommandBuffer command_buffer,
+                                   uint32_t host_buffer_index,
+                                   uint32_t device_buffer_index,
+                                   uint32_t TLAS_instances_count)
 {
     vk::AccelerationStructureGeometryKHR geometry_instance;
     geometry_instance.geometryType = vk::GeometryTypeKHR::eInstances;
@@ -262,9 +262,9 @@ void TLASinstance::RecordTLASupdate(vk::CommandBuffer command_buffer,
     command_buffer.buildAccelerationStructuresKHR(1, &geometry_info, &indirection);
 }
 
-void TLASinstance::TransferTLASrange(vk::CommandBuffer command_buffer,
-                                     uint32_t device_buffer_index,
-                                     uint32_t dst_family_index)
+void TLASbuilder::TransferTLASrange(vk::CommandBuffer command_buffer,
+                                    uint32_t device_buffer_index,
+                                    uint32_t dst_family_index)
 {
     if (queue_family_index == dst_family_index)
         return;
@@ -281,9 +281,9 @@ void TLASinstance::TransferTLASrange(vk::CommandBuffer command_buffer,
                                    {});
 }
 
-void TLASinstance::ObtainTLASranges(vk::CommandBuffer command_buffer,
-                                    uint32_t device_buffer_index,
-                                    uint32_t source_family_index)
+void TLASbuilder::ObtainTLASranges(vk::CommandBuffer command_buffer,
+                                   uint32_t device_buffer_index,
+                                   uint32_t source_family_index)
 {
     if (queue_family_index == source_family_index)
         return;
@@ -300,8 +300,8 @@ void TLASinstance::ObtainTLASranges(vk::CommandBuffer command_buffer,
                                    {});
 }
 
-void TLASinstance::WriteHostInstanceBuffer(const std::vector<vk::AccelerationStructureInstanceKHR>& TLAS_instances,
-                                           uint32_t host_buffer_index) const
+void TLASbuilder::WriteHostInstanceBuffer(const std::vector<vk::AccelerationStructureInstanceKHR>& TLAS_instances,
+                                          uint32_t host_buffer_index) const
 {
     {
         memcpy((std::byte *) (TLASesInstancesAllocInfo.pMappedData) + host_buffer_index * TLASesInstancesPartSize,
@@ -314,7 +314,7 @@ void TLASinstance::WriteHostInstanceBuffer(const std::vector<vk::AccelerationStr
     }
 }
 
-vk::BufferMemoryBarrier TLASinstance::GetGenericTLASrangesBarrier(uint32_t buffer_index) const
+vk::BufferMemoryBarrier TLASbuilder::GetGenericTLASrangesBarrier(uint32_t buffer_index) const
 {
     vk::BufferMemoryBarrier this_memory_barrier;
     this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;

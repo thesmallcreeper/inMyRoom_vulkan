@@ -36,6 +36,8 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, vk::Dev
 
 Graphics::~Graphics()
 {
+    renderer_uptr.reset();
+
     device.waitIdle();
 
     device.destroy(descriptorPool);
@@ -207,6 +209,13 @@ void Graphics::InitPipelinesFactory()
 void Graphics::InitShadersSetsFamiliesCache()
 {
     shadersSetsFamiliesCache_uptr = std::make_unique<ShadersSetsFamiliesCache>(device, engine_ptr->GetVendorId(),  "shaders");
+
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Histogram Shader";
+        this_shaderSetInitInfo.computeShaderSourceFilename = "histogramShader_glsl.comp";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
 
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;

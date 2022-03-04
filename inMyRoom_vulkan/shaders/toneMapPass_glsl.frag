@@ -28,10 +28,9 @@ float RangeCompress(float val, float threshold) {
 
 void main()
 {
-    float exposure = 1.f / 1.5e3f;
     float linearThreshold = 0.25;
 
-    vec3 color_exposure = vec3(subpassLoad(colorInput)) * scale * exposure;
+    vec3 color_exposure = vec3(subpassLoad(colorInput)) * scale;
 
     float maxColor = max(color_exposure.x, max(color_exposure.y, color_exposure.z));
     float mappedMax = RangeCompress(maxColor, linearThreshold);

@@ -114,7 +114,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     rayQuery_device_feature.pNext = &robustness_device_feature;
     robustness_device_feature.pNext = &subgroup_size_control_feature;
     CreateDevice(selected_device,
-                 1, 1, 0,
+                 1, 2, 0,
                  vulkan_device_extensions,
                  vulkan_device_features,
                  pNext);

@@ -7,7 +7,7 @@
 #include "common/structs/ModelMatrices.h"
 #include "common/structs/AABB.h"
 
-#include "common/structs/FloatComperableUsingInt.h"
+#include "common/FloatComperableUsingInt.h"
 
 #ifdef USE_VEC2
     #define VEC vec2

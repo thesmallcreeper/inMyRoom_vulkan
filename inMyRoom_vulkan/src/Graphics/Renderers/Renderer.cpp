@@ -10,12 +10,13 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
                    vma::Allocator in_vma_allocator)
     : RendererBase(in_graphics_ptr, in_device, in_vma_allocator),
       graphicsQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
-      computeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[0])
+      meshComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[0]),
+      exposureComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[1])
 {
-    TLASinstance_uptr = std::make_unique<TLASinstance>(device, vma_allocator, computeQueue.second, graphics_ptr->GetMaxInstancesCount());
-
     InitBuffers();
     InitImages();
+    InitExposure();
+    InitTLAS();
     InitDescriptors();
     InitRenderpasses();
     InitFramebuffers();
@@ -28,6 +29,8 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
 
 Renderer::~Renderer()
 {
+    device.waitIdle();
+
     device.destroy(graphicsCommandPool);
     device.destroy(computeCommandPool);
 
@@ -40,10 +43,12 @@ Renderer::~Renderer()
     device.destroy(graphicsFinishTimelineSemaphore);
     device.destroy(transformsFinishTimelineSemaphore);
     device.destroy(xLASupdateFinishTimelineSemaphore);
-    device.destroy(commandBufferFinishTimelineSemaphore);
+    device.destroy(histogramFinishTimelineSemaphore);
 
-    for(auto& this_framebuffer : framebuffers) {
-        device.destroy(this_framebuffer);
+    for (size_t i = 0; i != 2; ++i) {
+        for (auto &this_framebuffer: framebuffers[i]) {
+            device.destroy(this_framebuffer);
+        }
     }
 
     device.destroy(renderpass);
@@ -54,8 +59,13 @@ Renderer::~Renderer()
     device.destroy(visibilityImageView);
     vma_allocator.destroyImage(visibilityImage, visibilityAllocation);
 
-    device.destroy(photometricResultImageView);
-    vma_allocator.destroyImage(photometricResultImage, photometricResultAllocation);
+    TLASbuilder_uptr.reset();
+    exposure_uptr.reset();
+
+    device.destroy(photometricResultImageViews[0]);
+    vma_allocator.destroyImage(photometricResultImages[0], photometricResultAllocations[0]);
+    device.destroy(photometricResultImageViews[1]);
+    vma_allocator.destroyImage(photometricResultImages[1], photometricResultAllocations[1]);
 
     device.destroy(descriptorPool);
     device.destroy(rendererDescriptorSetLayout);
@@ -63,8 +73,6 @@ Renderer::~Renderer()
 
     vma_allocator.destroyBuffer(primitivesInstanceBuffer, primitivesInstanceAllocation);
     vma_allocator.destroyBuffer(fullscreenBuffer, fullscreenAllocation);
-
-    TLASinstance_uptr.reset();
 }
 
 void Renderer::InitBuffers()
@@ -201,56 +209,73 @@ void Renderer::InitImages()
         photometricResultImageCreateInfo.arrayLayers = 1;
         photometricResultImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
         photometricResultImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-        photometricResultImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment;
+        photometricResultImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment
+                | vk::ImageUsageFlagBits::eInputAttachment
+                | vk::ImageUsageFlagBits::eStorage;
         photometricResultImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         photometricResultImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
 
         vma::AllocationCreateInfo image_allocation_info;
         image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
 
-        auto createImage_result = vma_allocator.createImage(photometricResultImageCreateInfo, image_allocation_info).value;
-        photometricResultImage = createImage_result.first;
-        photometricResultAllocation= createImage_result.second;
+        for (size_t i = 0; i != 2; ++i) {
+            auto createImage_result = vma_allocator.createImage(photometricResultImageCreateInfo, image_allocation_info).value;
+            photometricResultImages[i] = createImage_result.first;
+            photometricResultAllocations[i] = createImage_result.second;
 
-        vk::ImageViewCreateInfo imageView_create_info;
-        imageView_create_info.image = photometricResultImage;
-        imageView_create_info.viewType = vk::ImageViewType::e2D;
-        imageView_create_info.format = photometricResultImageCreateInfo.format;
-        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity};
-        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
-                                                  0, 1,
-                                                  0, 1};
+            vk::ImageViewCreateInfo imageView_create_info;
+            imageView_create_info.image = photometricResultImages[i];
+            imageView_create_info.viewType = vk::ImageViewType::e2D;
+            imageView_create_info.format = photometricResultImageCreateInfo.format;
+            imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                                vk::ComponentSwizzle::eIdentity,
+                                                vk::ComponentSwizzle::eIdentity,
+                                                vk::ComponentSwizzle::eIdentity};
+            imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                      0, 1,
+                                                      0, 1};
 
-        photometricResultImageView = device.createImageView(imageView_create_info).value;
+            photometricResultImageViews[i] = device.createImageView(imageView_create_info).value;
 
-        // Initialize
-        OneShotCommandBuffer one_shot_command_buffer(device);
-        vk::CommandBuffer command_buffer = one_shot_command_buffer.BeginCommandRecord(graphicsQueue);
+            // Initialize
+            OneShotCommandBuffer one_shot_command_buffer(device);
+            vk::CommandBuffer command_buffer = one_shot_command_buffer.BeginCommandRecord(graphicsQueue);
 
-        vk::ImageMemoryBarrier init_image_barrier;
-        init_image_barrier.image = photometricResultImage;
-        init_image_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
-        init_image_barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-        init_image_barrier.oldLayout = vk::ImageLayout::eUndefined;
-        init_image_barrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
-        init_image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        init_image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        init_image_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
-                                               0, 1, 0, 1};
+            vk::ImageMemoryBarrier init_image_barrier;
+            init_image_barrier.image = photometricResultImages[i];
+            init_image_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
+            init_image_barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+            init_image_barrier.oldLayout = vk::ImageLayout::eUndefined;
+            init_image_barrier.newLayout = vk::ImageLayout::eGeneral;
+            init_image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            init_image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            init_image_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                   0, 1, 0, 1};
 
-        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eBottomOfPipe,
-                                       vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                                       vk::DependencyFlagBits::eByRegion,
-                                       0, nullptr,
-                                       0, nullptr,
-                                       1, &init_image_barrier);
+            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eBottomOfPipe,
+                                           vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                           vk::DependencyFlagBits::eByRegion,
+                                           0, nullptr,
+                                           0, nullptr,
+                                           1, &init_image_barrier);
 
-        one_shot_command_buffer.EndAndSubmitCommands();
+            one_shot_command_buffer.EndAndSubmitCommands();
+        }
     }
 }
+
+void Renderer::InitExposure()
+{
+    std::tuple<vk::Image, vk::ImageView, vk::ImageCreateInfo> images_tuples[2] = {std::make_tuple(photometricResultImages[0], photometricResultImageViews[0], photometricResultImageCreateInfo),
+                                                                                  std::make_tuple(photometricResultImages[1], photometricResultImageViews[1], photometricResultImageCreateInfo)};
+    exposure_uptr = std::make_unique<Exposure>(device, vma_allocator, graphics_ptr, images_tuples, exposureComputeQueue);
+}
+
+void Renderer::InitTLAS()
+{
+    TLASbuilder_uptr = std::make_unique<TLASbuilder>(device, vma_allocator, meshComputeQueue.second, graphics_ptr->GetMaxInstancesCount());
+}
+
 
 void Renderer::InitDescriptors()
 {
@@ -379,7 +404,7 @@ void Renderer::InitDescriptors()
             {
                 auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
                 descriptor_image_info_uptr->imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-                descriptor_image_info_uptr->imageView = photometricResultImageView;
+                descriptor_image_info_uptr->imageView = photometricResultImageViews[i];
                 descriptor_image_info_uptr->sampler = nullptr;
 
                 vk::WriteDescriptorSet write_descriptor_set;
@@ -429,8 +454,8 @@ void Renderer::InitRenderpasses()
     attachment_descriptions[2].storeOp = vk::AttachmentStoreOp::eStore;
     attachment_descriptions[2].stencilLoadOp = vk::AttachmentLoadOp::eLoad;
     attachment_descriptions[2].stencilStoreOp = vk::AttachmentStoreOp::eStore;
-    attachment_descriptions[2].initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    attachment_descriptions[2].finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    attachment_descriptions[2].initialLayout = vk::ImageLayout::eGeneral;
+    attachment_descriptions[2].finalLayout = vk::ImageLayout::eGeneral;
 
     attachment_descriptions[3].format = graphics_ptr->GetSwapchainCreateInfo().imageFormat;
     attachment_descriptions[3].samples = vk::SampleCountFlagBits::e1;
@@ -554,22 +579,23 @@ void Renderer::InitRenderpasses()
 
 void Renderer::InitFramebuffers()
 {
-    for (const auto& swapchain_imageview : graphics_ptr->GetSwapchainImageViews())
-    {
-        std::vector<vk::ImageView> attachments;
-        attachments.emplace_back(visibilityImageView);
-        attachments.emplace_back(depthImageView);
-        attachments.emplace_back(photometricResultImageView);
-        attachments.emplace_back(swapchain_imageview);
+    for (size_t i = 0; i != 2; ++i) {
+        for (const auto &swapchain_imageview: graphics_ptr->GetSwapchainImageViews()) {
+            std::vector<vk::ImageView> attachments;
+            attachments.emplace_back(visibilityImageView);
+            attachments.emplace_back(depthImageView);
+            attachments.emplace_back(photometricResultImageViews[i]);
+            attachments.emplace_back(swapchain_imageview);
 
-        vk::FramebufferCreateInfo framebuffer_createInfo;
-        framebuffer_createInfo.renderPass = renderpass;
-        framebuffer_createInfo.setAttachments(attachments);
-        framebuffer_createInfo.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
-        framebuffer_createInfo.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
-        framebuffer_createInfo.layers = 1;
+            vk::FramebufferCreateInfo framebuffer_createInfo;
+            framebuffer_createInfo.renderPass = renderpass;
+            framebuffer_createInfo.setAttachments(attachments);
+            framebuffer_createInfo.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+            framebuffer_createInfo.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+            framebuffer_createInfo.layers = 1;
 
-        framebuffers.emplace_back(device.createFramebuffer(framebuffer_createInfo).value);
+            framebuffers[i].emplace_back(device.createFramebuffer(framebuffer_createInfo).value);
+        }
     }
 }
 
@@ -625,7 +651,7 @@ void Renderer::InitSemaphoresAndFences()
         graphicsFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
     }
 
-    {   // commandBufferFinishTimelineSemaphore
+    {   // histogramFinishTimelineSemaphore
         vk::SemaphoreTypeCreateInfo semaphore_type_info;
         semaphore_type_info.semaphoreType = vk::SemaphoreType::eTimeline;
         semaphore_type_info.initialValue = 0;
@@ -633,7 +659,7 @@ void Renderer::InitSemaphoresAndFences()
         vk::SemaphoreCreateInfo semaphore_create_info;
         semaphore_create_info.pNext = &semaphore_type_info;
 
-        commandBufferFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
+        histogramFinishTimelineSemaphore = device.createSemaphore(semaphore_create_info).value;
     }
 }
 
@@ -659,14 +685,14 @@ void Renderer::InitCommandBuffers()
     {   // compute command buffers
         vk::CommandPoolCreateInfo command_pool_create_info;
         command_pool_create_info.flags = vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
-        command_pool_create_info.queueFamilyIndex = computeQueue.second;
+        command_pool_create_info.queueFamilyIndex = meshComputeQueue.second;
 
         computeCommandPool = device.createCommandPool(command_pool_create_info).value;
 
         vk::CommandBufferAllocateInfo command_buffer_alloc_info;
         command_buffer_alloc_info.commandPool = computeCommandPool;
         command_buffer_alloc_info.level = vk::CommandBufferLevel::ePrimary;
-        command_buffer_alloc_info.commandBufferCount = 6;
+        command_buffer_alloc_info.commandBufferCount = 9;
 
         auto command_buffers = device.allocateCommandBuffers(command_buffer_alloc_info).value;
         transformCommandBuffers[0] = command_buffers[0];
@@ -675,6 +701,9 @@ void Renderer::InitCommandBuffers()
         xLASCommandBuffers[0] = command_buffers[3];
         xLASCommandBuffers[1] = command_buffers[4];
         xLASCommandBuffers[2] = command_buffers[5];
+        exposureCommandBuffers[0] = command_buffers[6];
+        exposureCommandBuffers[1] = command_buffers[7];
+        exposureCommandBuffers[2] = command_buffers[8];
     }
 }
 
@@ -891,7 +920,7 @@ void Renderer::InitShadePipeline()
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSetLayout());
         descriptor_sets_layouts.emplace_back(hostDescriptorSetLayout);
         descriptor_sets_layouts.emplace_back(rendererDescriptorSetLayout);
-        descriptor_sets_layouts.emplace_back(TLASinstance_uptr->GetDescriptorSetLayout());
+        descriptor_sets_layouts.emplace_back(TLASbuilder_uptr->GetDescriptorSetLayout());
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
@@ -1247,7 +1276,7 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
 
         vk::SemaphoreWaitInfo host_wait_info;
         host_wait_info.semaphoreCount = 1;
-        host_wait_info.pSemaphores = &commandBufferFinishTimelineSemaphore;
+        host_wait_info.pSemaphores = &histogramFinishTimelineSemaphore;
         host_wait_info.pValues = &wait_value;
 
         device.waitSemaphores(host_wait_info, uint64_t(-1));
@@ -1259,12 +1288,12 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
     std::vector<std::unique_ptr<std::vector<vk::PipelineStageFlags>>> pipelineStageFlags_vectors;
     std::vector<std::unique_ptr<std::vector<uint64_t>>> semaphore_values_vectors;
 
-    std::vector<vk::SubmitInfo> compute_submit_infos;
+    std::vector<vk::SubmitInfo> before_compute_submit_infos;
     if (viewportFreezeState == ViewportFreezeStates::ready
      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
         graphics_ptr->GetDynamicMeshes()->SwapDescriptorSet(frameCount - viewportFreezedFrameCount);
         primitive_instance_parameters = CreatePrimitivesInstanceParameters();
-        TLAS_instances = TLASinstance::CreateTLASinstances(drawInfos, matrices, device_freezeable_buffer_index, graphics_ptr);
+        TLAS_instances = TLASbuilder::CreateTLASinstances(drawInfos, matrices, device_freezeable_buffer_index, graphics_ptr);
 
         {
             vk::CommandBuffer &transform_command_buffer = transformCommandBuffers[freezable_commandBuffer_index];
@@ -1301,7 +1330,7 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
             transform_submit_info.setSignalSemaphores(*transform_signal_semaphores);
             transform_timeline_semaphore_info->setSignalSemaphoreValues(*transform_signal_semaphores_values);
 
-            compute_submit_infos.emplace_back(transform_submit_info);
+            before_compute_submit_infos.emplace_back(transform_submit_info);
             timeline_semaphore_infos.emplace_back(std::move(transform_timeline_semaphore_info));
             semaphore_vectors.emplace_back(std::move(transform_wait_semaphores));
             pipelineStageFlags_vectors.emplace_back(std::move(transform_wait_pipeline_stages));
@@ -1316,10 +1345,10 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
 
             if (frameCount > 2) graphics_ptr->GetDynamicMeshes()->ObtainBLASranges(xLAS_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
             graphics_ptr->GetDynamicMeshes()->RecordBLASupdate(xLAS_command_buffer, drawDynamicMeshInfos);
-            if (frameCount > 2) TLASinstance_uptr->ObtainTLASranges(xLAS_command_buffer, device_freezeable_buffer_index, graphicsQueue.second);
-            TLASinstance_uptr->RecordTLASupdate(xLAS_command_buffer, hostvisible_freezeable_buffer_index, device_freezeable_buffer_index, TLAS_instances.size());
+            if (frameCount > 2) TLASbuilder_uptr->ObtainTLASranges(xLAS_command_buffer, device_freezeable_buffer_index, graphicsQueue.second);
+            TLASbuilder_uptr->RecordTLASupdate(xLAS_command_buffer, hostvisible_freezeable_buffer_index, device_freezeable_buffer_index, TLAS_instances.size());
             graphics_ptr->GetDynamicMeshes()->TransferTransformAndBLASranges(xLAS_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
-            TLASinstance_uptr->TransferTLASrange(xLAS_command_buffer, device_freezeable_buffer_index, graphicsQueue.second);
+            TLASbuilder_uptr->TransferTLASrange(xLAS_command_buffer, device_freezeable_buffer_index, graphicsQueue.second);
 
             xLAS_command_buffer.end();
 
@@ -1346,7 +1375,7 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
             xLAS_submit_info.setSignalSemaphores(*xLAS_signal_semaphores);
             xLAS_timeline_semaphore_info->setSignalSemaphoreValues(*xLAS_signal_semaphores_values);
 
-            compute_submit_infos.emplace_back(xLAS_submit_info);
+            before_compute_submit_infos.emplace_back(xLAS_submit_info);
             timeline_semaphore_infos.emplace_back(std::move(xLAS_timeline_semaphore_info));
             semaphore_vectors.emplace_back(std::move(xLAS_wait_semaphores));
             pipelineStageFlags_vectors.emplace_back(std::move(xLAS_wait_pipeline_stages));
@@ -1357,6 +1386,52 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
 
         // Write host buffers
         WriteInitHostBuffers(hostvisible_freezeable_buffer_index);
+    }
+
+    std::vector<vk::SubmitInfo> after_compute_submit_infos;
+    {   // Exposure
+        exposure_uptr->GetNextFrameValue(frameCount);
+
+        vk::CommandBuffer& exposure_command_buffer = exposureCommandBuffers[commandBuffer_index];
+        exposure_command_buffer.reset();
+        exposure_command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+        exposure_uptr->ObtainImageOwnership(exposure_command_buffer, device_freezeable_buffer_index, vk::ImageLayout::eGeneral, graphicsQueue.second);
+        exposure_uptr->RecordFrameHistogram(exposure_command_buffer, device_freezeable_buffer_index, 1.f / float(viewportInRowFreezedFrameCount));
+        exposure_uptr->TransferImageOwnership(exposure_command_buffer, device_freezeable_buffer_index, vk::ImageLayout::eGeneral, graphicsQueue.second);
+
+        exposure_command_buffer.end();
+
+        vk::SubmitInfo exposure_submit_info;
+        std::unique_ptr<vk::TimelineSemaphoreSubmitInfo> exposure_timeline_semaphore_info = std::make_unique<vk::TimelineSemaphoreSubmitInfo>();
+        exposure_submit_info.pNext = exposure_timeline_semaphore_info.get();
+        exposure_submit_info.commandBufferCount = 1;
+        exposure_submit_info.pCommandBuffers = &exposure_command_buffer;
+        // exposure wait
+        auto exposure_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+        auto exposure_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
+        auto exposure_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+        exposure_wait_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
+        exposure_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
+        exposure_wait_semaphores_values->emplace_back(frameCount);
+        exposure_submit_info.setWaitSemaphores(*exposure_wait_semaphores);
+        exposure_submit_info.setWaitDstStageMask(*exposure_wait_pipeline_stages);
+        exposure_timeline_semaphore_info->setWaitSemaphoreValues(*exposure_wait_semaphores_values);
+        // exposure signal
+        auto exposure_signal_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+        auto exposure_signal_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+        exposure_signal_semaphores->emplace_back(histogramFinishTimelineSemaphore);
+        exposure_signal_semaphores_values->emplace_back(frameCount);
+        exposure_submit_info.setSignalSemaphores(*exposure_signal_semaphores);
+        exposure_timeline_semaphore_info->setSignalSemaphoreValues(*exposure_signal_semaphores_values);
+
+        after_compute_submit_infos.emplace_back(exposure_submit_info);
+        timeline_semaphore_infos.emplace_back(std::move(exposure_timeline_semaphore_info));
+        semaphore_vectors.emplace_back(std::move(exposure_wait_semaphores));
+        pipelineStageFlags_vectors.emplace_back(std::move(exposure_wait_pipeline_stages));
+        semaphore_values_vectors.emplace_back(std::move(exposure_wait_semaphores_values));
+        semaphore_vectors.emplace_back(std::move(exposure_signal_semaphores));
+        semaphore_values_vectors.emplace_back(std::move(exposure_signal_semaphores_values));
     }
 
     uint32_t swapchain_index = device.acquireNextImageKHR(graphics_ptr->GetSwapchain(),
@@ -1395,6 +1470,14 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         graphics_wait_semaphores->emplace_back(presentImageAvailableSemaphores[commandBuffer_index]);
         graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
         graphics_wait_semaphores_values->emplace_back(0);
+        graphics_wait_semaphores->emplace_back(histogramFinishTimelineSemaphore);
+        graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        if (viewportFreezeState == ViewportFreezeStates::ready
+            || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
+            graphics_wait_semaphores_values->emplace_back(std::max(int64_t(frameCount - 2), int64_t(0)));
+        } else {
+            graphics_wait_semaphores_values->emplace_back(std::max(int64_t(frameCount - 1), int64_t(0)));
+        }
         graphics_submit_info.setWaitSemaphores(*graphics_wait_semaphores);
         graphics_submit_info.setWaitDstStageMask(*graphics_wait_pipeline_stages);
         graphics_timeline_semaphore_info->setWaitSemaphoreValues(*graphics_wait_semaphores_values);
@@ -1402,8 +1485,6 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         auto graphics_signal_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
         auto graphics_signal_semaphores_values = std::make_unique<std::vector<uint64_t>>();
         graphics_signal_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
-        graphics_signal_semaphores_values->emplace_back(frameCount);
-        graphics_signal_semaphores->emplace_back(commandBufferFinishTimelineSemaphore);
         graphics_signal_semaphores_values->emplace_back(frameCount);
         graphics_signal_semaphores->emplace_back(readyForPresentSemaphores[commandBuffer_index]);
         graphics_signal_semaphores_values->emplace_back(0);
@@ -1417,13 +1498,14 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         semaphore_values_vectors.emplace_back(std::move(graphics_wait_semaphores_values));
         semaphore_vectors.emplace_back(std::move(graphics_signal_semaphores));
         semaphore_values_vectors.emplace_back(std::move(graphics_signal_semaphores_values));
-
     }
 
     // Submit!
-    if (compute_submit_infos.size())
-        computeQueue.first.submit(compute_submit_infos);
+    if (before_compute_submit_infos.size())
+        meshComputeQueue.first.submit(before_compute_submit_infos);
     graphicsQueue.first.submit(graphics_submit_infos);
+    if (after_compute_submit_infos.size())
+        exposureComputeQueue.first.submit(after_compute_submit_infos);
 
     // Present
     vk::PresentInfoKHR present_info;
@@ -1447,40 +1529,49 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
     command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
     // Obtain ownerships
-    std::vector<vk::BufferMemoryBarrier> ownership_obtain_memory_barriers;
-    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
-        this_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eShaderRead;
-        this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
-        ownership_obtain_memory_barriers.emplace_back(this_barrier);
+    std::vector<vk::BufferMemoryBarrier> ownership_obtain_buffer_barriers;
+    std::vector<vk::ImageMemoryBarrier> ownership_obtain_image_barriers;
+    if (viewportFreezeState == ViewportFreezeStates::ready
+     || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
+            this_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eShaderRead;
+            this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
+            ownership_obtain_buffer_barriers.emplace_back(this_barrier);
+        }
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
+            this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+            this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
+            ownership_obtain_buffer_barriers.emplace_back(this_barrier);
+        }
+        {
+            auto this_barrier = TLASbuilder_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
+            this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+            this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
+            ownership_obtain_buffer_barriers.emplace_back(this_barrier);
+        }
     }
-    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
-        this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+    if (frameCount > 2) {
+        auto this_barrier = exposure_uptr->GetGenericImageBarrier(freezable_device_buffer_index);
+        this_barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
         this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
-        ownership_obtain_memory_barriers.emplace_back(this_barrier);
-    }
-    {
-        auto this_barrier = TLASinstance_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
-        this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
-        this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
-        ownership_obtain_memory_barriers.emplace_back(this_barrier);
+        ownership_obtain_image_barriers.emplace_back(this_barrier);
     }
 
-    if (ownership_obtain_memory_barriers.size()
-     && (viewportFreezeState == ViewportFreezeStates::ready
-      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze)) {
+    if (ownership_obtain_buffer_barriers.size()
+     || ownership_obtain_image_barriers.size()) {
         command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
-                                       vk::PipelineStageFlagBits::eVertexInput | vk::PipelineStageFlagBits::eFragmentShader,
+                                       vk::PipelineStageFlagBits::eVertexInput | vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eColorAttachmentOutput,
                                        vk::DependencyFlagBits::eByRegion,
                                        {},
-                                       ownership_obtain_memory_barriers,
-                                       {});
+                                       ownership_obtain_buffer_barriers,
+                                       ownership_obtain_image_barriers);
     }
 
     // Render begin
     vk::RenderPassBeginInfo render_pass_begin_info;
     vk::ClearValue clear_values[4];
     render_pass_begin_info.renderPass = renderpass;
-    render_pass_begin_info.framebuffer = framebuffers[swapchain_index];
+    render_pass_begin_info.framebuffer = framebuffers[freezable_device_buffer_index][swapchain_index];
     render_pass_begin_info.renderArea.offset = vk::Offset2D(0, 0);
     render_pass_begin_info.renderArea.extent = graphics_ptr->GetSwapchainCreateInfo().imageExtent;
 
@@ -1618,8 +1709,8 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorSet());
         descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
         descriptor_sets.emplace_back(hostDescriptorSets[freezable_host_buffer_index]);
-        descriptor_sets.emplace_back(rendererDescriptorSets[device_buffer_index]);
-        descriptor_sets.emplace_back(TLASinstance_uptr->GetDescriptorSet(freezable_device_buffer_index));
+        descriptor_sets.emplace_back(rendererDescriptorSets[freezable_device_buffer_index]);
+        descriptor_sets.emplace_back(TLASbuilder_uptr->GetDescriptorSet(freezable_device_buffer_index));
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                           fullscreenPipelineLayout,
@@ -1651,7 +1742,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, toneMapPipeline);
 
         std::vector<vk::DescriptorSet> descriptor_sets;
-        descriptor_sets.emplace_back(rendererDescriptorSets[device_buffer_index]);
+        descriptor_sets.emplace_back(rendererDescriptorSets[freezable_device_buffer_index]);
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                           toneMapPipelineLayout,
@@ -1659,7 +1750,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                           descriptor_sets,
                                           {});
 
-        std::array<float, 1> push_constants = { 1.f / float(viewportInRowFreezedFrameCount) };
+        std::array<float, 1> push_constants = { exposure_uptr->GetCurrectScale() / float(viewportInRowFreezedFrameCount) };
         command_buffer.pushConstants(toneMapPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, 4, push_constants.data());
 
         std::vector<vk::Buffer> buffers;
@@ -1677,33 +1768,41 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
     // Tranfer ownerships
     std::vector<vk::BufferMemoryBarrier> ownership_transfer_memory_barriers;
-    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
-        this_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-        this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
-        ownership_transfer_memory_barriers.emplace_back(this_barrier);
-    }
-    for (auto this_barrier : graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
-        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
-        this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
-        ownership_transfer_memory_barriers.emplace_back(this_barrier);
+    std::vector<vk::ImageMemoryBarrier> ownership_transfer_image_barriers;
+    if ((viewportFreezeState == ViewportFreezeStates::ready
+     || viewportFreezeState == ViewportFreezeStates::next_frame_unfreeze)) {
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
+            this_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
+            this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
+            ownership_transfer_memory_barriers.emplace_back(this_barrier);
+        }
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
+            this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+            this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
+            ownership_transfer_memory_barriers.emplace_back(this_barrier);
+        }
+        {
+            auto this_barrier = TLASbuilder_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
+            this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+            this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
+            ownership_transfer_memory_barriers.emplace_back(this_barrier);
+        }
     }
     {
-        auto this_barrier = TLASinstance_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
-        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+        auto this_barrier = exposure_uptr->GetGenericImageBarrier(freezable_device_buffer_index);
+        this_barrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
         this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
-        ownership_transfer_memory_barriers.emplace_back(this_barrier);
+        ownership_transfer_image_barriers.emplace_back(this_barrier);
     }
 
     if (ownership_transfer_memory_barriers.size()
-     && (viewportFreezeState == ViewportFreezeStates::ready
-      || viewportFreezeState == ViewportFreezeStates::next_frame_unfreeze)) {
-        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eFragmentShader,
-                                       vk::PipelineStageFlagBits::eBottomOfPipe,
-                                       vk::DependencyFlagBits::eByRegion,
-                                       {},
-                                       ownership_transfer_memory_barriers,
-                                       {});
-    }
+     || ownership_transfer_image_barriers.size())
+    command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                   vk::PipelineStageFlagBits::eBottomOfPipe,
+                                   vk::DependencyFlagBits::eByRegion,
+                                   {},
+                                   ownership_transfer_memory_barriers,
+                                   ownership_transfer_image_barriers);
 
     command_buffer.end();
 }
@@ -1831,7 +1930,7 @@ void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
                                              drawInfos,
                                              buffer_index);
 
-    TLASinstance_uptr->WriteHostInstanceBuffer(TLAS_instances,
+    TLASbuilder_uptr->WriteHostInstanceBuffer(TLAS_instances,
                                                buffer_index);
 
     {

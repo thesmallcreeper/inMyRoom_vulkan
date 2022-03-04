@@ -5,15 +5,15 @@
 #include "ECS/ECStypes.h"
 #include "common/structs/ModelMatrices.h"
 
-class TLASinstance
+class TLASbuilder
 {
 public:
-    TLASinstance(vk::Device device,
-                 vma::Allocator vma_allocator,
-                 uint32_t queue_family_index,
-                 size_t max_instances);
+    TLASbuilder(vk::Device device,
+                vma::Allocator vma_allocator,
+                uint32_t queue_family_index,
+                size_t max_instances);
 
-    ~TLASinstance();
+    ~TLASbuilder();
 
     vk::DescriptorSet GetDescriptorSet(uint32_t index) {return TLASdescriptorSets[index];}
     vk::DescriptorSetLayout GetDescriptorSetLayout() {return TLASdescriptorSetLayout;}
