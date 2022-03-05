@@ -1,9 +1,9 @@
 #ifndef FILE_CPP_INTERFACE
 
 #ifdef ENABLE_CPP_INTERFACE
-    #define MAT4        alignas(16) glm::mat4
-    #define MAT3        alignas(16) glm::mat3
-    #define MAT2        alignas(8)  glm::mat2
+    #define MAT4_T        alignas(16) glm::mat4
+    #define MAT3_T        alignas(16) glm::mat3
+    #define MAT2_T        alignas(8)  glm::mat2
 
     #define VEC4        alignas(16) glm::vec4
     #define VEC3        alignas(16) glm::vec3
@@ -19,9 +19,9 @@
     #define UINT8_T     alignas(1) uint8_t
 
 #else
-    #define MAT4        mat4
-    #define MAT3        mat3
-    #define MAT2        mat2
+    #define MAT4_T        mat4
+    #define MAT3_T        mat3
+    #define MAT2_T        mat2
 
     #define VEC4        vec4
     #define VEC3        vec3

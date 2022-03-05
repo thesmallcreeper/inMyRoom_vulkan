@@ -24,6 +24,7 @@ else ()
 endif()
 
 add_compile_definitions(GAME_DLL)
+add_compile_definitions(ENABLE_CPP_INTERFACE)
 find_package(Threads REQUIRED)
 
 include_directories(

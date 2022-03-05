@@ -1411,6 +1411,9 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         auto exposure_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
         auto exposure_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
         auto exposure_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+       // exposure_wait_semaphores->emplace_back(transformsFinishTimelineSemaphore);
+       // exposure_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
+       // exposure_wait_semaphores_values->emplace_back(frameCount + 1);
         exposure_wait_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
         exposure_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
         exposure_wait_semaphores_values->emplace_back(frameCount);

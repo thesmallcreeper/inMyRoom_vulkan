@@ -636,7 +636,7 @@ ImageData MetallicRoughnessImage::CreateMipmap(const ImageData &reference, size_
         ImageData mipmap_imageData(reference.GetWidth() / dimension_factor, reference.GetHeight() / dimension_factor,
                                    4, reference.GetWrapS(), reference.GetWrapT());
 
-        bool should_apply_roughness_normal_correction = widthToLengthsData.find(mipmap_imageData.GetWidth()) != widthToLengthsData.end();
+        bool should_apply_roughness_normal_correction = widthToLengthsData.size() && widthToLengthsData.find(mipmap_imageData.GetWidth()) != widthToLengthsData.end();
 
         for (size_t x = 0; x != mipmap_imageData.GetWidth(); ++x) {
             for (size_t y = 0; y != mipmap_imageData.GetWidth(); ++y) {

@@ -60,6 +60,7 @@
     <ClCompile Include="src\Geometry\Triangle.cpp" />
     <ClCompile Include="src\Geometry\ViewportFrustum.cpp" />
     <ClCompile Include="src\Graphics\DynamicMeshes.cpp" />
+    <ClCompile Include="src\Graphics\Exposure.cpp" />
     <ClCompile Include="src\Graphics\Graphics.cpp" />
     <ClCompile Include="src\Graphics\HelperUtils.cpp" />
     <ClCompile Include="src\Graphics\ImagesInterfaces.cpp" />
@@ -72,6 +73,7 @@
     <ClCompile Include="src\Graphics\PipelinesFactory.cpp" />
     <ClCompile Include="src\Graphics\Renderers\Renderer.cpp" />
     <ClCompile Include="src\Graphics\ShadersSetsFamiliesCache.cpp" />
+    <ClCompile Include="src\Graphics\TLASbuilder.cpp" />
     <ClCompile Include="src\Graphics\VulkanInit.cpp" />
     <ClCompile Include="src\implementations.cpp" />
     <ClCompile Include="src\InputManager.cpp" />
@@ -80,9 +82,7 @@
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Compressonator\Compressonator\Applications\_Plugins\Common\stb_image.h" />
     <ClInclude Include="..\Configuru\configuru.hpp" />
-    <ClInclude Include="..\DiTO\dito.h" />
     <ClInclude Include="..\tinygltf\tiny_gltf.h" />
     <ClInclude Include="include\CollisionDetection\CollisionDetection.h" />
     <ClInclude Include="include\CollisionDetection\OBBtreesCollision.h" />
@@ -138,6 +138,7 @@
     <ClInclude Include="include\Geometry\ViewportFrustum.h" />
     <ClInclude Include="include\glTFenum.h" />
     <ClInclude Include="include\Graphics\DynamicMeshes.h" />
+    <ClInclude Include="include\Graphics\Exposure.h" />
     <ClInclude Include="include\Graphics\Graphics.h" />
     <ClInclude Include="include\Graphics\HelperUtils.h" />
     <ClInclude Include="include\Graphics\ImagesInterfaces.h" />
@@ -151,22 +152,34 @@
     <ClInclude Include="include\Graphics\RendererBase.h" />
     <ClInclude Include="include\Graphics\Renderers\Renderer.h" />
     <ClInclude Include="include\Graphics\ShadersSetsFamiliesCache.h" />
+    <ClInclude Include="include\Graphics\TLASbuilder.h" />
     <ClInclude Include="include\Graphics\VulkanInit.h" />
     <ClInclude Include="include\hash_combine.h" />
     <ClInclude Include="include\sparse_set.h" />
     <ClInclude Include="include\WindowWithAsyncInput.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\InputManager.h" />
+    <ClInclude Include="shaders\common\FloatComperableUsingInt.h" />
+    <ClInclude Include="shaders\common\structs\AABB.h" />
     <ClInclude Include="shaders\common\structs\cppInterface.h" />
+    <ClInclude Include="shaders\common\structs\Histogram.h" />
     <ClInclude Include="shaders\common\structs\MaterialParameters.h" />
+    <ClInclude Include="shaders\common\structs\ModelMatrices.h" />
     <ClInclude Include="shaders\common\structs\PrimitiveInstanceParameters.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="config.cfg" />
+    <None Include="shaders\common\brdf.glsl" />
     <None Include="shaders\common\intersectOriginTriangle.glsl" />
+    <None Include="shaders\common\rng.glsl" />
     <None Include="shaders\dynamicMeshShader_glsl.comp" />
+    <None Include="shaders\histogramShader_glsl.comp" />
+    <None Include="shaders\shadePass_glsl.frag" />
+    <None Include="shaders\shadePass_glsl.vert" />
     <None Include="shaders\texturePass_glsl.frag" />
     <None Include="shaders\texturePass_glsl.vert" />
+    <None Include="shaders\toneMapPass_glsl.frag" />
+    <None Include="shaders\toneMapPass_glsl.vert" />
     <None Include="shaders\visibilityPass_glsl.frag" />
     <None Include="shaders\visibilityPass_glsl.vert" />
   </ItemGroup>

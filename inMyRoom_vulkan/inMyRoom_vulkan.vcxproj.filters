@@ -73,6 +73,12 @@
     <Filter Include="Source Files\Graphics\Renderers">
       <UniqueIdentifier>{44427293-e597-4d56-9b1c-543cc84bfce5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Shaders\common">
+      <UniqueIdentifier>{2a23c2c9-3ad8-483f-9ac4-8ee2865914a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\common\structs">
+      <UniqueIdentifier>{f551406e-658b-49b7-b1ae-edc7ab271077}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -252,6 +258,12 @@
     <ClCompile Include="src\Graphics\Renderers\Renderer.cpp">
       <Filter>Source Files\Graphics\Renderers</Filter>
     </ClCompile>
+    <ClCompile Include="src\Graphics\Exposure.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Graphics\TLASbuilder.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Engine.h">
@@ -270,9 +282,6 @@
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
     <ClInclude Include="include\hash_combine.h">
-      <Filter>Header Files\_etc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\DiTO\dito.h">
       <Filter>Header Files\_etc</Filter>
     </ClInclude>
     <ClInclude Include="include\const_maps.h">
@@ -395,9 +404,6 @@
     <ClInclude Include="include\Graphics\Meshes\AnimationsDataOfNodes.h">
       <Filter>Header Files\Graphics\Meshes</Filter>
     </ClInclude>
-    <ClInclude Include="..\Compressonator\Compressonator\Applications\_Plugins\Common\stb_image.h">
-      <Filter>Header Files\_etc</Filter>
-    </ClInclude>
     <ClInclude Include="include\Geometry\Ray.h">
       <Filter>Header Files\Geometry</Filter>
     </ClInclude>
@@ -485,14 +491,32 @@
     <ClInclude Include="include\Graphics\RendererBase.h">
       <Filter>Header Files\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="include\Graphics\Exposure.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Graphics\TLASbuilder.h">
+      <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\common\FloatComperableUsingInt.h">
+      <Filter>Resource Files\Shaders\common</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\common\structs\AABB.h">
+      <Filter>Resource Files\Shaders\common\structs</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\common\structs\cppInterface.h">
-      <Filter>Resource Files\Shaders</Filter>
+      <Filter>Resource Files\Shaders\common\structs</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\common\structs\Histogram.h">
+      <Filter>Resource Files\Shaders\common\structs</Filter>
     </ClInclude>
     <ClInclude Include="shaders\common\structs\MaterialParameters.h">
-      <Filter>Resource Files\Shaders</Filter>
+      <Filter>Resource Files\Shaders\common\structs</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\common\structs\ModelMatrices.h">
+      <Filter>Resource Files\Shaders\common\structs</Filter>
     </ClInclude>
     <ClInclude Include="shaders\common\structs\PrimitiveInstanceParameters.h">
-      <Filter>Resource Files\Shaders</Filter>
+      <Filter>Resource Files\Shaders\common\structs</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -516,6 +540,27 @@
     </None>
     <None Include="shaders\dynamicMeshShader_glsl.comp">
       <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\histogramShader_glsl.comp">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\shadePass_glsl.frag">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\shadePass_glsl.vert">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\toneMapPass_glsl.frag">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\toneMapPass_glsl.vert">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="shaders\common\brdf.glsl">
+      <Filter>Resource Files\Shaders\common</Filter>
+    </None>
+    <None Include="shaders\common\rng.glsl">
+      <Filter>Resource Files\Shaders\common</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -109,7 +109,6 @@ private:
     vk::Semaphore           presentImageAvailableSemaphores[3];
     vk::Semaphore           transformsFinishTimelineSemaphore;
     vk::Semaphore           xLASupdateFinishTimelineSemaphore;
-//    vk::Semaphore           allowPreviousFrameHistogramTimelineSemaphore;
     vk::Semaphore           graphicsFinishTimelineSemaphore;
     vk::Semaphore           histogramFinishTimelineSemaphore;
 
