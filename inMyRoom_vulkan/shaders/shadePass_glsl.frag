@@ -342,13 +342,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     float NdotV = dot(normal, viewVector);
     float HmaxDotV = dot(Hmax, viewVector);
 
-    float e_specular_refl = 0.04f + (1.f - 0.04f) * pow(1.f - NdotV, 5.f);
-    float e_specular_refl_G = GGXdistribution(roughness * roughness, 1.f);
-    float e_specular_max_angle = 0.04f + (1.f - 0.04f) * pow(1.f - HmaxDotV, 5.f);
-    float e_specular_max_angle_G = GGXdistribution(roughness * roughness, Hmax.z);
-    float e_specular_dialectric = mix(e_specular_refl, e_specular_max_angle, e_specular_refl_G / (e_specular_refl_G + e_specular_max_angle_G));
-    float e_specular = mix(e_specular_dialectric, 1.f, metallic);
-
+    float e_specular = 0.04f + (1.f - 0.04f) * pow(1.f - NdotV, 5.f);
     float e_diffuse = mix((1.f / M_PI) * (1.f - 0.04f), 0.f, metallic);
 
     float cosine_weighted_chance = e_diffuse / (e_specular + e_diffuse);

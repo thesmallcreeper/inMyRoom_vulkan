@@ -80,6 +80,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan_device_extensions.emplace_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
+    vulkan_device_extensions.emplace_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
 
     vk::PhysicalDeviceFeatures vulkan_device_features;
     vulkan_device_features.samplerAnisotropy = VK_TRUE;

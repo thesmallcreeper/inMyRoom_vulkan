@@ -28,9 +28,9 @@ public:
 
     void SetMinMaxLuminance(float min, float max) {minLuminance = min; maxLuminance = max;};
     void SetRobustness(float low, float high) {lowRobustness = low; highRobustness = high;};
-    void SetWeight(float new_weight) {weight = new_weight;}
+    void SetT63percent(float new_t) {t63percent = new_t;}
 
-    void GetNextFrameValue(size_t frameCount);
+    void CalcNextFrameValue(size_t frame_count, float time_step);
     float GetCurrectScale() const {return 1.f / currentExposure;}
 
     vk::ImageMemoryBarrier GetGenericImageBarrier(uint32_t image_index) const;
@@ -71,13 +71,13 @@ private:
 
     float                   currentExposure = 1.5e3f;
 
-    float                   minLuminance = 0.5e3;
-    float                   maxLuminance = 1.0e5;
+    float                   minLuminance = 0.8e3;
+    float                   maxLuminance = 0.5e5;
 
-    float                   lowRobustness = 0.90f;
+    float                   lowRobustness = 0.85f;
     float                   highRobustness = 0.98f;
 
-    float                   weight = 0.1f;
+    float                   t63percent = 0.8f;
 
     vk::Device              device;
     vma::Allocator          vma_allocator;

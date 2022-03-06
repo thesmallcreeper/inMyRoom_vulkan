@@ -168,7 +168,7 @@ void Exposure::InitPipeline()
     }
 }
 
-void Exposure::GetNextFrameValue(size_t frame_count)
+void Exposure::CalcNextFrameValue(size_t frame_count, float time_step)
 {
     frameCount = frame_count;
 
@@ -183,7 +183,7 @@ void Exposure::GetNextFrameValue(size_t frame_count)
            resultBufferRangeSize);
 
     float histogram_result = CalculateHistogram(histogram_local);
-    currentExposure = std::lerp(histogram_result, currentExposure, 1.f - weight);
+    currentExposure = histogram_result - std::pow(float(std::numbers::e), - time_step / t63percent) * (histogram_result - currentExposure);
 }
 
 float Exposure::CalculateHistogram(Histogram histogram) const

@@ -69,6 +69,7 @@ public:
                                     size_t buffer_index);
 
     void ToggleViewportFreeze();
+    float GetDeltaTimeSeconds() const;
 
     // TODO: Get the f out
     void ToggleCullingDebugging();

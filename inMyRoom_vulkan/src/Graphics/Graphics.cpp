@@ -415,3 +415,8 @@ void Graphics::WriteCameraMarticesBuffers(ViewportFrustum viewport,
         vma_allocator.flushAllocation(matricesAllocation, buffer_index * maxInstances * sizeof(ModelMatrices), model_matrices.size() * sizeof(ModelMatrices));
     }
 }
+
+float Graphics::GetDeltaTimeSeconds() const
+{
+    return engine_ptr->GetECSdeltaTime().count();
+}

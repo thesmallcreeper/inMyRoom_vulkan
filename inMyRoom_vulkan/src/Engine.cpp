@@ -135,3 +135,8 @@ void Engine::Run()
         ECSwrapper_uptr->CompleteAddsAndRemoves();
     }
 }
+
+std::chrono::duration<float> Engine::GetECSdeltaTime() const
+{
+    return ECSwrapper_uptr->GetUpdateDeltaTime();
+}

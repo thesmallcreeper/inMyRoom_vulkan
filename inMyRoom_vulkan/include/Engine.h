@@ -26,6 +26,8 @@ public:
     GameImporter*   GetGameImporter();
     ECSwrapper*     GetECSwrapperPtr();
 
+    std::chrono::duration<float> GetECSdeltaTime() const;
+
     void Run();
 
 private: // data

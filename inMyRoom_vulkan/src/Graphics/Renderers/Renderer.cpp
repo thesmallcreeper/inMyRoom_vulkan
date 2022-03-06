@@ -1390,7 +1390,7 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
 
     std::vector<vk::SubmitInfo> after_compute_submit_infos;
     {   // Exposure
-        exposure_uptr->GetNextFrameValue(frameCount);
+        exposure_uptr->CalcNextFrameValue(frameCount, graphics_ptr->GetDeltaTimeSeconds());
 
         vk::CommandBuffer& exposure_command_buffer = exposureCommandBuffers[commandBuffer_index];
         exposure_command_buffer.reset();
