@@ -14,7 +14,8 @@
 
 struct PrimitiveInfo
 {
-    vk::PrimitiveTopology drawMode = vk::PrimitiveTopology::eTriangleList;
+    vk::PrimitiveTopology drawMode  = vk::PrimitiveTopology::eTriangleList;
+    OBB primitiveOBB                = OBB::EmptyOBB();
 
     size_t material                 =  0;
     bool materialTwoSided           =  false;

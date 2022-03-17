@@ -1250,12 +1250,6 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
         matrices = std::move(in_matrices);
         drawInfos = std::move(in_draw_infos);
         viewportInRowFreezedFrameCount = 1;
-
-        drawDynamicMeshInfos.clear();
-        for(const auto& draw_info : drawInfos) {
-            if (draw_info.dynamicMeshIndex != -1)
-                drawDynamicMeshInfos.emplace_back(draw_info);
-        }
     } else {
         ++viewportFreezedFrameCount;
         ++viewportInRowFreezedFrameCount;
@@ -1272,7 +1266,7 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
     //
     // Wait! Wait for write buffers (-3)
     if (frameCount > 3) {
-        uint64_t wait_value = uint64_t(frameCount - 3);
+        auto wait_value = uint64_t(frameCount - 3);
 
         vk::SemaphoreWaitInfo host_wait_info;
         host_wait_info.semaphoreCount = 1;
@@ -1291,8 +1285,11 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
     std::vector<vk::SubmitInfo> before_compute_submit_infos;
     if (viewportFreezeState == ViewportFreezeStates::ready
      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
-        graphics_ptr->GetDynamicMeshes()->SwapDescriptorSet(frameCount - viewportFreezedFrameCount);
+        graphics_ptr->GetDynamicMeshes()->PrepareNewFrame(frameCount - viewportFreezedFrameCount);
+
         primitive_instance_parameters = CreatePrimitivesInstanceParameters();
+        AssortDrawInfos();
+
         TLAS_instances = TLASbuilder::CreateTLASinstances(drawInfos, matrices, device_freezeable_buffer_index, graphics_ptr);
 
         {
@@ -1591,26 +1588,29 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
     command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
     // Visibility pass
-    for (const DrawInfo& this_draw: drawInfos) {
+    std::vector<DrawInfo> visibility_draw;
+    std::copy(drawStaticMeshInfos.begin(), drawStaticMeshInfos.end(), std::back_inserter(visibility_draw));
+    std::copy(drawDynamicMeshInfos.begin(), drawDynamicMeshInfos.end(), std::back_inserter(visibility_draw));
+    for (const DrawInfo& this_draw: visibility_draw) {
         struct DrawPrimitiveInfo {
             DrawPrimitiveInfo(size_t in_primitiveIndex,
                               PrimitiveInfo in_primitiveInfo,
                               DynamicMeshInfo::DynamicPrimitiveInfo in_dynamicPrimitiveInfo,
                               vk::Buffer in_dynamicBuffer,
-                              uint32_t in_dynamicBufferHalfSize)
+                              uint32_t in_dynamicBufferRangeSize)
                 :
-                primitiveIndex(in_primitiveIndex),
-                primitiveInfo(in_primitiveInfo),
-                dynamicPrimitiveInfo(in_dynamicPrimitiveInfo),
-                dynamicBuffer(in_dynamicBuffer),
-                dynamicBufferHalfSize(in_dynamicBufferHalfSize) {}
+                 primitiveIndex(in_primitiveIndex),
+                 primitiveInfo(in_primitiveInfo),
+                 dynamicPrimitiveInfo(in_dynamicPrimitiveInfo),
+                 dynamicBuffer(in_dynamicBuffer),
+                 dynamicBufferRangeSize(in_dynamicBufferRangeSize) {}
             size_t primitiveIndex;
 
             PrimitiveInfo primitiveInfo;
 
             DynamicMeshInfo::DynamicPrimitiveInfo dynamicPrimitiveInfo;
             vk::Buffer dynamicBuffer;
-            uint32_t dynamicBufferHalfSize;
+            uint32_t dynamicBufferRangeSize;
         };
         std::vector<DrawPrimitiveInfo> draw_primitives_infos;
 
@@ -1622,7 +1622,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                                    this_primitive_info,
                                                    this_dynamic_primitive_info,
                                                    dynamic_mesh_info.buffer,
-                                                   dynamic_mesh_info.halfSize);
+                                                   dynamic_mesh_info.rangeSize);
             }
         } else {
             for (size_t primitive_index : graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
@@ -1671,7 +1671,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
             // Position
             if (this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset != -1) {
-                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + freezable_device_buffer_index * this_draw_primitive_info.dynamicBufferHalfSize);
+                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + freezable_device_buffer_index * this_draw_primitive_info.dynamicBufferRangeSize);
                 buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
             } else {
                 offsets.emplace_back(this_draw_primitive_info.primitiveInfo.positionByteOffset);
@@ -1682,7 +1682,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
             if (this_material.masked) {
                 if (this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset != -1) {
                     offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2)
-                                        + freezable_device_buffer_index * this_draw_primitive_info.dynamicBufferHalfSize );
+                                        + freezable_device_buffer_index * this_draw_primitive_info.dynamicBufferRangeSize );
                     buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
                 } else {
                     offsets.emplace_back(this_draw_primitive_info.primitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2) );
@@ -1924,6 +1924,17 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
     }
 
     return return_vector;
+}
+
+void Renderer::AssortDrawInfos()
+{
+    drawDynamicMeshInfos.clear();
+    for(const auto& draw_info : drawInfos) {
+        if (draw_info.dynamicMeshIndex != -1)
+            drawDynamicMeshInfos.emplace_back(draw_info);
+        else
+            drawStaticMeshInfos.emplace_back(draw_info);
+    }
 }
 
 void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const

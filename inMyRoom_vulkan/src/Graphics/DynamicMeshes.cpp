@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "common/structs/AABB.h"
+#include "common/FloatComperableUsingInt.h"
 
 DynamicMeshes::DynamicMeshes(Graphics* in_graphics_ptr,
                              vk::Device in_device,
@@ -305,6 +306,14 @@ const DynamicMeshInfo& DynamicMeshes::GetDynamicMeshInfo(size_t index) const
     return search->second;
 }
 
+DynamicMeshInfo &DynamicMeshes::GetDynamicMeshInfoPriv(size_t index)
+{
+    assert(indexToDynamicMeshInfo_umap.find(index) != indexToDynamicMeshInfo_umap.end());
+
+    auto search = indexToDynamicMeshInfo_umap.find(index);
+    return search->second;
+}
+
 size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
 {
     assert(hasBeenFlashed);
@@ -376,7 +385,7 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
         assert(createBuffer_result.result == vk::Result::eSuccess);
         dynamicMeshInfo.buffer =  createBuffer_result.value.first;
         dynamicMeshInfo.allocation = createBuffer_result.value.second;
-        dynamicMeshInfo.halfSize = buffer_size / 2;
+        dynamicMeshInfo.rangeSize = buffer_size / 2;
     }
 
     // BLAS creation
@@ -453,7 +462,7 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
             assert(createBuffer_result.result == vk::Result::eSuccess);
             dynamicMeshInfo.AABBsBuffer = createBuffer_result.value.first;
             dynamicMeshInfo.AABBsAllocation = createBuffer_result.value.second;
-            dynamicMeshInfo.AABBsBufferHalfsize = buffer_size / 2;
+            dynamicMeshInfo.AABBsBufferRangeSize = buffer_size / 2;
         }
     }
 
@@ -474,13 +483,57 @@ void DynamicMeshes::RemoveDynamicMeshSafe(size_t index)
     indexToBeRemovedCountdown.emplace_back(index, removeCountdown);
 }
 
-void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
+void DynamicMeshes::PrepareNewFrame(size_t frame_index)
 {
     assert(hasBeenFlashed);
 
-    swapIndex = swap_index;
+    frameIndex = frame_index;
+    UpdateHostAABBs();
+    SwapDescriptorSets();
+}
 
-    size_t device_buffer_index = swapIndex % 2;
+void DynamicMeshes::UpdateHostAABBs()
+{
+    if (frameIndex < 4)
+        return;
+
+    size_t host_buffer_index = frameIndex % 3;
+    for (auto& this_pair : indexToDynamicMeshInfo_umap) {
+        if (not this_pair.second.shouldBeDeleted) {
+            if (this_pair.second.lastUpdateFrameIndex == frameIndex - 1
+             && this_pair.second.inRowUpdatedFrames > 3
+             && this_pair.second.hasDynamicShape) {
+                std::vector<AABBintCasted> AABBs_casted(this_pair.second.dynamicPrimitives.size());
+                memcpy(AABBs_casted.data(),
+                       (std::byte*)(this_pair.second.AABBsAllocInfo.pMappedData) + host_buffer_index*this_pair.second.AABBsBufferRangeSize,
+                       AABBs_casted.size() * sizeof(AABBintCasted));
+                for (size_t index = 0; index != this_pair.second.dynamicPrimitives.size(); ++index) {
+                    auto& this_dynamic_primitive = this_pair.second.dynamicPrimitives[index];
+                    if (this_dynamic_primitive.positionByteOffset != -1) {
+                        AABB this_AABB = {};
+                        this_AABB.min_coords = {FloatComparableUsingInt(AABBs_casted[index].min_coords_intCasted.x),
+                                                FloatComparableUsingInt(AABBs_casted[index].min_coords_intCasted.y),
+                                                FloatComparableUsingInt(AABBs_casted[index].min_coords_intCasted.z)};
+                        this_AABB.max_coords = {FloatComparableUsingInt(AABBs_casted[index].max_coords_intCasted.x),
+                                                FloatComparableUsingInt(AABBs_casted[index].max_coords_intCasted.y),
+                                                FloatComparableUsingInt(AABBs_casted[index].max_coords_intCasted.z)};
+
+                        this_dynamic_primitive.dynamicPrimitiveOBB = OBB(this_AABB);
+                    }
+                }
+            } else {
+                this_pair.second.inRowUpdatedFrames = 0;
+                for (auto& this_dynamic_primitive : this_pair.second.dynamicPrimitives) {
+                    this_dynamic_primitive.dynamicPrimitiveOBB = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive.primitiveIndex).primitiveOBB;
+                }
+            }
+        }
+    }
+}
+
+void DynamicMeshes::SwapDescriptorSets()
+{
+    size_t device_buffer_index = frameIndex % 2;
     std::vector<vk::DescriptorBufferInfo> vertices_descriptor_buffer_infos;
     std::vector<vk::DescriptorBufferInfo> AABBsAndScratch_descriptor_buffer_infos;
 
@@ -497,7 +550,7 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
         if (not this_pair.second.shouldBeDeleted) {
             {
                 vk::Buffer buffer = this_pair.second.buffer;
-                size_t halfSize = this_pair.second.halfSize;
+                size_t halfSize = this_pair.second.rangeSize;
 
                 vk::DescriptorBufferInfo this_vertices_descriptor_buffer_info;
                 this_vertices_descriptor_buffer_info.buffer = buffer;
@@ -509,7 +562,7 @@ void DynamicMeshes::SwapDescriptorSet(size_t swap_index)
 
             if (this_pair.second.hasDynamicShape) {
                 vk::Buffer AABBs_buffer = this_pair.second.AABBsBuffer;
-                size_t AABBs_halfSize = this_pair.second.AABBsBufferHalfsize;
+                size_t AABBs_halfSize = this_pair.second.AABBsBufferRangeSize;
                 vk::DescriptorBufferInfo this_AABBs_descriptor_buffer_info;
                 this_AABBs_descriptor_buffer_info.buffer = AABBs_buffer;
                 this_AABBs_descriptor_buffer_info.offset = device_buffer_index * AABBs_halfSize;
@@ -588,11 +641,11 @@ void DynamicMeshes::CompleteRemovesSafe()
 }
 
 void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
-                                          const std::vector<DrawInfo>& draw_infos) const
+                                          const std::vector<DrawInfo>& draw_infos)
 {
     assert(hasBeenFlashed);
-    size_t device_buffer_index = swapIndex % 2;
-    size_t host_buffer_index = swapIndex % 3;
+    size_t device_buffer_index = frameIndex % 2;
+    size_t host_buffer_index = frameIndex % 3;
 
     // Clear AABBs
     std::vector<vk::BufferMemoryBarrier> AABBs_clear_memory_barriers;
@@ -604,7 +657,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             for (size_t i = 0; i != dynamic_mesh_info.dynamicPrimitives.size(); ++i) {
                 vk::BufferCopy this_region = {};
                 this_region.srcOffset = 0;
-                this_region.dstOffset = device_buffer_index * dynamic_mesh_info.AABBsBufferHalfsize + i * sizeof(AABB);
+                this_region.dstOffset = device_buffer_index * dynamic_mesh_info.AABBsBufferRangeSize + i * sizeof(AABB);
                 this_region.size = sizeof(AABB);
 
                 regions.emplace_back(this_region);
@@ -617,8 +670,8 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.buffer = dynamic_mesh_info.AABBsBuffer;
-            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.AABBsBufferHalfsize;
-            this_memory_barrier.size = dynamic_mesh_info.AABBsBufferHalfsize;
+            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.AABBsBufferRangeSize;
+            this_memory_barrier.size = dynamic_mesh_info.AABBsBufferRangeSize;
 
             AABBs_clear_memory_barriers.emplace_back(this_memory_barrier);
         }
@@ -640,7 +693,11 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
     generic_descriptor_sets.emplace_back(this->GetDescriptorSet());
 
     for (const auto &draw_info: draw_infos) {
-        const DynamicMeshInfo &dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
+        DynamicMeshInfo& dynamic_mesh_info = GetDynamicMeshInfoPriv(draw_info.dynamicMeshIndex);
+        assert(dynamic_mesh_info.lastUpdateFrameIndex != frameIndex);
+        dynamic_mesh_info.lastUpdateFrameIndex = frameIndex;
+        dynamic_mesh_info.inRowUpdatedFrames += 1;
+
         for (size_t i = 0; i != dynamic_mesh_info.dynamicPrimitives.size(); ++i) {
             const DynamicMeshInfo::DynamicPrimitiveInfo &this_dynamic_primitive = dynamic_mesh_info.dynamicPrimitives[i];
             const PrimitiveInfo &this_primitive = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(this_dynamic_primitive.primitiveIndex);
@@ -802,8 +859,8 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.buffer = dynamic_mesh_info.AABBsBuffer;
-            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.AABBsBufferHalfsize;
-            this_memory_barrier.size = dynamic_mesh_info.AABBsBufferHalfsize;
+            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.AABBsBufferRangeSize;
+            this_memory_barrier.size = dynamic_mesh_info.AABBsBufferRangeSize;
 
             AABBs_hostvisible_memory_barriers.emplace_back(this_memory_barrier);
         }
@@ -823,8 +880,8 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
                                      const std::vector<DrawInfo>& draw_infos) const
 {
     assert(hasBeenFlashed);
-    size_t device_buffer_index = swapIndex % 2;
-    size_t host_buffer_index = swapIndex % 3;
+    size_t device_buffer_index = frameIndex % 2;
+    size_t host_buffer_index = frameIndex % 3;
 
     // Update BLASes
     std::vector<vk::BufferMemoryBarrier> BLAS_memory_barries;
@@ -851,7 +908,7 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
                 geometry.flags = (not material_about.masked && not material_about.transparent) ? vk::GeometryFlagBitsKHR::eOpaque : vk::GeometryFlagsKHR(0);
                 geometry.geometry.triangles.vertexFormat = vk::Format::eR32G32B32Sfloat;
                 geometry.geometry.triangles.vertexData = this_dynamic_primitive_info.positionByteOffset != -1
-                        ? dynamic_buffer_address + (swapIndex % 2) * dynamic_mesh_info.halfSize + this_dynamic_primitive_info.positionByteOffset
+                        ? dynamic_buffer_address + (frameIndex % 2) * dynamic_mesh_info.rangeSize + this_dynamic_primitive_info.positionByteOffset
                         : static_buffer_address + this_primitive_info.positionByteOffset;
                 geometry.geometry.triangles.vertexStride = sizeof(glm::vec4);
                 geometry.geometry.triangles.maxVertex = this_primitive_info.verticesCount;
@@ -877,7 +934,7 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
             geometry_info.mode = vk::BuildAccelerationStructureModeKHR::eUpdate;
             geometry_info.scratchData.deviceAddress = device.getBufferAddress(dynamic_mesh_info.updateScratchBuffer);
             geometry_info.srcAccelerationStructure = mesh_info.meshBLAS.handle;
-            geometry_info.dstAccelerationStructure = dynamic_mesh_info.BLASesHandles[(swapIndex % 2)];
+            geometry_info.dstAccelerationStructure = dynamic_mesh_info.BLASesHandles[(frameIndex % 2)];
             geometry_info.setGeometries(*geometries_of_infos.back());
 
             infos.emplace_back(geometry_info);
@@ -917,7 +974,7 @@ void DynamicMeshes::ObtainTransformRanges(vk::CommandBuffer command_buffer,
                                           uint32_t source_family_index) const
 {
     assert(hasBeenFlashed);
-    size_t buffer_index = swapIndex % 2;
+    size_t buffer_index = frameIndex % 2;
 
     if (queue_family_index == source_family_index)
         return;
@@ -945,7 +1002,7 @@ void DynamicMeshes::ObtainBLASranges(vk::CommandBuffer command_buffer,
                                      uint32_t source_family_index) const
 {
     assert(hasBeenFlashed);
-    size_t buffer_index = swapIndex % 2;
+    size_t buffer_index = frameIndex % 2;
 
     if (queue_family_index == source_family_index)
         return;
@@ -973,7 +1030,7 @@ void DynamicMeshes::TransferTransformAndBLASranges(vk::CommandBuffer command_buf
                                                    uint32_t dst_family_index) const
 {
     assert(hasBeenFlashed);
-    size_t buffer_index = swapIndex % 2;
+    size_t buffer_index = frameIndex % 2;
 
     if (queue_family_index == dst_family_index)
         return;
@@ -1014,8 +1071,8 @@ std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericTransformRangesBar
             this_memory_barrier.srcQueueFamilyIndex = queue_family_index;
             this_memory_barrier.dstQueueFamilyIndex = queue_family_index;
             this_memory_barrier.buffer = dynamic_mesh_info.buffer;
-            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.halfSize;
-            this_memory_barrier.size = dynamic_mesh_info.halfSize;
+            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.rangeSize;
+            this_memory_barrier.size = dynamic_mesh_info.rangeSize;
 
             barriers.emplace_back(this_memory_barrier);
         }

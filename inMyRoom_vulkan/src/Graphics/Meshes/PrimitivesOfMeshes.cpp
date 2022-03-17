@@ -926,6 +926,18 @@ void PrimitivesOfMeshes::InitializePrimitivesInfo()
     for (const auto& this_initializeData:primitivesInitializationData) {
         PrimitiveInfo this_info;
 
+        {   // Primitive OBB
+            std::vector<glm::vec3> points;
+
+            assert(this_initializeData.position.size() % 4 == 0);
+            for (size_t i = 0; i != this_initializeData.position.size() / 4; ++i) {
+                points.emplace_back(this_initializeData.position[i * 4],
+                                    this_initializeData.position[i * 4 + 1],
+                                    this_initializeData.position[i * 4 + 2]);
+            }
+            this_info.primitiveOBB = OBB::CreateOBBfromPoints(points);
+        }
+
         this_info.material = this_initializeData.material;
         this_info.materialTwoSided = materialsOfPrimitives_ptr->GetMaterialAbout(this_info.material).twoSided;
 

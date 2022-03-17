@@ -13,6 +13,8 @@
 
 struct DynamicMeshInfo {
     struct DynamicPrimitiveInfo {
+        OBB dynamicPrimitiveOBB         = OBB::EmptyOBB();
+
         size_t primitiveIndex           = -1;
 
         VkDeviceSize positionByteOffset = -1;
@@ -32,7 +34,7 @@ struct DynamicMeshInfo {
 
     vk::Buffer buffer;
     vma::Allocation allocation;
-    size_t halfSize                 =  0;
+    size_t rangeSize                =  0;
     size_t descriptorIndexOffset    = -1;
 
     bool hasDynamicShape            = false;
@@ -51,9 +53,11 @@ struct DynamicMeshInfo {
     vk::Buffer AABBsBuffer;
     vma::Allocation AABBsAllocation;
     vma::AllocationInfo AABBsAllocInfo;
-    size_t AABBsBufferHalfsize;
+    size_t AABBsBufferRangeSize;
 
     bool shouldBeDeleted            = false;
+    size_t lastUpdateFrameIndex     = 0;
+    size_t inRowUpdatedFrames       = 0;
 };
 
 struct DynamicMeshComputePushConstants {
@@ -95,7 +99,7 @@ public:
                                const std::vector<DrawInfo>& draw_infos,
                                uint32_t source_family_index) const;
     void RecordTransformations(vk::CommandBuffer command_buffer,
-                               const std::vector<DrawInfo>& draw_infos) const;
+                               const std::vector<DrawInfo>& draw_infos);
 
     // Transform and BLAS update sync with semaphore!
 
@@ -112,14 +116,19 @@ public:
                                         uint32_t dst_family_index) const;
 
 
-    vk::DescriptorSet GetDescriptorSet() const {return verticesDescriptorSets[swapIndex % 3];}
+    vk::DescriptorSet GetDescriptorSet() const {return verticesDescriptorSets[frameIndex % 3];}
     vk::DescriptorSetLayout GetDescriptorLayout() const {return verticesDescriptorSetLayout;}
-    void SwapDescriptorSet(size_t swap_index);
+    void PrepareNewFrame(size_t frame_index);
     void CompleteRemovesSafe();
 
 private:
-    vk::DescriptorSet GetAABBsDescriptorSet() const {return AABBsAndScratchDescriptorSets[swapIndex % 3];}
+    DynamicMeshInfo& GetDynamicMeshInfoPriv(size_t index);
+
+    vk::DescriptorSet GetAABBsDescriptorSet() const {return AABBsAndScratchDescriptorSets[frameIndex % 3];}
     vk::DescriptorSetLayout GetAABBsDescriptorLayout() const {return AABBsAndScratchDescriptorSetLayout;}
+
+    void UpdateHostAABBs();
+    void SwapDescriptorSets();
 
 private:
     const size_t max_dynamicMeshes;
@@ -153,7 +162,7 @@ private:
     uint32_t queue_family_index;
 
     size_t indexCounter = 0;
-    size_t swapIndex = 0;
+    size_t frameIndex = 0;
 
     const uint32_t waveSize;
     const uint32_t accumulateLocalSize;

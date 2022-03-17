@@ -20,8 +20,17 @@ struct std::hash<glm::vec3>
     }
 };
 
-OBB OBB::
-CreateOBBfromPoints(const std::vector<glm::vec3>& points)
+OBB::OBB(const AABB &aabb)
+{
+    center = (aabb.max_coords + aabb.min_coords) / 2.f;
+
+    glm::vec3 lengths = aabb.max_coords - center;
+    sideDirections.u = glm::vec3(1.f, 0.f, 0.f) * lengths.x;
+    sideDirections.v = glm::vec3(0.f, 1.f, 0.f) * lengths.y;
+    sideDirections.w = glm::vec3(0.f, 0.f, 1.f) * lengths.z;
+}
+
+OBB OBB::CreateOBBfromPoints(const std::vector<glm::vec3>& points)
 {
     std::unordered_set<glm::vec3> points_uset;
     for (const auto& this_point: points) {

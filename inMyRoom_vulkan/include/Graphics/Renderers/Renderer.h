@@ -49,12 +49,15 @@ private:
                                      const FrustumCulling& frustum_culling);
 
     std::vector<PrimitiveInstanceParameters> CreatePrimitivesInstanceParameters();
+    void AssortDrawInfos();
 
     void WriteInitHostBuffers(uint32_t buffer_index) const;
 private:
     ViewportFrustum         viewport;
     std::vector<ModelMatrices> matrices;
     std::vector<DrawInfo>   drawInfos;
+
+    std::vector<DrawInfo>   drawStaticMeshInfos;
     std::vector<DrawInfo>   drawDynamicMeshInfos;
 
     std::vector<PrimitiveInstanceParameters> primitive_instance_parameters;

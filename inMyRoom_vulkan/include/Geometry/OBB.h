@@ -8,10 +8,14 @@
 
 #include "Geometry/Paralgram.h"
 #include "Geometry/Triangle.h"
+#include "common/structs/AABB.h"
 
 class OBB: public Paralgram
 {
 public:
+    OBB() = default;
+    explicit OBB(const AABB& aabb);
+
     static OBB EmptyOBB();
 
     static OBB CreateOBBfromPoints(const std::vector<glm::vec3>& in_points);
