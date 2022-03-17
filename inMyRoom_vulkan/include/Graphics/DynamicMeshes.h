@@ -56,7 +56,7 @@ struct DynamicMeshInfo {
     size_t AABBsBufferRangeSize;
 
     bool shouldBeDeleted            = false;
-    size_t lastUpdateFrameIndex     = 0;
+    size_t lastUpdateFrameIndex     = -1;
     size_t inRowUpdatedFrames       = 0;
 };
 
