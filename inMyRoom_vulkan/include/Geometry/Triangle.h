@@ -20,7 +20,7 @@ struct TrianglesIntersectionInfo
 class TrianglePosition
 {
 public:
-    TrianglePosition() {};
+    TrianglePosition() = default;
     explicit TrianglePosition(glm::vec3 in_p0, glm::vec3 in_p1, glm::vec3 in_p2);
 
     std::pair<float, float> GetMinMaxProjectionToAxis(const glm::vec3& in_axis) const;
