@@ -13,15 +13,15 @@ DynamicMeshComp::DynamicMeshComp(ECSwrapper* in_ecs_wrapper_ptr,
 
 void DynamicMeshComp::Update()
 {
-    auto modeDraw_componentID = static_cast<componentID>(componentIDenum::ModelDraw);
-    auto modeDrawComp_ptr = static_cast<ModelDrawComp*>(ecsWrapper_ptr->GetComponentByID(modeDraw_componentID));
+    auto modelDraw_componentID = static_cast<componentID>(componentIDenum::ModelDraw);
+    auto modelDrawComp_ptr = static_cast<ModelDrawComp*>(ecsWrapper_ptr->GetComponentByID(modelDraw_componentID));
 
     size_t containers_count_when_start = GetContainersCount();
     for(; containersUpdated != containers_count_when_start; ++containersUpdated)
     {
         auto& this_container = GetContainerByIndex(containersUpdated);
         for(auto& this_comp_entity: this_container)
-            this_comp_entity.Update(modeDrawComp_ptr,
+            this_comp_entity.Update(modelDrawComp_ptr,
                                     dynamicMeshes_ptr,
                                     meshesOfNodes_ptr);
     }

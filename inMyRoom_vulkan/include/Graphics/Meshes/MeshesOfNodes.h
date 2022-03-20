@@ -25,12 +25,12 @@ struct MeshInfo
     };
 
     std::vector<size_t> primitivesIndex;
-    MeshBLAS meshBLAS;
-
     OBBtree boundBoxTree;
 
     bool isSkinned = false;
     std::vector<float> morphDefaultWeights = {};
+
+    MeshBLAS meshBLAS;
 
     bool IsSkinned() const {return isSkinned;}
     bool HasMorphTargets() const {return morphDefaultWeights.size();}
@@ -52,9 +52,18 @@ public: // functions
 
     void FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>> queues);
 
+    size_t GetSphereMeshIndex() const {assert(sphereMeshIndex != -1); return sphereMeshIndex;}
+    size_t GetCylinderMeshIndex() const {assert(cylinderMeshIndex != -1); return cylinderMeshIndex;}
+
+private:
+    void AddDefaultMeshes();
+
 private: // data
     std::vector<MeshInfo> meshes;
     std::unordered_map<tinygltf::Model*, size_t> modelToMeshIndexOffset_umap;
+
+    size_t sphereMeshIndex = -1;
+    size_t cylinderMeshIndex = -1;
 
     vk::Device device;
     vma::Allocator vma_allocator;

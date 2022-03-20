@@ -13,6 +13,7 @@
 #include "glm/matrix.hpp"
 
 #include "common/structs/ModelMatrices.h"
+#include "common/defines.h"
 
 typedef uint16_t Entity;
 typedef uint32_t componentID;
@@ -26,8 +27,7 @@ struct CompEntityInitMap
     std::unordered_map<std::string, int> intMap;              // int_type
     std::unordered_map<std::string, std::string> stringMap;   // string_type
 
-    CompEntityInitMap()
-    {}
+    CompEntityInitMap() = default;
     CompEntityInitMap(CompEntityInitMap const& other)
     {
         vec4Map = other.vec4Map;
@@ -46,7 +46,7 @@ struct Node
 
     std::vector<std::unique_ptr<Node>> children;
 
-    Node() {}
+    Node() = default;
     Node(Node const& other)
     {
         componentIDsToInitMaps = other.componentIDsToInitMaps;
@@ -162,15 +162,41 @@ struct CollisionCallbackData
     glm::vec3 deltaVector = glm::vec3(0.f, 0.f, 0.f);
 };
 
+// used a lot in: Light
+enum class LightType : uint8_t
+{
+    Sphere = LIGHT_SPHERE,
+    Cylinder = LIGHT_CYLINDER,
+    Cone = LIGHT_CONE,
+    Uniform
+};
+
+
+struct LightInfo
+{
+    LightType lightType = LightType::Sphere;
+    float radius = 1.f;
+    float length = 1.f;
+    glm::vec3 luminance = glm::vec3(1.f, 1.f, 1.f);
+    float range = 10.f;
+
+    size_t matricesOffset = -1;
+    size_t lightIndex = -1;
+};
+
 // used a lot in: Drawing
 struct DrawInfo
 {
     size_t meshIndex = -1;
+    size_t lightIndex = -1;
     size_t dynamicMeshIndex = -1;
     size_t matricesOffset = -1;
+
+    // Filled by renderer
     size_t primitivesInstanceOffset = -1;
 
     bool isSkin = false;
+    bool isLightSource = false;
     bool hasMorphTargets = false;
 
     std::vector<float> weights;

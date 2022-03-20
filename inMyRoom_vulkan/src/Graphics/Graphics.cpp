@@ -30,6 +30,8 @@ Graphics::Graphics(Engine* in_engine_ptr, configuru::Config& in_cfgFile, vk::Dev
     InitMeshesTree();
     std::cout << "Initializing dynamic meshes\n";
     InitDynamicMeshes();
+    std::cout << "Initializing lights\n";
+    InitLights();
     std::cout << "Initializing graphics oriented components\n";
     InitGraphicsComponents();
 }
@@ -48,6 +50,7 @@ Graphics::~Graphics()
     vma_allocator.destroyBuffer(matricesBuffer, matricesAllocation);
 
     dynamicMeshes_uptr.reset();
+    lights_uptr.reset();
     meshesOfNodes_uptr.reset();
     skinsOfMeshes_uptr.reset();
     materialsOfPrimitives_uptr.reset();
@@ -267,6 +270,12 @@ void Graphics::InitDynamicMeshes()
     dynamicMeshes_uptr = std::make_unique<DynamicMeshes>(this, device, vma_allocator, 127);
 }
 
+void Graphics::InitLights()
+{
+    lights_uptr = std::make_unique<Lights>(this, device, vma_allocator,
+                                           1024, std::numeric_limits<uint16_t>::max());
+}
+
 void Graphics::InitGraphicsComponents()
 {
     {
@@ -296,6 +305,12 @@ void Graphics::InitGraphicsComponents()
                                                                  dynamicMeshes_uptr.get(),
                                                                  meshesOfNodes_uptr.get());
         engine_ptr->GetECSwrapperPtr()->AddComponent(dynamicMeshComp_uptr.get());
+    }
+
+    {
+        lightComp_uptr = std::make_unique<LightComp>(engine_ptr->GetECSwrapperPtr(),
+                                                     lights_uptr.get());
+        engine_ptr->GetECSwrapperPtr()->AddComponent(lightComp_uptr.get());
     }
 }
 
@@ -336,10 +351,12 @@ void Graphics::DrawFrame()
     ViewportFrustum camera_viewport = cameraComp_uptr->GetBindedCameraEntity()->cameraViewportFrustum;
 
     std::vector<ModelMatrices> matrices;
+    std::vector<LightInfo> light_infos;
     std::vector<DrawInfo> draw_infos;
+    lightComp_uptr->AddLightInfos(camera_viewport.GetViewMatrix(), matrices, light_infos);
     modelDrawComp_uptr->AddDrawInfos(camera_viewport.GetViewMatrix(), matrices, draw_infos);
 
-    renderer_uptr->DrawFrame(camera_viewport, std::move(matrices), std::move(draw_infos));
+    renderer_uptr->DrawFrame(camera_viewport, std::move(matrices), std::move(light_infos), std::move(draw_infos));
 
     if (not renderer_uptr->IsFreezed()) {
         dynamicMeshes_uptr->CompleteRemovesSafe();
@@ -420,3 +437,5 @@ float Graphics::GetDeltaTimeSeconds() const
 {
     return engine_ptr->GetECSdeltaTime().count();
 }
+
+

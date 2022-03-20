@@ -421,9 +421,9 @@ void main()
     uint i = 0;
     while(true) {
         BounceEvaluation eval = EvaluateBounce(primitive_instance, triangle_index,
-                                ray_dir, ray_dir_dx, ray_dir_dy,
-                                origin, origin_dx, origin_dy,
-                                light_factor, rng_state);
+                                               ray_dir, ray_dir_dx, ray_dir_dy,
+                                               origin, origin_dx, origin_dy,
+                                               light_factor, rng_state);
 
         origin = eval.origin;
         origin_dx = eval.originDx;

@@ -19,7 +19,8 @@ enum class componentIDenum : componentID
     DynamicMesh             =  7000,
     CameraDefaultInput      =  8000,
     Camera                  =  9000,
-    ModelDraw               = 10000,  // is custom
+    Light                   = 10000,
+    ModelDraw               = 11000,
 
     DefaultLast             = componentID(-1)
 };

@@ -18,16 +18,20 @@ void ModelDrawComp::AddDrawInfos(const glm::mat4& viewport_matrix,
     auto nodeGlobalMatrix_componentID = static_cast<componentID>(componentIDenum::LateNodeGlobalMatrix);
     auto nodeGlobalMatrixComp_ptr = static_cast<const LateNodeGlobalMatrixComp*>(ecsWrapper_ptr->GetComponentByID(nodeGlobalMatrix_componentID));
 
-    auto skin_componentID = static_cast<componentID>(componentIDenum::DynamicMesh);
-    auto skinComp_ptr = static_cast<const DynamicMeshComp*>(ecsWrapper_ptr->GetComponentByID(skin_componentID));
+    auto dynamicMesh_componentID = static_cast<componentID>(componentIDenum::DynamicMesh);
+    auto dynamicMeshComp_ptr = static_cast<const DynamicMeshComp*>(ecsWrapper_ptr->GetComponentByID(dynamicMesh_componentID));
+
+    auto light_componentID = static_cast<componentID>(componentIDenum::Light);
+    auto lightComp_ptr = static_cast<const LightComp*>(ecsWrapper_ptr->GetComponentByID(light_componentID));
 
     size_t containers_count = GetContainersCount();
     for(size_t i = 0; i != containers_count; ++i)
     {
-        auto& this_container = GetContainerByIndex(containersUpdated);
+        auto& this_container = GetContainerByIndex(i);
         for(auto& this_comp_entity: this_container)
             this_comp_entity.AddDrawInfo(nodeGlobalMatrixComp_ptr,
-                                         skinComp_ptr,
+                                         dynamicMeshComp_ptr,
+                                         lightComp_ptr,
                                          viewport_matrix,
                                          matrices,
                                          draw_infos);

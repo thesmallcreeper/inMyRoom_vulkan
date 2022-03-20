@@ -10,8 +10,11 @@ struct PrimitiveInstanceParameters {
     UINT_T texcoordsOffset;    // glm::vec2
     UINT_T colorOffset;        // glm::vec4
 
+    UINT16_T light;            // != -1 if it is a light
     UINT16_T matricesOffset;
     UINT16_T material;
+    UINT16_T lightsCombinationsOffset;
+    UINT16_T lightsCombinationsCount;
     UINT16_T positionDescriptorIndex;
     UINT16_T normalDescriptorIndex;
     UINT16_T tangentDescriptorIndex;

@@ -6,7 +6,7 @@
 #include "Graphics/DynamicMeshes.h"
 #include "Graphics/Meshes/PrimitivesOfMeshes.h"
 
-DynamicMeshCompEntity::DynamicMeshCompEntity(const Entity this_entity)
+DynamicMeshCompEntity::DynamicMeshCompEntity(Entity this_entity)
     :CompEntityBaseWrappedClass<DynamicMeshComp>(this_entity)
 {
 }
@@ -70,6 +70,7 @@ DynamicMeshCompEntity DynamicMeshCompEntity::CreateComponentEntityByMap(const En
     return this_skinCompEntity;
 }
 
+// TODO: Remove meshesofnodes
 void DynamicMeshCompEntity::Update(ModelDrawComp* modelDrawComp_ptr,
                                    DynamicMeshes* dynamicMeshes_ptr,
                                    MeshesOfNodes* meshesOfNodes_ptr)

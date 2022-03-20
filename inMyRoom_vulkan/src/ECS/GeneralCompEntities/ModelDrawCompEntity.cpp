@@ -67,28 +67,47 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
             this_modelDrawCompEntity.hasMorphTargets = static_cast<bool>(this_int);
         }
     }
+    // "IsLight", isSkin = int (optional)
+    {
+        auto search = in_map.intMap.find("IsLight");
+        if (search != in_map.intMap.end())
+        {
+            int this_int = search->second;
+            this_modelDrawCompEntity.isLight = static_cast<bool>(this_int);
+        }
+    }
 
     return this_modelDrawCompEntity;
 }
 
 void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
                                       const DynamicMeshComp* dynamicMeshComp_ptr,
+                                      const LightComp* lightComp_ptr,
                                       const glm::mat4& viewport_matrix,
                                       std::vector<ModelMatrices>& model_matrices,
-                                      std::vector<DrawInfo>& draw_infos) const
+                                      std::vector<DrawInfo>& draw_infos)
 {
     if (shouldDraw)
     {
         DrawInfo this_draw_info;
         this_draw_info.meshIndex = meshIndex;
-        this_draw_info.matricesOffset = model_matrices.size();
         this_draw_info.dontCull = disableCulling;
 
-        if (not isSkin && not hasMorphTargets) {
+        if (isLight) {
+            const auto& light_entity = lightComp_ptr->GetComponentEntity(thisEntity);
+            if (light_entity.ShouldDraw()) {
+                this_draw_info.matricesOffset = light_entity.matricesOffset;
+                this_draw_info.lightIndex = light_entity.lightIndex;
+            } else {
+                return;
+            }
+        } else if (not isSkin && not hasMorphTargets) {
+            this_draw_info.matricesOffset = model_matrices.size();
             glm::mat4 pos_matrix = viewport_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             glm::mat4 normal_matrix = glm::adjointTranspose(pos_matrix);
             model_matrices.emplace_back(ModelMatrices({pos_matrix, normal_matrix}));
         } else {
+            this_draw_info.matricesOffset = model_matrices.size();
             glm::mat4 parent_pos_matrix = viewport_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             glm::mat4 parent_normal_matrix = glm::adjointTranspose(parent_pos_matrix);
             model_matrices.emplace_back(ModelMatrices({parent_pos_matrix, parent_normal_matrix}));

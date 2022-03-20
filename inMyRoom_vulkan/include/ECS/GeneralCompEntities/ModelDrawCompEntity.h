@@ -6,6 +6,7 @@ class ModelDrawComp;
 
 #include "ECS/GeneralCompEntities/LateNodeGlobalMatrixCompEntity.h"
 #include "ECS/GeneralCompEntities/DynamicMeshCompEntity.h"
+#include "ECS/GeneralCompEntities/LightCompEntity.h"
 
 class ModelDrawCompEntity :
     public CompEntityBaseWrappedClass<ModelDrawComp>
@@ -22,14 +23,16 @@ public:
             "DisableCulling",    disableCulling          = int         (optional)
             "IsSkin",            isSkin                  = int         (optional)
             "HasMorphTargets",   hasMorphTargets         = int         (optional)
+            "IsLight",           isLight                 = int         (optional)
     */
     static ModelDrawCompEntity CreateComponentEntityByMap(Entity in_entity, std::string entity_name, const CompEntityInitMap& in_map);
 
     void AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobalMatrix_ptr,
                      const DynamicMeshComp* dynamicMeshComp_ptr,
+                     const LightComp* lightComp_ptr,
                      const glm::mat4& viewport_matrix,
                      std::vector<ModelMatrices>& model_matrices,
-                     std::vector<DrawInfo>& draw_infos) const;
+                     std::vector<DrawInfo>& draw_infos);
 
     void ToBeRemovedCallback();
 
@@ -41,6 +44,7 @@ public: // data
 
     bool isSkin = false;
     bool hasMorphTargets = false;
+    bool isLight = false;
 };
 
 #ifdef GAME_DLL

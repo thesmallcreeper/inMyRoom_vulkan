@@ -96,6 +96,8 @@ class PrimitivesOfMeshes
         PrimitiveInitializationData(const tinygltf::Model& model,
                                     const tinygltf::Primitive& primitive,
                                     const MaterialsOfPrimitives* materialsOfPrimitives_ptr);
+        PrimitiveInitializationData(const std::vector<uint32_t>& indices,
+                                    const std::vector<glm::vec3>& positions);
 
         PrimitiveOBBtreeData GetPrimitiveOBBtreeData() const;
 
@@ -116,6 +118,8 @@ public:
 
     size_t AddPrimitive(const tinygltf::Model& model,
                         const tinygltf::Primitive& primitive);
+    size_t AddPrimitive(const std::vector<uint32_t>& indices,
+                        const std::vector<glm::vec3>& positions);
 
     void FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>> queues);
 

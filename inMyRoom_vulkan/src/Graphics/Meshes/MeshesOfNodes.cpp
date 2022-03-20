@@ -2,6 +2,9 @@
 
 #include "Graphics/HelperUtils.h"
 
+#include "Geometry/Sphere.h"
+#include "Geometry/Cylinder.h"
+
 MeshesOfNodes::MeshesOfNodes(PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
                              vk::Device in_device,
                              vma::Allocator in_vma_allocator)
@@ -10,6 +13,7 @@ MeshesOfNodes::MeshesOfNodes(PrimitivesOfMeshes* in_primitivesOfMeshes_ptr,
     device(in_device),
     vma_allocator(in_vma_allocator)
 {
+    AddDefaultMeshes();
 }
 
 MeshesOfNodes::~MeshesOfNodes()
@@ -169,10 +173,34 @@ void MeshesOfNodes::FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>> queu
 
             one_shot_command_buffer.EndAndSubmitCommands();
 
-            // Delete scratch device
+            // Delete scratch buffer
             vma_allocator.destroyBuffer(scratch_buffer, scratch_allocation);
         }
     }
 
     hasBeenFlashed = true;
+}
+
+void MeshesOfNodes::AddDefaultMeshes()
+{
+    {// Sphere
+        auto sphere_indices_pos = Sphere::GetSphereMesh(16);
+
+        MeshInfo this_mesh_info;
+        size_t primitive_index = primitivesOfMeshes_ptr->AddPrimitive(sphere_indices_pos.first, sphere_indices_pos.second);
+        this_mesh_info.primitivesIndex.emplace_back(primitive_index);
+
+        sphereMeshIndex = meshes.size();
+        meshes.emplace_back(this_mesh_info);
+    }
+    {// Cylinder
+        auto cylinder_indices_pos = Cylinder::GetCylinderMesh(16);
+
+        MeshInfo this_mesh_info;
+        size_t primitive_index = primitivesOfMeshes_ptr->AddPrimitive(cylinder_indices_pos.first, cylinder_indices_pos.second);
+        this_mesh_info.primitivesIndex.emplace_back(primitive_index);
+
+        cylinderMeshIndex = meshes.size();
+        meshes.emplace_back(this_mesh_info);
+    }
 }

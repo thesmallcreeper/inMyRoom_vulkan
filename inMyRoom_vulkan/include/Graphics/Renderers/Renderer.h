@@ -23,8 +23,9 @@ public:
              vma::Allocator in_vma_allocator);
     ~Renderer() override;
 
-    void DrawFrame(ViewportFrustum viewport,
+    void DrawFrame(const ViewportFrustum& viewport,
                    std::vector<ModelMatrices>&& matrices,
+                   std::vector<LightInfo>&& light_infos,
                    std::vector<DrawInfo>&& draw_infos) override;
 
 private:

@@ -17,8 +17,9 @@ public:
               vma_allocator(in_vma_allocator) {};
     virtual ~RendererBase() = default;
 
-    virtual void DrawFrame(ViewportFrustum viewport,
+    virtual void DrawFrame(const ViewportFrustum& viewport,
                            std::vector<ModelMatrices>&& matrices,
+                           std::vector<LightInfo>&& light_infos,
                            std::vector<DrawInfo>&& draw_infos) {}
 
     virtual void ToggleViewportFreeze() { viewportFreeze = !viewportFreeze; }

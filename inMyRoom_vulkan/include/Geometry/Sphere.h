@@ -1,5 +1,8 @@
 #pragma once
 
+#include <vector>
+#include <tuple>
+
 #include "glm/vec3.hpp"
 #include "Geometry/Paralgram.h"
 
@@ -12,6 +15,8 @@ public:
     float GetRadius() const {return radius;}
 
     bool IntersectParalgram(const Paralgram& paralgram) const;
+
+    static std::pair<std::vector<uint32_t>, std::vector<glm::vec3>> GetSphereMesh(size_t quality);
 
 private:
     glm::vec3 origin;

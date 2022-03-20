@@ -14,6 +14,7 @@
 #include "ECS/GeneralComponents/CameraComp.h"
 #include "ECS/GeneralComponents/ModelDrawComp.h"
 #include "ECS/GeneralComponents/DynamicMeshComp.h"
+#include "ECS/GeneralComponents/LightComp.h"
 
 #include "Graphics/ShadersSetsFamiliesCache.h"
 #include "Graphics/DynamicMeshes.h"
@@ -40,6 +41,7 @@ public:
     MaterialsOfPrimitives* GetMaterialsOfPrimitives() const {return materialsOfPrimitives_uptr.get();}
     TexturesOfMaterials* GetTexturesOfMaterials() const {return texturesOfMaterials_uptr.get();}
     DynamicMeshes* GetDynamicMeshes() const {return dynamicMeshes_uptr.get();}
+    Lights* GetLights() const {return lights_uptr.get();}
     PipelinesFactory* GetPipelineFactory() const {return pipelinesFactory_uptr.get();}
     ShadersSetsFamiliesCache* GetShadersSetsFamiliesCache() const {return shadersSetsFamiliesCache_uptr.get();}
 
@@ -82,6 +84,7 @@ private:
     void InitMeshesTree();
     void InitGraphicsComponents();
     void InitDynamicMeshes();
+    void InitLights();
     void InitRenderer();
 
 private:
@@ -108,6 +111,7 @@ private:
     std::unique_ptr<CameraComp> cameraComp_uptr;
     std::unique_ptr<ModelDrawComp> modelDrawComp_uptr;
     std::unique_ptr<DynamicMeshComp> dynamicMeshComp_uptr;
+    std::unique_ptr<LightComp> lightComp_uptr;
 
     std::unique_ptr<AnimationsDataOfNodes> animationsDataOfNodes_uptr;
     std::unique_ptr<TexturesOfMaterials> texturesOfMaterials_uptr;
@@ -117,6 +121,7 @@ private:
     std::unique_ptr<MeshesOfNodes> meshesOfNodes_uptr;
 
     std::unique_ptr<DynamicMeshes> dynamicMeshes_uptr;
+    std::unique_ptr<Lights> lights_uptr;
 
     std::unique_ptr<ShadersSetsFamiliesCache> shadersSetsFamiliesCache_uptr;
     std::unique_ptr<PipelinesFactory> pipelinesFactory_uptr;

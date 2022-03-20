@@ -622,6 +622,18 @@ PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(con
         material = 0;       // Default material
 }
 
+PrimitivesOfMeshes::PrimitiveInitializationData::PrimitiveInitializationData(const std::vector<uint32_t>& in_indices,
+                                                                             const std::vector<glm::vec3>& in_positions)
+{
+    indices = in_indices;
+    for (const glm::vec3& pos: in_positions) {
+        position.emplace_back(pos.x);
+        position.emplace_back(pos.y);
+        position.emplace_back(pos.z);
+        position.emplace_back(1.f);
+    }
+}
+
 PrimitivesOfMeshes::PrimitiveOBBtreeData
     PrimitivesOfMeshes::PrimitiveInitializationData::GetPrimitiveOBBtreeData() const
 {
@@ -741,8 +753,6 @@ PrimitivesOfMeshes::PrimitiveInitializationData::GetAccessorBeginEndPtrs(const t
     return {begin_ptr, end_ptr};
 }
 
-
-
 PrimitivesOfMeshes::PrimitivesOfMeshes(MaterialsOfPrimitives* in_materialsOfPrimitives_ptr,
                                        vk::Device in_device,
                                        vma::Allocator in_allocator)
@@ -810,6 +820,14 @@ size_t PrimitivesOfMeshes::AddPrimitive(const tinygltf::Model& model,
     if (recordingOBBtree) {
         recorderPrimitivesOBBtreeDatas.emplace_back(primitivesInitializationData.back().GetPrimitiveOBBtreeData());
     }
+
+    return index;
+}
+
+size_t PrimitivesOfMeshes::AddPrimitive(const std::vector<uint32_t> &indices, const std::vector<glm::vec3> &positions)
+{
+    size_t index = primitivesInitializationData.size();
+    primitivesInitializationData.emplace_back(indices, positions);
 
     return index;
 }
@@ -1222,4 +1240,3 @@ std::tuple<bool, vk::AccelerationStructureGeometryKHR, vk::AccelerationStructure
         return std::make_tuple(false, vk::AccelerationStructureGeometryKHR(), vk::AccelerationStructureBuildRangeInfoKHR());
     }
 }
-

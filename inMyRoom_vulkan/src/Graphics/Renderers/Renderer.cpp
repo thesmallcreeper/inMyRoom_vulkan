@@ -1223,8 +1223,9 @@ void Renderer::InitToneMapPipeline()
     }
 }
 
-void Renderer::DrawFrame(ViewportFrustum in_viewport,
+void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
                          std::vector<ModelMatrices>&& in_matrices,
+                         std::vector<LightInfo>&& in_light_infos,
                          std::vector<DrawInfo>&& in_draw_infos)
 {
     ++frameCount;
@@ -1264,7 +1265,7 @@ void Renderer::DrawFrame(ViewportFrustum in_viewport,
     size_t commandBuffer_index = frameCount % 3;
 
     //
-    // Wait! Wait for write buffers (-3)
+    // Wait! Wait for command and host buffers (-3)
     if (frameCount > 3) {
         auto wait_value = uint64_t(frameCount - 3);
 
@@ -1800,12 +1801,12 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
     if (ownership_transfer_memory_barriers.size()
      || ownership_transfer_image_barriers.size())
-    command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                                   vk::PipelineStageFlagBits::eBottomOfPipe,
-                                   vk::DependencyFlagBits::eByRegion,
-                                   {},
-                                   ownership_transfer_memory_barriers,
-                                   ownership_transfer_image_barriers);
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eFragmentShader | vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                       vk::PipelineStageFlagBits::eBottomOfPipe,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       {},
+                                       ownership_transfer_memory_barriers,
+                                       ownership_transfer_image_barriers);
 
     command_buffer.end();
 }
@@ -1929,6 +1930,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
 void Renderer::AssortDrawInfos()
 {
     drawDynamicMeshInfos.clear();
+    drawStaticMeshInfos.clear();
     for(const auto& draw_info : drawInfos) {
         if (draw_info.dynamicMeshIndex != -1)
             drawDynamicMeshInfos.emplace_back(draw_info);
@@ -1945,7 +1947,7 @@ void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
                                              buffer_index);
 
     TLASbuilder_uptr->WriteHostInstanceBuffer(TLAS_instances,
-                                               buffer_index);
+                                              buffer_index);
 
     {
         memcpy((std::byte *) (primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferPartSize,

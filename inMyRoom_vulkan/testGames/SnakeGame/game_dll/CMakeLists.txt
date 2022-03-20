@@ -30,6 +30,7 @@ find_package(Threads REQUIRED)
 include_directories(
     ../../../../glm                         # Include glm
     ../../../../inMyRoom_vulkan/include     # Include engine's header files
+    ../../../../inMyRoom_vulkan/shaders     # Include engine's shaders files
     ${game_dll_SOURCE_DIR}/include)
 
 SET(SRC #engine's .h
@@ -54,6 +55,7 @@ SET(SRC #engine's .h
         "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/ModelDrawCompEntity.h" 
         "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/NodeDataCompEntity.h" 
         "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/DynamicMeshCompEntity.h"
+        "${game_dll_SOURCE_DIR}/../../../include/ECS/GeneralCompEntities/LightCompEntity.h"
         "${game_dll_SOURCE_DIR}/../../../include/game_dll.h" 
         "${game_dll_SOURCE_DIR}/../../../include/Geometry/ViewportFrustum.h" 
 
@@ -71,6 +73,7 @@ SET(SRC #engine's .h
         "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/ModelDrawCompEntity.cpp"
         "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/NodeDataCompEntity.cpp"
         "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/DynamicMeshCompEntity.cpp"
+        "${game_dll_SOURCE_DIR}/../../../src/ECS/GeneralCompEntities/LightCompEntity.cpp"
         "${game_dll_SOURCE_DIR}/../../../src/game_dll.cpp"
         "${game_dll_SOURCE_DIR}/../../../src/Geometry/ViewportFrustum.cpp"
         
