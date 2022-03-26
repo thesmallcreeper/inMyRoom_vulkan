@@ -242,6 +242,13 @@ void Graphics::InitShadersSetsFamiliesCache()
     }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Light Source Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "lightSourcePass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "lightSourcePass_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
         this_shaderSetInitInfo.shadersSetFamilyName = "ToneMap-Pass Shaders";
         this_shaderSetInitInfo.fragmentShaderSourceFilename = "toneMapPass_glsl.frag";
         this_shaderSetInitInfo.vertexShaderSourceFilename = "toneMapPass_glsl.vert";

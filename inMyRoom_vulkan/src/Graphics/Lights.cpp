@@ -199,12 +199,16 @@ void Lights::PrepareNewFrame(size_t frame_index)
     uniformLuminance = glm::vec3(0.f);
 }
 
-void Lights::AddLights(const std::vector<LightInfo> &light_infos,
+void Lights::AddLights(std::vector<LightInfo>& light_infos,
                        const std::vector<ModelMatrices> &model_matrices)
 {
-    for (const auto& this_light_info : light_infos) {
+    for (auto& this_light_info : light_infos) {
         assert(lights_indices_uset.find(this_light_info.lightIndex) != lights_indices_uset.end());
         assert(lightIndexToLightInfo_umap.find(this_light_info.lightIndex) == lightIndexToLightInfo_umap.end());
+
+        if (this_light_info.lightType != LightType::Uniform) {
+            this_light_info.lightOffset = lightParameters.size();
+        }
         lightIndexToLightInfo_umap.emplace(this_light_info.lightIndex, this_light_info);
 
         if (this_light_info.lightType != LightType::Uniform) {

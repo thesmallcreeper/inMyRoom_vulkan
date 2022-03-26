@@ -23,7 +23,8 @@ public:
              vma::Allocator allocator,
              const Graphics* graphics_ptr,
              std::tuple<vk::Image, vk::ImageView, vk::ImageCreateInfo> images[2],
-             std::pair<vk::Queue, uint32_t> queue);
+             std::pair<vk::Queue, uint32_t> queue,
+             bool check_alpha = false);
     ~Exposure();
 
     void SetMinMaxLuminance(float min, float max) {minLuminance = min; maxLuminance = max;};
@@ -78,6 +79,8 @@ private:
     float                   highRobustness = 0.98f;
 
     float                   t63percent = 0.8f;
+
+    const bool              checkAlpha;
 
     vk::Device              device;
     vma::Allocator          vma_allocator;

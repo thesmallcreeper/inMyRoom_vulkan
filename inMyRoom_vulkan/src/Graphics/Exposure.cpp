@@ -7,13 +7,15 @@ Exposure::Exposure(vk::Device in_device,
                    vma::Allocator in_allocator,
                    const Graphics* in_graphics_ptr,
                    std::tuple<vk::Image, vk::ImageView, vk::ImageCreateInfo> *images_ptr,
-                   std::pair<vk::Queue, uint32_t> in_queue)
+                   std::pair<vk::Queue, uint32_t> in_queue,
+                   bool in_check_alpha)
     :device(in_device),
      vma_allocator(in_allocator),
      graphics_ptr(in_graphics_ptr),
      queue_family_index(in_queue.second),
      waveSize(graphics_ptr->GetSubgroupSize()),
-     localSize(1024)
+     localSize(1024),
+     checkAlpha(in_check_alpha)
 {
     images[0] = images_ptr[0];
     images[1] = images_ptr[1];
@@ -150,6 +152,8 @@ void Exposure::InitPipeline()
         std::vector<std::pair<std::string, std::string>> definitionStringPairs;
         definitionStringPairs.emplace_back("WAVE_SIZE", std::to_string(waveSize));
         definitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(localSize));
+        if (checkAlpha)
+            definitionStringPairs.emplace_back("CHECK_ALPHA", "");
 
         ShadersSpecs shaders_specs = {"Histogram Shader", definitionStringPairs};
         ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);

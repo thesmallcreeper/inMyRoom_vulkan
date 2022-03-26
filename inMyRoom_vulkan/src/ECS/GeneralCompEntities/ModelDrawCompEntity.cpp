@@ -23,8 +23,17 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
 {
     ModelDrawCompEntity this_modelDrawCompEntity(in_entity);
 
-    // "MeshIndex", meshIndex = int
+    // "IsLight", isSkin = int (optional)
     {
+        auto search = in_map.intMap.find("IsLight");
+        if (search != in_map.intMap.end())
+        {
+            int this_int = search->second;
+            this_modelDrawCompEntity.isLight = static_cast<bool>(this_int);
+        }
+    }
+    // "MeshIndex", meshIndex = int (not needed for lights)
+    if (not this_modelDrawCompEntity.isLight) {
         auto search = in_map.intMap.find("MeshIndex");
         assert(search != in_map.intMap.end());
 
@@ -67,15 +76,6 @@ ModelDrawCompEntity ModelDrawCompEntity::CreateComponentEntityByMap(const Entity
             this_modelDrawCompEntity.hasMorphTargets = static_cast<bool>(this_int);
         }
     }
-    // "IsLight", isSkin = int (optional)
-    {
-        auto search = in_map.intMap.find("IsLight");
-        if (search != in_map.intMap.end())
-        {
-            int this_int = search->second;
-            this_modelDrawCompEntity.isLight = static_cast<bool>(this_int);
-        }
-    }
 
     return this_modelDrawCompEntity;
 }
@@ -96,8 +96,16 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
         if (isLight) {
             const auto& light_entity = lightComp_ptr->GetComponentEntity(thisEntity);
             if (light_entity.ShouldDraw()) {
+                this_draw_info.isLightSource = true;
                 this_draw_info.matricesOffset = light_entity.matricesOffset;
                 this_draw_info.lightIndex = light_entity.lightIndex;
+
+                if (light_entity.lightType == LightType::Cone
+                 || light_entity.lightType == LightType::Sphere) {
+                    this_draw_info.meshIndex = GetComponentPtr()->GetECSwrapper()->GetEnginesExportedFunctions()->GetSphereMeshIndex();
+                } else if (light_entity.lightType == LightType::Cylinder){
+                    this_draw_info.meshIndex = GetComponentPtr()->GetECSwrapper()->GetEnginesExportedFunctions()->GetCylinderMeshIndex();
+                }
             } else {
                 return;
             }

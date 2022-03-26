@@ -5,6 +5,8 @@
 #include "ECS/ECStypes.h"
 #include "common/structs/ModelMatrices.h"
 
+// TODO change interface to match others
+
 class TLASbuilder
 {
 public:

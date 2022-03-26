@@ -180,6 +180,9 @@ struct LightInfo
     glm::vec3 luminance = glm::vec3(1.f, 1.f, 1.f);
     float range = 10.f;
 
+    // Filled by lights if not uniform
+    size_t lightOffset = -1;
+
     size_t matricesOffset = -1;
     size_t lightIndex = -1;
 };

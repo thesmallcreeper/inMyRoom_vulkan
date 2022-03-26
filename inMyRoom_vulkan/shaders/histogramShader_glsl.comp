@@ -26,7 +26,7 @@ layout (push_constant) uniform PushConstants
 
     float min_luminance_log2;
     float max_luminance_log2;
-    float scale;
+    float frameCountFactor;
 };
 
 
@@ -49,7 +49,16 @@ void main()
         for (uint x = subgroup_invocation_id; x < size_x; x += WAVE_SIZE) {
             ivec2 coords = ivec2(x, y);
 
-            vec3 rgb_values = scale * imageLoad(image_input, coords).xyz;
+            vec4 in_color = imageLoad(image_input, coords);
+
+            float scale = frameCountFactor;
+            #ifdef CHECK_ALPHA
+                float alpha = in_color.a;
+                if (alpha == 1.f) {
+                    scale = 1.f;
+                }
+            #endif
+            vec3 rgb_values = scale * in_color.xyz;
             float max_value = max(rgb_values.x, max(rgb_values.y, rgb_values.z));
 
             float max_value_log2 = log2(max_value);

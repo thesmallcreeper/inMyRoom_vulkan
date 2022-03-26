@@ -107,7 +107,10 @@ glm::mat4 LightCompEntity::GetLightMatrix(const glm::mat4 &matrix) const
         return_matrix[0] = glm::vec4(x_dir, 0.f) * radius;
     return_matrix[1] = glm::vec4(y_dir, 0.f) * radius;
     return_matrix[2] = glm::vec4(z_dir, 0.f) * radius;
-    return_matrix[3] = matrix[3];
+    if (lightType == LightType::Cone)
+        return_matrix[3] = glm::vec4(-z_dir, 1.f);
+    else
+        return_matrix[3] = matrix[3];
 
     return return_matrix;
 }
@@ -130,7 +133,10 @@ void LightCompEntity::AddLightInfo(const LateNodeGlobalMatrixComp *nodeGlobalMat
         if (lightType != LightType::Uniform) {
             matricesOffset = model_matrices.size();
             glm::mat4 pos_matrix = GetLightMatrix(viewport_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix);
-            glm::mat4 normal_matrix = glm::adjointTranspose(pos_matrix);
+            glm::mat4 normal_matrix = glm::mat4(glm::vec4(glm::normalize(glm::vec3(pos_matrix[0].x, pos_matrix[0].y, pos_matrix[0].z)), 0.f),
+                                                glm::vec4(glm::normalize(glm::vec3(pos_matrix[1].x, pos_matrix[1].y, pos_matrix[1].z)), 0.f),
+                                                glm::vec4(glm::normalize(glm::vec3(pos_matrix[2].x, pos_matrix[2].y, pos_matrix[2].z)), 0.f),
+                                                glm::vec4(glm::normalize(glm::vec3(pos_matrix[3].x, pos_matrix[3].y, pos_matrix[3].z)), 0.f));
             model_matrices.emplace_back( ModelMatrices({pos_matrix, normal_matrix}));
 
             this_light_info.matricesOffset = matricesOffset;

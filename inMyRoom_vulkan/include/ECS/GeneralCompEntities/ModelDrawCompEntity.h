@@ -18,7 +18,7 @@ public:
     static ModelDrawCompEntity GetEmpty();
 
     /*  CreateComponentEntityByMap - ModelDraw
-            "MeshIndex",         meshIndex               = int    
+            "MeshIndex",         meshIndex               = int         (not needed for lights)
             "ShouldDraw",        shouldDraw              = int         (optional)
             "DisableCulling",    disableCulling          = int         (optional)
             "IsSkin",            isSkin                  = int         (optional)

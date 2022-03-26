@@ -40,6 +40,7 @@ private:
     void InitCommandBuffers();
     void InitPrimitivesSet();
     void InitShadePipeline();
+    void InitLightsPipeline();
     void InitToneMapPipeline();
 
     void RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
@@ -56,10 +57,13 @@ private:
 private:
     ViewportFrustum         viewport;
     std::vector<ModelMatrices> matrices;
+    std::vector<LightInfo>  lightInfos;
     std::vector<DrawInfo>   drawInfos;
 
     std::vector<DrawInfo>   drawStaticMeshInfos;
     std::vector<DrawInfo>   drawDynamicMeshInfos;
+    std::vector<DrawInfo>   drawLocalLightSources;
+    std::vector<DrawInfo>   drawDirectionalLightSources;
 
     std::vector<PrimitiveInstanceParameters> primitive_instance_parameters;
     std::vector<vk::AccelerationStructureInstanceKHR> TLAS_instances;
@@ -129,6 +133,10 @@ private:
 
     vk::Pipeline            fullscreenPipeline;
     vk::PipelineLayout      fullscreenPipelineLayout;
+
+    vk::Pipeline            directionalLightSourcePipeline;
+    vk::Pipeline            localLightSourcePipeline;
+    vk::PipelineLayout      lightSourcesPipelineLayout;
 
     vk::Pipeline            toneMapPipeline;
     vk::PipelineLayout      toneMapPipelineLayout;

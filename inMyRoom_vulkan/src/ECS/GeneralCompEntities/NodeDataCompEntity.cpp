@@ -35,7 +35,7 @@ NodeDataCompEntity NodeDataCompEntity::CreateComponentEntityByMap(const Entity i
         if (search != in_map.vec4Map.end())
         {
             glm::vec4 this_vec4 = search->second;
-            this_positionCompEntity.localRotation = glm::qua<float>(this_vec4.w, this_vec4.x, this_vec4.y, this_vec4.z);
+            this_positionCompEntity.localRotation = glm::normalize(glm::qua<float>(this_vec4.w, this_vec4.x, this_vec4.y, this_vec4.z));
         }
     }
     // "LocalTranslation", localTranslation.xyz = vec4.xyz  (optional)

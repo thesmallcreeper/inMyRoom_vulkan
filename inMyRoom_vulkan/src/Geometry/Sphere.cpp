@@ -85,7 +85,7 @@ std::pair<std::vector<uint32_t>, std::vector<glm::vec3>> Sphere::GetSphereMesh(s
             float sin_theta = std::sin(theta);
 
             size_t points_count = 2 * quality;
-            for (size_t j = 0; j != 2 * points_count; ++j) {
+            for (size_t j = 0; j != points_count; ++j) {
                 float phi = 2.f * float(M_PI) * (float(j) / float(points_count));
                 float cos_phi = std::cos(phi);
                 float sin_phi = std::sin(phi);

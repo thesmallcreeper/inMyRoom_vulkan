@@ -34,7 +34,7 @@ public:
     void RemoveLightSafe(size_t index);
 
     void PrepareNewFrame(size_t frame_index);
-    void AddLights(const std::vector<LightInfo>& light_infos,
+    void AddLights(std::vector<LightInfo>& light_infos,
                    const std::vector<ModelMatrices>& model_matrices);
     LightsIndicesRange CreateCollidedLightsRange(const Paralgram& paralgram);
     void WriteLightsBuffers() const;
@@ -45,6 +45,9 @@ public:
     // Descriptor binding 1 -> Light Range
     vk::DescriptorSet GetDescriptorSet() const {return descriptorSets[frameIndex % 3];}
     vk::DescriptorSetLayout GetDescriptorSetLayout() const {return descriptorSetLayout;}
+
+    size_t GetMaxLights() const {return max_lights;}
+    size_t GetLightsCombinationsSize() const {return max_lightCombinationsSize;}
 
 private:
     void InitBuffers();

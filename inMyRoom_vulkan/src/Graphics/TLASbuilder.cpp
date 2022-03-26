@@ -1,6 +1,8 @@
 #include "Graphics/TLASbuilder.h"
 #include "Graphics/Graphics.h"
 
+#include "common/defines.h"
+
 TLASbuilder::TLASbuilder(vk::Device in_device,
                          vma::Allocator in_vma_allocator,
                          uint32_t in_queue_family_index,
@@ -196,40 +198,33 @@ std::vector<vk::AccelerationStructureInstanceKHR> TLASbuilder::CreateTLASinstanc
 {
     std::vector<vk::AccelerationStructureInstanceKHR> return_vector;
     for (const auto& this_draw_info : draw_infos) {
-        if (this_draw_info.dynamicMeshIndex != -1) {
-            const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex);
+        const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex);
+
+        vk::AccelerationStructureInstanceKHR instance;
+        const glm::mat4& matrix = matrices[this_draw_info.matricesOffset].positionMatrix;
+        instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
+                               matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
+                               matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };
+        instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
+        instance.instanceShaderBindingTableRecordOffset = 0;
+        instance.flags = mesh_info.meshBLAS.disableFaceCulling ? uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable) : 0;
+
+        bool has_dynamic_shape = (this_draw_info.dynamicMeshIndex != -1)
+                                 && graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex).hasDynamicShape;
+        if (has_dynamic_shape) {
             const DynamicMeshInfo& dynamic_mesh_info = graphics_ptr->GetDynamicMeshes()->GetDynamicMeshInfo(this_draw_info.dynamicMeshIndex);
-            if (dynamic_mesh_info.hasDynamicShape) {
-                vk::AccelerationStructureInstanceKHR instance;
-                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset].positionMatrix;
-                instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
-                                       matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
-                                       matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };
-                instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
-                instance.mask = 0xFF;
-                instance.instanceShaderBindingTableRecordOffset = 0;
-                instance.flags = mesh_info.meshBLAS.disableFaceCulling ? uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable) : 0;
-                instance.accelerationStructureReference = dynamic_mesh_info.BLASesDeviceAddresses[device_buffer_index];
-
-                return_vector.emplace_back(instance);
-            }
+            instance.accelerationStructureReference = dynamic_mesh_info.BLASesDeviceAddresses[device_buffer_index];
         } else {
-            const MeshInfo& mesh_info = graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw_info.meshIndex);
-            if (mesh_info.meshBLAS.hasBLAS) {
-                vk::AccelerationStructureInstanceKHR instance;
-                const glm::mat4& matrix = matrices[this_draw_info.matricesOffset].positionMatrix;
-                instance.transform = { matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0],
-                                       matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1],
-                                       matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] };
-                instance.instanceCustomIndex = this_draw_info.primitivesInstanceOffset;
-                instance.mask = 0xFF;
-                instance.instanceShaderBindingTableRecordOffset = 0;
-                instance.flags = mesh_info.meshBLAS.disableFaceCulling ? uint8_t(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable) : 0;
-                instance.accelerationStructureReference = mesh_info.meshBLAS.deviceAddress;
-
-                return_vector.emplace_back(instance);
-            }
+            instance.accelerationStructureReference = mesh_info.meshBLAS.deviceAddress;
         }
+
+        bool is_light = this_draw_info.isLightSource;
+        if (is_light) {
+            instance.mask = LIGHT_MASK;
+        } else {
+            instance.mask = MESH_MASK;
+        }
+        return_vector.emplace_back(instance);
     }
 
     return return_vector;

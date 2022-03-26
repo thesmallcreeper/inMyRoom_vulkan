@@ -24,6 +24,7 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
     InitCommandBuffers();
     InitPrimitivesSet();
     InitShadePipeline();
+    InitLightsPipeline();
     InitToneMapPipeline();
 }
 
@@ -268,7 +269,7 @@ void Renderer::InitExposure()
 {
     std::tuple<vk::Image, vk::ImageView, vk::ImageCreateInfo> images_tuples[2] = {std::make_tuple(photometricResultImages[0], photometricResultImageViews[0], photometricResultImageCreateInfo),
                                                                                   std::make_tuple(photometricResultImages[1], photometricResultImageViews[1], photometricResultImageCreateInfo)};
-    exposure_uptr = std::make_unique<Exposure>(device, vma_allocator, graphics_ptr, images_tuples, exposureComputeQueue);
+    exposure_uptr = std::make_unique<Exposure>(device, vma_allocator, graphics_ptr, images_tuples, exposureComputeQueue, true);
 }
 
 void Renderer::InitTLAS()
@@ -533,7 +534,47 @@ void Renderer::InitRenderpasses()
     subpasses.emplace_back(shade_subpass_description);
     dependencies.emplace_back(shade_subpass_dependency);
 
-    // Subpass 2 (tonemap)
+    // Subpass 2 (lights)
+    std::vector<vk::AttachmentReference> lights_colorAttachments_refs;
+    {
+        vk::AttachmentReference colorAttach_ref;
+        colorAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        colorAttach_ref.attachment = 2;
+        lights_colorAttachments_refs.emplace_back(colorAttach_ref);
+    }
+
+    vk::AttachmentReference lights_depthAttach_ref;
+    lights_depthAttach_ref.layout = vk::ImageLayout::eDepthReadOnlyStencilAttachmentOptimal;
+    lights_depthAttach_ref.attachment = 1;
+
+    vk::SubpassDescription lights_subpass_description;
+    lights_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    lights_subpass_description.setColorAttachments(lights_colorAttachments_refs);
+    lights_subpass_description.pDepthStencilAttachment = &lights_depthAttach_ref;
+
+    vk::SubpassDependency lights_to_visibility_subpass_dependency;
+    lights_to_visibility_subpass_dependency.srcSubpass = 0;
+    lights_to_visibility_subpass_dependency.dstSubpass = 2;
+    lights_to_visibility_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eLateFragmentTests;
+    lights_to_visibility_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+    lights_to_visibility_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+    lights_to_visibility_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead;
+    lights_to_visibility_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+    vk::SubpassDependency lights_to_shade_subpass_dependency;
+    lights_to_shade_subpass_dependency.srcSubpass = 1;
+    lights_to_shade_subpass_dependency.dstSubpass = 2;
+    lights_to_shade_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    lights_to_shade_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    lights_to_shade_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+    lights_to_shade_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+    lights_to_shade_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+    subpasses.emplace_back(lights_subpass_description);
+    dependencies.emplace_back(lights_to_shade_subpass_dependency);
+    dependencies.emplace_back(lights_to_visibility_subpass_dependency);
+
+    // Subpass 3 (tonemap)
     std::vector<vk::AttachmentReference> toneMap_colorAttachments_refs;
     {
         vk::AttachmentReference colorAttach_ref;
@@ -556,8 +597,8 @@ void Renderer::InitRenderpasses()
     toneMap_subpass_description.setInputAttachments(toneMap_inputAttachments_refs);
 
     vk::SubpassDependency toneMap_subpass_dependency;
-    toneMap_subpass_dependency.srcSubpass = 1;
-    toneMap_subpass_dependency.dstSubpass = 2;
+    toneMap_subpass_dependency.srcSubpass = 2;
+    toneMap_subpass_dependency.dstSubpass = 3;
     toneMap_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     toneMap_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
     toneMap_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
@@ -791,7 +832,7 @@ void Renderer::InitPrimitivesSet()
 
             pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info;
 
-            // TODO? tesselation
+            // Tesselation
             pipeline_create_info.pTessellationState = nullptr;
 
             // PipelineViewportStateCreateInfo
@@ -909,6 +950,8 @@ void Renderer::InitShadePipeline()
     shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
     shadersDefinitionStringPairs.emplace_back("INSTANCES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
     shadersDefinitionStringPairs.emplace_back("MATERIALS_PARAMETERS_COUNT", std::to_string(graphics_ptr->GetMaterialsOfPrimitives()->GetMaterialsCount()));
+    shadersDefinitionStringPairs.emplace_back("MAX_LIGHTS_COUNT", std::to_string(graphics_ptr->GetLights()->GetMaxLights()));
+    shadersDefinitionStringPairs.emplace_back("MAX_COMBINATIONS_SIZE", std::to_string(graphics_ptr->GetLights()->GetLightsCombinationsSize()));
 
     {   // Pipeline layout fullscreen
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -921,6 +964,7 @@ void Renderer::InitShadePipeline()
         descriptor_sets_layouts.emplace_back(hostDescriptorSetLayout);
         descriptor_sets_layouts.emplace_back(rendererDescriptorSetLayout);
         descriptor_sets_layouts.emplace_back(TLASbuilder_uptr->GetDescriptorSetLayout());
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetLights()->GetDescriptorSetLayout());
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
@@ -1027,7 +1071,7 @@ void Renderer::InitShadePipeline()
         color_blend_attachment.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
         color_blend_attachment.colorBlendOp = vk::BlendOp::eAdd;
         color_blend_attachment.srcAlphaBlendFactor = vk::BlendFactor::eOne;
-        color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eOne;
+        color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
         color_blend_attachment.alphaBlendOp = vk::BlendOp::eAdd;
 
         color_blend_create_info.logicOpEnable = VK_FALSE;
@@ -1067,6 +1111,168 @@ void Renderer::InitShadePipeline()
     }
 }
 
+void Renderer::InitLightsPipeline()
+{
+    std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
+    shadersDefinitionStringPairs.emplace_back("DIRECTIONAL_LIGHT", "");
+    shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
+    shadersDefinitionStringPairs.emplace_back("INSTANCES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
+
+    // Pipeline layout
+    {
+        vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
+
+        std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetCameraDescriptionSetLayout());
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetMatricesDescriptionSetLayout());
+        pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
+
+        std::vector<vk::PushConstantRange> push_constant_range;
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eVertex, 0, 4);
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 16, 16);
+        pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
+
+        lightSourcesPipelineLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
+    }
+
+    // Pipeline
+    {
+        vk::GraphicsPipelineCreateInfo pipeline_create_info;
+
+        // PipelineVertexInputStateCreateInfo
+        vk::PipelineVertexInputStateCreateInfo vertex_input_state_create_info;
+        std::vector<vk::VertexInputBindingDescription> vertex_input_binding_descriptions;
+        std::vector<vk::VertexInputAttributeDescription> vertex_input_attribute_descriptions;
+
+        uint32_t binding_index = 0;
+        uint32_t location_index = 0;
+
+        vertex_input_binding_descriptions.emplace_back(binding_index,
+                                                       uint32_t(4 * sizeof(float)),
+                                                       vk::VertexInputRate::eVertex);
+        vertex_input_attribute_descriptions.emplace_back(location_index, binding_index,
+                                                         vk::Format::eR32G32B32A32Sfloat,
+                                                         0);
+        ++binding_index;
+        ++location_index;
+
+        vertex_input_state_create_info.setVertexBindingDescriptions(vertex_input_binding_descriptions);
+        vertex_input_state_create_info.setVertexAttributeDescriptions(vertex_input_attribute_descriptions);
+
+        pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
+
+        // PipelineInputAssemblyStateCreateInfo
+        vk::PipelineInputAssemblyStateCreateInfo input_assembly_state_create_info;
+        input_assembly_state_create_info.topology = vk::PrimitiveTopology::eTriangleList;
+
+        pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info;
+
+        // Tesselation
+        pipeline_create_info.pTessellationState = nullptr;
+
+        // PipelineViewportStateCreateInfo
+        vk::PipelineViewportStateCreateInfo viewport_state_create_info;
+
+        uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+
+        vk::Viewport viewport{0.f, 0.f,
+                              float(width), float(height),
+                              0.f, 1.f};
+        viewport_state_create_info.viewportCount = 1;
+        viewport_state_create_info.pViewports = &viewport;
+
+        vk::Rect2D scissor{{0,     0},
+                           {width, height}};
+        viewport_state_create_info.scissorCount = 1;
+        viewport_state_create_info.pScissors = &scissor;
+
+        pipeline_create_info.pViewportState = &viewport_state_create_info;
+
+        // PipelineRasterizationStateCreateInfo
+        vk::PipelineRasterizationStateCreateInfo rasterization_state_create_info;
+        rasterization_state_create_info.depthBiasClamp = VK_FALSE;
+        rasterization_state_create_info.rasterizerDiscardEnable = VK_FALSE;
+        rasterization_state_create_info.polygonMode = vk::PolygonMode::eFill;
+        rasterization_state_create_info.cullMode = vk::CullModeFlagBits::eBack;
+        rasterization_state_create_info.frontFace = vk::FrontFace::eCounterClockwise;
+        rasterization_state_create_info.lineWidth = 1.f;
+
+        pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
+
+        // PipelineMultisampleStateCreateInfo
+        vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
+        multisample_state_create_info.sampleShadingEnable = VK_FALSE;
+        multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
+        multisample_state_create_info.minSampleShading = 1.0f;
+        multisample_state_create_info.pSampleMask = nullptr;
+        multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
+        multisample_state_create_info.alphaToOneEnable = VK_FALSE;
+
+        pipeline_create_info.pMultisampleState = &multisample_state_create_info;
+
+        // PipelineDepthStencilStateCreateInfo
+        vk::PipelineDepthStencilStateCreateInfo depth_state_create_info;
+        depth_state_create_info.depthTestEnable = VK_TRUE;
+        depth_state_create_info.depthWriteEnable = VK_FALSE;
+        depth_state_create_info.depthCompareOp = vk::CompareOp::eLessOrEqual;
+        depth_state_create_info.depthBoundsTestEnable = VK_FALSE;
+        depth_state_create_info.stencilTestEnable = VK_FALSE;
+        depth_state_create_info.minDepthBounds = 0.f;
+        depth_state_create_info.maxDepthBounds = 1.f;
+
+        pipeline_create_info.pDepthStencilState = &depth_state_create_info;
+
+        // PipelineColorBlendAttachmentState
+        vk::PipelineColorBlendStateCreateInfo color_blend_create_info;
+        vk::PipelineColorBlendAttachmentState color_blend_attachment;
+        color_blend_attachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        color_blend_attachment.blendEnable = VK_FALSE;
+        color_blend_attachment.srcColorBlendFactor = vk::BlendFactor::eOne;
+        color_blend_attachment.dstColorBlendFactor = vk::BlendFactor::eZero;
+        color_blend_attachment.colorBlendOp = vk::BlendOp::eAdd;
+        color_blend_attachment.srcAlphaBlendFactor = vk::BlendFactor::eOne;
+        color_blend_attachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+        color_blend_attachment.alphaBlendOp = vk::BlendOp::eAdd;
+
+        color_blend_create_info.logicOpEnable = VK_FALSE;
+        color_blend_create_info.attachmentCount = 1;
+        color_blend_create_info.pAttachments = &color_blend_attachment;
+
+        pipeline_create_info.pColorBlendState = &color_blend_create_info;
+
+        // PipelineShaderStageCreateInfo
+        std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
+
+        ShadersSpecs shaders_specs{"Light Source Shaders", shadersDefinitionStringPairs};
+        ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
+
+        assert(shader_set.abortedDueToDefinition == false);
+
+        vk::PipelineShaderStageCreateInfo vertex_shader_stage;
+        vertex_shader_stage.stage = vk::ShaderStageFlagBits::eVertex;
+        vertex_shader_stage.module = shader_set.vertexShaderModule;
+        vertex_shader_stage.pName = "main";
+        shaders_stage_create_infos.emplace_back(vertex_shader_stage);
+
+        vk::PipelineShaderStageCreateInfo fragment_shader_stage;
+        fragment_shader_stage.stage = vk::ShaderStageFlagBits::eFragment;
+        fragment_shader_stage.module = shader_set.fragmentShaderModule;
+        fragment_shader_stage.pName = "main";
+        shaders_stage_create_infos.emplace_back(fragment_shader_stage);
+
+        pipeline_create_info.setStages(shaders_stage_create_infos);
+
+        // etc
+        pipeline_create_info.layout = lightSourcesPipelineLayout;
+        pipeline_create_info.renderPass = renderpass;
+        pipeline_create_info.subpass = 2;
+
+        directionalLightSourcePipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
+    }
+}
+
 void Renderer::InitToneMapPipeline()
 {
     printf("-Initializing \"Tone-Map Pass\" pipeline\n");
@@ -1074,6 +1280,7 @@ void Renderer::InitToneMapPipeline()
     std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
     shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_SET", std::to_string(0));
     shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_BIND", std::to_string(1));
+    shadersDefinitionStringPairs.emplace_back("CHECK_ALPHA", "");
 
     {   // Pipeline layout tone map
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -1083,7 +1290,7 @@ void Renderer::InitToneMapPipeline()
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
-        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 4);
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 8);
 
         pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
@@ -1217,7 +1424,7 @@ void Renderer::InitToneMapPipeline()
         // etc
         pipeline_create_info.layout = toneMapPipelineLayout;
         pipeline_create_info.renderPass = renderpass;
-        pipeline_create_info.subpass = 2;
+        pipeline_create_info.subpass = 3;
 
         toneMapPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
     }
@@ -1249,6 +1456,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
       || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
         viewport = in_viewport;
         matrices = std::move(in_matrices);
+        lightInfos = std::move(in_light_infos);
         drawInfos = std::move(in_draw_infos);
         viewportInRowFreezedFrameCount = 1;
     } else {
@@ -1287,11 +1495,17 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
     if (viewportFreezeState == ViewportFreezeStates::ready
      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
         graphics_ptr->GetDynamicMeshes()->PrepareNewFrame(frameCount - viewportFreezedFrameCount);
+        graphics_ptr->GetLights()->PrepareNewFrame(frameCount - viewportFreezedFrameCount);
 
+        graphics_ptr->GetLights()->AddLights(lightInfos, matrices);
         primitive_instance_parameters = CreatePrimitivesInstanceParameters();
         AssortDrawInfos();
 
-        TLAS_instances = TLASbuilder::CreateTLASinstances(drawInfos, matrices, device_freezeable_buffer_index, graphics_ptr);
+        std::vector<DrawInfo> TLAS_draw_infos;
+        std::copy(drawStaticMeshInfos.begin(), drawStaticMeshInfos.end(), std::back_inserter(TLAS_draw_infos));
+        std::copy(drawDynamicMeshInfos.begin(), drawDynamicMeshInfos.end(), std::back_inserter(TLAS_draw_infos));
+        std::copy(drawLocalLightSources.begin(), drawLocalLightSources.end(), std::back_inserter(TLAS_draw_infos));
+        TLAS_instances = TLASbuilder::CreateTLASinstances(TLAS_draw_infos, matrices, device_freezeable_buffer_index, graphics_ptr);
 
         {
             vk::CommandBuffer &transform_command_buffer = transformCommandBuffers[freezable_commandBuffer_index];
@@ -1715,6 +1929,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         descriptor_sets.emplace_back(hostDescriptorSets[freezable_host_buffer_index]);
         descriptor_sets.emplace_back(rendererDescriptorSets[freezable_device_buffer_index]);
         descriptor_sets.emplace_back(TLASbuilder_uptr->GetDescriptorSet(freezable_device_buffer_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetLights()->GetDescriptorSet());
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                           fullscreenPipelineLayout,
@@ -1741,6 +1956,53 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
     command_buffer.nextSubpass(vk::SubpassContents::eInline);
 
+    // Lights draw pass
+    {
+        std::vector<vk::DescriptorSet> descriptor_sets;
+        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_host_buffer_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_host_buffer_index));
+
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                          lightSourcesPipelineLayout,
+                                          0,
+                                          descriptor_sets,
+                                          {});
+
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, directionalLightSourcePipeline);
+
+        for (const DrawInfo& this_draw : drawDirectionalLightSources) {
+            for (size_t primitive_index: graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
+                const PrimitiveInfo& primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(primitive_index);
+                const LightInfo& light_info = graphics_ptr->GetLights()->GetLightInfo(this_draw.lightIndex);
+
+                std::array<uint32_t, 1> data_vertex = {uint32_t(this_draw.matricesOffset)};
+                command_buffer.pushConstants(lightSourcesPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, 4, data_vertex.data());
+
+                std::array<glm::vec4, 1> data_frag = {glm::vec4(light_info.luminance, 0.f)};
+                command_buffer.pushConstants(lightSourcesPipelineLayout, vk::ShaderStageFlagBits::eFragment, 16, 16, data_frag.data());
+
+                vk::Buffer static_primitives_buffer = graphics_ptr->GetPrimitivesOfMeshes()->GetBuffer();
+                std::vector<vk::Buffer> buffers;
+                std::vector<vk::DeviceSize> offsets;
+
+                // Position
+                offsets.emplace_back(primitive_info.positionByteOffset);
+                buffers.emplace_back(static_primitives_buffer);
+
+                command_buffer.bindVertexBuffers(0, buffers, offsets);
+
+                command_buffer.bindIndexBuffer(graphics_ptr->GetPrimitivesOfMeshes()->GetBuffer(),
+                                               primitive_info.indicesByteOffset,
+                                               vk::IndexType::eUint32);
+
+                command_buffer.drawIndexed(uint32_t(primitive_info.indicesCount), 1, 0, 0, 0);
+
+            }
+        }
+    }
+
+    command_buffer.nextSubpass(vk::SubpassContents::eInline);
+
     // Tone map pass
     {
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, toneMapPipeline);
@@ -1754,8 +2016,8 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                           descriptor_sets,
                                           {});
 
-        std::array<float, 1> push_constants = { exposure_uptr->GetCurrectScale() / float(viewportInRowFreezedFrameCount) };
-        command_buffer.pushConstants(toneMapPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, 4, push_constants.data());
+        std::array<float, 2> push_constants = { 1.f / float(viewportInRowFreezedFrameCount), exposure_uptr->GetCurrectScale() };
+        command_buffer.pushConstants(toneMapPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, 8, push_constants.data());
 
         std::vector<vk::Buffer> buffers;
         std::vector<vk::DeviceSize> offsets;
@@ -1874,7 +2136,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
                 this_primitiveInstanceParameters.normalOffset = dynamic_primitives_info[i].normalByteOffset / sizeof(glm::vec4);
                 this_primitiveInstanceParameters.normalDescriptorIndex = descriptor_index;
             } else {
-                assert(primitives_info[i].normalByteOffset != -1);
+                assert(this_draw_info.isLightSource || primitives_info[i].normalByteOffset != -1);
                 this_primitiveInstanceParameters.normalOffset = primitives_info[i].normalByteOffset / sizeof(glm::vec4);
                 this_primitiveInstanceParameters.normalDescriptorIndex = 0;
             }
@@ -1883,7 +2145,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
                 this_primitiveInstanceParameters.tangentOffset = dynamic_primitives_info[i].tangentByteOffset / sizeof(glm::vec4);
                 this_primitiveInstanceParameters.tangentDescriptorIndex = descriptor_index;
             } else {
-                assert(primitives_info[i].tangentByteOffset != -1);
+                assert(this_draw_info.isLightSource || primitives_info[i].tangentByteOffset != -1);
                 this_primitiveInstanceParameters.tangentOffset = primitives_info[i].tangentByteOffset / sizeof(glm::vec4);
                 this_primitiveInstanceParameters.tangentDescriptorIndex = 0;
             }
@@ -1920,6 +2182,27 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
                 }
             }
 
+            if (this_draw_info.isLightSource) {
+                auto light_offset = uint16_t(graphics_ptr->GetLights()->GetLightInfo(this_draw_info.lightIndex).lightOffset);
+                this_primitiveInstanceParameters.light = light_offset;
+
+                this_primitiveInstanceParameters.lightsCombinationsOffset = 0;
+                this_primitiveInstanceParameters.lightsCombinationsCount = 0;
+            } else {
+                this_primitiveInstanceParameters.light = -1;
+
+                LightsIndicesRange lights_range_indices;
+                glm::mat4 pos_matrix = matrices[this_draw_info.matricesOffset].positionMatrix;
+                if (this_draw_info.dynamicMeshIndex != -1) {
+                    lights_range_indices = graphics_ptr->GetLights()->CreateCollidedLightsRange(pos_matrix * dynamic_primitives_info[i].dynamicPrimitiveOBB);
+                } else {
+                    lights_range_indices = graphics_ptr->GetLights()->CreateCollidedLightsRange(pos_matrix * primitives_info[i].primitiveOBB);
+                }
+
+                this_primitiveInstanceParameters.lightsCombinationsOffset = lights_range_indices.offset;
+                this_primitiveInstanceParameters.lightsCombinationsCount = lights_range_indices.size;
+            }
+
             return_vector.emplace_back(this_primitiveInstanceParameters);
         }
     }
@@ -1931,11 +2214,21 @@ void Renderer::AssortDrawInfos()
 {
     drawDynamicMeshInfos.clear();
     drawStaticMeshInfos.clear();
+    drawLocalLightSources.clear();
+    drawDirectionalLightSources.clear();
     for(const auto& draw_info : drawInfos) {
-        if (draw_info.dynamicMeshIndex != -1)
-            drawDynamicMeshInfos.emplace_back(draw_info);
-        else
-            drawStaticMeshInfos.emplace_back(draw_info);
+        if (draw_info.isLightSource) {
+            const LightInfo& light_info = graphics_ptr->GetLights()->GetLightInfo(draw_info.lightIndex);
+            if (light_info.lightType != LightType::Cone)
+                drawLocalLightSources.emplace_back(draw_info);
+            else
+                drawDirectionalLightSources.emplace_back(draw_info);
+        } else {
+            if (draw_info.dynamicMeshIndex != -1)
+                drawDynamicMeshInfos.emplace_back(draw_info);
+            else
+                drawStaticMeshInfos.emplace_back(draw_info);
+        }
     }
 }
 
@@ -1948,6 +2241,8 @@ void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
 
     TLASbuilder_uptr->WriteHostInstanceBuffer(TLAS_instances,
                                               buffer_index);
+
+    graphics_ptr->GetLights()->WriteLightsBuffers();
 
     {
         memcpy((std::byte *) (primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferPartSize,
@@ -1970,3 +2265,4 @@ void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
                                       fullscreenBufferPartSize);
     }
 }
+
