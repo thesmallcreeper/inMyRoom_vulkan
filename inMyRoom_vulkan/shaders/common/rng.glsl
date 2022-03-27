@@ -81,8 +81,8 @@ float RandomGXXhalfvectorPDF(float roughness, float NdotH) {
     float NdotH_squared = NdotH*NdotH;
 
     float divisor = NdotH_squared * (a_squared - 1.f) + 1.f;
-    float distribution = a_squared / (M_PI * divisor * divisor);
-    return distribution * NdotH;
+    float distribution_sqrt = (a / divisor);
+    return distribution_sqrt * distribution_sqrt * (NdotH / M_PI);
 }
 
 vec3 RandomCosinWeightedHemi(inout uint rngState) {

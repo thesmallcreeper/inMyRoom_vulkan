@@ -180,14 +180,14 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     // Intersect triangle
     uint pos_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].positionDescriptorIndex);
     uint pos_offset = primitivesInstancesParameters[primitive_instance].positionOffset;
-    vec4 vert_0 = pos_matrix * vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_0_index];
-    vec4 vert_1 = pos_matrix * vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_1_index];
-    vec4 vert_2 = pos_matrix * vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_2_index];
+    vec3 pos_0 = vec3(pos_matrix * vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_0_index]);
+    vec3 pos_1 = vec3(pos_matrix * vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_1_index]);
+    vec3 pos_2 = vec3(pos_matrix * vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_2_index]);
 
-    vec3 edge_1 = vec3(vert_1 - vert_0);
-    vec3 edge_2 = vec3(vert_2 - vert_0);
+    vec3 edge_1 = pos_1 - pos_0;
+    vec3 edge_2 = pos_2 - pos_0;
 
-    IntersectTriangleResult intersect_result = IntersectTriangle(vec3(vert_0), edge_1, edge_2,
+    IntersectTriangleResult intersect_result = IntersectTriangle(pos_0, edge_1, edge_2,
                                                                  ray_dir, dir_dx, dir_dy,
                                                                  origin, origin_dx, origin_dy);
 
@@ -198,7 +198,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     }
 
     // Interpolate vertices
-    vec3 vertices_normal;
+    vec3 vertex_normal;
     {
         uint normal_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].normalDescriptorIndex);
         uint normal_offset = primitivesInstancesParameters[primitive_instance].normalOffset;
@@ -210,15 +210,15 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         vec4 normal_edge_2 = normal_2 - normal_0;
 
         vec4 normal_interpolated = normal_0 + intersect_result.barycoords.x * normal_edge_1 + intersect_result.barycoords.y * normal_edge_2;
-        vertices_normal = normalize(vec3(norm_matrix * normal_interpolated));
+        vertex_normal = normalize(vec3(norm_matrix * normal_interpolated));
 
         if (dot_face_ray > 0.f) {
-            vertices_normal = - vertices_normal;
+            vertex_normal = - vertex_normal;
         }
     }
 
-    vec3 vertices_tangent;
-    vec3 vertices_bitangent;
+    vec3 vertex_tangent;
+    vec3 vertex_bitangent;
     {
         uint tangent_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].tangentDescriptorIndex);
         uint tangent_offset = primitivesInstancesParameters[primitive_instance].tangentOffset;
@@ -234,8 +234,8 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         vec3 tangent_interpolated = vec3(tangent_0) + intersect_result.barycoords.x * tangent_edge_1 + intersect_result.barycoords.y * tangent_edge_2;
         vec3 vertices_orientated = vec3(pos_matrix * vec4(tangent_interpolated, 0.f));
 
-        vertices_tangent = normalize(vertices_orientated - dot(vertices_orientated, vertices_normal) * vertices_normal);
-        vertices_bitangent = cross(vertices_normal, vertices_tangent) * orientation;
+        vertex_tangent = normalize(vertices_orientated - dot(vertices_orientated, vertex_normal) * vertex_normal);
+        vertex_bitangent = cross(vertex_normal, vertex_tangent) * orientation;
     }
 
     vec4 vertex_color;
@@ -278,7 +278,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         vec2 uv_2 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_2_index * uv_stepMult + this_materialParameters.normalTexCoord];
 
         vec3 sample_normal = SampleTextureBarycentric(intersect_result.barycoords, intersect_result.barycoordsDx, intersect_result.barycoordsDy,
-        uv_0, uv_1, uv_2, uint(this_materialParameters.normalTexture)).xyz;
+                                                      uv_0, uv_1, uv_2, uint(this_materialParameters.normalTexture)).xyz;
 
         sample_normal = sample_normal * 2.f - 1.f;
         sample_normal *= vec3(this_materialParameters.normalScale, this_materialParameters.normalScale, 1.f);
@@ -297,8 +297,8 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
 
     // Evaluate
     vec4 color = text_color * this_materialParameters.baseColorFactors * vertex_color;
-    vec3 normal = vertices_tangent * text_normal.x + vertices_bitangent * text_normal.y + vertices_normal * text_normal.z;
-    vec3 normal_tangent = normalize(vertices_tangent - dot(vertices_tangent, normal) * normal);
+    vec3 normal = vertex_tangent * text_normal.x + vertex_bitangent * text_normal.y + vertex_normal * text_normal.z;
+    vec3 normal_tangent = normalize(vertex_tangent - dot(vertex_tangent, normal) * normal);
     vec3 normal_bitangent = cross(normal, normal_tangent);
     float roughness = roughness_metallic_pair.x;
     roughness = roughness + (1.f - roughness) * MIN_ROUGHNESS;
@@ -306,6 +306,21 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
 
     vec3 viewVector = -ray_dir;
     vec3 origin_pos = origin + intersect_result.distance * vec3(ray_dir);
+
+    // Avoid self intersecion due to vertex normal
+    vec3 vertex_normal_selfintersect_displacement;
+    {
+        vec3 pos_0_to_origin = vec3(origin_pos - pos_0);
+        vec3 pos_1_to_origin = vec3(origin_pos - pos_1);
+        vec3 pos_2_to_origin = vec3(origin_pos - pos_2);
+
+        float max_displacement = 0.f;
+        max_displacement = max(max_displacement, -dot(pos_0_to_origin, vertex_normal));
+        max_displacement = max(max_displacement, -dot(pos_1_to_origin, vertex_normal));
+        max_displacement = max(max_displacement, -dot(pos_2_to_origin, vertex_normal));
+
+        vertex_normal_selfintersect_displacement = max_displacement * vertex_normal;
+    }
 
     // Light them up!
     vec3 light_sum = vec3(0.f, 0.f, 0.f);
@@ -326,21 +341,21 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         if (uint(this_light_lightType) == LIGHT_CONE) {
             mat4 light_matrix = model_matrices[this_light_matricesOffset].normalMatrix;
             vec3 light_dir = -vec3(light_matrix[2]);
-            vec3 light_dir_tangent = -vec3(light_matrix[0]);
+            vec3 light_dir_tangent = +vec3(light_matrix[0]);
             vec3 light_dir_bitangent = -vec3(light_matrix[1]);
 
             float angle_tan = this_light_radius;
             vec2 angle_sin_cos = normalize(vec2(angle_tan, 1.f));
 
-            if (dot(light_dir, face_normal) > -angle_sin_cos.x &&
+            if (dot(light_dir, vertex_normal) > -angle_sin_cos.x &&
                 dot(viewVector, normal) > DOT_ANGLE_SLACK) {
                 vec3 random_light_dir_zaxis = RandomDirInCone(angle_sin_cos.y, rng_state);
                 vec3 random_light_dir = light_dir_bitangent * random_light_dir_zaxis.x + light_dir_tangent * random_light_dir_zaxis.y + light_dir * random_light_dir_zaxis.z;
                 float random_light_dir_PDF = RandomDirInConePDF(angle_sin_cos.y);
-                if (dot(random_light_dir, face_normal) > DOT_ANGLE_SLACK &&
+                if (dot(random_light_dir, vertex_normal) > DOT_ANGLE_SLACK &&
                     dot(random_light_dir, normal) > DOT_ANGLE_SLACK) {
                     rayQueryEXT query;
-                    rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, origin_pos, 0.0001f, random_light_dir, 100000.f);
+                    rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, origin_pos + vertex_normal_selfintersect_displacement, 0.0001f, random_light_dir, 100000.f);
                     while (rayQueryProceedEXT(query)) {
                         if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
                             ConfirmNonOpaqueIntersection(query);
@@ -348,7 +363,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
                     }
 
                     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
-                        light_sum += this_light_luminance * ((BRDF(color.xyz, roughness, metallic, viewVector, random_light_dir, normal) * dot(normal, random_light_dir)) / random_light_dir_PDF);
+                        light_sum += BRDF(color.xyz, roughness, metallic, viewVector, random_light_dir, normal) * ((this_light_luminance * dot(normal, random_light_dir)) / random_light_dir_PDF);
                     }
                 }
             }
@@ -383,14 +398,9 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     vec3 ray_bounce = normal_tangent * ray_bounce_normalspace.x + normal_bitangent * ray_bounce_normalspace.y + normal * ray_bounce_normalspace.z;
     vec3 bounce_halfvector = normal_tangent * bounce_halfvector_normalspace.x + normal_bitangent * bounce_halfvector_normalspace.y + normal * bounce_halfvector_normalspace.z;
     vec3 bounce_light_factor = vec3(0.f);
-    // TODO: chill out a little
-    if (dot(bounce_halfvector_normalspace, viewVector_normalspace) > DOT_ANGLE_SLACK &&
-        dot(ray_bounce, face_normal) > DOT_ANGLE_SLACK &&
+    if (dot(ray_bounce, vertex_normal) > DOT_ANGLE_SLACK &&
         dot(viewVector, normal) > DOT_ANGLE_SLACK &&
-        dot(ray_bounce, normal) > DOT_ANGLE_SLACK &&
-        !isnan(bounce_halfvector_normalspace.x) &&
-        bounce_halfvector_normalspace.z > DOT_ANGLE_SLACK &&
-        ray_bounce_normalspace.z > DOT_ANGLE_SLACK)
+        dot(ray_bounce, normal) > DOT_ANGLE_SLACK)
     {
         float ray_bounce_PDF_cosin = RandomCosinWeightedHemiPDF(ray_bounce_normalspace.z);
 
@@ -399,13 +409,13 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
 
         float ray_bounce_PDF = ray_bounce_PDF_cosin * cosine_weighted_chance + ray_bounce_PDF_GGX * (1.f - cosine_weighted_chance);
 
-        bounce_light_factor = light_factor * ((BRDF(color.xyz, roughness, metallic, viewVector, ray_bounce, normal) * dot(ray_bounce, normal)) / ray_bounce_PDF);
+        bounce_light_factor = BRDF(color.xyz, roughness, metallic, viewVector, ray_bounce, normal) * ((light_factor * dot(ray_bounce, normal)) / ray_bounce_PDF);
     }
 
     // Return
     BounceEvaluation return_bounce_evaluation;
 
-    return_bounce_evaluation.origin = origin_pos;
+    return_bounce_evaluation.origin = origin_pos + vertex_normal_selfintersect_displacement;
     return_bounce_evaluation.originDx = intersect_result.barycoordsDx.x * edge_1 + intersect_result.barycoordsDx.y * edge_2;
     return_bounce_evaluation.originDy = intersect_result.barycoordsDy.x * edge_1 + intersect_result.barycoordsDy.y * edge_2;
 
@@ -440,7 +450,7 @@ void main()
     vec3 light_factor = vec3(1.f);
     vec3 color_sum = vec3(0.f);
 
-    uint max_depth = 6;
+    uint max_depth = 2;
     uint i = 0;
     while(true) {
         BounceEvaluation eval = EvaluateBounce(primitive_instance, triangle_index,
