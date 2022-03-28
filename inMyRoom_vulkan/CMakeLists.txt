@@ -132,7 +132,7 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/ShadersSetsFamiliesCache.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/VulkanInit.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/HelperUtils.h"
-        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/ImagesInterfaces.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/ImageData.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Lights.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/RendererBase.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/TLASbuilder.h"
@@ -144,6 +144,10 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/SkinsOfMeshes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/TexturesOfMaterials.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Renderers/Renderer.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/TextureImage.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/ColorImage.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/NormalImage.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/MetallicRoughnessImage.h"
 
         #source .cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
@@ -200,7 +204,7 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/ShadersSetsFamiliesCache.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/VulkanInit.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/HelperUtils.cpp"
-        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/ImagesInterfaces.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/ImageData.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Lights.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/TLASbuilder.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Exposure.cpp"
@@ -211,6 +215,10 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/SkinsOfMeshes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/TexturesOfMaterials.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Renderers/Renderer.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/TextureImage.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/ColorImage.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/NormalImage.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/MetallicRoughnessImage.cpp"
         )
 
 add_executable(inMyRoom_vulkan ${SRC})

@@ -8,7 +8,7 @@
 #include "glTFenum.h"
 #include "const_maps.h"
 #include "hash_combine.h"
-#include "Graphics/ImagesInterfaces.h"
+#include "Graphics/ImageData.h"
 
 struct SamplerSpecs {
     glTFsamplerWrap wrap_S;

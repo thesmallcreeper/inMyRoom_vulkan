@@ -450,7 +450,7 @@ void main()
     vec3 light_factor = vec3(1.f);
     vec3 color_sum = vec3(0.f);
 
-    uint max_depth = 2;
+    uint max_depth = 5;
     uint i = 0;
     while(true) {
         BounceEvaluation eval = EvaluateBounce(primitive_instance, triangle_index,

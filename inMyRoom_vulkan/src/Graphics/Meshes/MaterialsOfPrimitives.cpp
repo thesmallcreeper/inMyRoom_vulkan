@@ -3,6 +3,10 @@
 #include "glm/vec4.hpp"
 #include "Graphics/HelperUtils.h"
 
+#include "Graphics/Textures/ColorImage.h"
+#include "Graphics/Textures/NormalImage.h"
+#include "Graphics/Textures/MetallicRoughnessImage.h"
+
 MaterialsOfPrimitives::MaterialsOfPrimitives(TexturesOfMaterials *in_texturesOfMaterials_ptr,
                                              vk::Device in_device,
                                              vma::Allocator in_allocator)
