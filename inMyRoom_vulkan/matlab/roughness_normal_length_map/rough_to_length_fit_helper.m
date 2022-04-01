@@ -1,6 +1,8 @@
-% In order to create needed data for length to roughness curve fit
+% In order to create needed data for roughness to length curve fit
 % Min/Max roughness = 0.01/1.0
 % Min/Max length = 0.66/1.0
+
+close all;
 
 close all;
 
@@ -18,7 +20,8 @@ for i = 1:size(roughnesses,2)
     rough = roughnesses(1, i);
     z_avg = z_average(1, i);
     if (rough > breakpoint_roughness)
-         weights_one_to_bp = [weights_one_to_bp, 1];
+         weight = (1-rough).^2 + 0.2;
+         weights_one_to_bp = [weights_one_to_bp, weight];
          roughs_one_to_bp = [roughs_one_to_bp, rough];
          z_avg_one_to_bp = [z_avg_one_to_bp, z_avg];
     end
