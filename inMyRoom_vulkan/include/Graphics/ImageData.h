@@ -32,6 +32,8 @@ public:
     std::vector<float> GetComponentsMin() const;
     void ScaleComponents(const std::vector<float>& scales);
     void BiasComponents(const std::vector<float>& bias);
+    void MaxComponents(const std::vector<float>& values);
+    void MinComponents(const std::vector<float>& values);
 
     bool operator> (const ImageData& rhs) const {return width*height > rhs.width*rhs.height;}
 

@@ -143,7 +143,7 @@ struct MetallicRoughnessTextureSpecs {
                wrap_T == rhs.wrap_T &&
                metallic_factor == rhs.metallic_factor &&
                roughness_factor == rhs.roughness_factor &&
-               normalTextureSpecs == rhs. normalTextureSpecs;
+               normalTextureSpecs == rhs.normalTextureSpecs;
     }
 };
 
@@ -324,6 +324,10 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
                 if(search != metallicRoughnessTextureSpecsToTextureIndex_umap.end()) {
                     this_materialParameters.metallicRoughnessTexture = uint32_t(search->second);
                 } else {
+                    const auto& width_to_length_data = normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs) != normalTextureSpecsToNormalImage_umap.end() ?
+                        normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs)->second.GetWidthToLengthsDataUmap() :
+                        std::unordered_map<uint32_t, ImageData>();
+
                     MetallicRoughnessImage metallicRoughness_image = {metallicRoughnessTextureSpecs.image_ptr,
                                                                       (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_metallicRoughnessTexture",
                                                                       model_folder,
@@ -331,9 +335,7 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
                                                                       metallicRoughnessTextureSpecs.wrap_T,
                                                                       metallicRoughnessTextureSpecs.metallic_factor,
                                                                       metallicRoughnessTextureSpecs.roughness_factor,
-                                                                      (normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs) != normalTextureSpecsToNormalImage_umap.end()) ?
-                                                                            normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs)->second.GetWidthToLengthsDataUmap() :
-                                                                            std::unordered_map<uint32_t, ImageData>()};
+                                                                      width_to_length_data};
 
                     metallicRoughness_image.RetrieveMipmaps(16, 16);
 

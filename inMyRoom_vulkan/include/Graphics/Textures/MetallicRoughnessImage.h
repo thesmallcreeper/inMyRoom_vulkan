@@ -13,7 +13,8 @@ public:
                            glTFsamplerWrap wrap_T,
                            float metallic_factor,
                            float roughness_factor,
-                           const std::unordered_map<uint32_t, ImageData>& widthToLengthsData);
+                           const std::unordered_map<uint32_t, ImageData>& widthToLengthsData,
+                           float filter_sigma = 1.f);
 
 private:
     ImageData CreateMipmap(const ImageData& reference, size_t dimension_factor) override;
@@ -23,4 +24,6 @@ private:
     float roughness_factor;
 
     const std::unordered_map<uint32_t, ImageData>& widthToLengthsData;
+
+    const float filterSigma;
 };

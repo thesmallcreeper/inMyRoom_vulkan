@@ -310,3 +310,23 @@ void ImageData::BiasComponents(const std::vector<float> &bias)
         floatBuffer[i] = floatBuffer[i] + bias[component];
     }
 }
+
+void ImageData::MaxComponents(const std::vector<float> &values)
+{
+    assert(values.size() == componentsCount);
+
+    for(size_t i = 0; i != floatBuffer.size(); ++i) {
+        size_t component = i % componentsCount;
+        floatBuffer[i] = std::max(floatBuffer[i], values[component]);
+    }
+}
+
+void ImageData::MinComponents(const std::vector<float> &values)
+{
+    assert(values.size() == componentsCount);
+
+    for(size_t i = 0; i != floatBuffer.size(); ++i) {
+        size_t component = i % componentsCount;
+        floatBuffer[i] = std::min(floatBuffer[i], values[component]);
+    }
+}
