@@ -7,7 +7,7 @@ layout( location = 1 ) in vec4 app_normal;
 
 //
 // Out
-layout( location = 0 ) out vec4 vert_normal;
+layout( location = 0 ) out vec3 vert_normal;
 
 //
 // Push constant
@@ -20,5 +20,5 @@ layout( location = 0 ) out vec4 vert_normal;
 void main()
 {
     gl_Position = app_position;
-    vert_normal = app_normal;
+    vert_normal = app_normal.xyz;
 }

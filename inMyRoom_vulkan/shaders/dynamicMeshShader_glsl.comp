@@ -38,12 +38,12 @@ layout (push_constant) uniform PushConstants
 
 // Description sets
 
-layout( std140, set = 0 , binding = 0 ) readonly buffer nodesMatrixBuffer
+layout( std430, set = 0 , binding = 0 ) readonly buffer nodesMatrixBuffer
 {
     ModelMatrices modelMatrices[MATRICES_COUNT];
 };
 
-layout( std140, set = 1 , binding = 0 ) readonly buffer inverseMatricesBuffer
+layout( std430, set = 1 , binding = 0 ) readonly buffer inverseMatricesBuffer
 {
     ModelMatrices inverseModelMatrices[INVERSE_MATRICES_COUNT];
 };
@@ -80,10 +80,10 @@ vec4 CalucateSkinJoint(uint matrix_index, uint inverse_matrix_index, vec4 vertex
     vec4 return_vec;
 
     #ifndef USE_NORMAL_MATRIX
-    #ifndef ZERO_W
-    return_vec = modelMatrices[matrix_index].positionMatrix * inverseModelMatrices[inverse_matrix_index].positionMatrix * vertex;
-    #else
-    return_vec = modelMatrices[matrix_index].positionMatrix * inverseModelMatrices[inverse_matrix_index].positionMatrix * vec4(vertex.xyz, 0.f);
+        #ifndef ZERO_W
+        return_vec = modelMatrices[matrix_index].positionMatrix * inverseModelMatrices[inverse_matrix_index].positionMatrix * vertex;
+        #else
+        return_vec = modelMatrices[matrix_index].positionMatrix * inverseModelMatrices[inverse_matrix_index].positionMatrix * vec4(vertex.xyz, 0.f);
     #endif
     #else
     return_vec = modelMatrices[matrix_index].normalMatrix * inverseModelMatrices[inverse_matrix_index].normalMatrix * vec4(vertex.xyz, 0.f);
@@ -134,7 +134,7 @@ void main()
 
     #ifdef NORMALIZE
     if (jointsGroupsCount != 0) {
-        morphed_vertex = vec4(normalize(result.xyz), result.w);
+        result = vec4(normalize(result.xyz), result.w);
     }
     #endif
 

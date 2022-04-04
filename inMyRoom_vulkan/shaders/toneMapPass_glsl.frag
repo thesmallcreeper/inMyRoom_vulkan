@@ -29,7 +29,7 @@ float RangeCompress(float val, float threshold) {
 
 void main()
 {
-    float linearThreshold = 0.25;
+    float linearThreshold = 0.25f;
 
     vec4 in_color = subpassLoad(colorInput);
 

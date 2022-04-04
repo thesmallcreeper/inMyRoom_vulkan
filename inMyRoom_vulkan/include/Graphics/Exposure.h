@@ -72,11 +72,11 @@ private:
 
     float                   currentExposure = 1.5e3f;
 
-    float                   minLuminance = 0.8e3;
+    float                   minLuminance = 0.5e3;
     float                   maxLuminance = 0.5e5;
 
-    float                   lowRobustness = 0.85f;
-    float                   highRobustness = 0.98f;
+    float                   lowRobustness = 0.75f;
+    float                   highRobustness = 0.95f;
 
     float                   t63percent = 0.8f;
 

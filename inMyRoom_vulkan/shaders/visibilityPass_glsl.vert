@@ -25,7 +25,7 @@ layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
     mat4 projectionMatrix;
 };
 
-layout( std140, set = 1 , binding = 0 ) readonly buffer matricesBuffer
+layout( std430, set = 1 , binding = 0 ) readonly buffer matricesBuffer
 {
     ModelMatrices model_matrices[MATRICES_COUNT];
 };

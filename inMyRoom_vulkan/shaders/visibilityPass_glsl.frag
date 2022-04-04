@@ -15,7 +15,7 @@ layout( location = 0 ) out uvec2 visibility_out;
 //
 // Descriptors
 #ifdef IS_MASKED
-layout (std140, set = 2, binding = 0) readonly buffer MaterialsParametersBuffer
+layout (std430, set = 2, binding = 0) readonly buffer MaterialsParametersBuffer
 {
     MaterialParameters materialsParameters[MATERIALS_PARAMETERS_COUNT];
 };

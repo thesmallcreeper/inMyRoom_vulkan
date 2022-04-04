@@ -789,10 +789,10 @@ void PrimitivesOfMeshes::AddDefaultPrimitive()
         default_primitiveInitializationData.normal.emplace_back(1.f);
         default_primitiveInitializationData.normal.emplace_back(0.f);
 
-        default_primitiveInitializationData.normal.emplace_back(0.f);
-        default_primitiveInitializationData.normal.emplace_back(1.f);
-        default_primitiveInitializationData.normal.emplace_back(0.f);
-        default_primitiveInitializationData.normal.emplace_back(0.f);
+        default_primitiveInitializationData.tangent.emplace_back(0.f);
+        default_primitiveInitializationData.tangent.emplace_back(1.f);
+        default_primitiveInitializationData.tangent.emplace_back(0.f);
+        default_primitiveInitializationData.tangent.emplace_back(0.f);
 
         default_primitiveInitializationData.texcoordsCount = 1;
         default_primitiveInitializationData.texcoords.emplace_back(0.5f);
