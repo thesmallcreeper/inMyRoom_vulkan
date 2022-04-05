@@ -122,8 +122,12 @@ void MeshesOfNodes::FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>> queu
                 vk::BufferCreateInfo buffer_create_info;
                 buffer_create_info.size = build_size_info.accelerationStructureSize;
                 buffer_create_info.usage = vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR;
-                buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
-                buffer_create_info.setQueueFamilyIndices(share_families_indices);
+                if (share_families_indices.size() > 1) {
+                    buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
+                    buffer_create_info.setQueueFamilyIndices(share_families_indices);
+                } else {
+                    buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+                }
 
                 vma::AllocationCreateInfo allocation_create_info;
                 allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;

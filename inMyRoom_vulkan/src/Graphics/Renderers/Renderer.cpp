@@ -10,8 +10,13 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
                    vma::Allocator in_vma_allocator)
     : RendererBase(in_graphics_ptr, in_device, in_vma_allocator),
       graphicsQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
+#ifdef ENABLE_ASYNC_COMPUTE
       meshComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[0]),
       exposureComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[1])
+#else
+      meshComputeQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
+      exposureComputeQueue(graphics_ptr->GetQueuesList().graphicsQueues[0])
+#endif
 {
     InitBuffers();
     InitImages();
@@ -1474,8 +1479,13 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
 
     //
     // Wait! Wait for command and host buffers (-3)
-    if (frameCount > 3) {
-        auto wait_value = uint64_t(frameCount - 3);
+#ifdef CPU_WAIT_GPU_SERIALIZED
+    const uint32_t wait_GPU_frames = 1;
+#else
+    const uint32_t wait_GPU_frames = 3;
+#endif
+    if (frameCount > wait_GPU_frames) {
+        auto wait_value = uint64_t(frameCount - wait_GPU_frames);
 
         vk::SemaphoreWaitInfo host_wait_info;
         host_wait_info.semaphoreCount = 1;
@@ -1600,55 +1610,6 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
         WriteInitHostBuffers(hostvisible_freezeable_buffer_index);
     }
 
-    std::vector<vk::SubmitInfo> after_compute_submit_infos;
-    {   // Exposure
-        exposure_uptr->CalcNextFrameValue(frameCount, graphics_ptr->GetDeltaTimeSeconds());
-
-        vk::CommandBuffer& exposure_command_buffer = exposureCommandBuffers[commandBuffer_index];
-        exposure_command_buffer.reset();
-        exposure_command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-
-        exposure_uptr->ObtainImageOwnership(exposure_command_buffer, device_freezeable_buffer_index, vk::ImageLayout::eGeneral, graphicsQueue.second);
-        exposure_uptr->RecordFrameHistogram(exposure_command_buffer, device_freezeable_buffer_index, 1.f / float(viewportInRowFreezedFrameCount));
-        exposure_uptr->TransferImageOwnership(exposure_command_buffer, device_freezeable_buffer_index, vk::ImageLayout::eGeneral, graphicsQueue.second);
-
-        exposure_command_buffer.end();
-
-        vk::SubmitInfo exposure_submit_info;
-        std::unique_ptr<vk::TimelineSemaphoreSubmitInfo> exposure_timeline_semaphore_info = std::make_unique<vk::TimelineSemaphoreSubmitInfo>();
-        exposure_submit_info.pNext = exposure_timeline_semaphore_info.get();
-        exposure_submit_info.commandBufferCount = 1;
-        exposure_submit_info.pCommandBuffers = &exposure_command_buffer;
-        // exposure wait
-        auto exposure_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
-        auto exposure_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
-        auto exposure_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
-       // exposure_wait_semaphores->emplace_back(transformsFinishTimelineSemaphore);
-       // exposure_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
-       // exposure_wait_semaphores_values->emplace_back(frameCount + 1);
-        exposure_wait_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
-        exposure_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
-        exposure_wait_semaphores_values->emplace_back(frameCount);
-        exposure_submit_info.setWaitSemaphores(*exposure_wait_semaphores);
-        exposure_submit_info.setWaitDstStageMask(*exposure_wait_pipeline_stages);
-        exposure_timeline_semaphore_info->setWaitSemaphoreValues(*exposure_wait_semaphores_values);
-        // exposure signal
-        auto exposure_signal_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
-        auto exposure_signal_semaphores_values = std::make_unique<std::vector<uint64_t>>();
-        exposure_signal_semaphores->emplace_back(histogramFinishTimelineSemaphore);
-        exposure_signal_semaphores_values->emplace_back(frameCount);
-        exposure_submit_info.setSignalSemaphores(*exposure_signal_semaphores);
-        exposure_timeline_semaphore_info->setSignalSemaphoreValues(*exposure_signal_semaphores_values);
-
-        after_compute_submit_infos.emplace_back(exposure_submit_info);
-        timeline_semaphore_infos.emplace_back(std::move(exposure_timeline_semaphore_info));
-        semaphore_vectors.emplace_back(std::move(exposure_wait_semaphores));
-        pipelineStageFlags_vectors.emplace_back(std::move(exposure_wait_pipeline_stages));
-        semaphore_values_vectors.emplace_back(std::move(exposure_wait_semaphores_values));
-        semaphore_vectors.emplace_back(std::move(exposure_signal_semaphores));
-        semaphore_values_vectors.emplace_back(std::move(exposure_signal_semaphores_values));
-    }
-
     uint32_t swapchain_index = device.acquireNextImageKHR(graphics_ptr->GetSwapchain(),
                                                           0,
                                                           presentImageAvailableSemaphores[commandBuffer_index]).value;
@@ -1715,6 +1676,55 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
         semaphore_values_vectors.emplace_back(std::move(graphics_signal_semaphores_values));
     }
 
+    std::vector<vk::SubmitInfo> after_compute_submit_infos;
+    {   // Exposure
+        exposure_uptr->CalcNextFrameValue(frameCount, graphics_ptr->GetDeltaTimeSeconds());
+
+        vk::CommandBuffer& exposure_command_buffer = exposureCommandBuffers[commandBuffer_index];
+        exposure_command_buffer.reset();
+        exposure_command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+        exposure_uptr->ObtainImageOwnership(exposure_command_buffer, device_freezeable_buffer_index, vk::ImageLayout::eGeneral, graphicsQueue.second);
+        exposure_uptr->RecordFrameHistogram(exposure_command_buffer, device_freezeable_buffer_index, 1.f / float(viewportInRowFreezedFrameCount));
+        exposure_uptr->TransferImageOwnership(exposure_command_buffer, device_freezeable_buffer_index, vk::ImageLayout::eGeneral, graphicsQueue.second);
+
+        exposure_command_buffer.end();
+
+        vk::SubmitInfo exposure_submit_info;
+        std::unique_ptr<vk::TimelineSemaphoreSubmitInfo> exposure_timeline_semaphore_info = std::make_unique<vk::TimelineSemaphoreSubmitInfo>();
+        exposure_submit_info.pNext = exposure_timeline_semaphore_info.get();
+        exposure_submit_info.commandBufferCount = 1;
+        exposure_submit_info.pCommandBuffers = &exposure_command_buffer;
+        // exposure wait
+        auto exposure_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+        auto exposure_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
+        auto exposure_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+        // exposure_wait_semaphores->emplace_back(transformsFinishTimelineSemaphore);
+        // exposure_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
+        // exposure_wait_semaphores_values->emplace_back(frameCount + 1);
+        exposure_wait_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
+        exposure_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
+        exposure_wait_semaphores_values->emplace_back(frameCount);
+        exposure_submit_info.setWaitSemaphores(*exposure_wait_semaphores);
+        exposure_submit_info.setWaitDstStageMask(*exposure_wait_pipeline_stages);
+        exposure_timeline_semaphore_info->setWaitSemaphoreValues(*exposure_wait_semaphores_values);
+        // exposure signal
+        auto exposure_signal_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
+        auto exposure_signal_semaphores_values = std::make_unique<std::vector<uint64_t>>();
+        exposure_signal_semaphores->emplace_back(histogramFinishTimelineSemaphore);
+        exposure_signal_semaphores_values->emplace_back(frameCount);
+        exposure_submit_info.setSignalSemaphores(*exposure_signal_semaphores);
+        exposure_timeline_semaphore_info->setSignalSemaphoreValues(*exposure_signal_semaphores_values);
+
+        after_compute_submit_infos.emplace_back(exposure_submit_info);
+        timeline_semaphore_infos.emplace_back(std::move(exposure_timeline_semaphore_info));
+        semaphore_vectors.emplace_back(std::move(exposure_wait_semaphores));
+        pipelineStageFlags_vectors.emplace_back(std::move(exposure_wait_pipeline_stages));
+        semaphore_values_vectors.emplace_back(std::move(exposure_wait_semaphores_values));
+        semaphore_vectors.emplace_back(std::move(exposure_signal_semaphores));
+        semaphore_values_vectors.emplace_back(std::move(exposure_signal_semaphores_values));
+    }
+
     // Submit!
     if (before_compute_submit_infos.size())
         meshComputeQueue.first.submit(before_compute_submit_infos);
@@ -1751,25 +1761,29 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
             this_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eShaderRead;
             this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
-            ownership_obtain_buffer_barriers.emplace_back(this_barrier);
+            if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
+                ownership_obtain_buffer_barriers.emplace_back(this_barrier);
         }
         for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
             this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
             this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
-            ownership_obtain_buffer_barriers.emplace_back(this_barrier);
+            if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
+                ownership_obtain_buffer_barriers.emplace_back(this_barrier);
         }
         {
             auto this_barrier = TLASbuilder_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
             this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
             this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
-            ownership_obtain_buffer_barriers.emplace_back(this_barrier);
+            if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
+                ownership_obtain_buffer_barriers.emplace_back(this_barrier);
         }
     }
     if (frameCount > 2) {
         auto this_barrier = exposure_uptr->GetGenericImageBarrier(freezable_device_buffer_index);
         this_barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
         this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
-        ownership_obtain_image_barriers.emplace_back(this_barrier);
+        if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
+            ownership_obtain_image_barriers.emplace_back(this_barrier);
     }
 
     if (ownership_obtain_buffer_barriers.size()
@@ -2040,25 +2054,29 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
             this_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
             this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
-            ownership_transfer_memory_barriers.emplace_back(this_barrier);
+            if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
+                ownership_transfer_memory_barriers.emplace_back(this_barrier);
         }
         for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
             this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
             this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
-            ownership_transfer_memory_barriers.emplace_back(this_barrier);
+            if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
+                ownership_transfer_memory_barriers.emplace_back(this_barrier);
         }
         {
             auto this_barrier = TLASbuilder_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
             this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
             this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
-            ownership_transfer_memory_barriers.emplace_back(this_barrier);
+            if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
+                ownership_transfer_memory_barriers.emplace_back(this_barrier);
         }
     }
     {
         auto this_barrier = exposure_uptr->GetGenericImageBarrier(freezable_device_buffer_index);
         this_barrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
         this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
-        ownership_transfer_image_barriers.emplace_back(this_barrier);
+        if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
+            ownership_transfer_image_barriers.emplace_back(this_barrier);
     }
 
     if (ownership_transfer_memory_barriers.size()

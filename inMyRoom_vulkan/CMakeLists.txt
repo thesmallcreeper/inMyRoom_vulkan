@@ -27,6 +27,9 @@ else ()
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_FLAGS}  ${OPT_FLAGS}")
 endif()
 
+#add_compile_definitions(CPU_WAIT_GPU_SERIALIZED)
+add_compile_definitions(ENABLE_ASYNC_COMPUTE)
+
 add_compile_definitions(TINYGLTF_NOEXCEPTION)
 
 add_compile_definitions(VK_NO_PROTOTYPES)
@@ -36,8 +39,6 @@ add_compile_definitions(VULKAN_HPP_NO_EXCEPTIONS=1)
 
 add_compile_definitions(VMA_STATIC_VULKAN_FUNCTIONS=0)
 add_compile_definitions(VMA_DYNAMIC_VULKAN_FUNCTIONS=1)
-
-#add_compile_definitions(SHADERC_ENABLE_SHARED_CRT=ON)
 
 add_compile_definitions(GLFW_INCLUDE_NONE)
 

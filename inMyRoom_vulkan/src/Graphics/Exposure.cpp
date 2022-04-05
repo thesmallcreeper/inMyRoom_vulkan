@@ -323,6 +323,9 @@ void Exposure::ObtainImageOwnership(vk::CommandBuffer command_buffer,
                                     vk::ImageLayout source_image_layout,
                                     uint32_t source_family_index) const
 {
+    if (queue_family_index == source_family_index)
+        return;
+
     vk::ImageMemoryBarrier image_memory_barrier = GetGenericImageBarrier(image_index);
     image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
     image_memory_barrier.oldLayout = source_image_layout;
@@ -341,6 +344,9 @@ void Exposure::TransferImageOwnership(vk::CommandBuffer command_buffer,
                                       vk::ImageLayout dst_image_layout,
                                       uint32_t dst_family_index) const
 {
+    if (queue_family_index == dst_family_index)
+        return;
+
     vk::ImageMemoryBarrier image_memory_barrier = GetGenericImageBarrier(image_index);
     image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
     image_memory_barrier.newLayout = dst_image_layout;

@@ -83,13 +83,21 @@ void Graphics::InitBuffers()
 
     // Create matrices buffer
     {
+#ifdef ENABLE_ASYNC_COMPUTE
         std::vector<uint32_t> share_families_indices = {graphicsQueue.second, computeQueue.second};
+#else
+        std::vector<uint32_t> share_families_indices = {graphicsQueue.second};
+#endif
 
         vk::BufferCreateInfo buffer_create_info;
         buffer_create_info.size = sizeof(ModelMatrices) * maxInstances * 3;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
-        buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
-        buffer_create_info.setQueueFamilyIndices(share_families_indices);
+        if (share_families_indices.size() > 1) {
+            buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
+            buffer_create_info.setQueueFamilyIndices(share_families_indices);
+        } else {
+            buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+        }
 
         vma::AllocationCreateInfo buffer_allocation_create_info;
         buffer_allocation_create_info.usage = vma::MemoryUsage::eCpuToGpu;
@@ -343,11 +351,19 @@ void Graphics::EndModelsLoad()
 {
     // Flashing device
     std::cout << "Flashing device\n";
+#ifdef ENABLE_ASYNC_COMPUTE
     materialsOfPrimitives_uptr->FlashDevice(graphicsQueue);
     primitivesOfMeshes_uptr->FlashDevice({graphicsQueue, computeQueue});
     meshesOfNodes_uptr->FlashDevice({graphicsQueue, computeQueue});
     skinsOfMeshes_uptr->FlashDevice(computeQueue);
     dynamicMeshes_uptr->FlashDevice(computeQueue);
+#else
+    materialsOfPrimitives_uptr->FlashDevice(graphicsQueue);
+    primitivesOfMeshes_uptr->FlashDevice({graphicsQueue});
+    meshesOfNodes_uptr->FlashDevice({graphicsQueue});
+    skinsOfMeshes_uptr->FlashDevice(graphicsQueue);
+    dynamicMeshes_uptr->FlashDevice(graphicsQueue);
+#endif
 
     std::cout << "Initializing renderer\n";
     InitRenderer();

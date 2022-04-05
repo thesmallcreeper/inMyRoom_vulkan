@@ -885,8 +885,12 @@ void PrimitivesOfMeshes::FlashDevice(std::vector<std::pair<vk::Queue, uint32_t>>
                 | vk::BufferUsageFlagBits::eStorageBuffer
                 | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR
                 | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-        buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
-        buffer_create_info.setQueueFamilyIndices(share_families_indices);
+        if (queues.size() > 1) {
+            buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
+            buffer_create_info.setQueueFamilyIndices(share_families_indices);
+        } else {
+            buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+        }
 
         vma::AllocationCreateInfo allocation_create_info;
         allocation_create_info.usage = vma::MemoryUsage::eGpuOnly;
