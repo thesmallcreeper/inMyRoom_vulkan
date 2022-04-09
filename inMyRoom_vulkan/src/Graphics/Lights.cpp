@@ -27,7 +27,7 @@ Lights::~Lights()
     vma_allocator.destroyBuffer(lightsCombinationsBuffer, lightsCombinationsAllocation);
 }
 
-size_t Lights::AddLight()
+size_t Lights::AddLightEntity()
 {
     size_t light_index = indexCounter++;
 
@@ -37,7 +37,7 @@ size_t Lights::AddLight()
     return light_index;
 }
 
-void Lights::RemoveLightSafe(size_t index)
+void Lights::RemoveLightEntitySafe(size_t index)
 {
     assert(lights_indices_uset.find(index) != lights_indices_uset.end());
     lights_indices_uset.erase(index);
@@ -234,9 +234,29 @@ void Lights::AddLights(std::vector<LightInfo>& light_infos,
     }
 }
 
+LightsIndicesRange Lights::CreateLightsConesRange()
+{
+    std::vector<uint16_t> cone_lights_indices;
+    for (size_t i = 0; i != lightParameters.size(); ++i) {
+        const auto& this_lightParameters = lightParameters[i];
+        if (this_lightParameters.lightType == uint8_t(LightType::Cone)) {
+            cone_lights_indices.emplace_back(uint16_t(i));
+        }
+    }
+
+    LightsIndicesRange return_range = {};
+    return_range.offset = uint32_t(lightsCombinationsIndices.size());
+    return_range.size = uint32_t(cone_lights_indices.size());
+
+    std::copy(cone_lights_indices.begin(), cone_lights_indices.end(),
+              std::back_inserter(lightsCombinationsIndices));
+
+    return return_range;
+}
+
 LightsIndicesRange Lights::CreateCollidedLightsRange(const Paralgram& paralgram)
 {
-    std::vector<uint16_t> collided_lights = CollideParalgramWithLight(paralgram);
+    std::vector<uint16_t> collided_lights = CollideParalgramWithLocalLights(paralgram);
 
     LightsIndicesRange return_range = {};
     if (collided_lights.size() == 0)
@@ -279,7 +299,7 @@ void Lights::WriteLightsBuffers() const
     }
 }
 
-std::vector<uint16_t> Lights::CollideParalgramWithLight(const Paralgram &paralgram)
+std::vector<uint16_t> Lights::CollideParalgramWithLocalLights(const Paralgram &paralgram)
 {
     assert(lightsSpheres.size() < std::numeric_limits<uint16_t>::max());
 
@@ -287,8 +307,8 @@ std::vector<uint16_t> Lights::CollideParalgramWithLight(const Paralgram &paralgr
     for (size_t i = 0; i != lightsSpheres.size(); ++i) {
         const auto& this_lightParameters = lightParameters[i];
         const auto& this_sphere = lightsSpheres[i];
-        if (this_lightParameters.lightType == uint8_t(LightType::Cone)
-         || this_sphere.IntersectParalgram(paralgram)) {
+        if (this_lightParameters.lightType != uint8_t(LightType::Cone)
+         && this_sphere.IntersectParalgram(paralgram)) {
             return_vector.emplace_back(uint16_t(i));
         }
     }

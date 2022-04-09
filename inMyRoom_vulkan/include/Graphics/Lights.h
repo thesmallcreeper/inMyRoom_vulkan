@@ -30,12 +30,13 @@ public:
            size_t max_lights, size_t max_lightCombinationsSize);
     ~Lights();
 
-    size_t AddLight();
-    void RemoveLightSafe(size_t index);
+    size_t AddLightEntity();
+    void RemoveLightEntitySafe(size_t index);
 
     void PrepareNewFrame(size_t frame_index);
     void AddLights(std::vector<LightInfo>& light_infos,
                    const std::vector<ModelMatrices>& model_matrices);
+    LightsIndicesRange CreateLightsConesRange();
     LightsIndicesRange CreateCollidedLightsRange(const Paralgram& paralgram);
     void WriteLightsBuffers() const;
 
@@ -53,7 +54,7 @@ private:
     void InitBuffers();
     void InitDescriptors();
 
-    std::vector<uint16_t> CollideParalgramWithLight(const Paralgram& paralgram);
+    std::vector<uint16_t> CollideParalgramWithLocalLights(const Paralgram& paralgram);
 
 private:
     std::unordered_set<size_t> lights_indices_uset;

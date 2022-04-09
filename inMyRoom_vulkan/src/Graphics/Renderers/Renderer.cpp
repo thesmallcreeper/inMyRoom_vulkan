@@ -973,7 +973,7 @@ void Renderer::InitShadePipeline()
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
-        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 4 * 4);
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 6 * sizeof(uint32_t));
 
         pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
@@ -1508,6 +1508,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
         graphics_ptr->GetLights()->PrepareNewFrame(frameCount - viewportFreezedFrameCount);
 
         graphics_ptr->GetLights()->AddLights(lightInfos, matrices);
+        coneLightsIndicesRange = graphics_ptr->GetLights()->CreateLightsConesRange();
         primitive_instance_parameters = CreatePrimitivesInstanceParameters();
         AssortDrawInfos();
 
@@ -1951,11 +1952,13 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                           descriptor_sets,
                                           {});
 
-        std::array<uint32_t, 4> push_constants = {graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
+        std::array<uint32_t, 6> push_constants = {graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
                                                   graphics_ptr->GetSwapchainCreateInfo().imageExtent.height,
                                                   uint32_t(frameCount),
-                                                  viewportInRowFreezedFrameCount == 1 ? uint32_t(true) : uint32_t(false)};
-        command_buffer.pushConstants(fullscreenPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, 4 * 4, push_constants.data());
+                                                  viewportInRowFreezedFrameCount == 1 ? uint32_t(true) : uint32_t(false),
+                                                  coneLightsIndicesRange.offset,
+                                                  coneLightsIndicesRange.size};
+        command_buffer.pushConstants(fullscreenPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(push_constants), push_constants.data());
 
         std::vector<vk::Buffer> buffers;
         std::vector<vk::DeviceSize> offsets;

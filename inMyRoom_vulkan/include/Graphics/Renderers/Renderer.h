@@ -3,6 +3,7 @@
 
 #include "Graphics/TLASbuilder.h"
 #include "Graphics/Exposure.h"
+#include "Graphics/Lights.h"
 
 #include "Geometry/FrustumCulling.h"
 
@@ -67,6 +68,8 @@ private:
 
     std::vector<PrimitiveInstanceParameters> primitive_instance_parameters;
     std::vector<vk::AccelerationStructureInstanceKHR> TLAS_instances;
+
+    LightsIndicesRange coneLightsIndicesRange;
 
     std::pair<vk::Queue, uint32_t> graphicsQueue;
     std::pair<vk::Queue, uint32_t> meshComputeQueue;

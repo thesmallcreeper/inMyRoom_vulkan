@@ -79,14 +79,14 @@ LightCompEntity LightCompEntity::CreateComponentEntityByMap(Entity in_entity, st
 void LightCompEntity::Update(struct Lights *lights_ptr)
 {
     if (lightIndex == -1 && not toBeRemoved) {
-        lightIndex = lights_ptr->AddLight();
+        lightIndex = lights_ptr->AddLightEntity();
     }
 }
 
 void LightCompEntity::ToBeRemovedCallBack(struct Lights *lights_ptr)
 {
     if (lightIndex != -1 ) {
-        lights_ptr->RemoveLightSafe(lightIndex);
+        lights_ptr->RemoveLightEntitySafe(lightIndex);
 
         lightIndex = -1;
         lightOn = false;
