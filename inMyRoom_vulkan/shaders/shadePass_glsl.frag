@@ -372,8 +372,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     vec3 bounce_halfvector = normal_to_world_space_mat3 * bounce_halfvector_normalspace;
     vec3 bounce_light_factor = vec3(0.f);
     float ray_bounce_PDF = 0.f;
-    if (dot(ray_bounce, vertex_normal) > DOT_ANGLE_SLACK
-     && ray_bounce_normalspace.z > DOT_ANGLE_SLACK
+    if (ray_bounce_normalspace.z > DOT_ANGLE_SLACK                  // TODO: Should not check vs vertex
      && viewVector_normalspace.z > DOT_ANGLE_SLACK                  // TODO: Should I remove this constrain?
      && dot(viewVector_normalspace, bounce_halfvector_normalspace) > DOT_ANGLE_SLACK) {
         float ray_bounce_PDF_cosin = RandomCosinWeightedHemiPDF(ray_bounce_normalspace.z);
@@ -411,9 +410,9 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
             if (dot(random_halfvector, normal) <= 0.f) {
                 random_halfvector = - random_halfvector;
             }
-            if (dot(random_light_dir, vertex_normal) > DOT_ANGLE_SLACK
+            if (dot(random_light_dir, vertex_normal) > DOT_ANGLE_SLACK  // TODO: Should bounce and then try again?
              && dot(random_light_dir, normal) > DOT_ANGLE_SLACK
-             && dot(viewVector, normal) > DOT_ANGLE_SLACK           // TODO: Should I remove this constrain?
+             && dot(viewVector, normal) > DOT_ANGLE_SLACK               // TODO: Should I remove this constrain?
              && dot(viewVector, random_halfvector) > DOT_ANGLE_SLACK) {
                 rayQueryEXT query;
                 rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, origin_pos_offseted + vertexNormal_selfintersect_offset, 0.0f, random_light_dir, 100000.f);
