@@ -973,7 +973,7 @@ void Renderer::InitShadePipeline()
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
-        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 6 * sizeof(uint32_t));
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 1 * sizeof(glm::vec4) + 1 * sizeof(glm::uvec2) + 4 * sizeof(uint32_t));
 
         pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
@@ -1952,13 +1952,20 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                           descriptor_sets,
                                           {});
 
-        std::array<uint32_t, 6> push_constants = {graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
-                                                  graphics_ptr->GetSwapchainCreateInfo().imageExtent.height,
-                                                  uint32_t(frameCount),
-                                                  viewportInRowFreezedFrameCount == 1 ? uint32_t(true) : uint32_t(false),
-                                                  coneLightsIndicesRange.offset,
-                                                  coneLightsIndicesRange.size};
-        command_buffer.pushConstants(fullscreenPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(push_constants), push_constants.data());
+        struct push_constants_type{
+            std::array<glm::vec4,1> vec4_constants = {};
+            std::array<uint32_t, 6> uint_constants = {};
+        } push_constants;
+
+        push_constants.vec4_constants = {glm::vec4(graphics_ptr->GetLights()->GetUniformLuminance(), 0.f)};
+        push_constants.uint_constants = {graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
+                                         graphics_ptr->GetSwapchainCreateInfo().imageExtent.height,
+                                         uint32_t(frameCount),
+                                         viewportInRowFreezedFrameCount == 1 ? uint32_t(true) : uint32_t(false),
+                                         coneLightsIndicesRange.offset,
+                                         coneLightsIndicesRange.size};
+
+        command_buffer.pushConstants(fullscreenPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(push_constants_type), &push_constants);
 
         std::vector<vk::Buffer> buffers;
         std::vector<vk::DeviceSize> offsets;

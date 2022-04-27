@@ -50,6 +50,8 @@ public:
     size_t GetMaxLights() const {return max_lights;}
     size_t GetLightsCombinationsSize() const {return max_lightCombinationsSize;}
 
+    glm::vec3 GetUniformLuminance() const {return uniformLuminance;}
+
 private:
     void InitBuffers();
     void InitDescriptors();

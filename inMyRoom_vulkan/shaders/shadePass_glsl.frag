@@ -16,8 +16,9 @@
 #include "common/rng.glsl"
 #include "common/brdf.glsl"
 
-#define DOT_ANGLE_SLACK 0.026177f
-#define MIN_ROUGHNESS 0.03f
+#define DOT_ANGLE_SLACK 0.0087265f      // cos(89.5 degs)
+#define MIN_ROUGHNESS 0.02f
+#define USE_INCREASING_MOLLIFICATION
 
 //
 // In
@@ -96,11 +97,12 @@ layout (set = 7, binding = 1) readonly buffer lightsCombinationsBufferDescriptor
 // Push constants
 layout (push_constant) uniform PushConstants
 {
-    layout(offset = 0)  uvec2 viewportSize;
-    layout(offset = 8)  uint frameIndex;
-    layout(offset = 12) uint alpha_one;
-    layout(offset = 16) uint lightConesIndices_offset;
-    layout(offset = 20) uint lightConesIndices_size;
+    layout(offset = 0)  vec3 sky_luminance;
+    layout(offset = 16) uvec2 viewportSize;
+    layout(offset = 24) uint frameIndex;
+    layout(offset = 28) uint alpha_one;
+    layout(offset = 32) uint lightConesIndices_offset;
+    layout(offset = 36) uint lightConesIndices_size;
 };
 
 void ConfirmNonOpaqueIntersection(rayQueryEXT query)
@@ -137,15 +139,15 @@ void ConfirmNonOpaqueIntersection(rayQueryEXT query)
     }
 }
 
-vec4 SampleTextureBarycentric(vec2 barycoords, vec2 barycoordsDx, vec2 barycoordsDy,
+vec4 SampleTextureBarycentric(vec2 barycoords, BarycoordsDiffs bary_diffs,
                               vec2 uv_0, vec2 uv_1, vec2 uv_2, uint texture_index)
 {
     vec2 uv_edge_1 = uv_1 - uv_0;
     vec2 uv_edge_2 = uv_2 - uv_0;
     vec2 uv = uv_0 + barycoords.x * uv_edge_1 + barycoords.y * uv_edge_2;
 
-    vec2 uv_dx = barycoordsDx.x * uv_edge_1 + barycoordsDx.y * uv_edge_2;
-    vec2 uv_dy = barycoordsDy.x * uv_edge_1 + barycoordsDy.y * uv_edge_2;
+    vec2 uv_dx = bary_diffs.barycoordsDx.x * uv_edge_1 + bary_diffs.barycoordsDx.y * uv_edge_2;
+    vec2 uv_dy = bary_diffs.barycoordsDy.x * uv_edge_1 + bary_diffs.barycoordsDy.y * uv_edge_2;
 
     vec4 text_color = textureGrad(textures[texture_index], uv, uv_dx, uv_dy);
     return text_color;
@@ -159,12 +161,10 @@ float WeightLightBalance(float pdf, float other_pdf) {
 
 struct BounceEvaluation {
     vec3 origin;
-    vec3 originDx;
-    vec3 originDy;
+    RayDiffsOrigin originDiffs;
 
     vec3 dir;
-    vec3 dirDx;
-    vec3 dirDy;
+    RayDiffsDir dirDiffs;
 
     vec3 next_bounce_light_factor;
     vec3 light_return;
@@ -172,10 +172,12 @@ struct BounceEvaluation {
     float ray_bounce_PDF;
 };
 
-BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
-                                vec3 ray_dir, vec3 dir_dx, vec3 dir_dy,
-                                vec3 origin, vec3 origin_dx, vec3 origin_dy,
-                                vec3 light_factor, inout uint rng_state)
+BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
+                                uint primitive_instance, uint triangle_index,
+                                vec3 origin, RayDiffsOrigin ray_originDiffs,
+                                vec3 ray_dir, RayDiffsDir ray_dirDiffs,
+                                vec3 light_factor, inout float min_roughness,
+                                inout uint rng_state)
 {
     // Get indices
     uint indices_offset = primitivesInstancesParameters[primitive_instance].indicesOffset + uint(primitivesInstancesParameters[primitive_instance].indicesSetMultiplier) * triangle_index;
@@ -198,9 +200,10 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     vec3 edge_1 = pos_1 - pos_0;
     vec3 edge_2 = pos_2 - pos_0;
 
-    IntersectTriangleResult intersect_result = IntersectTriangle(pos_0, edge_1, edge_2,
-                                                                 ray_dir, dir_dx, dir_dy,
-                                                                 origin, origin_dx, origin_dy);
+    if (intersect_result.distance == -1.f) {
+        intersect_result = IntersectTriangle(pos_0, edge_1, edge_2,
+                                             ray_dir, origin);
+    }
 
     vec3 face_normal = normalize(cross(edge_1, edge_2));
     float dot_face_ray = dot(face_normal, ray_dir);
@@ -264,6 +267,10 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         vertex_color = color_0 + intersect_result.barycoords.x * color_edge_1 + intersect_result.barycoords.y * color_edge_2;
     }
 
+    // Diffs propagation
+    RayDiffsOrigin origin_rayDiffs = PropagateRayDiffsOrigin(ray_originDiffs, ray_dirDiffs, vertex_normal, ray_dir, intersect_result.distance);
+    BarycoordsDiffs barycoords_rayDiffs = ComputeBaryDiffs(origin_rayDiffs, edge_1, edge_2, face_normal);
+
     // Texture
     uint material_index = uint(primitivesInstancesParameters[primitive_instance].material);
     uint uv_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].texcoordsDescriptorIndex);
@@ -277,7 +284,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         vec2 uv_1 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_1_index * uv_stepMult + this_materialParameters.baseColorTexCoord];
         vec2 uv_2 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_2_index * uv_stepMult + this_materialParameters.baseColorTexCoord];
 
-        vec4 sample_color = SampleTextureBarycentric(intersect_result.barycoords, intersect_result.barycoordsDx, intersect_result.barycoordsDy,
+        vec4 sample_color = SampleTextureBarycentric(intersect_result.barycoords, barycoords_rayDiffs,
                                                      uv_0, uv_1, uv_2, uint(this_materialParameters.baseColorTexture));
         text_color = this_materialParameters.baseColorFactors * sample_color;
     }
@@ -289,7 +296,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         vec2 uv_1 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_1_index * uv_stepMult + this_materialParameters.normalTexCoord];
         vec2 uv_2 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_2_index * uv_stepMult + this_materialParameters.normalTexCoord];
 
-        vec3 sample_normal = SampleTextureBarycentric(intersect_result.barycoords, intersect_result.barycoordsDx, intersect_result.barycoordsDy,
+        vec3 sample_normal = SampleTextureBarycentric(intersect_result.barycoords, barycoords_rayDiffs,
                                                       uv_0, uv_1, uv_2, uint(this_materialParameters.normalTexture)).xyz;
 
         sample_normal = sample_normal * 2.f - 1.f;
@@ -304,7 +311,7 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         vec2 uv_1 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_1_index * uv_stepMult + this_materialParameters.metallicRoughnessTexCoord];
         vec2 uv_2 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_2_index * uv_stepMult + this_materialParameters.metallicRoughnessTexCoord];
 
-        roughness_metallic_pair = SampleTextureBarycentric(intersect_result.barycoords, intersect_result.barycoordsDx, intersect_result.barycoordsDy,
+        roughness_metallic_pair = SampleTextureBarycentric(intersect_result.barycoords, barycoords_rayDiffs,
                                                            uv_0, uv_1, uv_2, uint(this_materialParameters.metallicRoughnessTexture)).xy;
     }
 
@@ -318,7 +325,9 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     float rough_in_length = RoughnessToLength(roughness_in);
     float rough_length = text_normal_length * rough_in_length;
     float roughness = LengthToRoughness(rough_length);
-    roughness = roughness + (1.f - roughness) * MIN_ROUGHNESS;
+
+    // Roughness mollification
+    roughness = mix(min_roughness, 1.f, roughness);
 
     mat3 normal_to_world_space_mat3 = mat3(normal_tangent, normal_bitangent, normal);
     mat3 world_to_normal_space_mat3 = transpose(normal_to_world_space_mat3);
@@ -348,9 +357,10 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     // Bounce!
     float NdotV = dot(normal, viewVector);
 
+    float e_specular = (0.04f + (1.f - 0.04f) * pow(1.f - NdotV, 4.5f))*(NdotV + 0.2f);
+
     float color_max = max(color.x, max(color.y, color.z));
-    float e_specular = 0.04f + (1.f - 0.04f) * pow(1.f - NdotV, 4.f);
-    float e_diffuse = color_max * mix((1.f / M_PI) * (1.f - 0.04f), 0.f, metallic);
+    float e_diffuse = color_max * mix((1.f - 0.04f), 0.f, metallic);
 
     float cosine_weighted_chance = e_diffuse / (e_specular + e_diffuse);
 
@@ -358,12 +368,22 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     vec3 ray_bounce_normalspace;
     vec3 bounce_halfvector_normalspace;
     if ( u_0 < cosine_weighted_chance ) {
+        // Diffuse
+        #ifdef USE_INCREASING_MOLLIFICATION
+            min_roughness = min(min_roughness + 0.5f, 1.f);
+        #endif
+
         ray_bounce_normalspace = RandomCosinWeightedHemi(rng_state);
         bounce_halfvector_normalspace = normalize(ray_bounce_normalspace + viewVector_normalspace);
         if (bounce_halfvector_normalspace.z <= 0.f) {
             bounce_halfvector_normalspace = -bounce_halfvector_normalspace;
         }
     } else {
+        // Specular
+        #ifdef USE_INCREASING_MOLLIFICATION
+            min_roughness = min(min_roughness + 0.05f, 1.f);
+        #endif
+
         bounce_halfvector_normalspace = RandomGXXhalfvector(roughness, rng_state);
         ray_bounce_normalspace = 2.f * dot(viewVector_normalspace, bounce_halfvector_normalspace) * bounce_halfvector_normalspace - viewVector_normalspace;
     }
@@ -403,7 +423,8 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
         float angle_tan = this_light_radius;
         vec2 angle_sin_cos = normalize(vec2(angle_tan, 1.f));
 
-        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x) {
+        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x
+         && dot(viewVector, normal) > DOT_ANGLE_SLACK ) {                // TODO: Should I remove this constrain?
             vec3 random_light_dir_zaxis = RandomDirInCone(angle_sin_cos.y, rng_state);
             vec3 random_light_dir = light_dir_bitangent * random_light_dir_zaxis.x + light_dir_tangent * random_light_dir_zaxis.y + light_dir * random_light_dir_zaxis.z;
             vec3 random_halfvector = normalize(viewVector + random_light_dir);
@@ -412,7 +433,6 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
             }
             if (dot(random_light_dir, vertex_normal) > DOT_ANGLE_SLACK  // TODO: Should bounce and then try again?
              && dot(random_light_dir, normal) > DOT_ANGLE_SLACK
-             && dot(viewVector, normal) > DOT_ANGLE_SLACK               // TODO: Should I remove this constrain?
              && dot(viewVector, random_halfvector) > DOT_ANGLE_SLACK) {
                 rayQueryEXT query;
                 rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, origin_pos_offseted + vertexNormal_selfintersect_offset, 0.0f, random_light_dir, 100000.f);
@@ -463,12 +483,10 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
     BounceEvaluation return_bounce_evaluation;
 
     return_bounce_evaluation.origin = origin_pos_offseted + vertexNormal_selfintersect_offset;
-    return_bounce_evaluation.originDx = intersect_result.barycoordsDx.x * edge_1 + intersect_result.barycoordsDx.y * edge_2;
-    return_bounce_evaluation.originDy = intersect_result.barycoordsDy.x * edge_1 + intersect_result.barycoordsDy.y * edge_2;
+    return_bounce_evaluation.originDiffs = origin_rayDiffs;
 
     return_bounce_evaluation.dir = ray_bounce;
-    return_bounce_evaluation.dirDx = dir_dx - 2.f * dot(dir_dx, bounce_halfvector) * bounce_halfvector;
-    return_bounce_evaluation.dirDx = dir_dy - 2.f * dot(dir_dy, bounce_halfvector) * bounce_halfvector;
+    return_bounce_evaluation.dirDiffs = ReflectRayDiffsDir(ray_dirDiffs, bounce_halfvector);
 
     return_bounce_evaluation.next_bounce_light_factor = bounce_light_factor;
     return_bounce_evaluation.light_return = light_sum * light_factor;
@@ -480,15 +498,17 @@ BounceEvaluation EvaluateBounce(uint primitive_instance, uint triangle_index,
 
 void main()
 {
-    vec3 sky_luminance = vec3(0.7f, 0.8f, 1.f) * 8.e3f;
-
     uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameIndex);
+    float min_roughness = MIN_ROUGHNESS;
+
+    IntersectTriangleResult intersect_result;
+    intersect_result.distance = -1.f;
 
     // Read input attachment
     uvec2 frag_pair = uvec2(subpassLoad(visibilityInput));
-
     uint primitive_instance = frag_pair.x;
     uint triangle_index = frag_pair.y;
+
 
     if (primitive_instance == 0) {
         if (alpha_one != 0) {
@@ -499,34 +519,36 @@ void main()
         return;
     }
 
-    vec3 origin = vec3(0.f);
-    vec3 origin_dx = vec3(0.f);
-    vec3 origin_dy = vec3(0.f);
+    vec3 ray_origin = vec3(0.f);
+    RayDiffsOrigin ray_originDiffs;
+    ray_originDiffs.originDx = vec3(0.f);
+    ray_originDiffs.originDy = vec3(0.f);
 
     vec3 ray_dir = normalize(vert_normal);
-    vec3 ray_dir_dx = dFdx(ray_dir);
-    vec3 ray_dir_dy = dFdy(ray_dir);
+    RayDiffsDir ray_dirDiffs;
+    ray_dirDiffs.dirDx = dFdx(ray_dir);
+    ray_dirDiffs.dirDy = dFdy(ray_dir);
 
     vec3 light_factor = vec3(1.f);
     vec3 color_sum = vec3(0.f);
 
     float ray_bounce_PDF = 0.f;
 
-    uint max_depth = 6;
+    uint max_depth = 3;
     uint i = 0;
     while(true) {
-        BounceEvaluation eval = EvaluateBounce(primitive_instance, triangle_index,
-                                               ray_dir, ray_dir_dx, ray_dir_dy,
-                                               origin, origin_dx, origin_dy,
-                                               light_factor, rng_state);
+        BounceEvaluation eval = EvaluateBounce(intersect_result,
+                                               primitive_instance, triangle_index,
+                                               ray_origin, ray_originDiffs,
+                                               ray_dir, ray_dirDiffs,
+                                               light_factor, min_roughness,
+                                               rng_state);
 
-        origin = eval.origin;
-        origin_dx = eval.originDx;
-        origin_dy = eval.originDy;
+        ray_origin = eval.origin;
+        ray_originDiffs = eval.originDiffs;
 
         ray_dir = eval.dir;
-        ray_dir_dx = eval.dirDx;
-        ray_dir_dy = eval.dirDy;
+        ray_dirDiffs = eval.dirDiffs;
 
         light_factor = eval.next_bounce_light_factor;
         color_sum += eval.light_return;
@@ -539,7 +561,7 @@ void main()
         i++;
 
         rayQueryEXT query;
-        rayQueryInitializeEXT(query, topLevelAS, 0, 0xFF, origin, 0.0f, ray_dir, 100000.f);
+        rayQueryInitializeEXT(query, topLevelAS, 0, 0xFF, ray_origin, 0.0f, ray_dir, 100000.f);
         while (rayQueryProceedEXT(query)) {
             if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
                 ConfirmNonOpaqueIntersection(query);
@@ -573,6 +595,8 @@ void main()
 
             break;
         } else {
+            intersect_result.barycoords = rayQueryGetIntersectionBarycentricsEXT(query, true);
+            intersect_result.distance = rayQueryGetIntersectionTEXT(query, true);
             primitive_instance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, true) + rayQueryGetIntersectionGeometryIndexEXT(query, true);
             triangle_index = rayQueryGetIntersectionPrimitiveIndexEXT(query, true);
         }
