@@ -21,6 +21,11 @@
 #define DOT_ANGLE_SLACK 0.0087265f      // cos(89.5 degs)
 #define MIN_ROUGHNESS 0.02f
 #define USE_INCREASING_MOLLIFICATION
+#define LIGHT_THRESHOLD 0.5e6f
+
+// #define DEBUG_MIS
+
+#define INF_DIST 100000.f
 
 //
 // In
@@ -155,10 +160,11 @@ vec4 SampleTextureBarycentric(vec2 barycoords, BarycoordsDiffs bary_diffs,
     return text_color;
 }
 
+// TODO: Power of two?
 float WeightLightBalance(float pdf, float other_pdf) {
-    float pdf_squared = pdf * pdf;
-    float other_pdf_squared = other_pdf * other_pdf;
-    return pdf_squared / (pdf_squared + other_pdf_squared);
+    float pdf_weight = pdf;
+    float other_pdf_weight = other_pdf;
+    return pdf_weight / (pdf_weight + other_pdf_weight);
 }
 
 struct BounceEvaluation {
@@ -171,7 +177,8 @@ struct BounceEvaluation {
     vec3 next_bounce_light_factor;
     vec3 light_return;
 
-    float ray_bounce_PDF;
+    uint light_target;
+    vec3 light_target_contribution;
 };
 
 BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
@@ -337,7 +344,8 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     BounceEvaluation return_bounce_evaluation;
     return_bounce_evaluation.light_return = vec3(0.f);
     return_bounce_evaluation.next_bounce_light_factor = vec3(0.f);
-    return_bounce_evaluation.ray_bounce_PDF = 0.f;
+    return_bounce_evaluation.light_target = -1;
+    return_bounce_evaluation.light_target_contribution = vec3(0.f);
 
     // Viewvector / Origin
     mat3 normal_to_world_space_mat3 = mat3(normal_tangent, normal_bitangent, normal);
@@ -391,7 +399,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     if ( u_0 < diffuse_sample_chance ) {
         // Diffuse
         #ifdef USE_INCREASING_MOLLIFICATION
-            min_roughness = 0.3;
+            min_roughness = 0.4f;
         #endif
 
         ray_bounce_normalspace = RandomCosinWeightedHemi(rng_state);
@@ -399,14 +407,14 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     } else {
         // Specular
         #ifdef USE_INCREASING_MOLLIFICATION
-            min_roughness = min(min_roughness + 0.05f, 0.3f);
+            min_roughness = min(min_roughness + 0.05f, 0.4f);
         #endif
 
         bounce_halfvector_normalspace = RandomGXXhalfvector(a_roughness, rng_state);
         ray_bounce_normalspace = reflect(-viewVector_normalspace, bounce_halfvector_normalspace);
     }
 
-    vec3 ray_bounce = normal_to_world_space_mat3 * ray_bounce_normalspace;
+    vec3 ray_bounce_dir = normal_to_world_space_mat3 * ray_bounce_normalspace;
     vec3 bounce_halfvector = normal_to_world_space_mat3 * bounce_halfvector_normalspace;
     vec3 bounce_light_factor = vec3(0.f);
     float ray_bounce_PDF = 0.f;
@@ -419,7 +427,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
         ray_bounce_PDF = ray_bounce_PDF_cosin * diffuse_sample_chance + ray_bounce_PDF_GGX * (1.f - diffuse_sample_chance);
 
-        bounce_light_factor = light_factor * dot(ray_bounce, normal) * (BRDF(color.xyz, a_roughness, metallic, viewVector, ray_bounce, normal) / ray_bounce_PDF);
+        bounce_light_factor = light_factor  * BRDF(color.xyz, a_roughness, metallic, viewVector, ray_bounce_dir, normal) * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
     }
 
     // Pick light source
@@ -427,6 +435,11 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     vec3 reservoir_light_unshadowed = vec3(0.f);
     vec3 reservoir_ray_dir = vec3(0.f);
     float reservoir_ray_t_max = 0.f;
+
+    float bounce_light_weight = 0.f;
+    vec3 bounce_light_unshadowed = vec3(0.f);
+    float bounce_light_t_max = INF_DIST;
+    uint bounce_light_index = -1;
 
     /// Check light cones
     for (uint i = 0; i != lightConesIndices_size; ++i) {
@@ -446,49 +459,86 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
         if (dot(light_dir, vertex_normal) > -angle_sin_cos.x) {
             vec3 random_light_dir_zaxis = RandomDirInCone(angle_sin_cos.y, rng_state);
-            vec3 random_light_dir = light_dir_bitangent * random_light_dir_zaxis.x + light_dir_tangent * random_light_dir_zaxis.y + light_dir * random_light_dir_zaxis.z;   // TODO: Matrix
-            vec3 random_halfvector = normalize(viewVector + random_light_dir);
+            vec3 random_light_dir = light_dir_bitangent * random_light_dir_zaxis.x + light_dir_tangent * random_light_dir_zaxis.y + light_dir * random_light_dir_zaxis.z;
 
-            float random_light_dir_PDF_lightcone = RandomDirInConePDF(angle_sin_cos.y);
+            float lightcone_PDF = RandomDirInConePDF(angle_sin_cos.y);
 
             if (dot(random_light_dir, vertex_normal) > DOT_ANGLE_SLACK
              && dot(random_light_dir, normal) > DOT_ANGLE_SLACK) {
-                vec3 light_unshadowed = light_factor * BRDF(color.xyz, a_roughness, metallic, viewVector, random_light_dir, normal) * this_light_luminance * dot(normal, random_light_dir) / random_light_dir_PDF_lightcone;
-                float weight = max(light_unshadowed.r, max(light_unshadowed.g, light_unshadowed.b));
+                float random_light_dir_PDF_bounce;
+                {
+                    float NdotL = dot(normal, random_light_dir);
+
+                    vec3 random_light_halfvector = normalize(viewVector + random_light_dir);
+                    float NdotLH = dot(normal, random_light_halfvector);
+                    float VdotLH = dot(viewVector, random_light_halfvector);
+
+                    float random_light_dir_PDF_cosin = RandomCosinWeightedHemiPDF(NdotL);
+
+                    float random_light_halfvector_PDF_GGX = RandomGXXhalfvectorPDF(a_roughness, NdotLH);
+                    float random_light_dir_PDF_GGX = random_light_halfvector_PDF_GGX / (4.f * VdotLH);
+
+                    random_light_dir_PDF_bounce = random_light_dir_PDF_cosin * diffuse_sample_chance + random_light_dir_PDF_GGX * (1.f - diffuse_sample_chance);
+                }
+
+                vec3 light_unshadowed = this_light_luminance * light_factor * BRDF(color.xyz, a_roughness, metallic, viewVector, random_light_dir, normal) * dot(normal, random_light_dir) / lightcone_PDF;
+
+                float balance_factor = WeightLightBalance(lightcone_PDF, random_light_dir_PDF_bounce);
+                float weight = balance_factor * max(light_unshadowed.r, max(light_unshadowed.g, light_unshadowed.b));
 
                 bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
                 if (should_swap) {
                     reservoir_light_unshadowed = light_unshadowed;
                     reservoir_ray_dir = random_light_dir;
-                    reservoir_ray_t_max = 100000.f;
+                    reservoir_ray_t_max = INF_DIST;
                 }
+            }
+
+            // Bounce dir check for hitting light
+            if (dot(ray_bounce_dir, light_dir) > angle_sin_cos.y) {
+                vec3 light_unshadowed = this_light_luminance * bounce_light_factor;
+
+                float balance_factor = WeightLightBalance(ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
+                float weight = balance_factor * max(light_unshadowed.r, max(light_unshadowed.g, light_unshadowed.b));
+
+                bounce_light_unshadowed = light_unshadowed;
+                bounce_light_weight = weight;
+                bounce_light_t_max = INF_DIST;
+                bounce_light_index = -1;            // Cones are inhittable at BVH
             }
         }
     }
 
-/*  uint lights_count = uint(primitivesInstancesParameters[primitive_instance].lightsCombinationsCount);
-    uint lights_combinations_offset = uint(primitivesInstancesParameters[primitive_instance].lightsCombinationsOffset);
-    for (uint i = 0; i != lights_count; ++i) {
-        uint this_light_index = uint(lightsCombinations[lights_combinations_offset + i]);
-
-        vec3 this_light_luminance = lightsParameters[this_light_index].luminance;
-        float this_light_radius = lightsParameters[this_light_index].radius;
-        // length
-        // range
-        uint this_light_matricesOffset = uint(lightsParameters[this_light_index].matricesOffset);
-        uint this_light_lightType = uint(lightsParameters[this_light_index].lightType);
-    }*/
-
-    /// If its the last ray then consider sky
+    /// If its the last ray then RIS with bounce ray, else send it to next bounce hit
     if (is_last_bounce) {
-        vec3 skylight_unshadowed = bounce_light_factor * sky_luminance;
-        float weight = max(skylight_unshadowed.r, max(skylight_unshadowed.g, skylight_unshadowed.b));
+        if (bounce_light_weight != 0.f) {   // If bounce ray may hit light then merge
+            bool should_swap = UpdateReservoir(bounce_light_weight, light_reservoir, rng_state);
+            if (should_swap) {
+                reservoir_light_unshadowed = bounce_light_unshadowed;
+                reservoir_ray_dir = ray_bounce_dir;
+                reservoir_ray_t_max = bounce_light_t_max;
+            }
+        } else {                            // Else sky is behind
+            vec3 skylight_unshadowed = sky_luminance * bounce_light_factor;
+            float weight = max(skylight_unshadowed.r, max(skylight_unshadowed.g, skylight_unshadowed.b));
 
-        bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
-        if (should_swap) {
-            reservoir_light_unshadowed = skylight_unshadowed;
-            reservoir_ray_dir = ray_bounce;
-            reservoir_ray_t_max = 100000.f;
+            bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
+            if (should_swap) {
+                reservoir_light_unshadowed = skylight_unshadowed;
+                reservoir_ray_dir = ray_bounce_dir;
+                reservoir_ray_t_max = INF_DIST;
+            }
+        }
+    } else {
+        if (bounce_light_weight != 0.f) {   // If bounce ray may hit return its contibution if finds a light
+            float bounce_light_unshadowed_max = max(bounce_light_unshadowed.r, max(bounce_light_unshadowed.g, bounce_light_unshadowed.b));
+            return_bounce_evaluation.light_target = bounce_light_index;
+            return_bounce_evaluation.light_target_contribution = bounce_light_unshadowed * (bounce_light_weight / bounce_light_unshadowed_max);
+        } else {                            // Else sky is behind
+            vec3 skylight_unshadowed = sky_luminance * bounce_light_factor;
+
+            return_bounce_evaluation.light_target = -1;
+            return_bounce_evaluation.light_target_contribution = skylight_unshadowed;
         }
     }
 
@@ -496,7 +546,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     vec3 direct_light = vec3(0.f, 0.f, 0.f);
     if (reservoir_light_unshadowed != vec3(0.f))
     {
-        rayQueryEXT query;
+        rayQueryEXT query;  // TODO: Change flags
         rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, origin_pos_offseted + vertexNormal_selfintersect_offset, 0.0f, reservoir_ray_dir, reservoir_ray_t_max);
         while (rayQueryProceedEXT(query)) {
             if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
@@ -505,7 +555,15 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
         }
 
         if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
-            direct_light = reservoir_light_unshadowed * (light_reservoir.weights_sum / light_reservoir.choosen_weight);
+            float reservoir_light_unshadowed_max = max(reservoir_light_unshadowed.r, max(reservoir_light_unshadowed.g, reservoir_light_unshadowed.b));
+            vec3 light_contribution = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+
+            #ifndef DEBUG_MIS
+                direct_light = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+            #else
+                float light_contribution_max = max(light_contribution.r, max(light_contribution.g, light_contribution.b));
+                direct_light = vec3(light_contribution_max, 0.f, 0.f);
+            #endif
         }
     }
 
@@ -513,13 +571,12 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     return_bounce_evaluation.origin = origin_pos_offseted + vertexNormal_selfintersect_offset;
     return_bounce_evaluation.originDiffs = origin_rayDiffs;
 
-    return_bounce_evaluation.dir = ray_bounce;
+    return_bounce_evaluation.dir = ray_bounce_dir;
     return_bounce_evaluation.dirDiffs = ReflectRayDiffsDir(ray_dirDiffs, bounce_halfvector);
     return_bounce_evaluation.light_return = direct_light;
 
     if (!is_last_bounce) {
         return_bounce_evaluation.next_bounce_light_factor = bounce_light_factor;
-        return_bounce_evaluation.ray_bounce_PDF = ray_bounce_PDF;
     }
 
     return return_bounce_evaluation;
@@ -559,7 +616,8 @@ void main()
     vec3 light_factor = vec3(1.f);
     vec3 light_sum = vec3(0.f);
 
-    float ray_bounce_PDF = 0.f;
+    uint light_target = -1;
+    vec3 light_hit_contribution = vec3(0.f);
 
     uint i = 0;
     while(true) {
@@ -579,7 +637,8 @@ void main()
         light_factor = eval.next_bounce_light_factor;
         light_sum += eval.light_return;
 
-        ray_bounce_PDF = eval.ray_bounce_PDF;
+        light_target = eval.light_target;
+        light_hit_contribution = eval.light_target_contribution;
 
         if (light_factor == vec3(0.f))
             break;
@@ -593,9 +652,15 @@ void main()
         }
 
         if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
-            light_sum += light_factor * sky_luminance;
+            #ifndef DEBUG_MIS
+                light_sum += light_hit_contribution;
+            #else
+                float light_hit_contribution_max = max(light_hit_contribution.r, max(light_hit_contribution.g, light_hit_contribution.b));
+                light_sum += vec3(0.f, 0.f, light_hit_contribution_max);
+            #endif
             break;
         } else {
+            // TODO: does it hit light?
             intersect_result.barycoords = rayQueryGetIntersectionBarycentricsEXT(query, true);
             intersect_result.distance = rayQueryGetIntersectionTEXT(query, true);
             primitive_instance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, true) + rayQueryGetIntersectionGeometryIndexEXT(query, true);
@@ -603,6 +668,25 @@ void main()
         }
 
         i++;
+
+        bool has_inf = isinf(light_sum.r) || isinf(light_sum.g) || isinf(light_sum.b);
+        bool has_nan = isnan(light_sum.r) || isnan(light_sum.g) || isnan(light_sum.b);
+        float max_value = max(light_sum.r, max(light_sum.g, light_sum.b));
+        if (has_inf || has_nan || max_value > LIGHT_THRESHOLD) {
+            break;
+        }
+    }
+
+    // Threshold value
+    bool has_inf = isinf(light_sum.r) || isinf(light_sum.g) || isinf(light_sum.b);
+    bool has_nan = isnan(light_sum.r) || isnan(light_sum.g) || isnan(light_sum.b);
+    if (has_inf || has_nan) {
+        light_sum = vec3(0.f);
+    }
+    float max_value = max(light_sum.r, max(light_sum.g, light_sum.b));
+    if (max_value > LIGHT_THRESHOLD) {
+        float factor = LIGHT_THRESHOLD / max_value;
+        light_sum *= factor;
     }
 
     // Color out
