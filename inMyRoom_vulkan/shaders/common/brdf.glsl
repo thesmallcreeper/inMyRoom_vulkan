@@ -1,3 +1,4 @@
+#ifndef FILE_BRDF
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
@@ -7,7 +8,9 @@ float GGXdistribution(float a, float NdotH) {
     float NdotH_squared = NdotH * NdotH;
     float a_squared = a * a;
     float divisor = NdotH_squared * (a_squared - 1.f) + 1.f;
-    float D = a_squared / (M_PI * divisor * divisor);
+    float D_sqrt = (a / divisor);
+    float D = D_sqrt * D_sqrt / M_PI;
+
     return D;
 }
 
@@ -29,8 +32,7 @@ float SmithsVisibility(vec3 eye, vec3 light, vec3 normal, float a) {
     return 0.0;
 }
 
-vec3 BRDF(vec3 baseColor, float roughness, float metallic, vec3 eye, vec3 light, vec3 normal) {
-    float a = roughness * roughness;
+vec3 BRDF(vec3 baseColor, float a, float metallic, vec3 eye, vec3 light, vec3 normal) {
 
     vec3 halfvector = normalize(eye + light);
     float NdotH = dot(normal, halfvector);
@@ -46,3 +48,6 @@ vec3 BRDF(vec3 baseColor, float roughness, float metallic, vec3 eye, vec3 light,
 
     return f_diffuse + f_specular;
 }
+
+#define FILE_BRDF
+#endif

@@ -1,7 +1,11 @@
+#ifndef FILE_RNG
+
+#include "common/brdf.glsl"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
 #endif
+
 
 // Ray tracing gems 2, p. 170
 uint JenkinsHash(uint x) {
@@ -54,8 +58,7 @@ float RandomDirInConePDF(float cosMaxTheta) {
     return 1.f / (2.f * M_PI * (1.f - cosMaxTheta));
 }
 
-vec3 RandomGXXhalfvector(float roughness, inout uint rngState) {
-    float a = roughness * roughness;
+vec3 RandomGXXhalfvector(float a, inout uint rngState) {
 
     float u_0 = RandomFloat(rngState);
     float u_1 = RandomFloat(rngState);
@@ -74,15 +77,8 @@ vec3 RandomGXXhalfvector(float roughness, inout uint rngState) {
     return return_vector;
 }
 
-float RandomGXXhalfvectorPDF(float roughness, float NdotH) {
-    float a = roughness * roughness;
-
-    float a_squared = a * a;
-    float NdotH_squared = NdotH*NdotH;
-
-    float divisor = NdotH_squared * (a_squared - 1.f) + 1.f;
-    float distribution_sqrt = (a / divisor);
-    return distribution_sqrt * distribution_sqrt * (NdotH / M_PI);
+float RandomGXXhalfvectorPDF(float a, float NdotH) {
+    return GGXdistribution(a, NdotH) * NdotH;
 }
 
 vec3 RandomCosinWeightedHemi(inout uint rngState) {
@@ -104,3 +100,6 @@ vec3 RandomCosinWeightedHemi(inout uint rngState) {
 float RandomCosinWeightedHemiPDF(float NdotH) {
     return NdotH / M_PI;
 }
+
+#define FILE_RNG
+#endif

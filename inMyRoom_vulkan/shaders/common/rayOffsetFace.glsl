@@ -1,3 +1,4 @@
+#ifndef FILE_RAY_OFFSET_FACE
 
 // From: A fast and robust method for avoiding self-intersection
 // Ray tracing gems 2019
@@ -19,3 +20,6 @@ vec3 RayOffsetFace(vec3 p, vec3 n)
                        (abs(p.z) < RAY_OFFSET_ORIGIN) ? p.z + RAY_OFFSET_FLOAT_SCALE * n.z : p_i.z);
     return result;
 }
+
+#define FILE_RAY_OFFSET_FACE
+#endif

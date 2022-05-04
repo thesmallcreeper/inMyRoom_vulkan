@@ -1,3 +1,5 @@
+#ifndef FILE_INTERSECT_TRIANGLE
+
 struct IntersectTriangleResult {
     vec2 barycoords;
     float distance;
@@ -82,3 +84,5 @@ BarycoordsDiffs ComputeBaryDiffs(RayDiffsOrigin ray_originDiffs,
     return return_struct;
 }
 
+#define FILE_INTERSECT_TRIANGLE
+#endif
