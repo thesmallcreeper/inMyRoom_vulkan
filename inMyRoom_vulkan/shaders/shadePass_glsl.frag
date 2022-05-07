@@ -160,10 +160,9 @@ vec4 SampleTextureBarycentric(vec2 barycoords, BarycoordsDiffs bary_diffs,
     return text_color;
 }
 
-// TODO: Power of two?
 float WeightLightBalance(float pdf, float other_pdf) {
-    float pdf_weight = pdf;
-    float other_pdf_weight = other_pdf;
+    float pdf_weight = pdf * pdf;
+    float other_pdf_weight = other_pdf * other_pdf;
     return pdf_weight / (pdf_weight + other_pdf_weight);
 }
 
@@ -644,7 +643,7 @@ void main()
             break;
 
         rayQueryEXT query;
-        rayQueryInitializeEXT(query, topLevelAS, 0, 0xFF, ray_origin, 0.0f, ray_dir, 100000.f);
+        rayQueryInitializeEXT(query, topLevelAS, 0, 0xFF, ray_origin, 0.0f, ray_dir, INF_DIST);
         while (rayQueryProceedEXT(query)) {
             if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
                 ConfirmNonOpaqueIntersection(query);

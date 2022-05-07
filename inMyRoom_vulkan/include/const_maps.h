@@ -56,3 +56,12 @@ inline const std::unordered_map<glTFmode, vk::PrimitiveTopology> glTFmodeToPrimi
     {glTFmode::triangle_strip, vk::PrimitiveTopology::eTriangleStrip},
     {glTFmode::triangle_fan, vk::PrimitiveTopology::eTriangleFan}
 };
+
+inline const std::unordered_map<uint32_t, vk::SampleCountFlagBits> samplesCountToVulkanSampleCountFlag_map
+{
+        {1, vk::SampleCountFlagBits::e1},
+        {2, vk::SampleCountFlagBits::e2},
+        {4, vk::SampleCountFlagBits::e4},
+        {8, vk::SampleCountFlagBits::e8},
+        {16, vk::SampleCountFlagBits::e16}
+};

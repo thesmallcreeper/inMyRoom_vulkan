@@ -108,7 +108,7 @@ void Renderer::InitBuffers()
 
     // full-screen pass
     {
-        fullscreenBufferPartSize = sizeof(glm::vec4) * 8 ;
+        fullscreenBufferPartSize = sizeof(glm::vec4) * 6 ;
 
         vk::BufferCreateInfo buffer_create_info;
         buffer_create_info.size = fullscreenBufferPartSize * 3;
@@ -992,14 +992,14 @@ void Renderer::InitShadePipeline()
         uint32_t location_index = 0;
 
         vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                       uint32_t(4 * sizeof(float)),
+                                                       uint32_t(sizeof(glm::vec4)),
                                                        vk::VertexInputRate::eVertex);
         vertex_input_attribute_descriptions.emplace_back(location_index++, binding_index,
                                                          vk::Format::eR32G32B32A32Sfloat,
                                                          0);
         vertex_input_attribute_descriptions.emplace_back(location_index++, binding_index,
                                                          vk::Format::eR32G32B32A32Sfloat,
-                                                         uint32_t(4 * 4 * sizeof(float)));
+                                                         uint32_t(3 * sizeof(glm::vec4)));
 
         ++binding_index;
 
@@ -1314,7 +1314,7 @@ void Renderer::InitToneMapPipeline()
         uint32_t location_index = 0;
 
         vertex_input_binding_descriptions.emplace_back(binding_index,
-                                                       uint32_t(4 * sizeof(float)),
+                                                       uint32_t(sizeof(glm::vec4)),
                                                        vk::VertexInputRate::eVertex);
         vertex_input_attribute_descriptions.emplace_back(location_index++, binding_index,
                                                          vk::Format::eR32G32B32A32Sfloat,
@@ -1975,7 +1975,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
         command_buffer.bindVertexBuffers(0, buffers, offsets);
 
-        command_buffer.draw(4, 1, 0, 0);
+        command_buffer.draw(3, 1, 0, 0);
     }
 
     command_buffer.nextSubpass(vk::SubpassContents::eInline);
@@ -2051,7 +2051,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
         command_buffer.bindVertexBuffers(0, buffers, offsets);
 
-        command_buffer.draw(4, 1, 0, 0);
+        command_buffer.draw(3, 1, 0, 0);
     }
 
     command_buffer.endRenderPass();
@@ -2282,7 +2282,7 @@ void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
     }
 
     {
-        std::array<std::array<glm::vec4, 4>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
+        std::array<std::array<glm::vec4, 3>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
                                                                viewport.GetFullscreenpassTriangleNormals()};
 
         memcpy((std::byte *) (fullscreenAllocInfo.pMappedData) + buffer_index * fullscreenBufferPartSize,

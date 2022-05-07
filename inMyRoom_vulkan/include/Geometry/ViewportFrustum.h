@@ -32,8 +32,8 @@ public:
 #ifndef GAME_DLL
     std::array<Plane, 6> GetWorldSpacePlanesOfFrustum() const;
 
-    std::array<glm::vec4, 4> GetFullscreenpassTriangleNormals() const;
-    std::array<glm::vec4, 4> GetFullscreenpassTrianglePos() const;
+    std::array<glm::vec4, 3> GetFullscreenpassTriangleNormals() const;
+    std::array<glm::vec4, 3> GetFullscreenpassTrianglePos() const;
 #endif
 
 //    ViewportFrustum& operator = (const ViewportFrustum& t);

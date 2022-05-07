@@ -114,34 +114,49 @@ std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
     return planes;
 }
 
-std::array<glm::vec4, 4> ViewportFrustum::GetFullscreenpassTriangleNormals() const
+std::array<glm::vec4, 3> ViewportFrustum::GetFullscreenpassTriangleNormals() const
 {
     glm::vec4 origin = glm::vec4(0.f, 0.f, 0.f, 1.f);
 
     glm::mat4 pers_matrix = GetPerspectiveMatrix();
     glm::mat4 inv_pers_matrix = glm::inverse(pers_matrix);
 
-    std::array<glm::vec4, 4> triangle_pos = GetFullscreenpassTrianglePos();
-
-    std::array<glm::vec4, 4> return_array = {};
-    for (size_t i = 0; i != triangle_pos.size(); ++i) {
-        const glm::vec4& this_pos = triangle_pos[i];
-
-        glm::vec4 backproject_pos = inv_pers_matrix * this_pos;
+    glm::vec4 down_right_normal;
+    {
+        glm::vec4 backproject_pos = inv_pers_matrix * glm::vec4(1.f, 1.f, 0.5f, 1.f);
         backproject_pos /= backproject_pos.w;
 
-        return_array[i] = glm::normalize(backproject_pos - origin);
+        down_right_normal = glm::normalize(backproject_pos - origin);
     }
+
+    glm::vec4 down_left_normal;
+    {
+        glm::vec4 backproject_pos = inv_pers_matrix * glm::vec4(-1.f, 1.f, 0.5f, 1.f);
+        backproject_pos /= backproject_pos.w;
+
+        down_left_normal = glm::normalize(backproject_pos - origin);
+    }
+
+    glm::vec4 upper_left_normal;
+    {
+        glm::vec4 backproject_pos = inv_pers_matrix * glm::vec4(-1.f, -1.f, 0.5f, 1.f);
+        backproject_pos /= backproject_pos.w;
+
+        upper_left_normal = glm::normalize(backproject_pos - origin);
+    }
+
+    std::array<glm::vec4, 3> return_array = {2.f * down_right_normal - down_left_normal,
+                                             down_left_normal,
+                                             2.f * upper_left_normal - down_left_normal};
 
     return return_array;
 }
 
-std::array<glm::vec4, 4> ViewportFrustum::GetFullscreenpassTrianglePos() const
+std::array<glm::vec4, 3> ViewportFrustum::GetFullscreenpassTrianglePos() const
 {
-    std::array<glm::vec4, 4> return_array = {glm::vec4( 1.f,  1.f, 0.5f, 1.f),
-                                             glm::vec4(-1.f,  1.f, 0.5f, 1.f),
-                                             glm::vec4(-1.f, -1.f, 0.5f, 1.f),
-                                             glm::vec4( 1.f, -1.f, 0.5f, 1.f)};
+    std::array<glm::vec4, 3> return_array = {glm::vec4( 3.f,  1.f, 0.5f, 1.f),  // down-right vector (offscreen)
+                                             glm::vec4(-1.f,  1.f, 0.5f, 1.f),  // down-left  vector (offscreen)
+                                             glm::vec4(-1.f, -3.f, 0.5f, 1.f)}; // upper-left vector (offscreen)
 
     return return_array;
 }
