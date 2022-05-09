@@ -12,7 +12,11 @@ layout (set = 0, binding = 0) buffer histogramBuffer {
     Histogram histogram;
 };
 
+#ifdef MULTISAMPLED_INPUT
+layout (set = 0, binding = 1, rgba32f) uniform readonly image2DMS image_input;
+#else
 layout (set = 0, binding = 1, rgba32f) uniform readonly image2D image_input;
+#endif
 
 // Shared
 shared Histogram local_histograms[LOCAL_SIZE_X/WAVE_SIZE];
@@ -23,15 +27,17 @@ layout (push_constant) uniform PushConstants
 {
     uint size_x;
     uint size_y;
+    uint framesCount;
 
     float min_luminance_log2;
     float max_luminance_log2;
-    float frameCountFactor;
 };
 
 
 void main()
 {
+    uint frameIndex = framesCount - 1;
+
     uint subgroups = LOCAL_SIZE_X / WAVE_SIZE;
     uint subgroup_id = gl_LocalInvocationID.x / WAVE_SIZE;
     uint subgroup_invocation_id = gl_LocalInvocationID.x - subgroup_id * WAVE_SIZE;
@@ -49,16 +55,45 @@ void main()
         for (uint x = subgroup_invocation_id; x < size_x; x += WAVE_SIZE) {
             ivec2 coords = ivec2(x, y);
 
-            vec4 in_color = imageLoad(image_input, coords);
+            vec3 rgb_values = vec3(0.f);
+            #ifdef MULTISAMPLED_INPUT
+                uint max_samples_points = min(MULTISAMPLED_INPUT, framesCount);
+                for (int i = 0; i != max_samples_points; ++i) {
+                    vec4 in_color = imageLoad(image_input, coords, i);
 
-            float scale = frameCountFactor;
-            #ifdef CHECK_ALPHA
-                float alpha = in_color.a;
-                if (alpha == 1.f) {
-                    scale = 1.f;
+                    uint complete_cycles = frameIndex / MULTISAMPLED_INPUT;
+                    uint cycle_modulo = frameIndex % MULTISAMPLED_INPUT;
+
+                    uint evals_count = complete_cycles + ((i <= cycle_modulo)? 1 : 0);
+                    float this_frameCountFactor = 1.f / float(evals_count);
+
+                    #ifdef CHECK_ALPHA
+                        float alpha = in_color.a;
+                        if (alpha == 1.f) {
+                            rgb_values += in_color.xyz;
+                        } else {
+                            rgb_values += this_frameCountFactor * in_color.xyz;
+                        }
+                    #else
+                        rgb_values += this_frameCountFactor * in_color.xyz;
+                    #endif
                 }
+                rgb_values /= float(max_samples_points);
+            #else
+                float frameCountFactor = 1.f / float(framesCount);
+                vec4 in_color = imageLoad(image_input, coords);
+                #ifdef CHECK_ALPHA
+                    float alpha = in_color.a;
+                    if (alpha == 1.f) {
+                        rgb_values = in_color.xyz;
+                    } else {
+                        rgb_values = frameCountFactor * in_color.xyz;
+                    }
+                #else
+                    rgb_values = frameCountFactor * in_color.xyz;
+                #endif
             #endif
-            vec3 rgb_values = scale * in_color.xyz;
+
             float max_value = max(rgb_values.x, max(rgb_values.y, rgb_values.z));
 
             float max_value_log2 = log2(max_value);

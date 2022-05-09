@@ -56,6 +56,8 @@ private:
 
     void WriteInitHostBuffers(uint32_t buffer_index) const;
 private:
+    const vk::SampleCountFlagBits samplesCountFlagBits;
+
     ViewportFrustum         viewport;
     std::vector<ModelMatrices> matrices;
     std::vector<LightInfo>  lightInfos;

@@ -82,7 +82,7 @@ CameraCompEntity CameraCompEntity::CreateComponentEntityByMap(const Entity in_en
         // "GlobalDirection",   globalDirection         = vec4.xyz      (optional-default  0, 0, 1)
         glm::vec3 direction = glm::vec3(0.f, 0.f, 1.f);
         {
-            auto search = in_map.vec4Map.find("globalDirection");
+            auto search = in_map.vec4Map.find("GlobalDirection");
             if (search != in_map.vec4Map.end())
                 direction = glm::vec3(search->second.x, search->second.y, search->second.z);
         }

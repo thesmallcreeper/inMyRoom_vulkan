@@ -8,10 +8,10 @@
 struct ExposureComputePushConstants {
     uint32_t size_x;
     uint32_t size_y;
+    uint32_t frame_count;
 
     float min_luminance_log2;
     float max_luminance_log2;
-    float scale;
 };
 
 class Graphics;
@@ -46,7 +46,7 @@ public:
 
     void RecordFrameHistogram(vk::CommandBuffer command_buffer,
                               uint32_t image_index,
-                              float scale = 1.f) const;
+                              uint32_t frames_sum = 1) const;
 
 private:
     void InitBuffers();

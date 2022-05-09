@@ -12,11 +12,12 @@ Renderer::Renderer(class Graphics* in_graphics_ptr,
       graphicsQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
 #ifdef ENABLE_ASYNC_COMPUTE
       meshComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[0]),
-      exposureComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[1])
+      exposureComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[1]),
 #else
       meshComputeQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
-      exposureComputeQueue(graphics_ptr->GetQueuesList().graphicsQueues[0])
+      exposureComputeQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
 #endif
+      samplesCountFlagBits(samplesCountToVulkanSampleCountFlag_map.find(1)->second)
 {
     InitBuffers();
     InitImages();
@@ -140,7 +141,7 @@ void Renderer::InitImages()
         depthImageCreateInfo.extent.depth = 1;
         depthImageCreateInfo.mipLevels = 1;
         depthImageCreateInfo.arrayLayers = 1;
-        depthImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        depthImageCreateInfo.samples = samplesCountFlagBits;
         depthImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
         depthImageCreateInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
         depthImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
@@ -177,7 +178,7 @@ void Renderer::InitImages()
         visibilityImageCreateInfo.extent.depth = 1;
         visibilityImageCreateInfo.mipLevels = 1;
         visibilityImageCreateInfo.arrayLayers = 1;
-        visibilityImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        visibilityImageCreateInfo.samples = samplesCountFlagBits;
         visibilityImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
         visibilityImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment;
         visibilityImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
@@ -213,7 +214,7 @@ void Renderer::InitImages()
         photometricResultImageCreateInfo.extent.depth = 1;
         photometricResultImageCreateInfo.mipLevels = 1;
         photometricResultImageCreateInfo.arrayLayers = 1;
-        photometricResultImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        photometricResultImageCreateInfo.samples = samplesCountFlagBits;
         photometricResultImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
         photometricResultImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment
                 | vk::ImageUsageFlagBits::eInputAttachment
@@ -437,7 +438,7 @@ void Renderer::InitRenderpasses()
     vk::AttachmentDescription attachment_descriptions[4];
 
     attachment_descriptions[0].format = visibilityImageCreateInfo.format;
-    attachment_descriptions[0].samples = vk::SampleCountFlagBits::e1;
+    attachment_descriptions[0].samples = samplesCountFlagBits;
     attachment_descriptions[0].loadOp = vk::AttachmentLoadOp::eClear;
     attachment_descriptions[0].storeOp = vk::AttachmentStoreOp::eDontCare;
     attachment_descriptions[0].stencilLoadOp = vk::AttachmentLoadOp::eClear;
@@ -446,7 +447,7 @@ void Renderer::InitRenderpasses()
     attachment_descriptions[0].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
     attachment_descriptions[1].format = depthImageCreateInfo.format;
-    attachment_descriptions[1].samples = vk::SampleCountFlagBits::e1;
+    attachment_descriptions[1].samples = samplesCountFlagBits;
     attachment_descriptions[1].loadOp = vk::AttachmentLoadOp::eClear;
     attachment_descriptions[1].storeOp = vk::AttachmentStoreOp::eDontCare;
     attachment_descriptions[1].stencilLoadOp = vk::AttachmentLoadOp::eClear;
@@ -455,7 +456,7 @@ void Renderer::InitRenderpasses()
     attachment_descriptions[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
     attachment_descriptions[2].format = photometricResultImageCreateInfo.format;
-    attachment_descriptions[2].samples = vk::SampleCountFlagBits::e1;
+    attachment_descriptions[2].samples = samplesCountFlagBits;
     attachment_descriptions[2].loadOp = vk::AttachmentLoadOp::eLoad;
     attachment_descriptions[2].storeOp = vk::AttachmentStoreOp::eStore;
     attachment_descriptions[2].stencilLoadOp = vk::AttachmentLoadOp::eLoad;
@@ -872,7 +873,7 @@ void Renderer::InitPrimitivesSet()
             // PipelineMultisampleStateCreateInfo
             vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
             multisample_state_create_info.sampleShadingEnable = VK_FALSE;
-            multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
+            multisample_state_create_info.rasterizationSamples = samplesCountFlagBits;
             multisample_state_create_info.minSampleShading = 1.0f;
             multisample_state_create_info.pSampleMask = nullptr;
             multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
@@ -957,6 +958,10 @@ void Renderer::InitShadePipeline()
     shadersDefinitionStringPairs.emplace_back("MATERIALS_PARAMETERS_COUNT", std::to_string(graphics_ptr->GetMaterialsOfPrimitives()->GetMaterialsCount()));
     shadersDefinitionStringPairs.emplace_back("MAX_LIGHTS_COUNT", std::to_string(graphics_ptr->GetLights()->GetMaxLights()));
     shadersDefinitionStringPairs.emplace_back("MAX_COMBINATIONS_SIZE", std::to_string(graphics_ptr->GetLights()->GetLightsCombinationsSize()));
+    if (samplesCountFlagBits != vk::SampleCountFlagBits::e1) {
+        shadersDefinitionStringPairs.emplace_back("MULTISAMPLED_INPUT", vk::to_string(samplesCountFlagBits));
+        shadersDefinitionStringPairs.emplace_back("MULTISAMPLED_OUTPUT", vk::to_string(samplesCountFlagBits));
+    }
 
     {   // Pipeline layout fullscreen
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -973,7 +978,7 @@ void Renderer::InitShadePipeline()
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
-        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 1 * sizeof(glm::vec4) + 1 * sizeof(glm::uvec2) + 4 * sizeof(uint32_t));
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 0, 1 * sizeof(glm::vec4) + 1 * sizeof(glm::uvec2) + 3 * sizeof(uint32_t));
 
         pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
@@ -1046,7 +1051,7 @@ void Renderer::InitShadePipeline()
         // PipelineMultisampleStateCreateInfo
         vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
         multisample_state_create_info.sampleShadingEnable = VK_FALSE;
-        multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
+        multisample_state_create_info.rasterizationSamples = samplesCountFlagBits;
         multisample_state_create_info.minSampleShading = 1.0f;
         multisample_state_create_info.pSampleMask = nullptr;
         multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
@@ -1118,6 +1123,8 @@ void Renderer::InitShadePipeline()
 
 void Renderer::InitLightsPipeline()
 {
+    printf("-Initializing \"Light-draw Pass\" pipeline\n");
+
     std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
     shadersDefinitionStringPairs.emplace_back("DIRECTIONAL_LIGHT", "");
     shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
@@ -1208,7 +1215,7 @@ void Renderer::InitLightsPipeline()
         // PipelineMultisampleStateCreateInfo
         vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
         multisample_state_create_info.sampleShadingEnable = VK_FALSE;
-        multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
+        multisample_state_create_info.rasterizationSamples = samplesCountFlagBits;
         multisample_state_create_info.minSampleShading = 1.0f;
         multisample_state_create_info.pSampleMask = nullptr;
         multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
@@ -1286,6 +1293,9 @@ void Renderer::InitToneMapPipeline()
     shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_SET", std::to_string(0));
     shadersDefinitionStringPairs.emplace_back("INPUT_ATTACHMENT_BIND", std::to_string(1));
     shadersDefinitionStringPairs.emplace_back("CHECK_ALPHA", "");
+    if (samplesCountFlagBits != vk::SampleCountFlagBits::e1) {
+        shadersDefinitionStringPairs.emplace_back("MULTISAMPLED_INPUT", vk::to_string(samplesCountFlagBits));
+    }
 
     {   // Pipeline layout tone map
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -1686,7 +1696,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
         exposure_command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
         exposure_uptr->ObtainImageOwnership(exposure_command_buffer, device_freezeable_buffer_index, vk::ImageLayout::eGeneral, graphicsQueue.second);
-        exposure_uptr->RecordFrameHistogram(exposure_command_buffer, device_freezeable_buffer_index, 1.f / float(viewportInRowFreezedFrameCount));
+        exposure_uptr->RecordFrameHistogram(exposure_command_buffer, device_freezeable_buffer_index, viewportInRowFreezedFrameCount);
         exposure_uptr->TransferImageOwnership(exposure_command_buffer, device_freezeable_buffer_index, vk::ImageLayout::eGeneral, graphicsQueue.second);
 
         exposure_command_buffer.end();
@@ -1954,14 +1964,13 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
         struct push_constants_type{
             std::array<glm::vec4,1> vec4_constants = {};
-            std::array<uint32_t, 6> uint_constants = {};
+            std::array<uint32_t, 5> uint_constants = {};
         } push_constants;
 
         push_constants.vec4_constants = {glm::vec4(graphics_ptr->GetLights()->GetUniformLuminance(), 0.f)};
         push_constants.uint_constants = {graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
                                          graphics_ptr->GetSwapchainCreateInfo().imageExtent.height,
-                                         uint32_t(frameCount),
-                                         viewportInRowFreezedFrameCount == 1 ? uint32_t(true) : uint32_t(false),
+                                         uint32_t(viewportInRowFreezedFrameCount - 1),
                                          coneLightsIndicesRange.offset,
                                          coneLightsIndicesRange.size};
 
@@ -2040,8 +2049,14 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                           descriptor_sets,
                                           {});
 
-        std::array<float, 2> push_constants = { 1.f / float(viewportInRowFreezedFrameCount), exposure_uptr->GetCurrectScale() };
-        command_buffer.pushConstants(toneMapPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, 8, push_constants.data());
+        struct push_constants_type{
+            std::array<uint32_t ,1> uint_constants = {};
+            std::array<float, 1> float_constants = {};
+        } push_constants;
+
+        push_constants.uint_constants[0] = viewportInRowFreezedFrameCount;
+        push_constants.float_constants[0] = exposure_uptr->GetCurrectScale();
+        command_buffer.pushConstants(toneMapPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(push_constants_type), &push_constants);
 
         std::vector<vk::Buffer> buffers;
         std::vector<vk::DeviceSize> offsets;

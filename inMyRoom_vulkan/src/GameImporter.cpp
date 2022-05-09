@@ -148,7 +148,12 @@ void GameImporter::AddFabs()
             }
         }
 
-        fabs_umap.emplace(this_fab_name, std::move(this_fab));
+        auto search = fabs_umap.find(this_fab_name);
+        if (search == fabs_umap.end()) {
+            fabs_umap.emplace(this_fab_name, std::move(this_fab));
+        } else {
+            search->second = std::move(this_fab);
+        }
     }
 }
 

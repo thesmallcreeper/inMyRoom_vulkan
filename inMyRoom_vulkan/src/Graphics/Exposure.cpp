@@ -154,6 +154,8 @@ void Exposure::InitPipeline()
         definitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(localSize));
         if (checkAlpha)
             definitionStringPairs.emplace_back("CHECK_ALPHA", "");
+        if (std::get<2>(images[0]).samples != vk::SampleCountFlagBits::e1)
+            definitionStringPairs.emplace_back("MULTISAMPLED_INPUT", vk::to_string(std::get<2>(images[0]).samples));
 
         ShadersSpecs shaders_specs = {"Histogram Shader", definitionStringPairs};
         ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
@@ -239,7 +241,7 @@ float Exposure::CalculateHistogram(Histogram histogram) const
     return float(std::pow(2., illuminance_average_log2));
 }
 
-void Exposure::RecordFrameHistogram(vk::CommandBuffer command_buffer, uint32_t image_index, float scale) const
+void Exposure::RecordFrameHistogram(vk::CommandBuffer command_buffer, uint32_t image_index, uint32_t frames_sum) const
 {
     uint32_t hostVisible_buffer_index = frameCount % 3;
 
@@ -271,9 +273,9 @@ void Exposure::RecordFrameHistogram(vk::CommandBuffer command_buffer, uint32_t i
         ExposureComputePushConstants push_constants = {};
         push_constants.size_x = std::get<2>(images[0]).extent.width;
         push_constants.size_y = std::get<2>(images[0]).extent.height;
+        push_constants.frame_count = frames_sum;
         push_constants.min_luminance_log2 = std::log2f(minLuminance);
         push_constants.max_luminance_log2 = std::log2f(maxLuminance);
-        push_constants.scale = scale;
 
         command_buffer.pushConstants(histogramPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(ExposureComputePushConstants), &push_constants);
 
