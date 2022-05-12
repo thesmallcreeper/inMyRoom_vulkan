@@ -17,7 +17,7 @@ public:
 
     ~TLASbuilder();
 
-    vk::DescriptorSet GetDescriptorSet(uint32_t index) {return TLASdescriptorSets[index];}
+    vk::DescriptorSet GetDescriptorSet(uint32_t frame_index) {return TLASdescriptorSets[frame_index % 2];}
     vk::DescriptorSetLayout GetDescriptorSetLayout() {return TLASdescriptorSetLayout;}
 
     vk::BufferMemoryBarrier GetGenericTLASrangesBarrier(uint32_t buffer_index) const;

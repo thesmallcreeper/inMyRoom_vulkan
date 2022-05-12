@@ -65,7 +65,7 @@ void Graphics::InitBuffers()
     // Create camera buffer
     {
         vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = sizeof(glm::mat4) * 3 * 3;
+        buffer_create_info.size = sizeof(glm::mat4) * 3 * 4;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
         buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
 
@@ -90,7 +90,7 @@ void Graphics::InitBuffers()
 #endif
 
         vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = sizeof(ModelMatrices) * maxInstances * 3;
+        buffer_create_info.size = sizeof(ModelMatrices) * maxInstances * 4;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
         if (share_families_indices.size() > 1) {
             buffer_create_info.sharingMode = vk::SharingMode::eConcurrent;
@@ -116,36 +116,48 @@ void Graphics::InitDescriptors()
 {
     {   // Create descriptor pool
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eUniformBuffer, 3);
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 3);
-        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 6,
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eUniformBuffer, 8);
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 8);
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 8,
                                                                  descriptor_pool_sizes);
 
         descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
     }
 
     {   // Create camera layout
+        std::vector<vk::DescriptorSetLayoutBinding> buffer_bindings;
+
         vk::DescriptorSetLayoutBinding buffer_binding;
-        buffer_binding.binding = 0;
         buffer_binding.descriptorType = vk::DescriptorType::eUniformBuffer;
         buffer_binding.descriptorCount = 1;
         buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex
                 | vk::ShaderStageFlagBits::eFragment;
 
-        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &buffer_binding);
+        buffer_binding.binding = 0;
+        buffer_bindings.emplace_back(buffer_binding);
+        buffer_binding.binding = 1;
+        buffer_bindings.emplace_back(buffer_binding);
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, buffer_bindings);
         cameraDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
     }
 
     {   // Create matrices layout
+        std::vector<vk::DescriptorSetLayoutBinding> buffer_bindings;
+
         vk::DescriptorSetLayoutBinding buffer_binding;
-        buffer_binding.binding = 0;
         buffer_binding.descriptorType = vk::DescriptorType::eStorageBuffer;
         buffer_binding.descriptorCount = 1;
         buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex
                 | vk::ShaderStageFlagBits::eFragment
                 | vk::ShaderStageFlagBits::eCompute;
 
-        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, 1, &buffer_binding);
+        buffer_binding.binding = 0;
+        buffer_bindings.emplace_back(buffer_binding);
+        buffer_binding.binding = 1;
+        buffer_bindings.emplace_back(buffer_binding);
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, buffer_bindings);
         matricesDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
     }
 
@@ -154,6 +166,8 @@ void Graphics::InitDescriptors()
         layouts.emplace_back(cameraDescriptorSetLayout);
         layouts.emplace_back(cameraDescriptorSetLayout);
         layouts.emplace_back(cameraDescriptorSetLayout);
+        layouts.emplace_back(cameraDescriptorSetLayout);
+        layouts.emplace_back(matricesDescriptorSetLayout);
         layouts.emplace_back(matricesDescriptorSetLayout);
         layouts.emplace_back(matricesDescriptorSetLayout);
         layouts.emplace_back(matricesDescriptorSetLayout);
@@ -163,49 +177,89 @@ void Graphics::InitDescriptors()
         cameraDescriptorSets[0] = descriptor_sets[0];
         cameraDescriptorSets[1] = descriptor_sets[1];
         cameraDescriptorSets[2] = descriptor_sets[2];
-        matricesDescriptorSets[0] = descriptor_sets[3];
-        matricesDescriptorSets[1] = descriptor_sets[4];
-        matricesDescriptorSets[2] = descriptor_sets[5];
+        cameraDescriptorSets[3] = descriptor_sets[3];
+        matricesDescriptorSets[0] = descriptor_sets[4];
+        matricesDescriptorSets[1] = descriptor_sets[5];
+        matricesDescriptorSets[2] = descriptor_sets[6];
+        matricesDescriptorSets[3] = descriptor_sets[7];
     }
 
     {   // Writing descriptor set
         std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
         std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> descriptor_buffer_infos_uptrs;
 
-        for (size_t i = 0; i != 3; ++i) {
-            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
-            descriptor_buffer_info_uptr->buffer = cameraBuffer;
-            descriptor_buffer_info_uptr->offset = i * 3 * sizeof(glm::mat4);
-            descriptor_buffer_info_uptr->range  = 3 * sizeof(glm::mat4);
+        for (size_t i = 0; i != 4; ++i) {
+            {
+                auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+                descriptor_buffer_info_uptr->buffer = cameraBuffer;
+                descriptor_buffer_info_uptr->offset = i * 3 * sizeof(glm::mat4);
+                descriptor_buffer_info_uptr->range = 3 * sizeof(glm::mat4);
 
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = cameraDescriptorSets[i];
-            write_descriptor_set.dstBinding = 0;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eUniformBuffer;
-            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+                vk::WriteDescriptorSet write_descriptor_set;
+                write_descriptor_set.dstSet = cameraDescriptorSets[i];
+                write_descriptor_set.dstBinding = 0;
+                write_descriptor_set.dstArrayElement = 0;
+                write_descriptor_set.descriptorCount = 1;
+                write_descriptor_set.descriptorType = vk::DescriptorType::eUniformBuffer;
+                write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
 
-            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
+                descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+                writes_descriptor_set.emplace_back(write_descriptor_set);
+            }
+            {
+                auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+                descriptor_buffer_info_uptr->buffer = cameraBuffer;
+                descriptor_buffer_info_uptr->offset = ((i - 1) % 4) * 3 * sizeof(glm::mat4);
+                descriptor_buffer_info_uptr->range = 3 * sizeof(glm::mat4);
+
+                vk::WriteDescriptorSet write_descriptor_set;
+                write_descriptor_set.dstSet = cameraDescriptorSets[i];
+                write_descriptor_set.dstBinding = 1;
+                write_descriptor_set.dstArrayElement = 0;
+                write_descriptor_set.descriptorCount = 1;
+                write_descriptor_set.descriptorType = vk::DescriptorType::eUniformBuffer;
+                write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+
+                descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+                writes_descriptor_set.emplace_back(write_descriptor_set);
+            }
         }
 
-        for (size_t i = 0; i != 3; ++i) {
-            auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
-            descriptor_buffer_info_uptr->buffer = matricesBuffer;
-            descriptor_buffer_info_uptr->offset = i * sizeof(ModelMatrices) * maxInstances;
-            descriptor_buffer_info_uptr->range  = sizeof(ModelMatrices) * maxInstances;
+        for (size_t i = 0; i != 4; ++i) {
+            {
+                auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+                descriptor_buffer_info_uptr->buffer = matricesBuffer;
+                descriptor_buffer_info_uptr->offset = i * sizeof(ModelMatrices) * maxInstances;
+                descriptor_buffer_info_uptr->range = sizeof(ModelMatrices) * maxInstances;
 
-            vk::WriteDescriptorSet write_descriptor_set;
-            write_descriptor_set.dstSet = matricesDescriptorSets[i];
-            write_descriptor_set.dstBinding = 0;
-            write_descriptor_set.dstArrayElement = 0;
-            write_descriptor_set.descriptorCount = 1;
-            write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
-            write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+                vk::WriteDescriptorSet write_descriptor_set;
+                write_descriptor_set.dstSet = matricesDescriptorSets[i];
+                write_descriptor_set.dstBinding = 0;
+                write_descriptor_set.dstArrayElement = 0;
+                write_descriptor_set.descriptorCount = 1;
+                write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+                write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
 
-            descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
-            writes_descriptor_set.emplace_back(write_descriptor_set);
+                descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+                writes_descriptor_set.emplace_back(write_descriptor_set);
+            }
+            {
+                auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
+                descriptor_buffer_info_uptr->buffer = matricesBuffer;
+                descriptor_buffer_info_uptr->offset = ((i - 1) % 4) * sizeof(ModelMatrices) * maxInstances;
+                descriptor_buffer_info_uptr->range = sizeof(ModelMatrices) * maxInstances;
+
+                vk::WriteDescriptorSet write_descriptor_set;
+                write_descriptor_set.dstSet = matricesDescriptorSets[i];
+                write_descriptor_set.dstBinding = 1;
+                write_descriptor_set.dstArrayElement = 0;
+                write_descriptor_set.descriptorCount = 1;
+                write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+                write_descriptor_set.pBufferInfo = descriptor_buffer_info_uptr.get();
+
+                descriptor_buffer_infos_uptrs.emplace_back(std::move(descriptor_buffer_info_uptr));
+                writes_descriptor_set.emplace_back(write_descriptor_set);
+            }
         }
 
         device.updateDescriptorSets(writes_descriptor_set, {});
@@ -435,6 +489,8 @@ void Graphics::WriteCameraMarticesBuffers(ViewportFrustum viewport,
                                           const std::vector<DrawInfo>& draw_infos,
                                           size_t buffer_index)
 {
+    buffer_index = buffer_index % 4;
+
     // Update camera matrix
     {
         glm::mat4x4 view_projection_matrices[3] = {viewport.GetViewMatrix(), glm::mat4(), viewport.GetPerspectiveMatrix()};

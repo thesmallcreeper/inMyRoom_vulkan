@@ -303,6 +303,8 @@ void Exposure::RecordFrameHistogram(vk::CommandBuffer command_buffer, uint32_t i
 }
 
 vk::ImageMemoryBarrier Exposure::GetGenericImageBarrier(uint32_t image_index) const {
+    image_index = image_index % 2;
+
     vk::ImageMemoryBarrier image_memory_barrier;
     image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
     image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eNoneKHR;

@@ -1619,7 +1619,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
         }
 
         // Write host buffers
-        WriteInitHostBuffers(hostvisible_freezeable_buffer_index);
+        WriteInitHostBuffers(frameCount - viewportFreezedFrameCount);
     }
 
     uint32_t swapchain_index = device.acquireNextImageKHR(graphics_ptr->GetSwapchain(),
@@ -1634,10 +1634,8 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
         vk::CommandBuffer& graphics_command_buffer = graphicsCommandBuffers[commandBuffer_index];
         graphics_command_buffer.reset();
         RecordGraphicsCommandBuffer(graphics_command_buffer,
-                                    uint32_t(hostvisible_freezeable_buffer_index),
-                                    uint32_t(device_freezeable_buffer_index),
-                                    uint32_t(device_freezeable_buffer_wHistory_index),
-                                    uint32_t(device_buffer_index),
+                                    frameCount - viewportFreezedFrameCount,
+                                    frameCount,
                                     swapchain_index,
                                     frustum_culling);
 
@@ -1758,10 +1756,8 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
 }
 
 void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
-                                           uint32_t freezable_host_buffer_index,
-                                           uint32_t freezable_device_buffer_index,
-                                           uint32_t freezable_device_buffer_wHistory_index,
-                                           uint32_t device_buffer_index,
+                                           uint32_t freezable_frame_index,
+                                           uint32_t frame_index,
                                            uint32_t swapchain_index,
                                            const FrustumCulling& frustum_culling)
 {
@@ -1772,20 +1768,20 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
     std::vector<vk::ImageMemoryBarrier> ownership_obtain_image_barriers;
     if (viewportFreezeState == ViewportFreezeStates::ready
      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
-        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_wHistory_index)) {
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_frame_index)) {
             this_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eShaderRead;
             this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
             if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
                 ownership_obtain_buffer_barriers.emplace_back(this_barrier);
         }
-        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_frame_index)) {
             this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
             this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
             if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
                 ownership_obtain_buffer_barriers.emplace_back(this_barrier);
         }
         {
-            auto this_barrier = TLASbuilder_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
+            auto this_barrier = TLASbuilder_uptr->GetGenericTLASrangesBarrier(freezable_frame_index);
             this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
             this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
             if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
@@ -1793,7 +1789,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         }
     }
     if (frameCount > 2) {
-        auto this_barrier = exposure_uptr->GetGenericImageBarrier(freezable_device_buffer_index);
+        auto this_barrier = exposure_uptr->GetGenericImageBarrier(freezable_frame_index);
         this_barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
         this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
         if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
@@ -1814,7 +1810,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
     vk::RenderPassBeginInfo render_pass_begin_info;
     vk::ClearValue clear_values[4];
     render_pass_begin_info.renderPass = renderpass;
-    render_pass_begin_info.framebuffer = framebuffers[freezable_device_buffer_index][swapchain_index];
+    render_pass_begin_info.framebuffer = framebuffers[freezable_frame_index % 2][swapchain_index];
     render_pass_begin_info.renderArea.offset = vk::Offset2D(0, 0);
     render_pass_begin_info.renderArea.extent = graphics_ptr->GetSwapchainCreateInfo().imageExtent;
 
@@ -1888,8 +1884,8 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
             vk::PipelineLayout pipeline_layout = primitivesPipelineLayouts[this_draw_primitive_info.primitiveIndex];
             std::vector<vk::DescriptorSet> descriptor_sets;
-            descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_host_buffer_index));
-            descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_host_buffer_index));
+            descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_frame_index));
+            descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_frame_index));
             if (this_material.masked)
                 descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
 
@@ -1914,7 +1910,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
             // Position
             if (this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset != -1) {
-                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + freezable_device_buffer_wHistory_index * this_draw_primitive_info.dynamicBufferRangeSize);
+                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + (freezable_frame_index % 3) * this_draw_primitive_info.dynamicBufferRangeSize);
                 buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
             } else {
                 offsets.emplace_back(this_draw_primitive_info.primitiveInfo.positionByteOffset);
@@ -1925,7 +1921,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
             if (this_material.masked) {
                 if (this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset != -1) {
                     offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2)
-                                        + freezable_device_buffer_wHistory_index * this_draw_primitive_info.dynamicBufferRangeSize );
+                                        + freezable_frame_index % 3 * this_draw_primitive_info.dynamicBufferRangeSize );
                     buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
                 } else {
                     offsets.emplace_back(this_draw_primitive_info.primitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2) );
@@ -1950,13 +1946,13 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fullscreenPipeline);
 
         std::vector<vk::DescriptorSet> descriptor_sets;
-        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_host_buffer_index));
-        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_host_buffer_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_frame_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_frame_index));
         descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorSet());
         descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
-        descriptor_sets.emplace_back(hostDescriptorSets[freezable_host_buffer_index]);
-        descriptor_sets.emplace_back(rendererDescriptorSets[freezable_device_buffer_index]);
-        descriptor_sets.emplace_back(TLASbuilder_uptr->GetDescriptorSet(freezable_device_buffer_index));
+        descriptor_sets.emplace_back(hostDescriptorSets[freezable_frame_index % 3]);
+        descriptor_sets.emplace_back(rendererDescriptorSets[freezable_frame_index % 2]);
+        descriptor_sets.emplace_back(TLASbuilder_uptr->GetDescriptorSet(freezable_frame_index));
         descriptor_sets.emplace_back(graphics_ptr->GetLights()->GetDescriptorSet());
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
@@ -1983,7 +1979,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         std::vector<vk::DeviceSize> offsets;
 
         buffers.emplace_back(fullscreenBuffer);
-        offsets.emplace_back(freezable_host_buffer_index * fullscreenBufferPartSize);
+        offsets.emplace_back((freezable_frame_index % 3) * fullscreenBufferPartSize);
 
         command_buffer.bindVertexBuffers(0, buffers, offsets);
 
@@ -1995,8 +1991,8 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
     // Lights draw pass
     {
         std::vector<vk::DescriptorSet> descriptor_sets;
-        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_host_buffer_index));
-        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_host_buffer_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_frame_index));
+        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(freezable_frame_index));
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                           lightSourcesPipelineLayout,
@@ -2044,7 +2040,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, toneMapPipeline);
 
         std::vector<vk::DescriptorSet> descriptor_sets;
-        descriptor_sets.emplace_back(rendererDescriptorSets[freezable_device_buffer_index]);
+        descriptor_sets.emplace_back(rendererDescriptorSets[freezable_frame_index % 2]);
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                           toneMapPipelineLayout,
@@ -2065,7 +2061,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         std::vector<vk::DeviceSize> offsets;
 
         buffers.emplace_back(fullscreenBuffer);
-        offsets.emplace_back(freezable_host_buffer_index * fullscreenBufferPartSize);
+        offsets.emplace_back((freezable_frame_index % 3) * fullscreenBufferPartSize);
 
         command_buffer.bindVertexBuffers(0, buffers, offsets);
 
@@ -2079,20 +2075,20 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
     std::vector<vk::ImageMemoryBarrier> ownership_transfer_image_barriers;
     if ((viewportFreezeState == ViewportFreezeStates::ready
      || viewportFreezeState == ViewportFreezeStates::next_frame_unfreeze)) {
-        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_wHistory_index)) {
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_frame_index)) {
             this_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
             this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
             if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
                 ownership_transfer_memory_barriers.emplace_back(this_barrier);
         }
-        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericBLASrangesBarriers(drawDynamicMeshInfos, freezable_frame_index)) {
             this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
             this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
             if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
                 ownership_transfer_memory_barriers.emplace_back(this_barrier);
         }
         {
-            auto this_barrier = TLASbuilder_uptr->GetGenericTLASrangesBarrier(freezable_device_buffer_index);
+            auto this_barrier = TLASbuilder_uptr->GetGenericTLASrangesBarrier(freezable_frame_index);
             this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
             this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
             if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
@@ -2100,7 +2096,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
         }
     }
     {
-        auto this_barrier = exposure_uptr->GetGenericImageBarrier(freezable_device_buffer_index);
+        auto this_barrier = exposure_uptr->GetGenericImageBarrier(freezable_frame_index);
         this_barrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
         this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
         if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
@@ -2278,18 +2274,19 @@ void Renderer::AssortDrawInfos()
     }
 }
 
-void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
+void Renderer::WriteInitHostBuffers(uint32_t frame_count) const
 {
     graphics_ptr->WriteCameraMarticesBuffers(viewport,
                                              matrices,
                                              drawInfos,
-                                             buffer_index);
+                                             frame_count);
 
     TLASbuilder_uptr->WriteHostInstanceBuffer(TLAS_instances,
-                                              buffer_index);
+                                              frame_count);
 
     graphics_ptr->GetLights()->WriteLightsBuffers();
 
+    uint32_t buffer_index = frame_count % 3;
     {
         memcpy((std::byte *) (primitivesInstanceAllocInfo.pMappedData) + buffer_index * primitivesInstanceBufferPartSize,
                primitive_instance_parameters.data(),
@@ -2298,7 +2295,6 @@ void Renderer::WriteInitHostBuffers(uint32_t buffer_index) const
                                       buffer_index * primitivesInstanceBufferPartSize,
                                       primitive_instance_parameters.size() * sizeof(PrimitiveInstanceParameters));
     }
-
     {
         std::array<std::array<glm::vec4, 3>, 2> vertex_data = {viewport.GetFullscreenpassTrianglePos(),
                                                                viewport.GetFullscreenpassTriangleNormals()};

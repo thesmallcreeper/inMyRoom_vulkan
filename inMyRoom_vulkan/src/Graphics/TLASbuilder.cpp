@@ -298,6 +298,8 @@ void TLASbuilder::ObtainTLASranges(vk::CommandBuffer command_buffer,
 void TLASbuilder::WriteHostInstanceBuffer(const std::vector<vk::AccelerationStructureInstanceKHR>& TLAS_instances,
                                           uint32_t host_buffer_index) const
 {
+    host_buffer_index = host_buffer_index % 3;
+
     {
         memcpy((std::byte *) (TLASesInstancesAllocInfo.pMappedData) + host_buffer_index * TLASesInstancesPartSize,
                TLAS_instances.data(),
@@ -311,6 +313,8 @@ void TLASbuilder::WriteHostInstanceBuffer(const std::vector<vk::AccelerationStru
 
 vk::BufferMemoryBarrier TLASbuilder::GetGenericTLASrangesBarrier(uint32_t buffer_index) const
 {
+    buffer_index = buffer_index % 2;
+
     vk::BufferMemoryBarrier this_memory_barrier;
     this_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
     this_memory_barrier.dstAccessMask = vk::AccessFlagBits::eNoneKHR;

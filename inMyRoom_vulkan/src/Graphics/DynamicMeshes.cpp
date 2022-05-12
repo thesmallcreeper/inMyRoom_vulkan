@@ -690,7 +690,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
 
     // Calculate transformations
     std::vector<vk::DescriptorSet> generic_descriptor_sets;
-    generic_descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(hostVisible_buffer_index));
+    generic_descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(frameIndex));
     generic_descriptor_sets.emplace_back(graphics_ptr->GetSkinsOfMeshesPtr()->GetDescriptorSet());
     generic_descriptor_sets.emplace_back(this->GetDescriptorSet());
 
@@ -992,7 +992,7 @@ void DynamicMeshes::ObtainTransformRanges(vk::CommandBuffer command_buffer,
     if (ownership_obtain_memory_barriers.size()) {
         command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
                                        vk::PipelineStageFlagBits::eComputeShader,
-                                       vk::DependencyFlagBits::eViewLocal,
+                                       vk::DependencyFlagBits::eByRegion,
                                        {},
                                        ownership_obtain_memory_barriers,
                                        {});
@@ -1064,6 +1064,8 @@ void DynamicMeshes::TransferTransformAndBLASranges(vk::CommandBuffer command_buf
 std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericTransformRangesBarriers(const std::vector<DrawInfo> &draw_infos,
                                                                                       uint32_t buffer_index) const
 {
+    buffer_index = buffer_index % 3;
+
     std::vector<vk::BufferMemoryBarrier> barriers;
     for (const auto &draw_info: draw_infos) {
         const DynamicMeshInfo &dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
@@ -1084,8 +1086,11 @@ std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericTransformRangesBar
     return barriers;
 }
 
-std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericBLASrangesBarriers(const std::vector<DrawInfo> &draw_infos, uint32_t buffer_index) const
+std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericBLASrangesBarriers(const std::vector<DrawInfo> &draw_infos,
+                                                                                 uint32_t buffer_index) const
 {
+    buffer_index = buffer_index % 2;
+
     std::vector<vk::BufferMemoryBarrier> barriers;
     for (const auto &draw_info: draw_infos) {
         const DynamicMeshInfo &dynamic_mesh_info = GetDynamicMeshInfo(draw_info.dynamicMeshIndex);
