@@ -2156,6 +2156,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
 
             this_primitiveInstanceParameters.material = primitives_info[i].material;
             this_primitiveInstanceParameters.matricesOffset = this_draw_info.matricesOffset;
+            this_primitiveInstanceParameters.prevMatricesOffset = this_draw_info.prevMatricesOffset;
 
             if (primitives_info[i].drawMode == vk::PrimitiveTopology::eTriangleList)
                 this_primitiveInstanceParameters.indicesSetMultiplier = 3;

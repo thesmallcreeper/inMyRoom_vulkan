@@ -45,6 +45,8 @@ public: // data
     bool isSkin = false;
     bool hasMorphTargets = false;
     bool isLight = false;
+
+    size_t lastMatricesOffset = -1;
 };
 
 #ifdef GAME_DLL

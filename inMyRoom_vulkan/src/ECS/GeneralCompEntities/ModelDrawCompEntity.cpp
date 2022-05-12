@@ -98,6 +98,7 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
             if (light_entity.ShouldDraw()) {
                 this_draw_info.isLightSource = true;
                 this_draw_info.matricesOffset = light_entity.matricesOffset;
+                this_draw_info.prevMatricesOffset = lastMatricesOffset;
                 this_draw_info.lightIndex = light_entity.lightIndex;
 
                 if (light_entity.lightType == LightType::Cone
@@ -111,11 +112,13 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
             }
         } else if (not isSkin && not hasMorphTargets) {
             this_draw_info.matricesOffset = model_matrices.size();
+            this_draw_info.prevMatricesOffset = lastMatricesOffset;
             glm::mat4 pos_matrix = viewport_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             glm::mat4 normal_matrix = glm::adjointTranspose(pos_matrix);
             model_matrices.emplace_back(ModelMatrices({pos_matrix, normal_matrix}));
         } else {
             this_draw_info.matricesOffset = model_matrices.size();
+            this_draw_info.prevMatricesOffset = lastMatricesOffset;
             glm::mat4 parent_pos_matrix = viewport_matrix * nodeGlobalMatrix_ptr->GetComponentEntity(thisEntity).globalMatrix;
             glm::mat4 parent_normal_matrix = glm::inverseTranspose(parent_pos_matrix);
             model_matrices.emplace_back(ModelMatrices({parent_pos_matrix, parent_normal_matrix}));
@@ -141,6 +144,9 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
         }
 
         draw_infos.emplace_back(this_draw_info);
+        lastMatricesOffset = this_draw_info.matricesOffset;
+    } else {
+        lastMatricesOffset = -1;
     }
 }
 

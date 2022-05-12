@@ -194,6 +194,7 @@ struct DrawInfo
     size_t lightIndex = -1;
     size_t dynamicMeshIndex = -1;
     size_t matricesOffset = -1;
+    size_t prevMatricesOffset = -1;
 
     // Filled by renderer
     size_t primitivesInstanceOffset = -1;

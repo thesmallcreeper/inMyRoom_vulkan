@@ -12,6 +12,7 @@ struct PrimitiveInstanceParameters {
 
     UINT16_T light;            // != -1 if it is a light
     UINT16_T matricesOffset;
+    UINT16_T prevMatricesOffset;
     UINT16_T material;
     UINT16_T lightsCombinationsOffset;
     UINT16_T lightsCombinationsCount;
