@@ -1482,6 +1482,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
     size_t hostvisible_freezeable_buffer_index = (frameCount - viewportFreezedFrameCount) % 3;
     size_t hostvisible_buffer_index = frameCount % 3;
     size_t device_freezeable_buffer_index = (frameCount - viewportFreezedFrameCount) % 2;
+    size_t device_freezeable_buffer_wHistory_index = (frameCount - viewportFreezedFrameCount) % 3;
     size_t device_buffer_index = frameCount % 2;
 
     size_t freezable_commandBuffer_index = (frameCount - viewportFreezedFrameCount) % 3;
@@ -1533,7 +1534,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
             transform_command_buffer.reset();
             transform_command_buffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
-            if (frameCount > 2) graphics_ptr->GetDynamicMeshes()->ObtainTransformRanges(transform_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
+            if (frameCount > 3) graphics_ptr->GetDynamicMeshes()->ObtainTransformRanges(transform_command_buffer, drawDynamicMeshInfos, graphicsQueue.second);
             graphics_ptr->GetDynamicMeshes()->RecordTransformations(transform_command_buffer, drawDynamicMeshInfos);
 
             transform_command_buffer.end();
@@ -1595,7 +1596,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
             auto xLAS_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
             auto xLAS_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
             xLAS_wait_semaphores->emplace_back(transformsFinishTimelineSemaphore);
-            xLAS_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
+            xLAS_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR);
             xLAS_wait_semaphores_values->emplace_back(frameCount);
             xLAS_submit_info.setWaitSemaphores(*xLAS_wait_semaphores);
             xLAS_submit_info.setWaitDstStageMask(*xLAS_wait_pipeline_stages);
@@ -1635,6 +1636,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
         RecordGraphicsCommandBuffer(graphics_command_buffer,
                                     uint32_t(hostvisible_freezeable_buffer_index),
                                     uint32_t(device_freezeable_buffer_index),
+                                    uint32_t(device_freezeable_buffer_wHistory_index),
                                     uint32_t(device_buffer_index),
                                     swapchain_index,
                                     frustum_culling);
@@ -1758,6 +1760,7 @@ void Renderer::DrawFrame(const ViewportFrustum& in_viewport,
 void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                            uint32_t freezable_host_buffer_index,
                                            uint32_t freezable_device_buffer_index,
+                                           uint32_t freezable_device_buffer_wHistory_index,
                                            uint32_t device_buffer_index,
                                            uint32_t swapchain_index,
                                            const FrustumCulling& frustum_culling)
@@ -1769,7 +1772,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
     std::vector<vk::ImageMemoryBarrier> ownership_obtain_image_barriers;
     if (viewportFreezeState == ViewportFreezeStates::ready
      || viewportFreezeState == ViewportFreezeStates::next_frame_freeze) {
-        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_wHistory_index)) {
             this_barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eShaderRead;
             this_barrier.dstQueueFamilyIndex = graphicsQueue.second;
             if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)
@@ -1911,7 +1914,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
 
             // Position
             if (this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset != -1) {
-                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + freezable_device_buffer_index * this_draw_primitive_info.dynamicBufferRangeSize);
+                offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.positionByteOffset + freezable_device_buffer_wHistory_index * this_draw_primitive_info.dynamicBufferRangeSize);
                 buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
             } else {
                 offsets.emplace_back(this_draw_primitive_info.primitiveInfo.positionByteOffset);
@@ -1922,7 +1925,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
             if (this_material.masked) {
                 if (this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset != -1) {
                     offsets.emplace_back(this_draw_primitive_info.dynamicPrimitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2)
-                                        + freezable_device_buffer_index * this_draw_primitive_info.dynamicBufferRangeSize );
+                                        + freezable_device_buffer_wHistory_index * this_draw_primitive_info.dynamicBufferRangeSize );
                     buffers.emplace_back(this_draw_primitive_info.dynamicBuffer);
                 } else {
                     offsets.emplace_back(this_draw_primitive_info.primitiveInfo.texcoordsByteOffset + this_material.color_texcooord * sizeof(glm::vec2) );
@@ -2076,7 +2079,7 @@ void Renderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
     std::vector<vk::ImageMemoryBarrier> ownership_transfer_image_barriers;
     if ((viewportFreezeState == ViewportFreezeStates::ready
      || viewportFreezeState == ViewportFreezeStates::next_frame_unfreeze)) {
-        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_index)) {
+        for (auto this_barrier: graphics_ptr->GetDynamicMeshes()->GetGenericTransformRangesBarriers(drawDynamicMeshInfos, freezable_device_buffer_wHistory_index)) {
             this_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
             this_barrier.srcQueueFamilyIndex = graphicsQueue.second;
             if (this_barrier.srcQueueFamilyIndex != this_barrier.dstQueueFamilyIndex)

@@ -369,7 +369,7 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
     dynamicMeshInfo.dynamicPrimitives = std::move(dynamicPrimitiveInfos);
     // Create vertices buffer
     {
-        size_t buffer_size = 2 * buffer_offset;
+        size_t buffer_size = 3 * buffer_offset;
         vk::BufferCreateInfo buffer_create_info;
         buffer_create_info.size = buffer_size;
         buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer
@@ -385,7 +385,7 @@ size_t DynamicMeshes::AddDynamicMesh(size_t mesh_index)
         assert(createBuffer_result.result == vk::Result::eSuccess);
         dynamicMeshInfo.buffer =  createBuffer_result.value.first;
         dynamicMeshInfo.allocation = createBuffer_result.value.second;
-        dynamicMeshInfo.rangeSize = buffer_size / 2;
+        dynamicMeshInfo.rangeSize = buffer_size / 3;        // TODO
     }
 
     // BLAS creation
@@ -533,7 +533,7 @@ void DynamicMeshes::UpdateHostAABBs()
 
 void DynamicMeshes::SwapDescriptorSets()
 {
-    size_t device_buffer_index = frameIndex % 2;
+    size_t device_buffer_index = frameIndex % 3;
     size_t hostVisible_buffer_index = frameIndex % 3;
     std::vector<vk::DescriptorBufferInfo> vertices_descriptor_buffer_infos;
     std::vector<vk::DescriptorBufferInfo> AABBs_descriptor_buffer_infos;
@@ -646,7 +646,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
                                           const std::vector<DrawInfo>& draw_infos)
 {
     assert(hasBeenFlashed);
-    size_t device_buffer_index = frameIndex % 2;
+    size_t device_buffer_index = frameIndex % 3;
     size_t hostVisible_buffer_index = frameIndex % 3;
 
     // Clear AABBs
@@ -861,7 +861,7 @@ void DynamicMeshes::RecordTransformations(vk::CommandBuffer command_buffer,
             this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.buffer = dynamic_mesh_info.AABBsBuffer;
-            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.AABBsBufferRangeSize;
+            this_memory_barrier.offset = hostVisible_buffer_index * dynamic_mesh_info.AABBsBufferRangeSize;
             this_memory_barrier.size = dynamic_mesh_info.AABBsBufferRangeSize;
 
             AABBs_hostvisible_memory_barriers.emplace_back(this_memory_barrier);
@@ -882,8 +882,8 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
                                      const std::vector<DrawInfo>& draw_infos) const
 {
     assert(hasBeenFlashed);
-    size_t device_buffer_index = frameIndex % 2;
-    size_t host_buffer_index = frameIndex % 3;
+    size_t device_BLAS_index = frameIndex % 2;
+    size_t device_buffer_index = frameIndex % 3;
 
     // Update BLASes
     std::vector<vk::BufferMemoryBarrier> BLAS_memory_barries;
@@ -910,7 +910,7 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
                 geometry.flags = (not material_about.masked && not material_about.transparent) ? vk::GeometryFlagBitsKHR::eOpaque : vk::GeometryFlagsKHR(0);
                 geometry.geometry.triangles.vertexFormat = vk::Format::eR32G32B32Sfloat;
                 geometry.geometry.triangles.vertexData = this_dynamic_primitive_info.positionByteOffset != -1
-                        ? dynamic_buffer_address + (frameIndex % 2) * dynamic_mesh_info.rangeSize + this_dynamic_primitive_info.positionByteOffset
+                        ? dynamic_buffer_address + device_buffer_index * dynamic_mesh_info.rangeSize + this_dynamic_primitive_info.positionByteOffset
                         : static_buffer_address + this_primitive_info.positionByteOffset;
                 geometry.geometry.triangles.vertexStride = sizeof(glm::vec4);
                 geometry.geometry.triangles.maxVertex = this_primitive_info.verticesCount;
@@ -936,7 +936,7 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
             geometry_info.mode = vk::BuildAccelerationStructureModeKHR::eUpdate;
             geometry_info.scratchData.deviceAddress = device.getBufferAddress(dynamic_mesh_info.updateScratchBuffer);
             geometry_info.srcAccelerationStructure = mesh_info.meshBLAS.handle;
-            geometry_info.dstAccelerationStructure = dynamic_mesh_info.BLASesHandles[(frameIndex % 2)];
+            geometry_info.dstAccelerationStructure = dynamic_mesh_info.BLASesHandles[device_BLAS_index];
             geometry_info.setGeometries(*geometries_of_infos.back());
 
             infos.emplace_back(geometry_info);
@@ -947,7 +947,7 @@ void DynamicMeshes::RecordBLASupdate(vk::CommandBuffer command_buffer,
             this_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             this_memory_barrier.buffer = dynamic_mesh_info.BLASesBuffer;
-            this_memory_barrier.offset = device_buffer_index * dynamic_mesh_info.BLASesHalfSize;
+            this_memory_barrier.offset = device_BLAS_index * dynamic_mesh_info.BLASesHalfSize;
             this_memory_barrier.size = dynamic_mesh_info.BLASesHalfSize;
 
             BLAS_memory_barries.emplace_back(this_memory_barrier);
@@ -976,7 +976,7 @@ void DynamicMeshes::ObtainTransformRanges(vk::CommandBuffer command_buffer,
                                           uint32_t source_family_index) const
 {
     assert(hasBeenFlashed);
-    size_t buffer_index = frameIndex % 2;
+    size_t buffer_index = frameIndex % 3;
 
     if (queue_family_index == source_family_index)
         return;
@@ -992,7 +992,7 @@ void DynamicMeshes::ObtainTransformRanges(vk::CommandBuffer command_buffer,
     if (ownership_obtain_memory_barriers.size()) {
         command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
                                        vk::PipelineStageFlagBits::eComputeShader,
-                                       vk::DependencyFlagBits::eByRegion,
+                                       vk::DependencyFlagBits::eViewLocal,
                                        {},
                                        ownership_obtain_memory_barriers,
                                        {});
@@ -1004,14 +1004,14 @@ void DynamicMeshes::ObtainBLASranges(vk::CommandBuffer command_buffer,
                                      uint32_t source_family_index) const
 {
     assert(hasBeenFlashed);
-    size_t buffer_index = frameIndex % 2;
+    size_t BLAS_index = frameIndex % 2;
 
     if (queue_family_index == source_family_index)
         return;
 
     // Obtain ownerships
     std::vector<vk::BufferMemoryBarrier> ownership_obtain_memory_barriers;
-    for (auto this_barrier: GetGenericBLASrangesBarriers(draw_infos, buffer_index)) {
+    for (auto this_barrier: GetGenericBLASrangesBarriers(draw_infos, BLAS_index)) {
         this_barrier.dstAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
         this_barrier.srcQueueFamilyIndex = source_family_index;
         ownership_obtain_memory_barriers.emplace_back(this_barrier);
@@ -1032,7 +1032,8 @@ void DynamicMeshes::TransferTransformAndBLASranges(vk::CommandBuffer command_buf
                                                    uint32_t dst_family_index) const
 {
     assert(hasBeenFlashed);
-    size_t buffer_index = frameIndex % 2;
+    size_t BLAS_index = frameIndex % 2;
+    size_t buffer_index = frameIndex % 3;
 
     if (queue_family_index == dst_family_index)
         return;
@@ -1040,12 +1041,12 @@ void DynamicMeshes::TransferTransformAndBLASranges(vk::CommandBuffer command_buf
     // Transfer ownerships
     std::vector<vk::BufferMemoryBarrier> ownership_give_memory_barriers;
     for (auto this_barrier: GetGenericTransformRangesBarriers(draw_infos, buffer_index)) {
-        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureReadKHR;
+        this_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
         this_barrier.dstQueueFamilyIndex = dst_family_index;
         ownership_give_memory_barriers.emplace_back(this_barrier);
     }
-    for (auto this_barrier: GetGenericBLASrangesBarriers(draw_infos, buffer_index)) {
-        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR;
+    for (auto this_barrier: GetGenericBLASrangesBarriers(draw_infos, BLAS_index)) {
+        this_barrier.srcAccessMask = vk::AccessFlagBits::eAccelerationStructureWriteKHR | vk::AccessFlagBits::eAccelerationStructureReadKHR;
         this_barrier.dstQueueFamilyIndex = dst_family_index;
         ownership_give_memory_barriers.emplace_back(this_barrier);
     }

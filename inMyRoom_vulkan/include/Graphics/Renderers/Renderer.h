@@ -47,6 +47,7 @@ private:
     void RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                      uint32_t freezable_host_buffer_index,
                                      uint32_t freezable_device_buffer_index,
+                                     uint32_t freezable_device_buffer_wHistory_index,
                                      uint32_t device_buffer_index,
                                      uint32_t swapchain_index,
                                      const FrustumCulling& frustum_culling);
