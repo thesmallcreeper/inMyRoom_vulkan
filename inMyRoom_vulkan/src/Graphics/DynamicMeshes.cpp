@@ -52,8 +52,8 @@ void DynamicMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
     auto max_descriptor_per_set = uint32_t(max_dynamicMeshes + 1);
     // Description sets
     {   // Create descriptor pool
-        vk::DescriptorPoolSize descriptor_pool_size = {vk::DescriptorType::eStorageBuffer, max_descriptor_per_set * (3 + 3)};
-        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 6,
+        vk::DescriptorPoolSize descriptor_pool_size = {vk::DescriptorType::eStorageBuffer, max_descriptor_per_set * (3 * 2 + 3)};
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 3 * (2 + 1),
                                                                  1 , &descriptor_pool_size);
 
         descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
@@ -81,14 +81,20 @@ void DynamicMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
         descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
         descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
         descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
+        descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
+        descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
+        descriptor_set_layouts.emplace_back(verticesDescriptorSetLayout);
 
-        uint32_t counts[3];
+        uint32_t counts[6];
         counts[0] = max_descriptor_per_set - 1;
         counts[1] = max_descriptor_per_set - 1;
         counts[2] = max_descriptor_per_set - 1;
+        counts[3] = max_descriptor_per_set - 1;
+        counts[4] = max_descriptor_per_set - 1;
+        counts[5] = max_descriptor_per_set - 1;
 
         vk::DescriptorSetVariableDescriptorCountAllocateInfo set_counts;
-        set_counts.descriptorSetCount = 3;
+        set_counts.descriptorSetCount = 6;
         set_counts.pDescriptorCounts = counts;
 
         vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, descriptor_set_layouts);
@@ -98,6 +104,9 @@ void DynamicMeshes::FlashDevice(std::pair<vk::Queue, uint32_t> queue)
         verticesDescriptorSets[0] = descriptor_sets[0];
         verticesDescriptorSets[1] = descriptor_sets[1];
         verticesDescriptorSets[2] = descriptor_sets[2];
+        prevVerticesDescriptorSets[0] = descriptor_sets[3];
+        prevVerticesDescriptorSets[1] = descriptor_sets[4];
+        prevVerticesDescriptorSets[2] = descriptor_sets[5];
     }
     // AABBsAndScratchDescriptorSets
     {   // Create descriptor layouts (AABBsAndScratchDescriptorSets)
@@ -534,8 +543,10 @@ void DynamicMeshes::UpdateHostAABBs()
 void DynamicMeshes::SwapDescriptorSets()
 {
     size_t device_buffer_index = frameIndex % 3;
+    size_t prev_device_buffer_index = (frameIndex - 1) % 3;
     size_t hostVisible_buffer_index = frameIndex % 3;
     std::vector<vk::DescriptorBufferInfo> vertices_descriptor_buffer_infos;
+    std::vector<vk::DescriptorBufferInfo> prev_vertices_descriptor_buffer_infos;
     std::vector<vk::DescriptorBufferInfo> AABBs_descriptor_buffer_infos;
 
     {   // Static primitives buffer
@@ -544,6 +555,7 @@ void DynamicMeshes::SwapDescriptorSets()
         primitives_buffer_info.offset = 0;
         primitives_buffer_info.range = VK_WHOLE_SIZE;
         vertices_descriptor_buffer_infos.emplace_back(primitives_buffer_info);
+        prev_vertices_descriptor_buffer_infos.emplace_back(primitives_buffer_info);
     }
 
     size_t index = 0;
@@ -555,10 +567,12 @@ void DynamicMeshes::SwapDescriptorSets()
 
                 vk::DescriptorBufferInfo this_vertices_descriptor_buffer_info;
                 this_vertices_descriptor_buffer_info.buffer = buffer;
-                this_vertices_descriptor_buffer_info.offset = device_buffer_index * range_size;
                 this_vertices_descriptor_buffer_info.range = range_size;
 
+                this_vertices_descriptor_buffer_info.offset = device_buffer_index * range_size;
                 vertices_descriptor_buffer_infos.emplace_back(this_vertices_descriptor_buffer_info);
+                this_vertices_descriptor_buffer_info.offset = prev_device_buffer_index * range_size;
+                prev_vertices_descriptor_buffer_infos.emplace_back(this_vertices_descriptor_buffer_info);
             }
 
             if (this_pair.second.hasDynamicShape) {
@@ -587,14 +601,26 @@ void DynamicMeshes::SwapDescriptorSets()
     std::vector<vk::WriteDescriptorSet> write_descriptor_sets;
     std::vector<vk::CopyDescriptorSet> copy_descriptor_sets;
     if (vertices_descriptor_buffer_infos.size()){
-        vk::WriteDescriptorSet write_descriptor_set;
-        write_descriptor_set.dstSet = this->GetDescriptorSet();
-        write_descriptor_set.dstBinding = 0;
-        write_descriptor_set.dstArrayElement = 0;
-        write_descriptor_set.descriptorCount = uint32_t(vertices_descriptor_buffer_infos.size());
-        write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
-        write_descriptor_set.pBufferInfo = vertices_descriptor_buffer_infos.data();
-        write_descriptor_sets.emplace_back(write_descriptor_set);
+        {
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = this->GetDescriptorSet();
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = uint32_t(vertices_descriptor_buffer_infos.size());
+            write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+            write_descriptor_set.pBufferInfo = vertices_descriptor_buffer_infos.data();
+            write_descriptor_sets.emplace_back(write_descriptor_set);
+        }
+        {
+            vk::WriteDescriptorSet write_descriptor_set;
+            write_descriptor_set.dstSet = this->GetPrevDescriptorSet();
+            write_descriptor_set.dstBinding = 0;
+            write_descriptor_set.dstArrayElement = 0;
+            write_descriptor_set.descriptorCount = uint32_t(prev_vertices_descriptor_buffer_infos.size());
+            write_descriptor_set.descriptorType = vk::DescriptorType::eStorageBuffer;
+            write_descriptor_set.pBufferInfo = prev_vertices_descriptor_buffer_infos.data();
+            write_descriptor_sets.emplace_back(write_descriptor_set);
+        }
     }
     if (AABBs_descriptor_buffer_infos.size()){
         vk::WriteDescriptorSet write_descriptor_set;
@@ -1064,7 +1090,8 @@ void DynamicMeshes::TransferTransformAndBLASranges(vk::CommandBuffer command_buf
 std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericTransformRangesBarriers(const std::vector<DrawInfo> &draw_infos,
                                                                                       uint32_t buffer_index) const
 {
-    buffer_index = buffer_index % 3;
+    uint32_t prev_index = buffer_index % 3;
+    uint32_t currect_index = buffer_index % 3;
 
     std::vector<vk::BufferMemoryBarrier> barriers;
     for (const auto &draw_info: draw_infos) {
@@ -1076,9 +1103,11 @@ std::vector<vk::BufferMemoryBarrier> DynamicMeshes::GetGenericTransformRangesBar
             this_memory_barrier.srcQueueFamilyIndex = queue_family_index;
             this_memory_barrier.dstQueueFamilyIndex = queue_family_index;
             this_memory_barrier.buffer = dynamic_mesh_info.buffer;
-            this_memory_barrier.offset = buffer_index * dynamic_mesh_info.rangeSize;
             this_memory_barrier.size = dynamic_mesh_info.rangeSize;
 
+            this_memory_barrier.offset = currect_index * dynamic_mesh_info.rangeSize;
+            barriers.emplace_back(this_memory_barrier);
+            this_memory_barrier.offset = prev_index * dynamic_mesh_info.rangeSize;
             barriers.emplace_back(this_memory_barrier);
         }
     }

@@ -2122,6 +2122,7 @@ std::vector<Renderer::PrimitiveInstanceParameters> Renderer::CreatePrimitivesIns
     PrimitiveInstanceParameters default_instance_parameters = {};
     default_instance_parameters.material = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().material;
     default_instance_parameters.matricesOffset = 0;
+    default_instance_parameters.prevMatricesOffset = -1;
     default_instance_parameters.indicesOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().indicesByteOffset / sizeof(uint32_t);
     default_instance_parameters.positionOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().positionByteOffset / sizeof(glm::vec4);
     default_instance_parameters.normalOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().normalByteOffset / sizeof(glm::vec4);

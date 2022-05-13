@@ -91,9 +91,9 @@ public:
     void RemoveDynamicMeshSafe(size_t index);
 
     std::vector<vk::BufferMemoryBarrier> GetGenericTransformRangesBarriers(const std::vector<DrawInfo> &draw_infos,
-                                                                           uint32_t buffer_index) const;
+                                                                           uint32_t frame_index) const;
     std::vector<vk::BufferMemoryBarrier> GetGenericBLASrangesBarriers(const std::vector<DrawInfo> &draw_infos,
-                                                                      uint32_t buffer_index) const;
+                                                                      uint32_t frame_index) const;
 
     void ObtainTransformRanges(vk::CommandBuffer command_buffer,
                                const std::vector<DrawInfo>& draw_infos,
@@ -117,6 +117,7 @@ public:
 
 
     vk::DescriptorSet GetDescriptorSet() const {return verticesDescriptorSets[frameIndex % 3];}
+    vk::DescriptorSet GetPrevDescriptorSet() const {return prevVerticesDescriptorSets[frameIndex % 3];}
     vk::DescriptorSetLayout GetDescriptorLayout() const {return verticesDescriptorSetLayout;}
     void PrepareNewFrame(size_t frame_index);
     void CompleteRemovesSafe();
@@ -138,6 +139,7 @@ private:
 
     vk::DescriptorPool      descriptorPool;
     vk::DescriptorSet       verticesDescriptorSets[3];
+    vk::DescriptorSet       prevVerticesDescriptorSets[3];
     vk::DescriptorSetLayout verticesDescriptorSetLayout;
     vk::DescriptorSet       AABBsAndScratchDescriptorSets[3];
     vk::DescriptorSetLayout AABBsAndScratchDescriptorSetLayout;
