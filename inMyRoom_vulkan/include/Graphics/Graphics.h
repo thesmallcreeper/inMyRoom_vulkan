@@ -24,7 +24,7 @@
 #include "Graphics/Meshes/MeshesOfNodes.h"
 #include "Graphics/Meshes/PrimitivesOfMeshes.h"
 #include "Graphics/Meshes/SkinsOfMeshes.h"
-#include "Graphics/Renderers/Renderer.h"
+#include "Graphics/Renderers/OfflineRenderer.h"
 
 class Engine;       // Forward declaration
 

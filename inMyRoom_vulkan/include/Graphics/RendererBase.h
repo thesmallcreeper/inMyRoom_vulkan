@@ -8,6 +8,8 @@
 
 class RendererBase
 {
+protected:
+#include "common/structs/PrimitiveInstanceParameters.h"
 public:
     RendererBase(class Graphics* in_graphics_ptr,
                  vk::Device in_device,
@@ -26,7 +28,15 @@ public:
     virtual bool IsFreezed() const {return viewportFreeze;}
 
 protected:
+    std::vector<PrimitiveInstanceParameters> CreatePrimitivesInstanceParameters();
+
+protected:
     class Graphics* const graphics_ptr;
+
+    ViewportFrustum         viewport;
+    std::vector<ModelMatrices> matrices;
+    std::vector<LightInfo>  lightInfos;
+    std::vector<DrawInfo>   drawInfos;
 
     vk::Device device;
     vma::Allocator vma_allocator;

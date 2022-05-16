@@ -2,7 +2,7 @@
 
 #include "Geometry/FrustumCulling.h"
 #include "Engine.h"
-#include "Graphics/Renderers/Renderer.h"
+#include "Graphics/Renderers/OfflineRenderer.h"
 
 #include <utility>
 #include <iostream>
@@ -385,7 +385,7 @@ void Graphics::InitGraphicsComponents()
 
 void Graphics::InitRenderer()
 {
-    renderer_uptr = std::make_unique<Renderer>(this, device, vma_allocator);
+    renderer_uptr = std::make_unique<OfflineRenderer>(this, device, vma_allocator);
 }
 
 

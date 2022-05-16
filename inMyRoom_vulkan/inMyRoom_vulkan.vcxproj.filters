@@ -255,7 +255,7 @@
     <ClCompile Include="..\eig3\eig3.cpp">
       <Filter>Source Files\_etc</Filter>
     </ClCompile>
-    <ClCompile Include="src\Graphics\Renderers\Renderer.cpp">
+    <ClCompile Include="src\Graphics\Renderers\OfflineRenderer.cpp">
       <Filter>Source Files\Graphics\Renderers</Filter>
     </ClCompile>
     <ClCompile Include="src\Graphics\Exposure.cpp">
@@ -485,7 +485,7 @@
     <ClInclude Include="include\Graphics\ImagesInterfaces.h">
       <Filter>Header Files\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="include\Graphics\Renderers\Renderer.h">
+    <ClInclude Include="include\Graphics\Renderers\OfflineRenderer.h">
       <Filter>Header Files\Graphics\Renderers</Filter>
     </ClInclude>
     <ClInclude Include="include\Graphics\RendererBase.h">

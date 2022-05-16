@@ -7,22 +7,21 @@
 
 #include "Geometry/FrustumCulling.h"
 
-enum class ViewportFreezeStates {
-    ready = 0,
-    next_frame_freeze = 1,
-    frozen = 2,
-    next_frame_unfreeze = 3,
-};
-
-class Renderer
+class OfflineRenderer
     : public RendererBase
 {
-#include "common/structs/PrimitiveInstanceParameters.h"
+    enum class ViewportFreezeStates {
+        ready = 0,
+        next_frame_freeze = 1,
+        frozen = 2,
+        next_frame_unfreeze = 3,
+    };
+    
 public:
-    Renderer(class Graphics* in_graphics_ptr,
-             vk::Device in_device,
-             vma::Allocator in_vma_allocator);
-    ~Renderer() override;
+    OfflineRenderer(class Graphics* in_graphics_ptr,
+                    vk::Device in_device,
+                    vma::Allocator in_vma_allocator);
+    ~OfflineRenderer() override;
 
     void DrawFrame(const ViewportFrustum& viewport,
                    std::vector<ModelMatrices>&& matrices,
@@ -49,18 +48,11 @@ private:
                                      uint32_t frame_index,
                                      uint32_t swapchain_index,
                                      const FrustumCulling& frustum_culling);
-
-    std::vector<PrimitiveInstanceParameters> CreatePrimitivesInstanceParameters();
     void AssortDrawInfos();
 
     void WriteInitHostBuffers(uint32_t frame_count) const;
 private:
     const vk::SampleCountFlagBits samplesCountFlagBits;
-
-    ViewportFrustum         viewport;
-    std::vector<ModelMatrices> matrices;
-    std::vector<LightInfo>  lightInfos;
-    std::vector<DrawInfo>   drawInfos;
 
     std::vector<DrawInfo>   drawStaticMeshInfos;
     std::vector<DrawInfo>   drawDynamicMeshInfos;

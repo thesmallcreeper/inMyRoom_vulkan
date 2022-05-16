@@ -71,7 +71,7 @@
     <ClCompile Include="src\Graphics\Meshes\AnimationsDataOfNodes.cpp" />
     <ClCompile Include="src\Graphics\Meshes\TexturesOfMaterials.cpp" />
     <ClCompile Include="src\Graphics\PipelinesFactory.cpp" />
-    <ClCompile Include="src\Graphics\Renderers\Renderer.cpp" />
+    <ClCompile Include="src\Graphics\Renderers\OfflineRenderer.cpp" />
     <ClCompile Include="src\Graphics\ShadersSetsFamiliesCache.cpp" />
     <ClCompile Include="src\Graphics\TLASbuilder.cpp" />
     <ClCompile Include="src\Graphics\VulkanInit.cpp" />
@@ -150,7 +150,7 @@
     <ClInclude Include="include\Graphics\Meshes\TexturesOfMaterials.h" />
     <ClInclude Include="include\Graphics\PipelinesFactory.h" />
     <ClInclude Include="include\Graphics\RendererBase.h" />
-    <ClInclude Include="include\Graphics\Renderers\Renderer.h" />
+    <ClInclude Include="include\Graphics\Renderers\OfflineRenderer.h" />
     <ClInclude Include="include\Graphics\ShadersSetsFamiliesCache.h" />
     <ClInclude Include="include\Graphics\TLASbuilder.h" />
     <ClInclude Include="include\Graphics\VulkanInit.h" />
