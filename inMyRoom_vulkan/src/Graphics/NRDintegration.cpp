@@ -182,6 +182,8 @@ vk::DescriptorImageInfo NRDintegration::NRDtextureWrapper::GetDescriptorImageInf
     descriptor_image_info.sampler = nullptr;
     descriptor_image_info.imageView = GetImageView(mip_offset, mip_count);
     descriptor_image_info.imageLayout = layout;
+
+    return descriptor_image_info;
 }
 
 vk::ImageView NRDintegration::NRDtextureWrapper::GetImageView(uint32_t mip_offset, uint32_t mip_count)
