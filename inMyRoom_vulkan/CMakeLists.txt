@@ -4,6 +4,10 @@ project(inMyRoom_vulkan)
 
 add_subdirectory(../glfw "${CMAKE_CURRENT_BINARY_DIR}/glfw")
 
+set(NRD_STATIC_LIBRARY ON)
+set(NRD_SHADER_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/shaders/NRD/binary")
+add_subdirectory(../RayTracingDenoiser "${CMAKE_CURRENT_BINARY_DIR}/RayTracingDenoiser")
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -56,6 +60,7 @@ include_directories(
         ../Configuru                                                       #Include configuru
         ../glm                                                             #Include glm
         ../eig3                                                            #Include eig3
+        ../RayTracingDenoiser                                              #Include NRD
 )
 
 SET(SRC #eig3    .h
@@ -149,6 +154,7 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/ColorImage.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/NormalImage.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/MetallicRoughnessImage.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/NRDintegration.h"
 
         #source .cpp
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Engine.cpp"
@@ -220,6 +226,7 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/ColorImage.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/NormalImage.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/MetallicRoughnessImage.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/NRDintegration.cpp"
         )
 
 add_executable(inMyRoom_vulkan ${SRC})
@@ -234,8 +241,10 @@ if (WIN32)
     target_link_libraries(inMyRoom_vulkan glfw)
     target_link_libraries(inMyRoom_vulkan debug $ENV{VULKAN_SDK}/lib/shaderc_combinedd.lib
                                           optimized $ENV{VULKAN_SDK}/lib/shaderc_combined.lib)
+    # TODO!
 else ()
     target_link_libraries(inMyRoom_vulkan dl)
     target_link_libraries(inMyRoom_vulkan glfw)
+    target_link_libraries(inMyRoom_vulkan NRD)
     target_link_libraries(inMyRoom_vulkan $ENV{VULKAN_SDK}/lib/libshaderc_combined.a)
 endif ()
