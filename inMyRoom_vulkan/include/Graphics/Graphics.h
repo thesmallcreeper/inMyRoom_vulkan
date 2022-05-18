@@ -53,6 +53,7 @@ public:
 
     vk::SwapchainCreateInfoKHR GetSwapchainCreateInfo() const;
     std::vector<vk::ImageView> GetSwapchainImageViews() const;
+    std::vector<vk::Image> GetSwapchainImages() const;
     vk::SwapchainKHR GetSwapchain() const;
     QueuesList GetQueuesList() const;
 

@@ -177,7 +177,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     CreateSwapchain(chosen_surface_format,
                     chosen_present_mode,
                     swapchain_images_count,
-                    vk::ImageUsageFlagBits::eColorAttachment);
+                    vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage);
 
 }
 
@@ -460,9 +460,9 @@ void VulkanInit::CreateSwapchain(vk::SurfaceFormatKHR surface_format,
         std::terminate();
     }
 
-    auto images = device.getSwapchainImagesKHR(swapchain).value;
+    swapchainImages = device.getSwapchainImagesKHR(swapchain).value;
 
-    for (vk::Image this_image: images) {
+    for (vk::Image this_image: swapchainImages) {
         vk::ImageViewCreateInfo imageview_create_info({},
                                                       this_image,
                                                       vk::ImageViewType::e2D,

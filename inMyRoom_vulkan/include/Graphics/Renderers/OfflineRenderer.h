@@ -16,7 +16,7 @@ class OfflineRenderer
         frozen = 2,
         next_frame_unfreeze = 3,
     };
-    
+
 public:
     OfflineRenderer(class Graphics* in_graphics_ptr,
                     vk::Device in_device,
@@ -127,8 +127,8 @@ private:
     std::vector<vk::Pipeline>       primitivesPipelines;
     std::vector<vk::PipelineLayout> primitivesPipelineLayouts;
 
-    vk::Pipeline            fullscreenPipeline;
-    vk::PipelineLayout      fullscreenPipelineLayout;
+    vk::Pipeline            shadePipeline;
+    vk::PipelineLayout      shadePipelineLayout;
 
     vk::Pipeline            directionalLightSourcePipeline;
     vk::Pipeline            localLightSourcePipeline;

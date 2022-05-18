@@ -40,6 +40,7 @@ public:
     vk::SwapchainKHR GetSwapchain() const {return swapchain;}
     vk::SwapchainCreateInfoKHR GetSwapchainCreateInfo() const {return swapchainCreateInfo;}
     std::vector<vk::ImageView> GetSwapchainImageViews() const {return swapchainImageViews;}
+    std::vector<vk::Image> GetSwapchainImages() const {return swapchainImages;}
     size_t GetSwapchainSize() const {return swapchainImageViews.size();}
 
     vma::Allocator GetVMAallocator() const {return vma_allocator;}
@@ -82,6 +83,7 @@ protected:
     vk::SurfaceKHR                  surface;
     vk::SwapchainKHR                swapchain;
     std::vector<vk::ImageView>      swapchainImageViews;
+    std::vector<vk::Image>          swapchainImages;
 
     vk::SwapchainCreateInfoKHR swapchainCreateInfo;
 

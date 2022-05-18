@@ -1,5 +1,7 @@
 #version 460
 
+#include "common/toneMap.glsl"
+
 //
 // Out
 layout( location = 0 ) out vec4 color_out;
@@ -19,17 +21,6 @@ layout (push_constant) uniform PushConstants
     layout(offset = 0)     uint framesCount;
     layout(offset = 4)     float exposureFactor;
 };
-
-// TODO: Credits
-float ExpCompress(float val) {
-    return 1.f - exp(-val);
-}
-
-float RangeCompress(float val, float threshold) {
-    float v1 = val;
-    float v2 = threshold + (1.f - threshold)*ExpCompress((val - threshold) / (1.f - threshold));
-    return val < threshold ? v1 : v2;
-}
 
 void main()
 {
@@ -55,12 +46,7 @@ void main()
             #endif
 
             vec3 color_exposure = vec3(in_color) * this_frameCountFactor * exposureFactor;
-
-            float maxColor = max(color_exposure.x, max(color_exposure.y, color_exposure.z));
-            float mappedMax = RangeCompress(maxColor, linearThreshold);
-            vec3 color_compressed = color_exposure * (mappedMax / maxColor);
-
-            rgb_sum += color_compressed, vec3(1.f/2.2f);
+            rgb_sum += ToneMap(color_exposure, linearThreshold);
         }
         color_out = vec4(rgb_sum / float(max_samples_points), 1.f);
     #else
@@ -76,11 +62,6 @@ void main()
         #endif
 
         vec3 color_exposure = vec3(in_color) * this_frameCountFactor * exposureFactor;
-
-        float maxColor = max(color_exposure.x, max(color_exposure.y, color_exposure.z));
-        float mappedMax = RangeCompress(maxColor, linearThreshold);
-        vec3 color_compressed = color_exposure * (mappedMax / maxColor);
-
-        color_out = vec4(color_compressed, 1.f);
+        color_out = vec4(ToneMap(color_exposure, linearThreshold), 1.f);
     #endif
 }

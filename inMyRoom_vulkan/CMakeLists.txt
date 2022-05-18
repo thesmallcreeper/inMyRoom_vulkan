@@ -31,8 +31,8 @@ else ()
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_FLAGS}  ${OPT_FLAGS}")
 endif()
 
-#add_compile_definitions(CPU_WAIT_GPU_SERIALIZED)
-add_compile_definitions(ENABLE_ASYNC_COMPUTE)
+add_compile_definitions(CPU_WAIT_GPU_SERIALIZED)
+#add_compile_definitions(ENABLE_ASYNC_COMPUTE)
 
 add_compile_definitions(TINYGLTF_NOEXCEPTION)
 
@@ -150,6 +150,7 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/SkinsOfMeshes.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Meshes/TexturesOfMaterials.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Renderers/OfflineRenderer.h"
+        "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Renderers/RealtimeRenderer.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/TextureImage.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/ColorImage.h"
         "${inMyRoom_vulkan_SOURCE_DIR}/include/Graphics/Textures/NormalImage.h"
@@ -223,6 +224,7 @@ SET(SRC #eig3    .h
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/SkinsOfMeshes.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Meshes/TexturesOfMaterials.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Renderers/OfflineRenderer.cpp"
+        "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Renderers/RealtimeRenderer.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/TextureImage.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/ColorImage.cpp"
         "${inMyRoom_vulkan_SOURCE_DIR}/src/Graphics/Textures/NormalImage.cpp"

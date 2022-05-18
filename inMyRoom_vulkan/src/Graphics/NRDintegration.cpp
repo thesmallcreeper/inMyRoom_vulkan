@@ -494,6 +494,8 @@ void NRDintegration::PrepareNewFrame(size_t frame_index, const nrd::CommonSettin
         }
     }
 
+    // TODO: undefined for transient textures?
+
     // Get denoiser dispatches
     nrd::Result result = nrd::GetComputeDispatches(*NRDdenoiser_ptr, commonSettings, NRDdispatches_ptr, NRDdispatches_count);
     assert(result == nrd::Result::SUCCESS);

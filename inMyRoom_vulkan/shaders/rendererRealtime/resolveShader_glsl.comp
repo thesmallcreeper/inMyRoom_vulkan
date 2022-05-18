@@ -1,0 +1,33 @@
+#version 460
+
+#include "common/toneMap.glsl"
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout (set = 0, binding = 0, rgba16f) uniform readonly image2D input_diffuse;
+layout (set = 0, binding = 1, rgba16f) uniform readonly image2D input_specular;
+layout (set = 0, binding = 2, rgba16f) uniform image2D image_output;
+
+layout (push_constant) uniform PushConstants
+{
+    uint size_x;
+    uint size_y;
+
+    float mult_factor;
+};
+
+void main()
+{
+    const ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+    if (coords.x >= size_x || coords.y >= size_y) {
+        return;
+    }
+
+    vec3 diffuse = imageLoad(input_diffuse, coords).xyz;
+    vec3 specular = imageLoad(input_specular, coords).xyz;
+
+    vec3 light = mult_factor * (diffuse + specular);
+    vec3 color_out = ToneMap(light, 0.25f);
+
+    imageStore(image_output, coords, vec4(color_out, 1.f));
+}

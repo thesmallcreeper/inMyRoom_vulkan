@@ -386,10 +386,7 @@ void OfflineRenderer::InitDescriptors()
     }
     {   // Write descriptors of renderer sets
         std::vector<vk::WriteDescriptorSet> writes_descriptor_set;
-        std::vector<std::unique_ptr<vk::DescriptorBufferInfo>> descriptor_buffer_infos_uptrs;
         std::vector<std::unique_ptr<vk::DescriptorImageInfo>> descriptor_image_infos_uptrs;
-        std::vector<std::unique_ptr<vk::WriteDescriptorSetAccelerationStructureKHR>> acceleration_structures_pnext_uptrs;
-
         for (size_t i = 0; i != 2; ++i) {
             {
                 auto descriptor_image_info_uptr = std::make_unique<vk::DescriptorImageInfo>();
@@ -915,7 +912,7 @@ void OfflineRenderer::InitPrimitivesSet()
             // PipelineShaderStageCreateInfo
             std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
 
-            ShadersSpecs shaders_specs {"Visibility Shaders", shadersDefinitionStringPairs};
+            ShadersSpecs shaders_specs {"Offline Renderer - Visibility Shaders", shadersDefinitionStringPairs};
             ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
             assert(shader_set.abortedDueToDefinition == false);
@@ -982,7 +979,7 @@ void OfflineRenderer::InitShadePipeline()
 
         pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
-        fullscreenPipelineLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
+        shadePipelineLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
     }
 
     {   // Pipeline layout
@@ -1093,7 +1090,7 @@ void OfflineRenderer::InitShadePipeline()
         // PipelineShaderStageCreateInfo
         std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
 
-        ShadersSpecs shaders_specs {"Shade-Pass Shaders", shadersDefinitionStringPairs};
+        ShadersSpecs shaders_specs {"Offline Renderer - Shade-Pass Shaders", shadersDefinitionStringPairs};
         ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
         assert(shader_set.abortedDueToDefinition == false);
@@ -1113,11 +1110,11 @@ void OfflineRenderer::InitShadePipeline()
         pipeline_create_info.setStages(shaders_stage_create_infos);
 
         // etc
-        pipeline_create_info.layout = fullscreenPipelineLayout;
+        pipeline_create_info.layout = shadePipelineLayout;
         pipeline_create_info.renderPass = renderpass;
         pipeline_create_info.subpass = 1;
 
-        fullscreenPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
+        shadePipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
     }
 }
 
@@ -1257,7 +1254,7 @@ void OfflineRenderer::InitLightsPipeline()
         // PipelineShaderStageCreateInfo
         std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
 
-        ShadersSpecs shaders_specs{"Light Source Shaders", shadersDefinitionStringPairs};
+        ShadersSpecs shaders_specs{"Offline Renderer - Light Source Shaders", shadersDefinitionStringPairs};
         ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
         assert(shader_set.abortedDueToDefinition == false);
@@ -1417,7 +1414,7 @@ void OfflineRenderer::InitToneMapPipeline()
         // PipelineShaderStageCreateInfo
         std::vector<vk::PipelineShaderStageCreateInfo> shaders_stage_create_infos;
 
-        ShadersSpecs shaders_specs {"ToneMap-Pass Shaders", shadersDefinitionStringPairs};
+        ShadersSpecs shaders_specs {"Offline Renderer - ToneMap-Pass Shaders", shadersDefinitionStringPairs};
         ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
 
         assert(shader_set.abortedDueToDefinition == false);
@@ -1943,7 +1940,7 @@ void OfflineRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buff
 
     // Shade pass
     {
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, fullscreenPipeline);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, shadePipeline);
 
         std::vector<vk::DescriptorSet> descriptor_sets;
         descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(freezable_frame_index));
@@ -1956,7 +1953,7 @@ void OfflineRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buff
         descriptor_sets.emplace_back(graphics_ptr->GetLights()->GetDescriptorSet());
 
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                          fullscreenPipelineLayout,
+                                          shadePipelineLayout,
                                           0,
                                           descriptor_sets,
                                           {});
@@ -1973,7 +1970,7 @@ void OfflineRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buff
                                          coneLightsIndicesRange.offset,
                                          coneLightsIndicesRange.size};
 
-        command_buffer.pushConstants(fullscreenPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(push_constants_type), &push_constants);
+        command_buffer.pushConstants(shadePipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(push_constants_type), &push_constants);
 
         std::vector<vk::Buffer> buffers;
         std::vector<vk::DeviceSize> offsets;

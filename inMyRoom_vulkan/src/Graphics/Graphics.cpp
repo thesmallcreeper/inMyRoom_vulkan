@@ -2,7 +2,9 @@
 
 #include "Geometry/FrustumCulling.h"
 #include "Engine.h"
+
 #include "Graphics/Renderers/OfflineRenderer.h"
+#include "Graphics/Renderers/RealtimeRenderer.h"
 
 #include <utility>
 #include <iostream>
@@ -290,30 +292,50 @@ void Graphics::InitShadersSetsFamiliesCache()
     }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "Visibility Shaders";
-        this_shaderSetInitInfo.fragmentShaderSourceFilename = "visibilityPass_glsl.frag";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "visibilityPass_glsl.vert";
+        this_shaderSetInitInfo.shadersSetFamilyName = "Offline Renderer - Visibility Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "rendererOffline/visibilityPass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "rendererOffline/visibilityPass_glsl.vert";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "Shade-Pass Shaders";
-        this_shaderSetInitInfo.fragmentShaderSourceFilename = "shadePass_glsl.frag";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "shadePass_glsl.vert";
+        this_shaderSetInitInfo.shadersSetFamilyName = "Offline Renderer - Shade-Pass Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "rendererOffline/shadePass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "rendererOffline/shadePass_glsl.vert";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "Light Source Shaders";
-        this_shaderSetInitInfo.fragmentShaderSourceFilename = "lightSourcePass_glsl.frag";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "lightSourcePass_glsl.vert";
+        this_shaderSetInitInfo.shadersSetFamilyName = "Offline Renderer - Light Source Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "rendererOffline/lightSourcePass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "rendererOffline/lightSourcePass_glsl.vert";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
-        this_shaderSetInitInfo.shadersSetFamilyName = "ToneMap-Pass Shaders";
-        this_shaderSetInitInfo.fragmentShaderSourceFilename = "toneMapPass_glsl.frag";
-        this_shaderSetInitInfo.vertexShaderSourceFilename = "toneMapPass_glsl.vert";
+        this_shaderSetInitInfo.shadersSetFamilyName = "Offline Renderer - ToneMap-Pass Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "rendererOffline/toneMapPass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "rendererOffline/toneMapPass_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Realtime Renderer - Visibility Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "rendererRealtime/visibilityPass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "rendererRealtime/visibilityPass_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Realtime Renderer - Path-Trace Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "rendererRealtime/pathTracePass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "rendererRealtime/pathTracePass_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Realtime Renderer - Resolve Shader";
+        this_shaderSetInitInfo.computeShaderSourceFilename = "rendererRealtime/resolveShader_glsl.comp";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
 }
@@ -385,7 +407,10 @@ void Graphics::InitGraphicsComponents()
 
 void Graphics::InitRenderer()
 {
-    renderer_uptr = std::make_unique<OfflineRenderer>(this, device, vma_allocator);
+    if (cfgFile["graphicsSettings"]["renderer"].as_string() == "offline")
+        renderer_uptr = std::make_unique<OfflineRenderer>(this, device, vma_allocator);
+    else
+        renderer_uptr = std::make_unique<RealtimeRenderer>(this, device, vma_allocator);
 }
 
 
@@ -448,6 +473,11 @@ void Graphics::ToggleCullingDebugging()
 std::vector<vk::ImageView> Graphics::GetSwapchainImageViews() const
 {
     return engine_ptr->GetSwapchainImageViews();
+}
+
+std::vector<vk::Image> Graphics::GetSwapchainImages() const
+{
+    return engine_ptr->GetSwapchainImages();
 }
 
 vk::SwapchainCreateInfoKHR Graphics::GetSwapchainCreateInfo() const
@@ -516,5 +546,7 @@ float Graphics::GetDeltaTimeSeconds() const
 {
     return engine_ptr->GetECSdeltaTime().count();
 }
+
+
 
 

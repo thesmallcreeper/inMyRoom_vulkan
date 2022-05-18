@@ -17,6 +17,7 @@ Exposure::Exposure(vk::Device in_device,
      localSize(1024),
      checkAlpha(in_check_alpha)
 {
+    // TODO!!! Fix for varying number
     images[0] = images_ptr[0];
     images[1] = images_ptr[1];
 

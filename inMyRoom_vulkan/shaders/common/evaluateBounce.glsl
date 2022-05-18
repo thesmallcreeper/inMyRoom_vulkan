@@ -1,119 +1,37 @@
-#version 460
+#ifndef FILE_EVALUATE_BOUNCE
 
-#extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_shader_16bit_storage : require
-#extension GL_EXT_shader_8bit_storage : require
-#extension GL_EXT_ray_query : require
-
-#include "common/defines.h"
-#include "common/structs/ModelMatrices.h"
-#include "common/structs/MaterialParameters.h"
-#include "common/structs/PrimitiveInstanceParameters.h"
-#include "common/structs/LightParameters.h"
 #include "common/intersectTriangle.glsl"
 #include "common/rayOffsetFace.glsl"
 #include "common/RoughnessLengthMap.h"
 #include "common/rng.glsl"
 #include "common/brdf.glsl"
 #include "common/reservoir.glsl"
-#include "common/samplesPosition.glsl"
 
-#define MAX_DEPTH 3
-#define DOT_ANGLE_SLACK 0.0087265f      // cos(89.5 degs)
-#define MIN_ROUGHNESS 0.02f
-#define USE_INCREASING_MOLLIFICATION
-#define LIGHT_THRESHOLD 0.5e6f
+struct BounceEvaluation {
+    vec3 origin;
+    RayDiffsOrigin originDiffs;
 
-// #define DEBUG_MIS
+    vec3 dir;
+    RayDiffsDir dirDiffs;
 
-#define INF_DIST 100000.f
-
-//
-// In
-layout( location = 0 ) in vec3 vert_normal;
-
-//
-// Out
-layout( location = 0 ) out vec4 color_out;
-
-//
-// Descriptors
-
-/// 0, 0
-layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
-{
-    mat4 viewMatrix;
-    mat4 inverseViewMatrix;
-    mat4 projectionMatrix;
-};
-
-/// 1, 0
-layout( std430, set = 1 , binding = 0 ) readonly buffer worldSpaceMatricesBufferDescriptor
-{
-    ModelMatrices model_matrices[MATRICES_COUNT];
-};
-
-/// 2, 0
-layout( std430, set = 2, binding = 0 ) readonly buffer uintVerticesBuffersDescriptors
-{
-    uint data[];
-} uintVerticesBuffers [];
-
-layout( std430, set = 2, binding = 0 ) readonly buffer vec2verticesBuffersDescriptors
-{
-    vec2 data[];
-} vec2verticesBuffers [];
-
-layout( std430, set = 2, binding = 0 ) readonly buffer vec4verticesBuffersDescriptors
-{
-    vec4 data[];
-} vec4verticesBuffers [];
-
-/// 3, 0
-layout (std430, set = 3, binding = 0) readonly buffer materialsParametersBufferDescriptor
-{
-    MaterialParameters materialsParameters[MATERIALS_PARAMETERS_COUNT];
-};
-
-/// 3, 1
-layout (set = 3, binding = 1) uniform sampler2D textures[TEXTURES_COUNT];
-
-/// 4, 0
-layout (set = 4, binding = 0) readonly buffer primitivesInstancesBufferDescriptor
-{
-    PrimitiveInstanceParameters primitivesInstancesParameters[INSTANCES_COUNT];
-};
-
-/// 5, 0
-#ifdef MULTISAMPLED_INPUT
-layout (input_attachment_index = 0, set = 5, binding = 0) uniform usubpassInputMS visibilityInput;
+#ifdef SPECULAR_DIFFUSE_EVAL
+    vec3 next_bounce_light_factor_specular;
+    vec3 next_bounce_light_factor_diffuse;
+    vec3 light_return_specular;
+    vec3 light_return_diffuse;
 #else
-layout (input_attachment_index = 0, set = 5, binding = 0) uniform usubpassInput visibilityInput;
+    vec3 next_bounce_light_factor;
+    vec3 light_return;
 #endif
 
-/// 6, 0
-layout(set = 6, binding = 0) uniform accelerationStructureEXT topLevelAS;
+    uint light_target;
 
-/// 7, 0
-layout (set = 7, binding = 0) readonly buffer lightsParametersBufferDescriptor
-{
-    LightParameters lightsParameters[MAX_LIGHTS_COUNT];
-};
-
-layout (set = 7, binding = 1) readonly buffer lightsCombinationsBufferDescriptor
-{
-    uint16_t lightsCombinations[MAX_COMBINATIONS_SIZE];
-};
-
-//
-// Push constants
-layout (push_constant) uniform PushConstants
-{
-    layout(offset = 0)  vec3 sky_luminance;
-    layout(offset = 16) uvec2 viewportSize;
-    layout(offset = 24) uint frameIndex;
-    layout(offset = 28) uint lightConesIndices_offset;
-    layout(offset = 32) uint lightConesIndices_size;
+#ifdef SPECULAR_DIFFUSE_EVAL
+    vec3 light_target_contribution_specular;
+    vec3 light_target_contribution_diffuse;
+#else
+    vec3 light_target_contribution;
+#endif
 };
 
 void ConfirmNonOpaqueIntersection(rayQueryEXT query)
@@ -170,19 +88,6 @@ float WeightLightBalance(float pdf, float other_pdf) {
     return pdf_weight / (pdf_weight + other_pdf_weight);
 }
 
-struct BounceEvaluation {
-    vec3 origin;
-    RayDiffsOrigin originDiffs;
-
-    vec3 dir;
-    RayDiffsDir dirDiffs;
-
-    vec3 next_bounce_light_factor;
-    vec3 light_return;
-
-    uint light_target;
-    vec3 light_target_contribution;
-};
 
 BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
                                 uint primitive_instance, uint triangle_index,
@@ -215,7 +120,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
     if (ray_depth == 0) {
         intersect_result = IntersectTriangle(pos_0, edge_1, edge_2,
-                                             ray_dir, origin);
+        ray_dir, origin);
     }
 
     vec3 face_normal = normalize(cross(edge_1, edge_2));
@@ -298,7 +203,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
         vec2 uv_2 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_2_index * uv_stepMult + this_materialParameters.baseColorTexCoord];
 
         vec4 sample_color = SampleTextureBarycentric(intersect_result.barycoords, barycoords_rayDiffs,
-                                                     uv_0, uv_1, uv_2, uint(this_materialParameters.baseColorTexture));
+        uv_0, uv_1, uv_2, uint(this_materialParameters.baseColorTexture));
         text_color = this_materialParameters.baseColorFactors * sample_color;
     }
 
@@ -310,7 +215,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
         vec2 uv_2 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_2_index * uv_stepMult + this_materialParameters.normalTexCoord];
 
         vec3 sample_normal = SampleTextureBarycentric(intersect_result.barycoords, barycoords_rayDiffs,
-                                                      uv_0, uv_1, uv_2, uint(this_materialParameters.normalTexture)).xyz;
+        uv_0, uv_1, uv_2, uint(this_materialParameters.normalTexture)).xyz;
 
         sample_normal = sample_normal * 2.f - 1.f;
         sample_normal *= vec3(this_materialParameters.normalScale, this_materialParameters.normalScale, 1.f);
@@ -325,7 +230,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
         vec2 uv_2 = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_2_index * uv_stepMult + this_materialParameters.metallicRoughnessTexCoord];
 
         roughness_metallic_pair = SampleTextureBarycentric(intersect_result.barycoords, barycoords_rayDiffs,
-                                                           uv_0, uv_1, uv_2, uint(this_materialParameters.metallicRoughnessTexture)).xy;
+        uv_0, uv_1, uv_2, uint(this_materialParameters.metallicRoughnessTexture)).xy;
     }
 
     // Evaluate
@@ -345,10 +250,19 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
     // Init return struct in case of early return
     BounceEvaluation return_bounce_evaluation;
+    return_bounce_evaluation.light_target = -1;
+#ifdef SPECULAR_DIFFUSE_EVAL
+    return_bounce_evaluation.light_return_specular = vec3(0.f);
+    return_bounce_evaluation.light_return_diffuse = vec3(0.f);
+    return_bounce_evaluation.next_bounce_light_factor_specular = vec3(0.f);
+    return_bounce_evaluation.next_bounce_light_factor_diffuse = vec3(0.f);
+    return_bounce_evaluation.light_target_contribution_specular = vec3(0.f);
+    return_bounce_evaluation.light_target_contribution_diffuse = vec3(0.f);
+#else
     return_bounce_evaluation.light_return = vec3(0.f);
     return_bounce_evaluation.next_bounce_light_factor = vec3(0.f);
-    return_bounce_evaluation.light_target = -1;
     return_bounce_evaluation.light_target_contribution = vec3(0.f);
+#endif
 
     // Viewvector / Origin
     mat3 normal_to_world_space_mat3 = mat3(normal_tangent, normal_bitangent, normal);
@@ -402,7 +316,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     if ( u_0 < diffuse_sample_chance ) {
         // Diffuse
         #ifdef USE_INCREASING_MOLLIFICATION
-            min_roughness = 0.4f;
+        min_roughness = 0.4f;
         #endif
 
         ray_bounce_normalspace = RandomCosinWeightedHemi(rng_state);
@@ -410,7 +324,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     } else {
         // Specular
         #ifdef USE_INCREASING_MOLLIFICATION
-            min_roughness = min(min_roughness + 0.05f, 0.4f);
+        min_roughness = min(min_roughness + 0.05f, 0.4f);
         #endif
 
         bounce_halfvector_normalspace = RandomGXXhalfvector(a_roughness, rng_state);
@@ -419,10 +333,15 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
     vec3 ray_bounce_dir = normal_to_world_space_mat3 * ray_bounce_normalspace;
     vec3 bounce_halfvector = normal_to_world_space_mat3 * bounce_halfvector_normalspace;
+#ifdef SPECULAR_DIFFUSE_EVAL
+    vec3 bounce_light_factor_specular = vec3(0.f);
+    vec3 bounce_light_factor_diffuse = vec3(0.f);
+#else
     vec3 bounce_light_factor = vec3(0.f);
+#endif
     float ray_bounce_PDF = 0.f;
     if (ray_bounce_normalspace.z > DOT_ANGLE_SLACK
-     && dot(viewVector_normalspace, bounce_halfvector_normalspace) > DOT_ANGLE_SLACK) {
+    && dot(viewVector_normalspace, bounce_halfvector_normalspace) > DOT_ANGLE_SLACK) {
         float ray_bounce_PDF_cosin = RandomCosinWeightedHemiPDF(ray_bounce_normalspace.z);
 
         float halfvector_PDF_GGX = RandomGXXhalfvectorPDF(a_roughness, bounce_halfvector_normalspace.z);
@@ -430,17 +349,34 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
         ray_bounce_PDF = ray_bounce_PDF_cosin * diffuse_sample_chance + ray_bounce_PDF_GGX * (1.f - diffuse_sample_chance);
 
-        bounce_light_factor = light_factor  * BRDF(color.xyz, a_roughness, metallic, viewVector, ray_bounce_dir, normal) * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
+        BRDFresult BRDF_eval = BRDF(color.xyz, a_roughness, metallic, viewVector, ray_bounce_dir, normal);
+
+#ifdef SPECULAR_DIFFUSE_EVAL
+        bounce_light_factor_specular = light_factor * BRDF_eval.f_specular * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
+        bounce_light_factor_diffuse = light_factor * BRDF_eval.f_diffuse * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
+#else
+        bounce_light_factor = light_factor * (BRDF_eval.f_specular + BRDF_eval.f_diffuse) * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
+#endif
     }
 
     // Pick light source
     Reservoir light_reservoir = CreateReservoir();
+#ifdef SPECULAR_DIFFUSE_EVAL
+    vec3 reservoir_light_unshadowed_specular = vec3(0.f);
+    vec3 reservoir_light_unshadowed_diffuse = vec3(0.f);
+#else
     vec3 reservoir_light_unshadowed = vec3(0.f);
+#endif
     vec3 reservoir_ray_dir = vec3(0.f);
     float reservoir_ray_t_max = 0.f;
 
     float bounce_light_weight = 0.f;
+#ifdef SPECULAR_DIFFUSE_EVAL
+    vec3 bounce_light_unshadowed_specular = vec3(0.f);
+    vec3 bounce_light_unshadowed_diffuse = vec3(0.f);
+#else
     vec3 bounce_light_unshadowed = vec3(0.f);
+#endif
     float bounce_light_t_max = INF_DIST;
     uint bounce_light_index = -1;
 
@@ -467,7 +403,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
             float lightcone_PDF = RandomDirInConePDF(angle_sin_cos.y);
 
             if (dot(random_light_dir, vertex_normal) > DOT_ANGLE_SLACK
-             && dot(random_light_dir, normal) > DOT_ANGLE_SLACK) {
+            && dot(random_light_dir, normal) > DOT_ANGLE_SLACK) {
                 float random_light_dir_PDF_bounce;
                 {
                     float NdotL = dot(normal, random_light_dir);
@@ -484,14 +420,26 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
                     random_light_dir_PDF_bounce = random_light_dir_PDF_cosin * diffuse_sample_chance + random_light_dir_PDF_GGX * (1.f - diffuse_sample_chance);
                 }
 
-                vec3 light_unshadowed = this_light_luminance * light_factor * BRDF(color.xyz, a_roughness, metallic, viewVector, random_light_dir, normal) * dot(normal, random_light_dir) / lightcone_PDF;
+                BRDFresult BRDF_eval = BRDF(color.xyz, a_roughness, metallic, viewVector, random_light_dir, normal);
+#ifdef SPECULAR_DIFFUSE_EVAL
+                vec3 light_unshadowed_specular = this_light_luminance * light_factor * BRDF_eval.f_specular * dot(normal, random_light_dir) / lightcone_PDF;
+                vec3 light_unshadowed_diffuse = this_light_luminance * light_factor * BRDF_eval.f_diffuse * dot(normal, random_light_dir) / lightcone_PDF;
+                vec3 light_unshadowed = light_unshadowed_specular + light_unshadowed_diffuse;
+#else
+                vec3 light_unshadowed = this_light_luminance * light_factor * (BRDF_eval.f_specular + BRDF_eval.f_diffuse) * dot(normal, random_light_dir) / lightcone_PDF;
+#endif
 
                 float balance_factor = WeightLightBalance(lightcone_PDF, random_light_dir_PDF_bounce);
                 float weight = balance_factor * max(light_unshadowed.r, max(light_unshadowed.g, light_unshadowed.b));
 
                 bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
                 if (should_swap) {
+#ifdef SPECULAR_DIFFUSE_EVAL
+                    reservoir_light_unshadowed_specular = light_unshadowed_specular;
+                    reservoir_light_unshadowed_diffuse = light_unshadowed_diffuse;
+#else
                     reservoir_light_unshadowed = light_unshadowed;
+#endif
                     reservoir_ray_dir = random_light_dir;
                     reservoir_ray_t_max = INF_DIST;
                 }
@@ -499,12 +447,18 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
             // Bounce dir check for hitting light
             if (dot(ray_bounce_dir, light_dir) > angle_sin_cos.y) {
-                vec3 light_unshadowed = this_light_luminance * bounce_light_factor;
+#ifdef SPECULAR_DIFFUSE_EVAL
+                bounce_light_unshadowed_specular = this_light_luminance * bounce_light_factor_specular;
+                bounce_light_unshadowed_diffuse = this_light_luminance * bounce_light_factor_diffuse;
+                vec3 light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
+#else
+                bounce_light_unshadowed = this_light_luminance * bounce_light_factor;
+                vec3 light_unshadowed = bounce_light_unshadowed;
+#endif
 
                 float balance_factor = WeightLightBalance(ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
                 float weight = balance_factor * max(light_unshadowed.r, max(light_unshadowed.g, light_unshadowed.b));
 
-                bounce_light_unshadowed = light_unshadowed;
                 bounce_light_weight = weight;
                 bounce_light_t_max = INF_DIST;
                 bounce_light_index = -1;            // Cones are inhittable at BVH
@@ -517,36 +471,68 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
         if (bounce_light_weight != 0.f) {   // If bounce ray may hit light then merge
             bool should_swap = UpdateReservoir(bounce_light_weight, light_reservoir, rng_state);
             if (should_swap) {
+#ifdef SPECULAR_DIFFUSE_EVAL
+                reservoir_light_unshadowed_specular = bounce_light_unshadowed_specular;
+                reservoir_light_unshadowed_diffuse = bounce_light_unshadowed_diffuse;
+#else
                 reservoir_light_unshadowed = bounce_light_unshadowed;
+#endif
                 reservoir_ray_dir = ray_bounce_dir;
                 reservoir_ray_t_max = bounce_light_t_max;
             }
         } else {                            // Else sky is behind
+#ifdef SPECULAR_DIFFUSE_EVAL
+            vec3 skylight_unshadowed_specular = sky_luminance * bounce_light_factor_specular;
+            vec3 skylight_unshadowed_diffuse = sky_luminance * bounce_light_factor_diffuse;
+            vec3 skylight_unshadowed = skylight_unshadowed_specular + skylight_unshadowed_diffuse;
+#else
             vec3 skylight_unshadowed = sky_luminance * bounce_light_factor;
+#endif
             float weight = max(skylight_unshadowed.r, max(skylight_unshadowed.g, skylight_unshadowed.b));
 
             bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
             if (should_swap) {
+#ifdef SPECULAR_DIFFUSE_EVAL
+                reservoir_light_unshadowed_specular = skylight_unshadowed_specular;
+                reservoir_light_unshadowed_diffuse = skylight_unshadowed_diffuse;
+#else
                 reservoir_light_unshadowed = skylight_unshadowed;
+#endif
                 reservoir_ray_dir = ray_bounce_dir;
                 reservoir_ray_t_max = INF_DIST;
             }
         }
     } else {
         if (bounce_light_weight != 0.f) {   // If bounce ray may hit return its contibution if finds a light
-            float bounce_light_unshadowed_max = max(bounce_light_unshadowed.r, max(bounce_light_unshadowed.g, bounce_light_unshadowed.b));
             return_bounce_evaluation.light_target = bounce_light_index;
+#ifdef SPECULAR_DIFFUSE_EVAL
+            vec3 bounce_light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
+            float bounce_light_unshadowed_max = max(bounce_light_unshadowed.r, max(bounce_light_unshadowed.g, bounce_light_unshadowed.b));
+            return_bounce_evaluation.light_target_contribution_specular = bounce_light_unshadowed_specular * (bounce_light_weight / bounce_light_unshadowed_max);
+            return_bounce_evaluation.light_target_contribution_diffuse = bounce_light_unshadowed_diffuse * (bounce_light_weight / bounce_light_unshadowed_max);
+#else
+            float bounce_light_unshadowed_max = max(bounce_light_unshadowed.r, max(bounce_light_unshadowed.g, bounce_light_unshadowed.b));
             return_bounce_evaluation.light_target_contribution = bounce_light_unshadowed * (bounce_light_weight / bounce_light_unshadowed_max);
+#endif
         } else {                            // Else sky is behind
-            vec3 skylight_unshadowed = sky_luminance * bounce_light_factor;
-
             return_bounce_evaluation.light_target = -1;
-            return_bounce_evaluation.light_target_contribution = skylight_unshadowed;
+#ifdef SPECULAR_DIFFUSE_EVAL
+            return_bounce_evaluation.light_target_contribution_specular = sky_luminance * bounce_light_factor_specular;
+            return_bounce_evaluation.light_target_contribution_diffuse = sky_luminance * bounce_light_factor_diffuse;
+#else
+            return_bounce_evaluation.light_target_contribution = sky_luminance * bounce_light_factor;
+#endif
         }
     }
 
     // Evaluate light source
+#ifdef SPECULAR_DIFFUSE_EVAL
+    vec3 direct_light_specular = vec3(0.f, 0.f, 0.f);
+    vec3 direct_light_diffuse = vec3(0.f, 0.f, 0.f);
+    vec3 reservoir_light_unshadowed = reservoir_light_unshadowed_specular + reservoir_light_unshadowed_diffuse;
+#else
     vec3 direct_light = vec3(0.f, 0.f, 0.f);
+#endif
     if (reservoir_light_unshadowed != vec3(0.f))
     {
         rayQueryEXT query;  // TODO: Change flags
@@ -558,15 +544,30 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
         }
 
         if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
+#ifdef SPECULAR_DIFFUSE_EVAL
             float reservoir_light_unshadowed_max = max(reservoir_light_unshadowed.r, max(reservoir_light_unshadowed.g, reservoir_light_unshadowed.b));
-            vec3 light_contribution = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+            #ifndef DEBUG_MIS
+                direct_light_specular = reservoir_light_unshadowed_specular * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+                direct_light_diffuse = reservoir_light_unshadowed_diffuse * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+            #else
+                vec3 light_contribution_specular = reservoir_light_unshadowed_specular * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+                float light_contribution_specular_max = max(light_contribution_specular.r, max(light_contribution_specular.g, light_contribution_specular.b));
+                direct_light_specular = vec3(light_contribution_specular_max, 0.f, 0.f);
 
+                vec3 light_contribution_diffuse = reservoir_light_unshadowed_diffuse * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+                float light_contribution_diffuse_max = max(light_contribution_diffuse.r, max(light_contribution_diffuse.g, light_contribution_diffuse.b));
+                direct_light_diffuse = vec3(light_contribution_diffuse_max, 0.f, 0.f);
+            #endif
+#else
+            float reservoir_light_unshadowed_max = max(reservoir_light_unshadowed.r, max(reservoir_light_unshadowed.g, reservoir_light_unshadowed.b));
             #ifndef DEBUG_MIS
                 direct_light = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
             #else
+                vec3 light_contribution = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
                 float light_contribution_max = max(light_contribution.r, max(light_contribution.g, light_contribution.b));
                 direct_light = vec3(light_contribution_max, 0.f, 0.f);
             #endif
+#endif
         }
     }
 
@@ -576,236 +577,24 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
     return_bounce_evaluation.dir = ray_bounce_dir;
     return_bounce_evaluation.dirDiffs = ReflectRayDiffsDir(ray_dirDiffs, bounce_halfvector);
+#ifdef SPECULAR_DIFFUSE_EVAL
+    return_bounce_evaluation.light_return_specular = direct_light_specular;
+    return_bounce_evaluation.light_return_diffuse = direct_light_diffuse;
+#else
     return_bounce_evaluation.light_return = direct_light;
+#endif
 
     if (!is_last_bounce) {
+#ifdef SPECULAR_DIFFUSE_EVAL
+        return_bounce_evaluation.next_bounce_light_factor_specular = bounce_light_factor_specular;
+        return_bounce_evaluation.next_bounce_light_factor_diffuse = bounce_light_factor_diffuse;
+#else
         return_bounce_evaluation.next_bounce_light_factor = bounce_light_factor;
+#endif
     }
 
     return return_bounce_evaluation;
 }
 
-void main()
-{
-    uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameIndex);
-    float min_roughness = MIN_ROUGHNESS;
-
-    // Read input attachment
-    #ifdef MULTISAMPLED_INPUT
-        int sample_index = int(frameIndex % MULTISAMPLED_INPUT);
-        uvec2 frag_pair = uvec2(subpassLoad(visibilityInput, sample_index));
-        uint primitive_instance = frag_pair.x;
-        uint triangle_index = frag_pair.y;
-
-        uint alpha_one = uint(frameIndex < MULTISAMPLED_INPUT);
-
-        // TODO: Output stuff
-        uint sample_out_mask = 1 << sample_index;
-        gl_SampleMask[0] = int(sample_out_mask);
-
-        // If no primitive then sky
-        if (primitive_instance == 0) {
-            if (alpha_one != 0) {
-                color_out = vec4(sky_luminance, 1.f);
-            } else {
-                color_out = vec4(sky_luminance, 0.f);
-            }
-            return;
-        }
-
-        // Find intersect
-        vec2 group_pixel_pos = vec2(0.f);
-        uint group_samples_count = 0;
-
-        ivec2 group_sample_triangle_indices_pairs[MULTISAMPLED_INPUT];
-        {
-            uint indices_offset = primitivesInstancesParameters[primitive_instance].indicesOffset
-                + uint(primitivesInstancesParameters[primitive_instance].indicesSetMultiplier) * triangle_index;
-            uint p_0_index = uintVerticesBuffers[0].data[indices_offset];
-            uint p_1_index = uintVerticesBuffers[0].data[indices_offset + 1];
-            uint p_2_index = uintVerticesBuffers[0].data[indices_offset + 2];
-
-            for (int i = 0; i != MULTISAMPLED_INPUT; ++i) {
-                uvec2 this_frag_pair = uvec2(subpassLoad(visibilityInput, i));
-                uint this_primitive_instance = this_frag_pair.x;
-                uint this_triangle_index = this_frag_pair.y;
-
-                if (this_primitive_instance == primitive_instance) {
-                    if (this_triangle_index == triangle_index) {
-                        group_sample_triangle_indices_pairs[group_samples_count] = ivec2(i, triangle_index);
-
-                        group_pixel_pos += InputSamplesPositions(i);
-                        group_samples_count += 1;
-                    } else {
-                        uint this_indices_offset = primitivesInstancesParameters[primitive_instance].indicesOffset
-                            + uint(primitivesInstancesParameters[primitive_instance].indicesSetMultiplier) * this_triangle_index;
-                        uint this_p_0_index = uintVerticesBuffers[0].data[this_indices_offset];
-                        uint this_p_1_index = uintVerticesBuffers[0].data[this_indices_offset + 1];
-                        uint this_p_2_index = uintVerticesBuffers[0].data[this_indices_offset + 2];
-
-                        bool common_point = false;
-                        common_point = common_point || this_p_0_index == p_0_index || this_p_1_index == p_1_index || this_p_2_index == p_2_index;
-                        common_point = common_point || this_p_0_index == p_1_index || this_p_1_index == p_2_index || this_p_2_index == p_0_index;
-                        common_point = common_point || this_p_0_index == p_2_index || this_p_1_index == p_0_index || this_p_2_index == p_1_index;
-
-                        if (common_point) {
-                            group_sample_triangle_indices_pairs[group_samples_count] = ivec2(i, this_triangle_index);
-
-                            group_pixel_pos += InputSamplesPositions(i);
-                            group_samples_count += 1;
-                        }
-                    }
-                }
-            }
-            group_pixel_pos /= float(group_samples_count);
-        }
-
-        // Find the nearest triangle sample to pixel pos
-        uint nearest_triangle_index = -1;
-        {
-            float min_distanceSq = 8.f;
-
-            for (int i = 0; i != group_samples_count; ++i) {
-                vec2 proposed_sample_pos = InputSamplesPositions(group_sample_triangle_indices_pairs[i].x);
-                uint proposed_sample_triangle_index = uint(group_sample_triangle_indices_pairs[i].y);
-
-                vec2 distance_vec = proposed_sample_pos - group_pixel_pos;
-                float distanceSq = dot(distance_vec, distance_vec);
-
-                if (distanceSq < min_distanceSq) {
-                    min_distanceSq = distanceSq;
-                    nearest_triangle_index = proposed_sample_triangle_index;
-                }
-            }
-        }
-
-        // Trace ray the primary ray using the nearest sample to mean
-        triangle_index = nearest_triangle_index;
-
-        vec2 sample_pixel_offset = group_pixel_pos - vec2(0.5f, 0.5f);
-
-        vec3 ray_dir_center = normalize(vert_normal);
-        vec3 ray_dir_center_dx = dFdx(ray_dir_center);
-        vec3 ray_dir_center_dy = dFdy(ray_dir_center);
-
-        vec3 ray_dir = normalize(ray_dir_center + sample_pixel_offset.x * ray_dir_center_dx + sample_pixel_offset.y * ray_dir_center_dy);
-        RayDiffsDir ray_dirDiffs;
-        ray_dirDiffs.dirDx = (1.f - 2.f * abs(sample_pixel_offset.x)) * ray_dir_center_dx;
-        ray_dirDiffs.dirDy = (1.f - 2.f * abs(sample_pixel_offset.y)) * ray_dir_center_dy;
-
-        vec3 ray_origin = vec3(0.f);
-        RayDiffsOrigin ray_originDiffs;
-        ray_originDiffs.originDx = vec3(0.f);
-        ray_originDiffs.originDy = vec3(0.f);
-    #else
-        uvec2 frag_pair = uvec2(subpassLoad(visibilityInput));
-        uint primitive_instance = frag_pair.x;
-        uint triangle_index = frag_pair.y;
-
-        uint alpha_one = uint(frameIndex == 0);
-
-        if (primitive_instance == 0) {
-            if (alpha_one != 0) {
-                color_out = vec4(sky_luminance, 1.f);
-            } else {
-                color_out = vec4(sky_luminance, 0.f);
-            }
-            return;
-        }
-
-        vec3 ray_dir = normalize(vert_normal);
-        RayDiffsDir ray_dirDiffs;
-        ray_dirDiffs.dirDx = dFdx(ray_dir);
-        ray_dirDiffs.dirDy = dFdy(ray_dir);
-
-        vec3 ray_origin = vec3(0.f);
-        RayDiffsOrigin ray_originDiffs;
-        ray_originDiffs.originDx = vec3(0.f);
-        ray_originDiffs.originDy = vec3(0.f);
-    #endif
-
-    IntersectTriangleResult intersect_result;
-
-    vec3 light_factor = vec3(1.f);
-    vec3 light_sum = vec3(0.f);
-
-    uint light_target = -1;
-    vec3 light_hit_contribution = vec3(0.f);
-
-    uint i = 0;
-    while(true) {
-        BounceEvaluation eval = EvaluateBounce(intersect_result,
-                                               primitive_instance, triangle_index,
-                                               ray_origin, ray_originDiffs,
-                                               ray_dir, ray_dirDiffs,
-                                               light_factor, i,
-                                               min_roughness, rng_state);
-
-        ray_origin = eval.origin;
-        ray_originDiffs = eval.originDiffs;
-
-        ray_dir = eval.dir;
-        ray_dirDiffs = eval.dirDiffs;
-
-        light_factor = eval.next_bounce_light_factor;
-        light_sum += eval.light_return;
-
-        light_target = eval.light_target;
-        light_hit_contribution = eval.light_target_contribution;
-
-        if (light_factor == vec3(0.f))
-            break;
-
-        rayQueryEXT query;
-        rayQueryInitializeEXT(query, topLevelAS, 0, 0xFF, ray_origin, 0.0f, ray_dir, INF_DIST);
-        while (rayQueryProceedEXT(query)) {
-            if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
-                ConfirmNonOpaqueIntersection(query);
-            }
-        }
-
-        if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
-            #ifndef DEBUG_MIS
-                light_sum += light_hit_contribution;
-            #else
-                float light_hit_contribution_max = max(light_hit_contribution.r, max(light_hit_contribution.g, light_hit_contribution.b));
-                light_sum += vec3(0.f, 0.f, light_hit_contribution_max);
-            #endif
-            break;
-        } else {
-            // TODO: does it hit light?
-            intersect_result.barycoords = rayQueryGetIntersectionBarycentricsEXT(query, true);
-            intersect_result.distance = rayQueryGetIntersectionTEXT(query, true);
-            primitive_instance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, true) + rayQueryGetIntersectionGeometryIndexEXT(query, true);
-            triangle_index = rayQueryGetIntersectionPrimitiveIndexEXT(query, true);
-        }
-
-        i++;
-
-        bool has_inf = isinf(light_sum.r) || isinf(light_sum.g) || isinf(light_sum.b);
-        bool has_nan = isnan(light_sum.r) || isnan(light_sum.g) || isnan(light_sum.b);
-        float max_value = max(light_sum.r, max(light_sum.g, light_sum.b));
-        if (has_inf || has_nan || max_value > LIGHT_THRESHOLD) {
-            break;
-        }
-    }
-
-    // Threshold value
-    bool has_inf = isinf(light_sum.r) || isinf(light_sum.g) || isinf(light_sum.b);
-    bool has_nan = isnan(light_sum.r) || isnan(light_sum.g) || isnan(light_sum.b);
-    if (has_inf || has_nan) {
-        light_sum = vec3(0.f);
-    }
-    float max_value = max(light_sum.r, max(light_sum.g, light_sum.b));
-    if (max_value > LIGHT_THRESHOLD) {
-        float factor = LIGHT_THRESHOLD / max_value;
-        light_sum *= factor;
-    }
-
-    // Color out
-    if (alpha_one != 0) {
-        color_out = vec4(light_sum, 1.f);
-    } else {
-        color_out = vec4(light_sum, 0.f);
-    }
-}
+#define FILE_EVALUATE_BOUNCE
+#endif

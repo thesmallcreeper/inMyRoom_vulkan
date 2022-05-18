@@ -32,7 +32,12 @@ float SmithsVisibility(vec3 eye, vec3 light, vec3 normal, float a) {
     return 0.0;
 }
 
-vec3 BRDF(vec3 baseColor, float a, float metallic, vec3 eye, vec3 light, vec3 normal) {
+struct BRDFresult {
+    vec3 f_diffuse;
+    vec3 f_specular;
+};
+
+BRDFresult BRDF(vec3 baseColor, float a, float metallic, vec3 eye, vec3 light, vec3 normal) {
 
     vec3 halfvector = normalize(eye + light);
     float NdotH = dot(normal, halfvector);
@@ -43,10 +48,11 @@ vec3 BRDF(vec3 baseColor, float a, float metallic, vec3 eye, vec3 light, vec3 no
 
     vec3 F = f0 + (vec3(1.f) - f0) * pow(1.f - max(HdotL, 0.f), 5.f);
 
-    vec3 f_diffuse = (vec3(1.f) - F) * (1.f / M_PI) * c_diff;
-    vec3 f_specular = F * GGXdistribution(a, NdotH) * SmithsVisibility(eye, light, normal, a);
+    BRDFresult return_result;
+    return_result.f_diffuse = (vec3(1.f) - F) * (1.f / M_PI) * c_diff;
+    return_result.f_specular = F * GGXdistribution(a, NdotH) * SmithsVisibility(eye, light, normal, a);
 
-    return f_diffuse + f_specular;
+    return return_result;
 }
 
 #define FILE_BRDF
