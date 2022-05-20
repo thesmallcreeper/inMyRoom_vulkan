@@ -204,15 +204,15 @@ void main()
                 }
             #else
                 if (i == 0) {
-                    float light_hit_contribution_specular_max = max(light_target_contribution_specular.r, max(light_target_contribution_specular.g, light_target_contribution_specular.b));
-                    light_sum_specular += vec3(0.f, 0.f, light_hit_contribution_specular_max);
-                    float light_hit_contribution_diffuse_max = max(light_target_contribution_diffuse.r, max(light_target_contribution_diffuse.g, light_target_contribution_diffuse.b));
-                    light_sum_diffuse +=  vec3(0.f, 0.f, light_hit_contribution_diffuse_max);
+                    float light_hit_contribution_specular_lum = Luminance(light_target_contribution_specular);
+                    light_sum_specular += vec3(0.f, 0.f, light_hit_contribution_specular_lum);
+                    float light_hit_contribution_diffuse_lum = Luminance(light_target_contribution_diffuse);
+                    light_sum_diffuse +=  vec3(0.f, 0.f, light_hit_contribution_diffuse_lum);
                 } else {
                     vec3 light_hit = light_target_contribution_specular + light_target_contribution_diffuse;
-                    float light_hit_max = max(light_hit.r, max(light_hit.g, light_hit.b));
-                    light_sum_specular += indirect_specular_factor * vec3(0.f, 0.f, light_hit_max);
-                    light_sum_diffuse += (vec3(1.f) - indirect_specular_factor) * vec3(0.f, 0.f, light_hit_max);
+                    float light_hit_lum = Luminance(light_hit);
+                    light_sum_specular += indirect_specular_factor * vec3(0.f, 0.f, light_hit_lum);
+                    light_sum_diffuse += (vec3(1.f) - indirect_specular_factor) * vec3(0.f, 0.f, light_hit_lum);
                 }
             #endif
             break;

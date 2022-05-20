@@ -301,8 +301,8 @@ void main()
             #ifndef DEBUG_MIS
                 light_sum += light_hit_contribution;
             #else
-                float light_hit_contribution_max = max(light_hit_contribution.r, max(light_hit_contribution.g, light_hit_contribution.b));
-                light_sum += vec3(0.f, 0.f, light_hit_contribution_max);
+                float light_hit_contribution_lum = Luminance(light_hit_contribution);
+                light_sum += vec3(0.f, 0.f, light_hit_contribution_lum);
             #endif
             break;
         } else {

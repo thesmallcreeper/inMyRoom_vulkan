@@ -3,6 +3,7 @@
 #extension GL_KHR_shader_subgroup_arithmetic: require
 
 #include "common/structs/Histogram.h"
+#include "common/luminance.glsl"
 
 layout(local_size_x = LOCAL_SIZE_X, local_size_y = 1, local_size_z = 1) in;
 
@@ -94,9 +95,9 @@ void main()
                 #endif
             #endif
 
-            float max_value = max(rgb_values.x, max(rgb_values.y, rgb_values.z));
+            float luminance = Luminance(rgb_values);
 
-            float max_value_log2 = log2(max_value);
+            float max_value_log2 = log2(luminance);
 
             float interpolation_value = (max_value_log2 - min_luminance_log2) * inv_luminance_log2_range;
 

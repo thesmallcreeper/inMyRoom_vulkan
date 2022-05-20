@@ -6,6 +6,8 @@
 #include "common/rng.glsl"
 #include "common/brdf.glsl"
 #include "common/reservoir.glsl"
+#include "common/luminance.glsl"
+#include "common/environmentTerm.glsl"
 
 struct BounceEvaluation {
     vec3 origin;
@@ -244,6 +246,9 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     float rough_length = text_normal_length * rough_in_length;
     float roughness = LengthToRoughness(rough_length);
 
+    vec3 c_diff = mix(color.rgb, vec3(0.f), metallic);
+    vec3 f0 = mix(vec3(0.04f), color.rgb, metallic);
+
     // Roughness mollification
     roughness = mix(min_roughness, 1.f, roughness);
     float a_roughness = roughness * roughness;
@@ -299,14 +304,9 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
     bool is_last_bounce = (ray_depth + 1 == MAX_DEPTH);
 
     float NdotV = dot(normal, viewVector);
+    float e_specular = Luminance(EnvironmentTerm(f0, NdotV, a_roughness));
 
-    float color_max = max(color.x, max(color.y, color.z));
-    float f0 = mix(0.04f, color_max, metallic);
-
-    float frensel_pow = mix(5.f, 4.f, roughness);
-    float e_specular = (f0 + (1.f - f0) * pow(1.f - NdotV, frensel_pow));
-
-    float e_diffuse = color_max * mix((1.f - f0), 0.f, metallic);
+    float e_diffuse = Luminance(c_diff);
 
     float diffuse_sample_chance = e_diffuse / (e_specular + e_diffuse);
 
@@ -349,7 +349,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
         ray_bounce_PDF = ray_bounce_PDF_cosin * diffuse_sample_chance + ray_bounce_PDF_GGX * (1.f - diffuse_sample_chance);
 
-        BRDFresult BRDF_eval = BRDF(color.xyz, a_roughness, metallic, viewVector, ray_bounce_dir, normal);
+        BRDFresult BRDF_eval = BRDF(c_diff, f0, a_roughness, viewVector, ray_bounce_dir, normal);
 
 #ifdef SPECULAR_DIFFUSE_EVAL
         bounce_light_factor_specular = light_factor * BRDF_eval.f_specular * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
@@ -420,7 +420,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
                     random_light_dir_PDF_bounce = random_light_dir_PDF_cosin * diffuse_sample_chance + random_light_dir_PDF_GGX * (1.f - diffuse_sample_chance);
                 }
 
-                BRDFresult BRDF_eval = BRDF(color.xyz, a_roughness, metallic, viewVector, random_light_dir, normal);
+                BRDFresult BRDF_eval = BRDF(c_diff, f0, a_roughness, viewVector, random_light_dir, normal);
 #ifdef SPECULAR_DIFFUSE_EVAL
                 vec3 light_unshadowed_specular = this_light_luminance * light_factor * BRDF_eval.f_specular * dot(normal, random_light_dir) / lightcone_PDF;
                 vec3 light_unshadowed_diffuse = this_light_luminance * light_factor * BRDF_eval.f_diffuse * dot(normal, random_light_dir) / lightcone_PDF;
@@ -430,7 +430,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 #endif
 
                 float balance_factor = WeightLightBalance(lightcone_PDF, random_light_dir_PDF_bounce);
-                float weight = balance_factor * max(light_unshadowed.r, max(light_unshadowed.g, light_unshadowed.b));
+                float weight = balance_factor * Luminance(light_unshadowed);
 
                 bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
                 if (should_swap) {
@@ -457,7 +457,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 #endif
 
                 float balance_factor = WeightLightBalance(ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
-                float weight = balance_factor * max(light_unshadowed.r, max(light_unshadowed.g, light_unshadowed.b));
+                float weight = balance_factor * Luminance(light_unshadowed);
 
                 bounce_light_weight = weight;
                 bounce_light_t_max = INF_DIST;
@@ -488,7 +488,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 #else
             vec3 skylight_unshadowed = sky_luminance * bounce_light_factor;
 #endif
-            float weight = max(skylight_unshadowed.r, max(skylight_unshadowed.g, skylight_unshadowed.b));
+            float weight = Luminance(skylight_unshadowed);
 
             bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
             if (should_swap) {
@@ -507,12 +507,12 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
             return_bounce_evaluation.light_target = bounce_light_index;
 #ifdef SPECULAR_DIFFUSE_EVAL
             vec3 bounce_light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
-            float bounce_light_unshadowed_max = max(bounce_light_unshadowed.r, max(bounce_light_unshadowed.g, bounce_light_unshadowed.b));
-            return_bounce_evaluation.light_target_contribution_specular = bounce_light_unshadowed_specular * (bounce_light_weight / bounce_light_unshadowed_max);
-            return_bounce_evaluation.light_target_contribution_diffuse = bounce_light_unshadowed_diffuse * (bounce_light_weight / bounce_light_unshadowed_max);
+            float bounce_light_unshadowed_lum = Luminance(bounce_light_unshadowed);
+            return_bounce_evaluation.light_target_contribution_specular = bounce_light_unshadowed_specular * (bounce_light_weight / bounce_light_unshadowed_lum);
+            return_bounce_evaluation.light_target_contribution_diffuse = bounce_light_unshadowed_diffuse * (bounce_light_weight / bounce_light_unshadowed_lum);
 #else
-            float bounce_light_unshadowed_max = max(bounce_light_unshadowed.r, max(bounce_light_unshadowed.g, bounce_light_unshadowed.b));
-            return_bounce_evaluation.light_target_contribution = bounce_light_unshadowed * (bounce_light_weight / bounce_light_unshadowed_max);
+            float bounce_light_unshadowed_lum = Luminance(bounce_light_unshadowed);
+            return_bounce_evaluation.light_target_contribution = bounce_light_unshadowed * (bounce_light_weight / bounce_light_unshadowed_lum);
 #endif
         } else {                            // Else sky is behind
             return_bounce_evaluation.light_target = -1;
@@ -533,6 +533,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 #else
     vec3 direct_light = vec3(0.f, 0.f, 0.f);
 #endif
+
     if (reservoir_light_unshadowed != vec3(0.f))
     {
         rayQueryEXT query;  // TODO: Change flags
@@ -545,27 +546,27 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
         if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
 #ifdef SPECULAR_DIFFUSE_EVAL
-            float reservoir_light_unshadowed_max = max(reservoir_light_unshadowed.r, max(reservoir_light_unshadowed.g, reservoir_light_unshadowed.b));
+            float reservoir_light_unshadowed_lum = Luminance(reservoir_light_unshadowed);
             #ifndef DEBUG_MIS
-                direct_light_specular = reservoir_light_unshadowed_specular * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
-                direct_light_diffuse = reservoir_light_unshadowed_diffuse * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+                direct_light_specular = reservoir_light_unshadowed_specular * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
+                direct_light_diffuse = reservoir_light_unshadowed_diffuse * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
             #else
-                vec3 light_contribution_specular = reservoir_light_unshadowed_specular * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
-                float light_contribution_specular_max = max(light_contribution_specular.r, max(light_contribution_specular.g, light_contribution_specular.b));
-                direct_light_specular = vec3(light_contribution_specular_max, 0.f, 0.f);
+                vec3 light_contribution_specular = reservoir_light_unshadowed_specular * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
+                float light_contribution_specular_lum = Luminance(light_contribution_specular);
+                direct_light_specular = vec3(light_contribution_specular_lum, 0.f, 0.f);
 
-                vec3 light_contribution_diffuse = reservoir_light_unshadowed_diffuse * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
-                float light_contribution_diffuse_max = max(light_contribution_diffuse.r, max(light_contribution_diffuse.g, light_contribution_diffuse.b));
-                direct_light_diffuse = vec3(light_contribution_diffuse_max, 0.f, 0.f);
+                vec3 light_contribution_diffuse = reservoir_light_unshadowed_diffuse * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
+                float light_contribution_diffuse_lum = Luminance(light_contribution_diffuse);
+                direct_light_diffuse = vec3(light_contribution_diffuse_lum, 0.f, 0.f);
             #endif
 #else
-            float reservoir_light_unshadowed_max = max(reservoir_light_unshadowed.r, max(reservoir_light_unshadowed.g, reservoir_light_unshadowed.b));
+            float reservoir_light_unshadowed_lum = Luminance(reservoir_light_unshadowed);
             #ifndef DEBUG_MIS
-                direct_light = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
+                direct_light = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
             #else
-                vec3 light_contribution = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_max);
-                float light_contribution_max = max(light_contribution.r, max(light_contribution.g, light_contribution.b));
-                direct_light = vec3(light_contribution_max, 0.f, 0.f);
+                vec3 light_contribution = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
+                float light_contribution_lun = Luminance(light_contribution);
+                direct_light = vec3(light_contribution_lun, 0.f, 0.f);
             #endif
 #endif
         }

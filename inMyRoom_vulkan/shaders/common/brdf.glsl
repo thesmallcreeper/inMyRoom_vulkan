@@ -37,14 +37,11 @@ struct BRDFresult {
     vec3 f_specular;
 };
 
-BRDFresult BRDF(vec3 baseColor, float a, float metallic, vec3 eye, vec3 light, vec3 normal) {
+BRDFresult BRDF(vec3 c_diff, vec3 f0, float a, vec3 eye, vec3 light, vec3 normal) {
 
     vec3 halfvector = normalize(eye + light);
     float NdotH = dot(normal, halfvector);
     float HdotL = dot(halfvector, light);
-
-    vec3 c_diff = mix(baseColor.rgb, vec3(0.f), metallic);
-    vec3 f0 = mix(vec3(0.04f), baseColor.rgb, metallic);
 
     vec3 F = f0 + (vec3(1.f) - f0) * pow(1.f - max(HdotL, 0.f), 5.f);
 

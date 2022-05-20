@@ -31,8 +31,8 @@ else ()
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_FLAGS}  ${OPT_FLAGS}")
 endif()
 
-add_compile_definitions(CPU_WAIT_GPU_SERIALIZED)
-#add_compile_definitions(ENABLE_ASYNC_COMPUTE)
+#add_compile_definitions(CPU_WAIT_GPU_SERIALIZED)
+add_compile_definitions(ENABLE_ASYNC_COMPUTE)
 
 add_compile_definitions(TINYGLTF_NOEXCEPTION)
 
