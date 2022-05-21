@@ -10,6 +10,11 @@
 #include "common/environmentTerm.glsl"
 
 struct BounceEvaluation {
+    vec3 baseColor;
+    float metallic;
+    vec3 normal;
+    float roughness;
+
     vec3 origin;
     RayDiffsOrigin originDiffs;
 
@@ -27,7 +32,6 @@ struct BounceEvaluation {
 #endif
 
     uint light_target;
-
 #ifdef SPECULAR_DIFFUSE_EVAL
     vec3 light_target_contribution_specular;
     vec3 light_target_contribution_diffuse;
@@ -255,6 +259,10 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
     // Init return struct in case of early return
     BounceEvaluation return_bounce_evaluation;
+    return_bounce_evaluation.baseColor = vec3(color);
+    return_bounce_evaluation.metallic = metallic;
+    return_bounce_evaluation.normal = normal;
+    return_bounce_evaluation.roughness = roughness;
     return_bounce_evaluation.light_target = -1;
 #ifdef SPECULAR_DIFFUSE_EVAL
     return_bounce_evaluation.light_return_specular = vec3(0.f);

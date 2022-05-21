@@ -47,6 +47,7 @@ private:
     std::pair<vk::Queue, uint32_t> exposureComputeQueue;
 
     size_t                  frameCount = 0;
+    size_t                  frameCountAccumulated = 0;
     LightsIndicesRange      coneLightsIndicesRange;
 
     std::vector<PrimitiveInstanceParameters> primitive_instance_parameters;
@@ -111,6 +112,31 @@ private:
     vma::Allocation         specularDistanceAllocation;
     vk::ImageView           specularDistanceImageView;
     vk::ImageCreateInfo     specularDistanceImageCreateInfo;
+
+    vk::Image               normalRoughnessImage;
+    vma::Allocation         normalRoughnessAllocation;
+    vk::ImageView           normalRoughnessImageView;
+    vk::ImageCreateInfo     normalRoughnessImageCreateInfo;
+
+    vk::Image               colorMetalnessImage;
+    vma::Allocation         colorMetalnessAllocation;
+    vk::ImageView           colorMetalnessImageView;
+    vk::ImageCreateInfo     colorMetalnessImageCreateInfo;
+
+    vk::Image               motionImage;
+    vma::Allocation         motionAllocation;
+    vk::ImageView           motionImageView;
+    vk::ImageCreateInfo     motionImageCreateInfo;
+
+    vk::Image               linearViewZImage;
+    vma::Allocation         linearViewZAllocation;
+    vk::ImageView           linearViewZImageView;
+    vk::ImageCreateInfo     linearViewZImageCreateInfo;
+
+    vk::Image               accumulateImage;
+    vma::Allocation         accumulateAllocation;
+    vk::ImageView           accumulateImageView;
+    vk::ImageCreateInfo     accumulateImageCreateInfo;
 
     std::unique_ptr<TLASbuilder> TLASbuilder_uptr;
 

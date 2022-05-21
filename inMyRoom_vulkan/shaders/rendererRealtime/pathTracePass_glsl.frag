@@ -11,6 +11,10 @@
 #include "common/structs/PrimitiveInstanceParameters.h"
 #include "common/structs/LightParameters.h"
 #include "common/samplesPosition.glsl"
+#include "common/sRGBencode.glsl"
+
+#include "NRD/helpers/NRD_packNormalRoughness.glsl"
+#include "NRD/helpers/REBLUR_getNormalizedHitDist.glsl"
 
 #define MAX_DEPTH 3
 #define DOT_ANGLE_SLACK 0.0087265f      // cos(89.5 degs)
@@ -21,6 +25,7 @@
 // #define DEBUG_MIS
 
 #define INF_DIST 100000.f
+#define FP16_MAX 65504.f
 
 //
 // In
@@ -30,6 +35,10 @@ layout( location = 0 ) in vec3 vert_normal;
 // Out
 layout( location = 0 ) out vec4 diffuse_out;
 layout( location = 1 ) out vec4 specular_out;
+layout( location = 2 ) out vec4 normalRoughness_out;
+layout( location = 3 ) out vec4 colorMetalness_out;
+layout( location = 4 ) out vec4 motionVec_out;
+layout( location = 5 ) out float linearViewZ_out;
 
 //
 // Descriptors
@@ -121,15 +130,19 @@ void main()
     uint triangle_index = frag_pair.y;
 
     if (primitive_instance == 0) {
-        diffuse_out = vec4(0.f);
-        specular_out = vec4(0.f);
+        diffuse_out = vec4(vec3(0.f), 0.f);
+        specular_out = vec4(vec3(0.f), 0.f);
+        normalRoughness_out = vec4(0.f);
+        colorMetalness_out = vec4(0.f);
         return;
     }
 
-    vec3 ray_dir = normalize(vert_normal);
+    const vec3 primary_ray_dir = normalize(vert_normal);
+
+    vec3 ray_dir = primary_ray_dir;
     RayDiffsDir ray_dirDiffs;
-    ray_dirDiffs.dirDx = dFdx(ray_dir);
-    ray_dirDiffs.dirDy = dFdy(ray_dir);
+    ray_dirDiffs.dirDx = dFdx(primary_ray_dir);
+    ray_dirDiffs.dirDy = dFdy(primary_ray_dir);
 
     vec3 ray_origin = vec3(0.f);
     RayDiffsOrigin ray_originDiffs;
@@ -137,6 +150,14 @@ void main()
     ray_originDiffs.originDy = vec3(0.f);
 
     IntersectTriangleResult intersect_result;
+
+    float view_Z_linear = INF_DIST;
+    float first_bounce_T = INF_DIST;
+
+    vec3 baseColor = vec3(0.f);
+    float metallic = 1.f;
+    vec3 normal = vec3(0.f, 0.f, -1.f);
+    float roughness = 0.f;
 
     vec3 light_factor = vec3(1.f);
     vec3 indirect_specular_factor = vec3(0.f);
@@ -160,7 +181,6 @@ void main()
         ray_origin = eval.origin;
         ray_originDiffs = eval.originDiffs;
 
-
         ray_dir = eval.dir;
         ray_dirDiffs = eval.dirDiffs;
 
@@ -170,6 +190,13 @@ void main()
 
         light_factor = eval.next_bounce_light_factor_specular + eval.next_bounce_light_factor_diffuse;
         if (i == 0) {
+            baseColor = eval.baseColor;
+            metallic = eval.metallic;
+            normal = eval.normal;
+            roughness = eval.roughness;
+
+            view_Z_linear = eval.origin.z;
+
             light_sum_specular += eval.light_return_specular;
             light_sum_diffuse += eval.light_return_diffuse;
 
@@ -190,6 +217,10 @@ void main()
             if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
                 ConfirmNonOpaqueIntersection(query);
             }
+        }
+
+        if (i == 0) {
+            first_bounce_T = rayQueryGetIntersectionTEXT(query, true);
         }
 
         if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
@@ -249,7 +280,33 @@ void main()
         light_sum_diffuse *= factor;
     }
 
+    // Exposure TODO!
+    light_sum_diffuse /= FP16_FACTOR;
+    light_sum_specular /= FP16_FACTOR;
+
+    // De-modulate diffuse specular
+    vec3 c_diff = mix(baseColor.rgb, vec3(0.f), metallic);
+    vec3 f0 = mix(vec3(0.04f), baseColor.rgb, metallic);
+
+    c_diff = max(c_diff, 0.001f);
+    vec3 demod_diffuse = light_sum_diffuse * (M_PI / c_diff);
+
+    float NdotV = dot(normal, -primary_ray_dir);
+    vec3 envTerm = EnvironmentTerm(f0, NdotV, roughness * roughness);
+    envTerm = max(envTerm, 0.001f);
+    vec3 demod_specular = light_sum_specular / envTerm;
+
+    // Get hit distances
+    float diffuse_normHitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear);
+    float specular_normHitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear, roughness);
+
+    // TODO: Move vector
+
     // Color out
-    diffuse_out = vec4(light_sum_diffuse, 1.f) / FP16_FACTOR;
-    specular_out = vec4(light_sum_specular, 1.f) / FP16_FACTOR;
+    diffuse_out = vec4(min(demod_diffuse, FP16_MAX), diffuse_normHitDist);
+    specular_out = vec4(min(demod_specular, FP16_MAX), specular_normHitDist);
+    normalRoughness_out = NRD_FrontEnd_PackNormalRoughness(normal, roughness);
+    colorMetalness_out = sRGBencode(vec4(baseColor, metallic));
+    motionVec_out = vec4(0.f);
+    linearViewZ_out = view_Z_linear;
 }

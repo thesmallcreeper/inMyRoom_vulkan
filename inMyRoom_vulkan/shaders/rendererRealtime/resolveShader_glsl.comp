@@ -1,20 +1,55 @@
 #version 460
 
 #include "common/toneMap.glsl"
+#include "common/sRGBencode.glsl"
+#include "common/environmentTerm.glsl"
+
+#include "NRD/helpers/NRD_packNormalRoughness.glsl"
 
 layout(local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_Y, local_size_z = 1) in;
 
 layout (set = 0, binding = 0, rgba16f) uniform readonly image2D input_diffuse;
 layout (set = 0, binding = 1, rgba16f) uniform readonly image2D input_specular;
-layout (set = 0, binding = 2, rgba16f) uniform image2D image_output;
+layout (set = 0, binding = 2, rgb10_a2) uniform readonly image2D input_normalRoughness;
+layout (set = 0, binding = 3, rgba8) uniform readonly image2D input_colorMetalness;
+
+layout (set = 0, binding = 10, rgba8) uniform image2D output_color;
+layout (set = 0, binding = 20, rgba32f) uniform image2D sum_store;
 
 layout (push_constant) uniform PushConstants
 {
     uint size_x;
     uint size_y;
 
+    uint accumulate;
     float mult_factor;
+
+    vec4 dir_down_right;
+    vec4 dir_down_left;
+    vec4 dir_upper_left;
 };
+
+float crossVec2(vec2 v, vec2 w) {
+    return v.x * w.y - w.x * v.y;
+}
+
+vec3 UVtoFullScreenTriangleBarycoords(vec2 uv) {
+    const vec2 down_right_pos = vec2(2.f, 0.f);
+    const vec2 down_left_pos  = vec2(0.f, 0.f);
+    const vec2 upper_left_pos = vec2(0.f, 2.f);
+    const float surfaceDoubled = 4.f;
+
+    vec2 pos = vec2(uv.x, 1.f - uv.y);
+    vec2 vec_pos_down_right = down_right_pos - pos;
+    vec2 vec_pos_down_left = down_left_pos - pos;
+    vec2 vec_pos_upper_left = upper_left_pos - pos;
+
+    float upper_left_w = crossVec2(vec_pos_down_left, vec_pos_down_right) / surfaceDoubled;
+    float down_right_w = crossVec2(vec_pos_upper_left, vec_pos_down_left) / surfaceDoubled;
+    float down_left_w = 1.f - upper_left_w - down_right_w;
+
+    return vec3(down_right_w, down_left_w, upper_left_w);
+}
 
 void main()
 {
@@ -23,11 +58,39 @@ void main()
         return;
     }
 
-    vec3 diffuse = imageLoad(input_diffuse, coords).xyz;
-    vec3 specular = imageLoad(input_specular, coords).xyz;
+    // Get UV_coords
+    vec2 UV_coords = (vec2(coords) + vec2(0.5f)) / vec2(size_x, size_y);
+    vec3 barycoords = UVtoFullScreenTriangleBarycoords(UV_coords);
 
-    vec3 light = mult_factor * (diffuse + specular);
-    vec3 color_out = ToneMap(light, 0.25f);
+    vec3 primary_ray_dir = normalize(vec3(barycoords.x * dir_down_right + barycoords.y * dir_down_left + barycoords.z * dir_upper_left));
 
-    imageStore(image_output, coords, vec4(color_out, 1.f));
+    // Load
+    vec3 demod_diffuse = imageLoad(input_diffuse, coords).xyz;
+    vec3 demod_specular = imageLoad(input_specular, coords).xyz;
+    NRDunpackNormalRoughness normalRoughness = NRD_FrontEnd_UnpackNormalRoughness(imageLoad(input_normalRoughness, coords));
+    vec4 baseColor_metallic = sRGBdecode(imageLoad(input_colorMetalness, coords));
+
+    // Remodulate
+    vec3 c_diff = mix(baseColor_metallic.rgb, vec3(0.f), baseColor_metallic.a);
+    vec3 f0 = mix(vec3(0.04f), baseColor_metallic.rgb, baseColor_metallic.a);
+
+    c_diff = max(c_diff, 0.001f);
+    vec3 diffuse = demod_diffuse * (c_diff / M_PI);
+
+    float NdotV = dot(normalRoughness.normal, -primary_ray_dir);
+    vec3 envTerm = EnvironmentTerm(f0, NdotV, normalRoughness.roughness * normalRoughness.roughness);
+    envTerm = max(envTerm, 0.001f);
+    vec3 specular = demod_specular * envTerm;
+
+    vec3 light = diffuse + specular;
+    if (accumulate != 0) {
+        light += imageLoad(sum_store, coords).xyz;
+        imageStore(sum_store, coords, vec4(light, 0.f));
+    } else {
+        imageStore(sum_store, coords, vec4(0.f));
+    }
+    vec4 color_out_linear = vec4(ToneMap(mult_factor * light, 0.25f), 1.f);
+
+    vec4 color_out = sRGBencode(color_out_linear);
+    imageStore(output_color, coords, color_out);
 }

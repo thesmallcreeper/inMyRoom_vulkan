@@ -68,6 +68,21 @@ RealtimeRenderer::~RealtimeRenderer()
     device.destroy(specularDistanceImageView);
     vma_allocator.destroyImage(specularDistanceImage, specularDistanceAllocation);
 
+    device.destroy(normalRoughnessImageView);
+    vma_allocator.destroyImage(normalRoughnessImage, normalRoughnessAllocation);
+
+    device.destroy(colorMetalnessImageView);
+    vma_allocator.destroyImage(colorMetalnessImage, colorMetalnessAllocation);
+
+    device.destroy(motionImageView);
+    vma_allocator.destroyImage(motionImage, motionAllocation);
+
+    device.destroy(linearViewZImageView);
+    vma_allocator.destroyImage(linearViewZImage, linearViewZAllocation);
+
+    device.destroy(accumulateImageView);
+    vma_allocator.destroyImage(accumulateImage, accumulateAllocation);
+
     vma_allocator.destroyBuffer(primitivesInstanceBuffer, primitivesInstanceAllocation);
     vma_allocator.destroyBuffer(fullscreenBuffer, fullscreenAllocation);
 }
@@ -269,6 +284,191 @@ void RealtimeRenderer::InitImages()
 
         specularDistanceImageView = device.createImageView(imageView_create_info).value;
     }
+
+    // normalRoughness image
+    {
+        normalRoughnessImageCreateInfo.imageType = vk::ImageType::e2D;
+        normalRoughnessImageCreateInfo.format = vk::Format::eA2B10G10R10UnormPack32;
+        normalRoughnessImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        normalRoughnessImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        normalRoughnessImageCreateInfo.extent.depth = 1;
+        normalRoughnessImageCreateInfo.mipLevels = 1;
+        normalRoughnessImageCreateInfo.arrayLayers = 1;
+        normalRoughnessImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        normalRoughnessImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        normalRoughnessImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        normalRoughnessImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        normalRoughnessImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(normalRoughnessImageCreateInfo, image_allocation_info).value;
+        normalRoughnessImage = createImage_result.first;
+        normalRoughnessAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = normalRoughnessImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = normalRoughnessImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        normalRoughnessImageView = device.createImageView(imageView_create_info).value;
+    }
+
+    // colorMetalness image
+    {
+        colorMetalnessImageCreateInfo.imageType = vk::ImageType::e2D;
+        colorMetalnessImageCreateInfo.format = vk::Format::eR8G8B8A8Unorm;
+        colorMetalnessImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        colorMetalnessImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        colorMetalnessImageCreateInfo.extent.depth = 1;
+        colorMetalnessImageCreateInfo.mipLevels = 1;
+        colorMetalnessImageCreateInfo.arrayLayers = 1;
+        colorMetalnessImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        colorMetalnessImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        colorMetalnessImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        colorMetalnessImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        colorMetalnessImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(colorMetalnessImageCreateInfo, image_allocation_info).value;
+        colorMetalnessImage = createImage_result.first;
+        colorMetalnessAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = colorMetalnessImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = colorMetalnessImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        colorMetalnessImageView = device.createImageView(imageView_create_info).value;
+    }
+
+    // motion image
+    {
+        motionImageCreateInfo.imageType = vk::ImageType::e2D;
+        motionImageCreateInfo.format = vk::Format::eR16G16B16A16Sfloat;
+        motionImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        motionImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        motionImageCreateInfo.extent.depth = 1;
+        motionImageCreateInfo.mipLevels = 1;
+        motionImageCreateInfo.arrayLayers = 1;
+        motionImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        motionImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        motionImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        motionImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        motionImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(motionImageCreateInfo, image_allocation_info).value;
+        motionImage = createImage_result.first;
+        motionAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = motionImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = motionImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        motionImageView = device.createImageView(imageView_create_info).value;
+    }
+
+    // linear viewZ image
+    {
+        linearViewZImageCreateInfo.imageType = vk::ImageType::e2D;
+        linearViewZImageCreateInfo.format = vk::Format::eR16Sfloat;
+        linearViewZImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        linearViewZImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        linearViewZImageCreateInfo.extent.depth = 1;
+        linearViewZImageCreateInfo.mipLevels = 1;
+        linearViewZImageCreateInfo.arrayLayers = 1;
+        linearViewZImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        linearViewZImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        linearViewZImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        linearViewZImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        linearViewZImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(linearViewZImageCreateInfo, image_allocation_info).value;
+        linearViewZImage = createImage_result.first;
+        linearViewZAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = linearViewZImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = linearViewZImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        linearViewZImageView = device.createImageView(imageView_create_info).value;
+    }
+
+    // accumulate image
+    {
+        accumulateImageCreateInfo.imageType = vk::ImageType::e2D;
+        accumulateImageCreateInfo.format = vk::Format::eR32G32B32A32Sfloat;
+        accumulateImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        accumulateImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        accumulateImageCreateInfo.extent.depth = 1;
+        accumulateImageCreateInfo.mipLevels = 1;
+        accumulateImageCreateInfo.arrayLayers = 1;
+        accumulateImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        accumulateImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        accumulateImageCreateInfo.usage = vk::ImageUsageFlagBits::eStorage;
+        accumulateImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        accumulateImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(accumulateImageCreateInfo, image_allocation_info).value;
+        accumulateImage = createImage_result.first;
+        accumulateAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = accumulateImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = accumulateImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        accumulateImageView = device.createImageView(imageView_create_info).value;
+    }
 }
 
 void RealtimeRenderer::InitTLAS()
@@ -285,7 +485,7 @@ void RealtimeRenderer::InitDescriptors()
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 3);
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eInputAttachment,  1);
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageImage,  3 * 3);
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageImage,  3 * 6);
         vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 3 + 1 + 3,
                                                                  descriptor_pool_sizes);
 
@@ -342,9 +542,36 @@ void RealtimeRenderer::InitDescriptors()
 
             bindings.emplace_back(attach_binding);
         }
-        {   // Output attachment
+        {   // NormalRoughness attachment
             vk::DescriptorSetLayoutBinding attach_binding;
             attach_binding.binding = 2;
+            attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+            bindings.emplace_back(attach_binding);
+        }
+        {   // Color metalness attachment
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 3;
+            attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+            bindings.emplace_back(attach_binding);
+        }
+        {   // Accumulate attachment
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 10;
+            attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+            bindings.emplace_back(attach_binding);
+        }
+        {   // Output attachment
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 20;
             attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
             attach_binding.descriptorCount = 1;
             attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
@@ -432,32 +659,66 @@ void RealtimeRenderer::InitDescriptors()
     }
     {   // Write compute resolve set
         for (size_t i = 0; i != 3; ++i) {
-            vk::WriteDescriptorSet write_descriptor_sets[2];
-            vk::DescriptorImageInfo descriptor_image_infos[2];
+            vk::WriteDescriptorSet write_descriptor_sets[5];
+            vk::DescriptorImageInfo descriptor_image_infos[5];
 
             descriptor_image_infos[0].imageLayout = vk::ImageLayout::eGeneral;
-            descriptor_image_infos[0].imageView = diffuseDistanceImageView;
+            descriptor_image_infos[0].imageView = accumulateImageView;
             descriptor_image_infos[0].sampler = nullptr;
 
             write_descriptor_sets[0].dstSet = resolveDescriptorSets[i];
-            write_descriptor_sets[0].dstBinding = 0;
+            write_descriptor_sets[0].dstBinding = 20;
             write_descriptor_sets[0].dstArrayElement = 0;
             write_descriptor_sets[0].descriptorCount = 1;
             write_descriptor_sets[0].descriptorType = vk::DescriptorType::eStorageImage;
             write_descriptor_sets[0].pImageInfo = &descriptor_image_infos[0];
 
             descriptor_image_infos[1].imageLayout = vk::ImageLayout::eGeneral;
-            descriptor_image_infos[1].imageView = specularDistanceImageView;
+            descriptor_image_infos[1].imageView = diffuseDistanceImageView;
             descriptor_image_infos[1].sampler = nullptr;
 
             write_descriptor_sets[1].dstSet = resolveDescriptorSets[i];
-            write_descriptor_sets[1].dstBinding = 1;
+            write_descriptor_sets[1].dstBinding = 0;
             write_descriptor_sets[1].dstArrayElement = 0;
             write_descriptor_sets[1].descriptorCount = 1;
             write_descriptor_sets[1].descriptorType = vk::DescriptorType::eStorageImage;
             write_descriptor_sets[1].pImageInfo = &descriptor_image_infos[1];
 
-            device.updateDescriptorSets(2, write_descriptor_sets,
+            descriptor_image_infos[2].imageLayout = vk::ImageLayout::eGeneral;
+            descriptor_image_infos[2].imageView = specularDistanceImageView;
+            descriptor_image_infos[2].sampler = nullptr;
+
+            write_descriptor_sets[2].dstSet = resolveDescriptorSets[i];
+            write_descriptor_sets[2].dstBinding = 1;
+            write_descriptor_sets[2].dstArrayElement = 0;
+            write_descriptor_sets[2].descriptorCount = 1;
+            write_descriptor_sets[2].descriptorType = vk::DescriptorType::eStorageImage;
+            write_descriptor_sets[2].pImageInfo = &descriptor_image_infos[2];
+
+            descriptor_image_infos[3].imageLayout = vk::ImageLayout::eGeneral;
+            descriptor_image_infos[3].imageView = normalRoughnessImageView;
+            descriptor_image_infos[3].sampler = nullptr;
+
+            write_descriptor_sets[3].dstSet = resolveDescriptorSets[i];
+            write_descriptor_sets[3].dstBinding = 2;
+            write_descriptor_sets[3].dstArrayElement = 0;
+            write_descriptor_sets[3].descriptorCount = 1;
+            write_descriptor_sets[3].descriptorType = vk::DescriptorType::eStorageImage;
+            write_descriptor_sets[3].pImageInfo = &descriptor_image_infos[3];
+
+            descriptor_image_infos[4].imageLayout = vk::ImageLayout::eGeneral;
+            descriptor_image_infos[4].imageView = colorMetalnessImageView;
+            descriptor_image_infos[4].sampler = nullptr;
+
+            write_descriptor_sets[4].dstSet = resolveDescriptorSets[i];
+            write_descriptor_sets[4].dstBinding = 3;
+            write_descriptor_sets[4].dstArrayElement = 0;
+            write_descriptor_sets[4].descriptorCount = 1;
+            write_descriptor_sets[4].descriptorType = vk::DescriptorType::eStorageImage;
+            write_descriptor_sets[4].pImageInfo = &descriptor_image_infos[4];
+
+
+            device.updateDescriptorSets(5, write_descriptor_sets,
                                         0, nullptr);
         }
     }
@@ -465,43 +726,107 @@ void RealtimeRenderer::InitDescriptors()
 
 void RealtimeRenderer::InitRenderpasses()
 {
-    vk::AttachmentDescription attachment_descriptions[4];
+    std::vector<vk::AttachmentDescription> attachment_descriptions;
 
-    attachment_descriptions[0].format = visibilityImageCreateInfo.format;
-    attachment_descriptions[0].samples = vk::SampleCountFlagBits::e1;
-    attachment_descriptions[0].loadOp = vk::AttachmentLoadOp::eClear;
-    attachment_descriptions[0].storeOp = vk::AttachmentStoreOp::eDontCare;
-    attachment_descriptions[0].stencilLoadOp = vk::AttachmentLoadOp::eClear;
-    attachment_descriptions[0].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    attachment_descriptions[0].initialLayout = vk::ImageLayout::eUndefined;
-    attachment_descriptions[0].finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    {
+        vk::AttachmentDescription attachment_description;
+        attachment_description.format = visibilityImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eClear;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eDontCare;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eClear;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
+    {
+        vk::AttachmentDescription attachment_description;
+        attachment_description.format = depthImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eClear;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eDontCare;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eClear;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
+    {
+        vk::AttachmentDescription attachment_description;
+        attachment_description.format = diffuseDistanceImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
+    {
+        vk::AttachmentDescription attachment_description;
+        attachment_description.format = specularDistanceImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
+    {
+        vk::AttachmentDescription attachment_description;
+        attachment_description.format = normalRoughnessImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
 
-    attachment_descriptions[1].format = depthImageCreateInfo.format;
-    attachment_descriptions[1].samples = vk::SampleCountFlagBits::e1;
-    attachment_descriptions[1].loadOp = vk::AttachmentLoadOp::eClear;
-    attachment_descriptions[1].storeOp = vk::AttachmentStoreOp::eDontCare;
-    attachment_descriptions[1].stencilLoadOp = vk::AttachmentLoadOp::eClear;
-    attachment_descriptions[1].stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    attachment_descriptions[1].initialLayout = vk::ImageLayout::eUndefined;
-    attachment_descriptions[1].finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    {
+        vk::AttachmentDescription attachment_description;
+        attachment_description.format = colorMetalnessImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
 
-    attachment_descriptions[2].format = diffuseDistanceImageCreateInfo.format;
-    attachment_descriptions[2].samples = vk::SampleCountFlagBits::e1;
-    attachment_descriptions[2].loadOp = vk::AttachmentLoadOp::eDontCare;
-    attachment_descriptions[2].storeOp = vk::AttachmentStoreOp::eStore;
-    attachment_descriptions[2].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    attachment_descriptions[2].stencilStoreOp = vk::AttachmentStoreOp::eStore;
-    attachment_descriptions[2].initialLayout = vk::ImageLayout::eUndefined;
-    attachment_descriptions[2].finalLayout = vk::ImageLayout::eGeneral;
+    {
+        vk::AttachmentDescription attachment_description;
+        attachment_description.format = motionImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
 
-    attachment_descriptions[3].format = specularDistanceImageCreateInfo.format;
-    attachment_descriptions[3].samples = vk::SampleCountFlagBits::e1;
-    attachment_descriptions[3].loadOp = vk::AttachmentLoadOp::eDontCare;
-    attachment_descriptions[3].storeOp = vk::AttachmentStoreOp::eStore;
-    attachment_descriptions[3].stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    attachment_descriptions[3].stencilStoreOp = vk::AttachmentStoreOp::eStore;
-    attachment_descriptions[3].initialLayout = vk::ImageLayout::eUndefined;
-    attachment_descriptions[3].finalLayout = vk::ImageLayout::eGeneral;
+    {
+        vk::AttachmentDescription attachment_description;
+        attachment_description.format = linearViewZImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
 
     // Subpasses
     std::vector<vk::SubpassDescription> subpasses;
@@ -549,6 +874,26 @@ void RealtimeRenderer::InitRenderpasses()
         specularDistanceAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         specularDistanceAttach_ref.attachment = 3;
         pathTrace_colorAttachments_refs.emplace_back(specularDistanceAttach_ref);
+
+        vk::AttachmentReference normalRoughnessAttach_ref;
+        normalRoughnessAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        normalRoughnessAttach_ref.attachment = 4;
+        pathTrace_colorAttachments_refs.emplace_back(normalRoughnessAttach_ref);
+
+        vk::AttachmentReference colorMetalnessAttach_ref;
+        colorMetalnessAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        colorMetalnessAttach_ref.attachment = 5;
+        pathTrace_colorAttachments_refs.emplace_back(colorMetalnessAttach_ref);
+
+        vk::AttachmentReference motionAttach_ref;
+        motionAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        motionAttach_ref.attachment = 6;
+        pathTrace_colorAttachments_refs.emplace_back(motionAttach_ref);
+
+        vk::AttachmentReference viewZAttach_ref;
+        viewZAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        viewZAttach_ref.attachment = 7;
+        pathTrace_colorAttachments_refs.emplace_back(viewZAttach_ref);
     }
 
     std::vector<vk::AttachmentReference> pathTrace_inputAttachments_refs;
@@ -578,8 +923,7 @@ void RealtimeRenderer::InitRenderpasses()
 
     // Renderpass
     vk::RenderPassCreateInfo renderpass_create_info;
-    renderpass_create_info.attachmentCount = 4;
-    renderpass_create_info.pAttachments = attachment_descriptions;
+    renderpass_create_info.setAttachments(attachment_descriptions);
     renderpass_create_info.setSubpasses(subpasses);
     renderpass_create_info.setDependencies(dependencies);
 
@@ -593,6 +937,10 @@ void RealtimeRenderer::InitFramebuffers()
     attachments.emplace_back(depthImageView);
     attachments.emplace_back(diffuseDistanceImageView);
     attachments.emplace_back(specularDistanceImageView);
+    attachments.emplace_back(normalRoughnessImageView);
+    attachments.emplace_back(colorMetalnessImageView);
+    attachments.emplace_back(motionImageView);
+    attachments.emplace_back(linearViewZImageView);
 
     vk::FramebufferCreateInfo framebuffer_createInfo;
     framebuffer_createInfo.renderPass = renderpass;
@@ -907,7 +1255,7 @@ void RealtimeRenderer::InitPrimitivesSet()
 
 void RealtimeRenderer::InitPathTracePipeline()
 {
-    printf("-Initializing \"Path Trace\" pipeline\n");
+    printf("-Initializing \"Path-Trace Pass\" pipeline\n");
 
     std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
     shadersDefinitionStringPairs.emplace_back("TEXTURES_COUNT", std::to_string(graphics_ptr->GetTexturesOfMaterials()->GetTexturesCount()));
@@ -1028,17 +1376,28 @@ void RealtimeRenderer::InitPathTracePipeline()
 
         // PipelineColorBlendAttachmentState
         vk::PipelineColorBlendStateCreateInfo color_blend_create_info;
-        vk::PipelineColorBlendAttachmentState color_blend_attachments[2];
+        vk::PipelineColorBlendAttachmentState color_blend_attachments[6];
         color_blend_attachments[0].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
                                                     vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
         color_blend_attachments[0].blendEnable = VK_FALSE;
-
         color_blend_attachments[1].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
                                                     vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
         color_blend_attachments[1].blendEnable = VK_FALSE;
+        color_blend_attachments[2].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                    vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        color_blend_attachments[2].blendEnable = VK_FALSE;
+        color_blend_attachments[3].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                    vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        color_blend_attachments[3].blendEnable = VK_FALSE;
+        color_blend_attachments[4].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                    vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        color_blend_attachments[4].blendEnable = VK_FALSE;
+        color_blend_attachments[5].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                    vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        color_blend_attachments[5].blendEnable = VK_FALSE;
 
         color_blend_create_info.logicOpEnable = VK_FALSE;
-        color_blend_create_info.attachmentCount = 2;
+        color_blend_create_info.attachmentCount = 6;
         color_blend_create_info.pAttachments = color_blend_attachments;
 
         pipeline_create_info.pColorBlendState = &color_blend_create_info;
@@ -1076,6 +1435,8 @@ void RealtimeRenderer::InitPathTracePipeline()
 
 void RealtimeRenderer::InitResolveComputePipeline()
 {
+    printf("-Initializing \"Resolve Pass\" pipeline\n");
+
     { // Create pipeline layout
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
 
@@ -1084,7 +1445,7 @@ void RealtimeRenderer::InitResolveComputePipeline()
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
-        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eCompute, 0, uint32_t(3 * 4));
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eCompute, 0, uint32_t(4 * 4 + 3 * 16));
         pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
         resolveCompPipelineLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
@@ -1116,6 +1477,12 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
 {
     ++frameCount;
     size_t commandBuffer_index = frameCount % 3;
+
+    if (viewportFreeze) {
+        frameCountAccumulated++;
+    } else {
+        frameCountAccumulated = 0;
+    }
 
     viewport = in_viewport;
     matrices = in_matrices;
@@ -1576,6 +1943,28 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
                                        0, nullptr,
                                        1, &image_memory_barrier);
     }
+    if (frameCount == 1) {
+        vk::ImageMemoryBarrier image_memory_barrier;
+        image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
+        image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eShaderWrite;
+        image_memory_barrier.oldLayout = vk::ImageLayout::eUndefined;
+        image_memory_barrier.newLayout = vk::ImageLayout::eGeneral;
+        image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        image_memory_barrier.image = accumulateImage;
+        image_memory_barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        image_memory_barrier.subresourceRange.baseArrayLayer = 0;
+        image_memory_barrier.subresourceRange.baseMipLevel = 0;
+        image_memory_barrier.subresourceRange.levelCount = 1;
+        image_memory_barrier.subresourceRange.layerCount = 1;
+
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+                                       vk::PipelineStageFlagBits::eComputeShader,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       0, nullptr,
+                                       0, nullptr,
+                                       1, &image_memory_barrier);
+    }
 
     { // Dispatch compute
         uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
@@ -1586,12 +1975,15 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, resolveCompPipelineLayout, 0, descriptor_sets, {});
 
         struct push_constants_type{
-            std::array<uint32_t, 2> uint_constants = {};
+            std::array<uint32_t, 3> uint_constants = {};
             std::array<float, 1> float_constants = {};
+            std::array<glm::vec4, 3> vec4_constants = {};
         } push_constants;
         push_constants.uint_constants = {width,
-                                         height};
-        push_constants.float_constants = {1.f};
+                                         height,
+                                         frameCountAccumulated != 0};
+        push_constants.float_constants = {frameCountAccumulated == 0 ? 1.f : 1.f / float(frameCountAccumulated)};
+        push_constants.vec4_constants = viewport.GetFullscreenpassTriangleNormals();
         command_buffer.pushConstants(resolveCompPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(push_constants_type), &push_constants);
 
         command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, resolveCompPipeline);
@@ -1727,7 +2119,7 @@ void RealtimeRenderer::BindSwapImage(uint32_t frame_index, uint32_t swapchain_in
     descriptor_image_info.sampler = nullptr;
 
     write_descriptor_set.dstSet = resolveDescriptorSets[buffer_index];
-    write_descriptor_set.dstBinding = 2;
+    write_descriptor_set.dstBinding = 10;
     write_descriptor_set.dstArrayElement = 0;
     write_descriptor_set.descriptorCount = 1;
     write_descriptor_set.descriptorType = vk::DescriptorType::eStorageImage;

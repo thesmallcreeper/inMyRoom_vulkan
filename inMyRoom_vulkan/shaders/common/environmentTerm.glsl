@@ -1,5 +1,9 @@
 #ifndef FILE_ENVIRONMENT_TERM
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846f
+#endif
+
 // Ross BRDF estimation as provided from NRD
 vec3 EnvironmentTerm(vec3 f0, float NoV, float a)
 {

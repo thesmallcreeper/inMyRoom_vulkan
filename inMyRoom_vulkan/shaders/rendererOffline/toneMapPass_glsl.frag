@@ -1,6 +1,7 @@
 #version 460
 
 #include "common/toneMap.glsl"
+#include "common/sRGBencode.glsl"
 
 //
 // Out
@@ -27,6 +28,7 @@ void main()
     float linearThreshold = 0.25f;
     uint frameIndex = framesCount - 1;
 
+    vec4 color_out_linear;
     #ifdef MULTISAMPLED_INPUT
         vec3 rgb_sum = vec3(0.f);
         uint max_samples_points = min(MULTISAMPLED_INPUT, framesCount);
@@ -48,7 +50,7 @@ void main()
             vec3 color_exposure = vec3(in_color) * this_frameCountFactor * exposureFactor;
             rgb_sum += ToneMap(color_exposure, linearThreshold);
         }
-        color_out = vec4(rgb_sum / float(max_samples_points), 1.f);
+        color_out_linear = vec4(rgb_sum / float(max_samples_points), 1.f);
     #else
         float frameCountFactor = 1.f / float(framesCount);
         vec4 in_color = subpassLoad(colorInput);
@@ -62,6 +64,9 @@ void main()
         #endif
 
         vec3 color_exposure = vec3(in_color) * this_frameCountFactor * exposureFactor;
-        color_out = vec4(ToneMap(color_exposure, linearThreshold), 1.f);
+        color_out_linear = vec4(ToneMap(color_exposure, linearThreshold), 1.f);
     #endif
+
+    // Gamma correction
+    color_out = sRGBencode(color_out_linear);
 }
