@@ -8,13 +8,20 @@
 
 layout(local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout (set = 0, binding = 0, rgba16f) uniform readonly image2D input_diffuse;
-layout (set = 0, binding = 1, rgba16f) uniform readonly image2D input_specular;
-layout (set = 0, binding = 2, rgb10_a2) uniform readonly image2D input_normalRoughness;
-layout (set = 0, binding = 3, rgba8) uniform readonly image2D input_colorMetalness;
+layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
+{
+    mat4 viewMatrix;
+    mat4 inverseViewMatrix;
+    mat4 projectionMatrix;
+};
 
-layout (set = 0, binding = 10, rgba8) uniform image2D output_color;
-layout (set = 0, binding = 20, rgba32f) uniform image2D sum_store;
+layout (set = 1, binding = 0, rgba16f) uniform readonly image2D input_diffuse;
+layout (set = 1, binding = 1, rgba16f) uniform readonly image2D input_specular;
+layout (set = 1, binding = 2, rgb10_a2) uniform readonly image2D input_normalRoughness;
+layout (set = 1, binding = 3, rgba8) uniform readonly image2D input_colorMetalness;
+
+layout (set = 1, binding = 10, rgba8) uniform image2D output_color;
+layout (set = 1, binding = 20, rgba32f) uniform image2D sum_store;
 
 layout (push_constant) uniform PushConstants
 {
@@ -67,8 +74,11 @@ void main()
     // Load
     vec3 demod_diffuse = imageLoad(input_diffuse, coords).xyz;
     vec3 demod_specular = imageLoad(input_specular, coords).xyz;
-    NRDunpackNormalRoughness normalRoughness = NRD_FrontEnd_UnpackNormalRoughness(imageLoad(input_normalRoughness, coords));
+    NRDunpackNormalRoughness normal_Roughness = NRD_FrontEnd_UnpackNormalRoughness(imageLoad(input_normalRoughness, coords));
     vec4 baseColor_metallic = sRGBdecode(imageLoad(input_colorMetalness, coords));
+
+    vec3 normal = vec3(viewMatrix * vec4(normal_Roughness.normal, 0.f));
+    float roughness = normal_Roughness.roughness;
 
     // Remodulate
     vec3 c_diff = mix(baseColor_metallic.rgb, vec3(0.f), baseColor_metallic.a);
@@ -77,8 +87,8 @@ void main()
     c_diff = max(c_diff, 0.001f);
     vec3 diffuse = demod_diffuse * (c_diff / M_PI);
 
-    float NdotV = dot(normalRoughness.normal, -primary_ray_dir);
-    vec3 envTerm = EnvironmentTerm(f0, NdotV, normalRoughness.roughness * normalRoughness.roughness);
+    float NdotV = dot(normal, -primary_ray_dir);
+    vec3 envTerm = EnvironmentTerm(f0, NdotV, roughness * roughness);
     envTerm = max(envTerm, 0.001f);
     vec3 specular = demod_specular * envTerm;
 

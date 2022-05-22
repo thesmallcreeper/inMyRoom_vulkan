@@ -17,6 +17,7 @@ RealtimeRenderer::RealtimeRenderer(Graphics *in_graphics_ptr,
 {
     InitBuffers();
     InitImages();
+    InitNRD();
     InitTLAS();
     InitDescriptors();
     InitRenderpasses();
@@ -55,6 +56,7 @@ RealtimeRenderer::~RealtimeRenderer()
     device.destroy(resolveDescriptorSetLayout);
 
     TLASbuilder_uptr.reset();
+    NRDintegration_uptr.reset();
 
     device.destroy(depthImageView);
     vma_allocator.destroyImage(depthImage, depthAllocation);
@@ -65,8 +67,14 @@ RealtimeRenderer::~RealtimeRenderer()
     device.destroy(diffuseDistanceImageView);
     vma_allocator.destroyImage(diffuseDistanceImage, diffuseDistanceAllocation);
 
+    device.destroy(denoisedDiffuseDistanceImageView);
+    vma_allocator.destroyImage(denoisedDiffuseDistanceImage, denoisedDiffuseDistanceAllocation);
+
     device.destroy(specularDistanceImageView);
     vma_allocator.destroyImage(specularDistanceImage, specularDistanceAllocation);
+
+    device.destroy(denoisedSpecularDistanceImageView);
+    vma_allocator.destroyImage(denoisedSpecularDistanceImage, denoisedSpecularDistanceAllocation);
 
     device.destroy(normalRoughnessImageView);
     vma_allocator.destroyImage(normalRoughnessImage, normalRoughnessAllocation);
@@ -222,7 +230,7 @@ void RealtimeRenderer::InitImages()
         diffuseDistanceImageCreateInfo.arrayLayers = 1;
         diffuseDistanceImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
         diffuseDistanceImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-        diffuseDistanceImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        diffuseDistanceImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage |  vk::ImageUsageFlagBits::eSampled;
         diffuseDistanceImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         diffuseDistanceImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
 
@@ -248,6 +256,43 @@ void RealtimeRenderer::InitImages()
         diffuseDistanceImageView = device.createImageView(imageView_create_info).value;
     }
 
+    // denoised diffuse-distance image
+    {
+        denoisedDiffuseDistanceImageCreateInfo.imageType = vk::ImageType::e2D;
+        denoisedDiffuseDistanceImageCreateInfo.format = vk::Format::eR16G16B16A16Sfloat;
+        denoisedDiffuseDistanceImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        denoisedDiffuseDistanceImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        denoisedDiffuseDistanceImageCreateInfo.extent.depth = 1;
+        denoisedDiffuseDistanceImageCreateInfo.mipLevels = 1;
+        denoisedDiffuseDistanceImageCreateInfo.arrayLayers = 1;
+        denoisedDiffuseDistanceImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        denoisedDiffuseDistanceImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        denoisedDiffuseDistanceImageCreateInfo.usage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled;
+        denoisedDiffuseDistanceImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        denoisedDiffuseDistanceImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(denoisedDiffuseDistanceImageCreateInfo, image_allocation_info).value;
+        denoisedDiffuseDistanceImage = createImage_result.first;
+        denoisedDiffuseDistanceAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = denoisedDiffuseDistanceImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = denoisedDiffuseDistanceImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        denoisedDiffuseDistanceImageView = device.createImageView(imageView_create_info).value;
+    }
+
     // specular-distance image
     {
         specularDistanceImageCreateInfo.imageType = vk::ImageType::e2D;
@@ -259,7 +304,7 @@ void RealtimeRenderer::InitImages()
         specularDistanceImageCreateInfo.arrayLayers = 1;
         specularDistanceImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
         specularDistanceImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-        specularDistanceImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        specularDistanceImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage |  vk::ImageUsageFlagBits::eSampled;
         specularDistanceImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         specularDistanceImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
 
@@ -285,6 +330,43 @@ void RealtimeRenderer::InitImages()
         specularDistanceImageView = device.createImageView(imageView_create_info).value;
     }
 
+    // denoised specular-distance image
+    {
+        denoisedSpecularDistanceImageCreateInfo.imageType = vk::ImageType::e2D;
+        denoisedSpecularDistanceImageCreateInfo.format = vk::Format::eR16G16B16A16Sfloat;
+        denoisedSpecularDistanceImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        denoisedSpecularDistanceImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        denoisedSpecularDistanceImageCreateInfo.extent.depth = 1;
+        denoisedSpecularDistanceImageCreateInfo.mipLevels = 1;
+        denoisedSpecularDistanceImageCreateInfo.arrayLayers = 1;
+        denoisedSpecularDistanceImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        denoisedSpecularDistanceImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        denoisedSpecularDistanceImageCreateInfo.usage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled;
+        denoisedSpecularDistanceImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        denoisedSpecularDistanceImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(denoisedSpecularDistanceImageCreateInfo, image_allocation_info).value;
+        denoisedSpecularDistanceImage = createImage_result.first;
+        denoisedSpecularDistanceAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = denoisedSpecularDistanceImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = denoisedSpecularDistanceImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        denoisedSpecularDistanceImageView = device.createImageView(imageView_create_info).value;
+    }
+
     // normalRoughness image
     {
         normalRoughnessImageCreateInfo.imageType = vk::ImageType::e2D;
@@ -296,7 +378,7 @@ void RealtimeRenderer::InitImages()
         normalRoughnessImageCreateInfo.arrayLayers = 1;
         normalRoughnessImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
         normalRoughnessImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-        normalRoughnessImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        normalRoughnessImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled;
         normalRoughnessImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         normalRoughnessImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
 
@@ -370,7 +452,7 @@ void RealtimeRenderer::InitImages()
         motionImageCreateInfo.arrayLayers = 1;
         motionImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
         motionImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-        motionImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        motionImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled;
         motionImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         motionImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
 
@@ -407,7 +489,7 @@ void RealtimeRenderer::InitImages()
         linearViewZImageCreateInfo.arrayLayers = 1;
         linearViewZImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
         linearViewZImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-        linearViewZImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        linearViewZImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage |  vk::ImageUsageFlagBits::eSampled;
         linearViewZImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
         linearViewZImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
 
@@ -470,6 +552,47 @@ void RealtimeRenderer::InitImages()
         accumulateImageView = device.createImageView(imageView_create_info).value;
     }
 }
+
+void RealtimeRenderer::InitNRD()
+{
+    uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+    uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+
+    // Create NRDintegration
+    const nrd::MethodDesc methods[] = {nrd::Method::REBLUR_DIFFUSE_SPECULAR, (uint16_t)width, (uint16_t)height};
+    nrd::DenoiserCreationDesc denoiserCreationDesc = {};
+    denoiserCreationDesc.requestedMethods = methods;
+    denoiserCreationDesc.requestedMethodNum = 1;
+
+    NRDintegration_uptr = std::make_unique<NRDintegration>(device, vma_allocator, graphics_ptr->GetPipelineFactory(), denoiserCreationDesc);
+
+    // Bind textures
+    NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_MV, motionImage, motionImageCreateInfo,
+                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+    NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_NORMAL_ROUGHNESS, normalRoughnessImage, normalRoughnessImageCreateInfo,
+                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+    NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_VIEWZ, linearViewZImage, linearViewZImageCreateInfo,
+                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+
+    NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_DIFF_RADIANCE_HITDIST, diffuseDistanceImage, diffuseDistanceImageCreateInfo,
+                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+    NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_SPEC_RADIANCE_HITDIST, specularDistanceImage, specularDistanceImageCreateInfo,
+                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+
+    NRDintegration_uptr->BindTexture(nrd::ResourceType::OUT_DIFF_RADIANCE_HITDIST, denoisedDiffuseDistanceImage, denoisedDiffuseDistanceImageCreateInfo,
+                                     vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+    NRDintegration_uptr->BindTexture(nrd::ResourceType::OUT_SPEC_RADIANCE_HITDIST, denoisedSpecularDistanceImage, denoisedSpecularDistanceImageCreateInfo,
+                                     vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+
+    // Set method settings
+    NRDintegration_uptr->SetMethodSettings(nrd::Method::REBLUR_DIFFUSE_SPECULAR, &NRD_reBLURsettings);
+
+    // Set const common settings
+    NRD_commonSettings.cameraJitter[0] = 0.f;
+    NRD_commonSettings.cameraJitter[1] = 0.f;
+    NRD_commonSettings.isMotionVectorInWorldSpace = true;
+}
+
 
 void RealtimeRenderer::InitTLAS()
 {
@@ -674,7 +797,7 @@ void RealtimeRenderer::InitDescriptors()
             write_descriptor_sets[0].pImageInfo = &descriptor_image_infos[0];
 
             descriptor_image_infos[1].imageLayout = vk::ImageLayout::eGeneral;
-            descriptor_image_infos[1].imageView = diffuseDistanceImageView;
+            descriptor_image_infos[1].imageView = denoisedDiffuseDistanceImageView;
             descriptor_image_infos[1].sampler = nullptr;
 
             write_descriptor_sets[1].dstSet = resolveDescriptorSets[i];
@@ -685,7 +808,7 @@ void RealtimeRenderer::InitDescriptors()
             write_descriptor_sets[1].pImageInfo = &descriptor_image_infos[1];
 
             descriptor_image_infos[2].imageLayout = vk::ImageLayout::eGeneral;
-            descriptor_image_infos[2].imageView = specularDistanceImageView;
+            descriptor_image_infos[2].imageView = denoisedSpecularDistanceImageView;
             descriptor_image_infos[2].sampler = nullptr;
 
             write_descriptor_sets[2].dstSet = resolveDescriptorSets[i];
@@ -1441,6 +1564,7 @@ void RealtimeRenderer::InitResolveComputePipeline()
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
 
         std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetCameraDescriptionSetLayout());
         descriptor_sets_layouts.emplace_back(resolveDescriptorSetLayout);
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
@@ -1475,6 +1599,8 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
                                  std::vector<LightInfo> &&in_light_infos,
                                  std::vector<DrawInfo> &&in_draw_infos)
 {
+
+
     ++frameCount;
     size_t commandBuffer_index = frameCount % 3;
 
@@ -1482,6 +1608,12 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
         frameCountAccumulated++;
     } else {
         frameCountAccumulated = 0;
+    }
+
+    if (frameCount == 1) {
+        prevFrameViewport = in_viewport;
+    } else {
+        prevFrameViewport = viewport;
     }
 
     viewport = in_viewport;
@@ -1518,9 +1650,13 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
 
     graphics_ptr->GetLights()->AddLights(lightInfos, matrices);
     coneLightsIndicesRange = graphics_ptr->GetLights()->CreateLightsConesRange();
-    primitive_instance_parameters = CreatePrimitivesInstanceParameters();
-    AssortDrawInfos();
 
+    primitive_instance_parameters = CreatePrimitivesInstanceParameters();
+
+    PrepareNRDsettings();
+    NRDintegration_uptr->PrepareNewFrame(frameCount, NRD_commonSettings);
+
+    AssortDrawInfos();
     std::vector<DrawInfo> TLAS_draw_infos;
     std::copy(drawStaticMeshInfos.begin(), drawStaticMeshInfos.end(), std::back_inserter(TLAS_draw_infos));
     std::copy(drawDynamicMeshInfos.begin(), drawDynamicMeshInfos.end(), std::back_inserter(TLAS_draw_infos));
@@ -1920,6 +2056,9 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
 
     command_buffer.endRenderPass();
 
+    // Denoise
+    NRDintegration_uptr->Denoise(command_buffer);
+
     // Resolve compute
     {   // swapchain image -> Generic
         vk::ImageMemoryBarrier image_memory_barrier;
@@ -1952,11 +2091,9 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         image_memory_barrier.image = accumulateImage;
-        image_memory_barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-        image_memory_barrier.subresourceRange.baseMipLevel = 0;
-        image_memory_barrier.subresourceRange.levelCount = 1;
-        image_memory_barrier.subresourceRange.layerCount = 1;
+        image_memory_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                 0, 1,
+                                                 0, 1};
 
         command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
                                        vk::PipelineStageFlagBits::eComputeShader,
@@ -1971,6 +2108,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
 
         std::vector<vk::DescriptorSet> descriptor_sets;
+        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(frameCount));
         descriptor_sets.emplace_back(resolveDescriptorSets[frameCount % 3]);
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, resolveCompPipelineLayout, 0, descriptor_sets, {});
 
@@ -2129,5 +2267,23 @@ void RealtimeRenderer::BindSwapImage(uint32_t frame_index, uint32_t swapchain_in
                                 0, nullptr);
 }
 
+void RealtimeRenderer::PrepareNRDsettings()
+{
+    glm::mat4 transform_matrix = {1.f, 0.f, 0.f, 0.f,
+                                  0.f,-1.f, 0.f, 0.f,
+                                  0.f, 0.f, 1.f, 0.f,
+                                  0.f, 0.f, 0.f, 1.f};
 
+
+    glm::mat4 view_to_clip = viewport.GetPerspectiveMatrix();
+    glm::mat4 prev_view_to_clip = prevFrameViewport.GetPerspectiveMatrix();
+    glm::mat4 world_to_view = transform_matrix * viewport.GetViewMatrix();
+    glm::mat4 prev_world_to_view = transform_matrix * prevFrameViewport.GetViewMatrix();
+    memcpy(NRD_commonSettings.viewToClipMatrix, &view_to_clip, sizeof(glm::mat4));
+    memcpy(NRD_commonSettings.viewToClipMatrixPrev, &prev_view_to_clip, sizeof(glm::mat4));
+    memcpy(NRD_commonSettings.worldToViewMatrix, &world_to_view, sizeof(glm::mat4));
+    memcpy(NRD_commonSettings.worldToViewMatrixPrev, &prev_world_to_view, sizeof(glm::mat4));
+
+    NRD_commonSettings.frameIndex = frameCount - 1;
+}
 

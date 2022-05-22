@@ -134,6 +134,8 @@ void main()
         specular_out = vec4(vec3(0.f), 0.f);
         normalRoughness_out = vec4(0.f);
         colorMetalness_out = vec4(0.f);
+        motionVec_out = vec4(0.f);
+        linearViewZ_out = INF_DIST;
         return;
     }
 
@@ -152,7 +154,7 @@ void main()
     IntersectTriangleResult intersect_result;
 
     float view_Z_linear = INF_DIST;
-    float first_bounce_T = INF_DIST;
+    float first_bounce_T = 0.f;
 
     vec3 baseColor = vec3(0.f);
     float metallic = 1.f;
@@ -195,7 +197,11 @@ void main()
             normal = eval.normal;
             roughness = eval.roughness;
 
-            view_Z_linear = eval.origin.z;
+            if (dot(-primary_ray_dir, normal) > DOT_ANGLE_SLACK ) {
+                view_Z_linear = eval.origin.z;
+            } else {
+                view_Z_linear = INF_DIST;
+            }
 
             light_sum_specular += eval.light_return_specular;
             light_sum_diffuse += eval.light_return_diffuse;
@@ -300,12 +306,15 @@ void main()
     float diffuse_normHitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear);
     float specular_normHitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear, roughness);
 
+    // Transform normal to world-space
+    vec3 normal_worldspace = vec3(inverseViewMatrix * vec4(normal, 0.f));
+
     // TODO: Move vector
 
     // Color out
     diffuse_out = vec4(min(demod_diffuse, FP16_MAX), diffuse_normHitDist);
     specular_out = vec4(min(demod_specular, FP16_MAX), specular_normHitDist);
-    normalRoughness_out = NRD_FrontEnd_PackNormalRoughness(normal, roughness);
+    normalRoughness_out = NRD_FrontEnd_PackNormalRoughness(normal_worldspace, roughness);
     colorMetalness_out = sRGBencode(vec4(baseColor, metallic));
     motionVec_out = vec4(0.f);
     linearViewZ_out = view_Z_linear;

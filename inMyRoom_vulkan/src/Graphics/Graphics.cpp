@@ -133,7 +133,8 @@ void Graphics::InitDescriptors()
         buffer_binding.descriptorType = vk::DescriptorType::eUniformBuffer;
         buffer_binding.descriptorCount = 1;
         buffer_binding.stageFlags = vk::ShaderStageFlagBits::eVertex
-                | vk::ShaderStageFlagBits::eFragment;
+                | vk::ShaderStageFlagBits::eFragment
+                | vk::ShaderStageFlagBits::eCompute;
 
         buffer_binding.binding = 0;
         buffer_bindings.emplace_back(buffer_binding);

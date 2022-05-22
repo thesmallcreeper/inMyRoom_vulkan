@@ -3,6 +3,7 @@
 
 #include "Graphics/Lights.h"
 #include "Graphics/TLASbuilder.h"
+#include "Graphics/NRDintegration.h"
 
 #include "Geometry/FrustumCulling.h"
 
@@ -23,6 +24,7 @@ public:
 private:
     void InitBuffers();
     void InitImages();
+    void InitNRD();
     // void InitExposure();
     void InitTLAS();
     void InitDescriptors();
@@ -40,6 +42,7 @@ private:
     void WriteInitHostBuffers() const;
     void AssortDrawInfos();
     void BindSwapImage(uint32_t frame_index, uint32_t swapchain_index);
+    void PrepareNRDsettings();
 
 private:
     std::pair<vk::Queue, uint32_t> graphicsQueue;
@@ -50,6 +53,10 @@ private:
     size_t                  frameCountAccumulated = 0;
     LightsIndicesRange      coneLightsIndicesRange;
 
+    std::unique_ptr<NRDintegration> NRDintegration_uptr;
+    nrd::ReblurSettings NRD_reBLURsettings = {};
+    nrd::CommonSettings NRD_commonSettings = {};
+
     std::vector<PrimitiveInstanceParameters> primitive_instance_parameters;
     std::vector<vk::AccelerationStructureInstanceKHR> TLAS_instances;
 
@@ -57,6 +64,7 @@ private:
     std::vector<DrawInfo>   drawDynamicMeshInfos;
     std::vector<DrawInfo>   drawLocalLightSources;
     std::vector<DrawInfo>   drawDirectionalLightSources;
+    ViewportFrustum         prevFrameViewport;
 
     std::vector<vk::Pipeline>       primitivesPipelines;
     std::vector<vk::PipelineLayout> primitivesPipelineLayouts;
@@ -108,10 +116,20 @@ private:
     vk::ImageView           diffuseDistanceImageView;
     vk::ImageCreateInfo     diffuseDistanceImageCreateInfo;
 
+    vk::Image               denoisedDiffuseDistanceImage;
+    vma::Allocation         denoisedDiffuseDistanceAllocation;
+    vk::ImageView           denoisedDiffuseDistanceImageView;
+    vk::ImageCreateInfo     denoisedDiffuseDistanceImageCreateInfo;
+
     vk::Image               specularDistanceImage;
     vma::Allocation         specularDistanceAllocation;
     vk::ImageView           specularDistanceImageView;
     vk::ImageCreateInfo     specularDistanceImageCreateInfo;
+
+    vk::Image               denoisedSpecularDistanceImage;
+    vma::Allocation         denoisedSpecularDistanceAllocation;
+    vk::ImageView           denoisedSpecularDistanceImageView;
+    vk::ImageCreateInfo     denoisedSpecularDistanceImageCreateInfo;
 
     vk::Image               normalRoughnessImage;
     vma::Allocation         normalRoughnessAllocation;

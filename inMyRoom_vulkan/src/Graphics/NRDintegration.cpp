@@ -63,24 +63,25 @@ NRDintegration::NRDtextureWrapper::NRDtextureWrapper(vk::Device in_device, vma::
           wrapperImageOwner(true),
           isValidTexture(true)
 {
-    vk::ImageCreateInfo image_create_info;
-    image_create_info.imageType = vk::ImageType::e2D;
-    image_create_info.format = NRDtoVKformat(nrd_format);
-    image_create_info.extent = vk::Extent3D(width, height, 1);
-    image_create_info.mipLevels = mipLevels;
-    image_create_info.arrayLayers = 1;
-    image_create_info.samples = vk::SampleCountFlagBits::e1;
-    image_create_info.sharingMode = vk::SharingMode::eExclusive;
-    image_create_info.tiling = vk::ImageTiling::eOptimal;
-    image_create_info.usage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled;
-    image_create_info.initialLayout = vk::ImageLayout::eUndefined;
+    imageInfo.imageType = vk::ImageType::e2D;
+    imageInfo.format = NRDtoVKformat(nrd_format);
+    imageInfo.extent = vk::Extent3D(width, height, 1);
+    imageInfo.mipLevels = mipLevels;
+    imageInfo.arrayLayers = 1;
+    imageInfo.samples = vk::SampleCountFlagBits::e1;
+    imageInfo.sharingMode = vk::SharingMode::eExclusive;
+    imageInfo.tiling = vk::ImageTiling::eOptimal;
+    imageInfo.usage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled;
+    imageInfo.initialLayout = vk::ImageLayout::eUndefined;
 
     vma::AllocationCreateInfo image_allocation_info;
     image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
 
-    auto createImage_result = vma_allocator.createImage(image_create_info, image_allocation_info).value;
+    auto createImage_result = vma_allocator.createImage(imageInfo, image_allocation_info).value;
     image = createImage_result.first;
     imageAllocation = createImage_result.second;
+
+    mipLayouts.resize(imageInfo.mipLevels, vk::ImageLayout::eUndefined);
 }
 
 NRDintegration::NRDtextureWrapper::NRDtextureWrapper(vk::Device in_device, vk::Image in_image, vk::ImageCreateInfo in_image_info)
@@ -89,48 +90,44 @@ NRDintegration::NRDtextureWrapper::NRDtextureWrapper(vk::Device in_device, vk::I
 {
     image = in_image;
     imageInfo = in_image_info;
+    mipLayouts.resize(imageInfo.mipLevels, vk::ImageLayout::eUndefined);
 }
 
 NRDintegration::NRDtextureWrapper::~NRDtextureWrapper()
 {
-    for (auto& this_pair : mipOffsetCountPairToImageView_umap) {
-        device.destroy(this_pair.second);
+    Deinit();
+}
+
+void NRDintegration::NRDtextureWrapper::Deinit()
+{
+    if (isValidTexture) {
+        for (auto &this_pair: mipOffsetCountPairToImageView_umap) {
+            device.destroy(this_pair.second);
+        }
+
+        if (wrapperImageOwner) {
+            vma_allocator.destroyImage(image, imageAllocation);
+        }
     }
 
-    if (wrapperImageOwner) {
-        vma_allocator.destroyImage(image, imageAllocation);
-    }
+    isValidTexture = false;
 }
 
 NRDintegration::NRDtextureWrapper::NRDtextureWrapper(NRDtextureWrapper&& other)  noexcept
 {
-    // Destruct
-    this->~NRDtextureWrapper();
-
-    image = other.image;
-    imageInfo = other.imageInfo;
-    mipOffsetCountPairToImageView_umap = other.mipOffsetCountPairToImageView_umap;
-
-    layout = other.layout;
-
-    wrapperImageOwner = other.wrapperImageOwner;
-    imageAllocation = other.imageAllocation;
-    device = other.device;
-    vma_allocator = other.vma_allocator;
-
-    isValidTexture = other.isValidTexture;
+    *this = std::move(other);
 }
 
 NRDintegration::NRDtextureWrapper &NRDintegration::NRDtextureWrapper::operator=(NRDintegration::NRDtextureWrapper &&other) noexcept
 {
     // Destruct
-    this->~NRDtextureWrapper();
+    this->Deinit();
 
     image = other.image;
     imageInfo = other.imageInfo;
-    mipOffsetCountPairToImageView_umap = other.mipOffsetCountPairToImageView_umap;
+    mipLayouts = std::move(other.mipLayouts);
 
-    layout = other.layout;
+    mipOffsetCountPairToImageView_umap = std::move( other.mipOffsetCountPairToImageView_umap);
 
     wrapperImageOwner = other.wrapperImageOwner;
     imageAllocation = other.imageAllocation;
@@ -138,42 +135,53 @@ NRDintegration::NRDtextureWrapper &NRDintegration::NRDtextureWrapper::operator=(
     vma_allocator = other.vma_allocator;
 
     isValidTexture = other.isValidTexture;
+    other.isValidTexture = false;
 
     return *this;
 }
 
-std::pair<bool, vk::ImageMemoryBarrier> NRDintegration::NRDtextureWrapper::SetLayout(vk::ImageLayout dst_layout)
+std::vector<vk::ImageMemoryBarrier> NRDintegration::NRDtextureWrapper::SetLayout(vk::ImageLayout dst_layout, uint32_t mip_offset, uint32_t mip_count)
 {
-    assert(dst_layout == vk::ImageLayout::eGeneral || dst_layout == vk::ImageLayout::eShaderReadOnlyOptimal);
+    assert(mip_count != 0);
+    assert(dst_layout == vk::ImageLayout::eGeneral
+    || dst_layout == vk::ImageLayout::eShaderReadOnlyOptimal
+    || dst_layout == vk::ImageLayout::eUndefined);
 
-    if (layout != dst_layout) {
-        vk::ImageMemoryBarrier image_barrier;
-        if (layout == vk::ImageLayout::eGeneral)
-            image_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
-        else if (layout == vk::ImageLayout::eShaderReadOnlyOptimal)
-            image_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
-        else
-            image_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-        image_barrier.oldLayout = layout;
+    std::vector<vk::ImageMemoryBarrier> return_vector;
 
-        if (dst_layout == vk::ImageLayout::eGeneral)
-            image_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
-        else if (dst_layout == vk::ImageLayout::eShaderReadOnlyOptimal)
-            image_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-        image_barrier.newLayout = dst_layout;
+    mip_count = std::min(imageInfo.mipLevels - mip_offset, mip_count);
+    assert(mip_count != 0);
 
-        image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        image_barrier.image = image;
-        image_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
-                                          0, VK_REMAINING_MIP_LEVELS,
-                                          0, 1};
+    for (uint32_t mip = mip_offset; mip != mip_offset + mip_count; ++mip) {
+        vk::ImageLayout mip_layout = mipLayouts[mip];
+        if (mip_layout != dst_layout) {
+            vk::ImageMemoryBarrier mip_image_barrier;
+            if (mip_layout == vk::ImageLayout::eGeneral)
+                mip_image_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
+            else if (mip_layout == vk::ImageLayout::eShaderReadOnlyOptimal)
+                mip_image_barrier.srcAccessMask = vk::AccessFlagBits::eShaderRead;
+            else
+                mip_image_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
+            mip_image_barrier.oldLayout = mip_layout;
 
-        layout = dst_layout;
-        return {true, image_barrier};
-    } else {
-        return {false, {}};
+            if (dst_layout == vk::ImageLayout::eGeneral)
+                mip_image_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite;
+            else if (dst_layout == vk::ImageLayout::eShaderReadOnlyOptimal)
+                mip_image_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+            mip_image_barrier.newLayout = dst_layout;
+
+            mip_image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            mip_image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            mip_image_barrier.image = image;
+            mip_image_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  mip, 1,
+                                                  0, 1};
+            return_vector.emplace_back(mip_image_barrier);
+            mipLayouts[mip] = dst_layout;
+        }
     }
+
+    return return_vector;
 }
 
 vk::DescriptorImageInfo NRDintegration::NRDtextureWrapper::GetDescriptorImageInfo(uint32_t mip_offset, uint32_t mip_count)
@@ -181,7 +189,7 @@ vk::DescriptorImageInfo NRDintegration::NRDtextureWrapper::GetDescriptorImageInf
     vk::DescriptorImageInfo descriptor_image_info;
     descriptor_image_info.sampler = nullptr;
     descriptor_image_info.imageView = GetImageView(mip_offset, mip_count);
-    descriptor_image_info.imageLayout = layout;
+    descriptor_image_info.imageLayout = mipLayouts[mip_offset];
 
     return descriptor_image_info;
 }
@@ -265,7 +273,6 @@ vk::Format NRDintegration::NRDtextureWrapper::NRDtoVKformat(nrd::Format nrd_form
     return nrd_to_vk_table[(size_t)nrd_format];
 }
 
-
 NRDintegration::NRDintegration(vk::Device in_device,
                                vma::Allocator in_allocator,
                                PipelinesFactory* in_pipelinesFactory_ptr,
@@ -280,10 +287,10 @@ NRDintegration::NRDintegration(vk::Device in_device,
 
 NRDintegration::~NRDintegration()
 {
+    device.destroy(descriptorPool);
+
     for(size_t i = 0; i != pipelines.size(); i++) {
-        device.destroy(pipelines[i]);
         device.destroy(modules[i]);
-        device.destroy(pipelineLayouts[i]);
         device.destroy(descriptorSetLayouts[i]);
     }
 
@@ -291,6 +298,8 @@ NRDintegration::~NRDintegration()
         nrd::DestroyDenoiser(*NRDdenoiser_ptr);
         NRDdenoiser_ptr = nullptr;
     }
+
+    vma_allocator.destroyBuffer(constantBuffer, constantBufferAllocation);
 
     // deletion of staticSamplers
     // deletion of privateTexturePool
@@ -319,7 +328,7 @@ void NRDintegration::CreateLayoutsAndPipelines()
         // Add samplers bindings
         for (uint32_t j = 0; j < denoiser_desc.staticSamplerNum; j++)
         {
-            const nrd::StaticSamplerDesc& nrd_sampler = denoiser_desc.staticSamplers[i];
+            const nrd::StaticSamplerDesc& nrd_sampler = denoiser_desc.staticSamplers[j];
             vk::Sampler* vk_sampler_ptr = staticSamplers.GetVKsampler(nrd_sampler.sampler);
 
             vk::DescriptorSetLayoutBinding sampler_layout_binding;
@@ -441,7 +450,7 @@ void NRDintegration::CreateTexturesBuffers()
     }
 
     // Create constant buffer
-    constantBufferPerSetSize = ((denoiser_desc.constantBufferDesc.maxDataSize + 16 - 1) / 16) * 16;
+    constantBufferPerSetSize = ((denoiser_desc.constantBufferDesc.maxDataSize + 64 - 1) / 64) * 64;
     constantBufferRangeSize = denoiser_desc.descriptorSetDesc.setMaxNum * constantBufferPerSetSize;
 
     vk::BufferCreateInfo buffer_create_info;
@@ -564,9 +573,8 @@ void NRDintegration::PrepareNewFrame(size_t frame_index, const nrd::CommonSettin
 
                 // Set texture state and get barrier
                 vk::ImageLayout layout = (this_resource.stateNeeded == nrd::DescriptorType::TEXTURE)? vk::ImageLayout::eShaderReadOnlyOptimal : vk::ImageLayout::eGeneral;
-                auto bool_imageBarrier_pair = this_texture_ptr->SetLayout(layout);
-                if (bool_imageBarrier_pair.first)
-                    this_dispatch_image_barriers.emplace_back(bool_imageBarrier_pair.second);
+                auto image_barriers = this_texture_ptr->SetLayout(layout, this_resource.mipOffset, this_resource.mipNum);
+                std::copy(image_barriers.begin(), image_barriers.end(), std::back_inserter(this_dispatch_image_barriers));
 
                 // Get texture write
                 std::unique_ptr<vk::DescriptorImageInfo> this_descImage_info_uptr = std::make_unique<vk::DescriptorImageInfo>(this_texture_ptr->GetDescriptorImageInfo(this_resource.mipOffset, this_resource.mipNum));
@@ -586,7 +594,7 @@ void NRDintegration::PrepareNewFrame(size_t frame_index, const nrd::CommonSettin
 
         // For constant buffer
         if (pipeline_desc.hasConstantData) {
-            std::unique_ptr<vk::DescriptorBufferInfo> buffer_descriptor_info_uptr = {};
+            std::unique_ptr<vk::DescriptorBufferInfo> buffer_descriptor_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
             buffer_descriptor_info_uptr->buffer = constantBuffer;
             buffer_descriptor_info_uptr->offset = buffer_index * constantBufferRangeSize + i * constantBufferPerSetSize;
             buffer_descriptor_info_uptr->range = constantBufferPerSetSize;
@@ -621,7 +629,7 @@ void NRDintegration::Denoise(vk::CommandBuffer command_buffer, vk::PipelineStage
         laber_info.pLabelName = this_dispatch.name;
         command_buffer.beginDebugUtilsLabelEXT(laber_info);
 
-        command_buffer.pipelineBarrier((i == 0)? vk::PipelineStageFlagBits::eAllCommands : vk::PipelineStageFlagBits::eComputeShader,
+        command_buffer.pipelineBarrier((i == 0)? src_stage : vk::PipelineStageFlagBits::eComputeShader,
                                        vk::PipelineStageFlagBits::eComputeShader,
                                        vk::DependencyFlagBits::eByRegion,
                                        {},
@@ -646,13 +654,12 @@ void NRDintegration::Denoise(vk::CommandBuffer command_buffer, vk::PipelineStage
     for (size_t i = 0; i != userTexturePool.size(); ++i) {
         auto& this_texture = userTexturePool[i];
         if (this_texture.IsValidTexture()) {
-            auto bool_imageBarrier_pair = this_texture.SetLayout(userTexturePoolFinalLayout[i]);
-            if (bool_imageBarrier_pair.first)
-                final_imageBarriers.emplace_back(bool_imageBarrier_pair.second);
+            auto image_barriers = this_texture.SetLayout(userTexturePoolFinalLayout[i]);
+            std::copy(image_barriers.begin(), image_barriers.end(), std::back_inserter(final_imageBarriers));
         }
     }
     command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
-                                   vk::PipelineStageFlagBits::eAllCommands,
+                                   dst_stage,
                                    vk::DependencyFlagBits::eByRegion,
                                    {},
                                    {},

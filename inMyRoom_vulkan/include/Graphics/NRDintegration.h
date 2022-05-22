@@ -33,16 +33,20 @@ class NRDintegration
         NRDtextureWrapper(vk::Device vk_device, vma::Allocator vma_allocator, nrd::Format nrd_format, uint32_t width, uint32_t height, uint32_t mipLevels);
         NRDtextureWrapper(vk::Device vk_device, vk::Image in_image, vk::ImageCreateInfo in_image_info);
         ~NRDtextureWrapper();
+        NRDtextureWrapper(const NRDtextureWrapper&) = delete;
+        NRDtextureWrapper& operator=(const NRDtextureWrapper& other) = delete;
 
         NRDtextureWrapper(NRDtextureWrapper&& other) noexcept;
         NRDtextureWrapper& operator=(NRDtextureWrapper&& other) noexcept;
 
-        std::pair<bool, vk::ImageMemoryBarrier> SetLayout(vk::ImageLayout dst_layout);
+        std::vector<vk::ImageMemoryBarrier> SetLayout(vk::ImageLayout dst_layout, uint32_t mip_offset = 0, uint32_t mip_count = VK_REMAINING_MIP_LEVELS);
         vk::DescriptorImageInfo GetDescriptorImageInfo(uint32_t mip_offset = 0, uint32_t mip_count = 0);
 
         bool IsValidTexture() const {return isValidTexture;}
 
     private:
+        void Deinit();
+
         vk::ImageView GetImageView(uint32_t mip_offset, uint32_t mip_count);
         vk::Format NRDtoVKformat(nrd::Format nrd_format);
 
@@ -50,7 +54,7 @@ class NRDintegration
         vk::ImageCreateInfo imageInfo;
         std::unordered_map<uint64_t, vk::ImageView> mipOffsetCountPairToImageView_umap;
 
-        vk::ImageLayout layout = vk::ImageLayout::eUndefined;
+        std::vector<vk::ImageLayout> mipLayouts;
 
         bool wrapperImageOwner = false;
         vma::Allocation imageAllocation;
@@ -73,7 +77,9 @@ public:
                      vk::ImageLayout initial_layout, vk::ImageLayout final_layout);
     void SetMethodSettings(nrd::Method method, const void* methodSettings);
     void PrepareNewFrame(size_t frame_index, const nrd::CommonSettings& commonSettings);
-    void Denoise(vk::CommandBuffer command_buffer, vk::PipelineStageFlagBits src_stage, vk::PipelineStageFlagBits dst_stage);
+    void Denoise(vk::CommandBuffer command_buffer,
+                 vk::PipelineStageFlagBits src_stage = vk::PipelineStageFlagBits::eAllCommands,
+                 vk::PipelineStageFlagBits dst_stage = vk::PipelineStageFlagBits::eAllCommands);
 private:
     void Initialize(const nrd::DenoiserCreationDesc& denoiserCreationDesc);
     void CreateLayoutsAndPipelines();
