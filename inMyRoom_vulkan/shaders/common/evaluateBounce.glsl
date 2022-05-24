@@ -95,7 +95,7 @@ float WeightLightBalance(float pdf, float other_pdf) {
 }
 
 
-BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
+BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                                 uint primitive_instance, uint triangle_index,
                                 vec3 origin, RayDiffsOrigin ray_originDiffs,
                                 vec3 ray_dir, RayDiffsDir ray_dirDiffs,
@@ -126,7 +126,7 @@ BounceEvaluation EvaluateBounce(IntersectTriangleResult intersect_result,
 
     if (ray_depth == 0) {
         intersect_result = IntersectTriangle(pos_0, edge_1, edge_2,
-        ray_dir, origin);
+                                             ray_dir, origin);
     }
 
     vec3 face_normal = normalize(cross(edge_1, edge_2));

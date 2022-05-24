@@ -212,7 +212,7 @@ void Graphics::InitDescriptors()
             {
                 auto descriptor_buffer_info_uptr = std::make_unique<vk::DescriptorBufferInfo>();
                 descriptor_buffer_info_uptr->buffer = cameraBuffer;
-                descriptor_buffer_info_uptr->offset = ((i - 1) % 4) * 3 * sizeof(glm::mat4);
+                descriptor_buffer_info_uptr->offset = ((i == 0)? 3 : (i - 1)) * 3 * sizeof(glm::mat4);
                 descriptor_buffer_info_uptr->range = 3 * sizeof(glm::mat4);
 
                 vk::WriteDescriptorSet write_descriptor_set;
@@ -408,10 +408,18 @@ void Graphics::InitGraphicsComponents()
 
 void Graphics::InitRenderer()
 {
-    if (cfgFile["graphicsSettings"]["renderer"].as_string() == "offline")
+    if (cfgFile["graphicsSettings"]["renderer"].as_string() == "offline") {
+        printf("-Renderer: offline\n");
         renderer_uptr = std::make_unique<OfflineRenderer>(this, device, vma_allocator);
-    else
-        renderer_uptr = std::make_unique<RealtimeRenderer>(this, device, vma_allocator);
+    }
+    else if (cfgFile["graphicsSettings"]["renderer"].as_string() == "realtime-reBLUR") {
+        printf("-Renderer: realtime-reBLUR");
+        renderer_uptr = std::make_unique<RealtimeRenderer>(this, device, vma_allocator, nrd::Method::REBLUR_DIFFUSE_SPECULAR);
+    }
+    else {
+        printf("-Renderer: realtime-reLAX");
+        renderer_uptr = std::make_unique<RealtimeRenderer>(this, device, vma_allocator, nrd::Method::RELAX_DIFFUSE_SPECULAR);
+    }
 }
 
 

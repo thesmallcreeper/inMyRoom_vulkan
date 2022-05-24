@@ -14,7 +14,10 @@
 #include "common/sRGBencode.glsl"
 
 #include "NRD/helpers/NRD_packNormalRoughness.glsl"
+
+#ifdef DENOISER_REBLUR
 #include "NRD/helpers/REBLUR_getNormalizedHitDist.glsl"
+#endif
 
 #define MAX_DEPTH 3
 #define DOT_ANGLE_SLACK 0.0087265f      // cos(89.5 degs)
@@ -51,10 +54,23 @@ layout( set = 0 , binding = 0 ) uniform projectionMatrixBuffer
     mat4 projectionMatrix;
 };
 
+// 0, 1
+layout( set = 0 , binding = 1 ) uniform prevProjectionMatrixBuffer
+{
+    mat4 prevViewMatrix;
+    mat4 prevInverseViewMatrix;
+    mat4 prevProjectionMatrix;
+};
+
 /// 1, 0
 layout( std430, set = 1 , binding = 0 ) readonly buffer worldSpaceMatricesBufferDescriptor
 {
     ModelMatrices model_matrices[MATRICES_COUNT];
+};
+
+layout( std430, set = 1 , binding = 1 ) readonly buffer prevWorldSpaceMatricesBufferDescriptor
+{
+    ModelMatrices prev_model_matrices[MATRICES_COUNT];
 };
 
 /// 2, 0
@@ -74,34 +90,51 @@ layout( std430, set = 2, binding = 0 ) readonly buffer vec4verticesBuffersDescri
 } vec4verticesBuffers [];
 
 /// 3, 0
-layout (std430, set = 3, binding = 0) readonly buffer materialsParametersBufferDescriptor
+layout( std430, set = 3, binding = 0 ) readonly buffer uintPrevVerticesBuffersDescriptors
+{
+    uint data[];
+} uintPrevVerticesBuffers [];
+
+layout( std430, set = 3, binding = 0 ) readonly buffer vec2prevVerticesBuffersDescriptors
+{
+    vec2 data[];
+} vec2prevVerticesBuffers [];
+
+layout( std430, set = 3, binding = 0 ) readonly buffer vec4prevVerticesBuffersDescriptors
+{
+    vec4 data[];
+} vec4prevVerticesBuffers [];
+
+/// 4, 0
+layout (std430, set = 4, binding = 0) readonly buffer materialsParametersBufferDescriptor
 {
     MaterialParameters materialsParameters[MATERIALS_PARAMETERS_COUNT];
 };
 
-/// 3, 1
-layout (set = 3, binding = 1) uniform sampler2D textures[TEXTURES_COUNT];
+/// 4, 1
+layout (set = 4, binding = 1) uniform sampler2D textures[TEXTURES_COUNT];
 
-/// 4, 0
-layout (set = 4, binding = 0) readonly buffer primitivesInstancesBufferDescriptor
+/// 5, 0
+layout (set = 5, binding = 0) readonly buffer primitivesInstancesBufferDescriptor
 {
     PrimitiveInstanceParameters primitivesInstancesParameters[INSTANCES_COUNT];
 };
 
-/// 5, 0
-layout (input_attachment_index = 0, set = 5, binding = 0) uniform usubpassInput visibilityInput;
-
-
 /// 6, 0
-layout(set = 6, binding = 0) uniform accelerationStructureEXT topLevelAS;
+layout (input_attachment_index = 0, set = 6, binding = 0) uniform usubpassInput visibilityInput;
+
 
 /// 7, 0
-layout (set = 7, binding = 0) readonly buffer lightsParametersBufferDescriptor
+layout(set = 7, binding = 0) uniform accelerationStructureEXT topLevelAS;
+
+/// 8, 0
+layout (set = 8, binding = 0) readonly buffer lightsParametersBufferDescriptor
 {
     LightParameters lightsParameters[MAX_LIGHTS_COUNT];
 };
 
-layout (set = 7, binding = 1) readonly buffer lightsCombinationsBufferDescriptor
+// 8, 1
+layout (set = 8, binding = 1) readonly buffer lightsCombinationsBufferDescriptor
 {
     uint16_t lightsCombinations[MAX_COMBINATIONS_SIZE];
 };
@@ -126,13 +159,16 @@ void main()
     float min_roughness = MIN_ROUGHNESS;
 
     uvec2 frag_pair = uvec2(subpassLoad(visibilityInput));
-    uint primitive_instance = frag_pair.x;
-    uint triangle_index = frag_pair.y;
+    const uint first_bounce_primitive_instance = frag_pair.x;
+    const uint first_bounce_triangle_index = frag_pair.y;
+
+    uint primitive_instance = first_bounce_primitive_instance;
+    uint triangle_index = first_bounce_triangle_index;
 
     if (primitive_instance == 0) {
         diffuse_out = vec4(vec3(0.f), 0.f);
         specular_out = vec4(vec3(0.f), 0.f);
-        normalRoughness_out = vec4(0.f);
+        normalRoughness_out = vec4(1.f);
         colorMetalness_out = vec4(0.f);
         motionVec_out = vec4(0.f);
         linearViewZ_out = INF_DIST;
@@ -153,7 +189,10 @@ void main()
 
     IntersectTriangleResult intersect_result;
 
-    float view_Z_linear = INF_DIST;
+    IntersectTriangleResult first_hit_intersect_result;
+    first_hit_intersect_result.distance = INF_DIST;
+    first_hit_intersect_result.barycoords = vec2(0.3f);
+
     float first_bounce_T = 0.f;
 
     vec3 baseColor = vec3(0.f);
@@ -197,11 +236,7 @@ void main()
             normal = eval.normal;
             roughness = eval.roughness;
 
-            if (dot(-primary_ray_dir, normal) > DOT_ANGLE_SLACK ) {
-                view_Z_linear = eval.origin.z;
-            } else {
-                view_Z_linear = INF_DIST;
-            }
+            first_hit_intersect_result = intersect_result;
 
             light_sum_specular += eval.light_return_specular;
             light_sum_diffuse += eval.light_return_diffuse;
@@ -286,9 +321,15 @@ void main()
         light_sum_diffuse *= factor;
     }
 
-    // Exposure TODO!
+    // HDR range
     light_sum_diffuse /= FP16_FACTOR;
     light_sum_specular /= FP16_FACTOR;
+
+    // Check if visible normal
+    bool visible_normal = dot(-primary_ray_dir, normal) > DOT_ANGLE_SLACK;
+
+    // Get linear Z
+    float view_Z_linear = dot(primary_ray_dir, vec3(0.f, 0.f, 1.f)) * first_hit_intersect_result.distance;
 
     // De-modulate diffuse specular
     vec3 c_diff = mix(baseColor.rgb, vec3(0.f), metallic);
@@ -303,19 +344,52 @@ void main()
     vec3 demod_specular = light_sum_specular / envTerm;
 
     // Get hit distances
-    float diffuse_normHitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear);
-    float specular_normHitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear, roughness);
+    #ifdef DENOISER_REBLUR
+        float diffuse_hitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear);
+        float specular_hitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear, roughness);
+    #else
+        float diffuse_hitDist = first_bounce_T;
+        float specular_hitDist = first_bounce_T;
+    #endif
 
     // Transform normal to world-space
     vec3 normal_worldspace = vec3(inverseViewMatrix * vec4(normal, 0.f));
 
-    // TODO: Move vector
+    // Get motion vector
+    vec3 pos = primary_ray_dir * first_hit_intersect_result.distance;
+
+    vec3 prev_pos = pos;
+    uint prev_matrixOffset = uint(primitivesInstancesParameters[first_bounce_primitive_instance].prevMatricesOffset);
+    if ( prev_matrixOffset != -1) {
+        mat4 prev_matrix = prev_model_matrices[prev_matrixOffset].positionMatrix;
+
+        uint indices_offset = primitivesInstancesParameters[first_bounce_primitive_instance].indicesOffset
+          + uint(primitivesInstancesParameters[first_bounce_primitive_instance].indicesSetMultiplier) * first_bounce_triangle_index;
+        uint p_0_index = uintVerticesBuffers[0].data[indices_offset];
+        uint p_1_index = uintVerticesBuffers[0].data[indices_offset + 1];
+        uint p_2_index = uintVerticesBuffers[0].data[indices_offset + 2];
+
+        uint pos_descriptorIndex = uint(primitivesInstancesParameters[first_bounce_primitive_instance].positionDescriptorIndex);
+        uint pos_offset = primitivesInstancesParameters[first_bounce_primitive_instance].positionOffset;
+
+        vec3 pos_0 = vec3(prev_matrix * vec4prevVerticesBuffers[pos_descriptorIndex].data[pos_offset + p_0_index]);
+        vec3 pos_1 = vec3(prev_matrix * vec4prevVerticesBuffers[pos_descriptorIndex].data[pos_offset + p_1_index]);
+        vec3 pos_2 = vec3(prev_matrix * vec4prevVerticesBuffers[pos_descriptorIndex].data[pos_offset + p_2_index]);
+
+        vec3 edge_1 = pos_1 - pos_0;
+        vec3 edge_2 = pos_2 - pos_0;
+        vec3 prev_pos_prevSpace = pos_0 + first_hit_intersect_result.barycoords.x * edge_1 + first_hit_intersect_result.barycoords.y * edge_2;
+
+        prev_pos = vec3(viewMatrix * prevInverseViewMatrix * vec4(prev_pos_prevSpace, 1.f));
+    }
+
+    vec3 motion_vec = vec3(inverseViewMatrix * vec4(prev_pos - pos, 0.f));
 
     // Color out
-    diffuse_out = vec4(min(demod_diffuse, FP16_MAX), diffuse_normHitDist);
-    specular_out = vec4(min(demod_specular, FP16_MAX), specular_normHitDist);
+    diffuse_out = vec4(min(demod_diffuse, FP16_MAX), visible_normal ? diffuse_hitDist : 0.f);
+    specular_out = vec4(min(demod_specular, FP16_MAX), visible_normal ? specular_hitDist : 0.f);
     normalRoughness_out = NRD_FrontEnd_PackNormalRoughness(normal_worldspace, roughness);
     colorMetalness_out = sRGBencode(vec4(baseColor, metallic));
-    motionVec_out = vec4(0.f);
-    linearViewZ_out = view_Z_linear;
+    motionVec_out = vec4(motion_vec, 0.f);
+    linearViewZ_out = visible_normal ? view_Z_linear : INF_DIST;
 }

@@ -13,7 +13,8 @@ class RealtimeRenderer
 public:
     RealtimeRenderer(class Graphics* in_graphics_ptr,
                     vk::Device in_device,
-                    vma::Allocator in_vma_allocator);
+                    vma::Allocator in_vma_allocator,
+                    nrd::Method in_NRDmethod);
     ~RealtimeRenderer() override;
 
     void DrawFrame(const ViewportFrustum& viewport,
@@ -55,7 +56,9 @@ private:
 
     std::unique_ptr<NRDintegration> NRDintegration_uptr;
     nrd::ReblurSettings NRD_reBLURsettings = {};
+    nrd::RelaxDiffuseSpecularSettings NRD_reLAXsettings = {};
     nrd::CommonSettings NRD_commonSettings = {};
+    nrd::Method NRDmethod;
 
     std::vector<PrimitiveInstanceParameters> primitive_instance_parameters;
     std::vector<vk::AccelerationStructureInstanceKHR> TLAS_instances;

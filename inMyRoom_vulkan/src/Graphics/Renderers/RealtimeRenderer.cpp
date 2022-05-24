@@ -4,9 +4,11 @@
 
 RealtimeRenderer::RealtimeRenderer(Graphics *in_graphics_ptr,
                                    vk::Device in_device,
-                                   vma::Allocator in_vma_allocator)
+                                   vma::Allocator in_vma_allocator,
+                                   nrd::Method in_NRDmethod)
         : RendererBase(in_graphics_ptr, in_device, in_vma_allocator),
           graphicsQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
+          NRDmethod(in_NRDmethod),
 #ifdef ENABLE_ASYNC_COMPUTE
           meshComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[0]),
           exposureComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[1])
@@ -555,11 +557,13 @@ void RealtimeRenderer::InitImages()
 
 void RealtimeRenderer::InitNRD()
 {
+    assert(NRDmethod == nrd::Method::REBLUR_DIFFUSE_SPECULAR || NRDmethod == nrd::Method::RELAX_DIFFUSE_SPECULAR);
+
     uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
     uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
 
     // Create NRDintegration
-    const nrd::MethodDesc methods[] = {nrd::Method::REBLUR_DIFFUSE_SPECULAR, (uint16_t)width, (uint16_t)height};
+    const nrd::MethodDesc methods[] = {NRDmethod, (uint16_t)width, (uint16_t)height};
     nrd::DenoiserCreationDesc denoiserCreationDesc = {};
     denoiserCreationDesc.requestedMethods = methods;
     denoiserCreationDesc.requestedMethodNum = 1;
@@ -585,7 +589,28 @@ void RealtimeRenderer::InitNRD()
                                      vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
 
     // Set method settings
-    NRDintegration_uptr->SetMethodSettings(nrd::Method::REBLUR_DIFFUSE_SPECULAR, &NRD_reBLURsettings);
+    if (NRDmethod == nrd::Method::REBLUR_DIFFUSE_SPECULAR) {
+        NRD_reBLURsettings.antilagIntensitySettings.sensitivityToDarkness = 2.5f;
+        NRD_reBLURsettings.antilagIntensitySettings.enable = true;
+        NRD_reBLURsettings.prePassMode = nrd::PrePassMode::SIMPLE;
+        NRD_reBLURsettings.stabilizationStrength = 0.98f;
+        NRD_reBLURsettings.enableAntiFirefly = true;
+        NRD_reBLURsettings.blurRadius = 25.f;
+        NRD_reBLURsettings.minConvergedStateBaseRadiusScale = 0.15f;
+        NRD_reBLURsettings.maxAccumulatedFrameNum = 41;
+        NRDintegration_uptr->SetMethodSettings(nrd::Method::REBLUR_DIFFUSE_SPECULAR, &NRD_reBLURsettings);
+    } else {
+        NRD_reLAXsettings.diffusePrepassBlurRadius = 5.f;
+        NRD_reLAXsettings.specularPrepassBlurRadius = 20.f;
+        NRD_reLAXsettings.diffuseMaxAccumulatedFrameNum = 41;
+        NRD_reLAXsettings.specularMaxAccumulatedFrameNum = 41;
+        NRD_reLAXsettings.diffuseHistoryRejectionNormalThreshold = 0.01f;
+        NRD_reLAXsettings.specularPhiLuminance = 0.7f;
+        NRD_reLAXsettings.diffusePhiLuminance = 1.f;
+        NRD_reLAXsettings.specularLobeAngleSlack = 0.35f;
+        NRD_reLAXsettings.enableAntiFirefly = true;
+        NRDintegration_uptr->SetMethodSettings(nrd::Method::RELAX_DIFFUSE_SPECULAR, &NRD_reLAXsettings);
+    }
 
     // Set const common settings
     NRD_commonSettings.cameraJitter[0] = 0.f;
@@ -1388,6 +1413,8 @@ void RealtimeRenderer::InitPathTracePipeline()
     shadersDefinitionStringPairs.emplace_back("MAX_LIGHTS_COUNT", std::to_string(graphics_ptr->GetLights()->GetMaxLights()));
     shadersDefinitionStringPairs.emplace_back("MAX_COMBINATIONS_SIZE", std::to_string(graphics_ptr->GetLights()->GetLightsCombinationsSize()));
     shadersDefinitionStringPairs.emplace_back("FP16_FACTOR", std::to_string(FP16factor));
+    if (NRDmethod == nrd::Method::REBLUR_DIFFUSE_SPECULAR)
+        shadersDefinitionStringPairs.emplace_back("DENOISER_REBLUR", "");
 
     {   // Pipeline layout fullscreen
         vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -1395,6 +1422,7 @@ void RealtimeRenderer::InitPathTracePipeline()
         std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetCameraDescriptionSetLayout());
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetMatricesDescriptionSetLayout());
+        descriptor_sets_layouts.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorLayout());
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorLayout());
         descriptor_sets_layouts.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSetLayout());
         descriptor_sets_layouts.emplace_back(hostDescriptorSetLayout);
@@ -2017,6 +2045,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(frameCount));
         descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(frameCount));
         descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorSet());
+        descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetPrevDescriptorSet());
         descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
         descriptor_sets.emplace_back(hostDescriptorSets[frameCount % 3]);
         descriptor_sets.emplace_back(pathTraceDescriptorSet);
@@ -2283,6 +2312,10 @@ void RealtimeRenderer::PrepareNRDsettings()
     memcpy(NRD_commonSettings.viewToClipMatrixPrev, &prev_view_to_clip, sizeof(glm::mat4));
     memcpy(NRD_commonSettings.worldToViewMatrix, &world_to_view, sizeof(glm::mat4));
     memcpy(NRD_commonSettings.worldToViewMatrixPrev, &prev_world_to_view, sizeof(glm::mat4));
+    if (frameCount < 4)
+        NRD_commonSettings.accumulationMode = nrd::AccumulationMode::CLEAR_AND_RESTART;
+    else
+        NRD_commonSettings.accumulationMode = nrd::AccumulationMode::CONTINUE;
 
     NRD_commonSettings.frameIndex = frameCount - 1;
 }

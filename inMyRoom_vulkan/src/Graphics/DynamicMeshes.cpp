@@ -543,7 +543,8 @@ void DynamicMeshes::UpdateHostAABBs()
 void DynamicMeshes::SwapDescriptorSets()
 {
     size_t device_buffer_index = frameIndex % 3;
-    size_t prev_device_buffer_index = (frameIndex - 1) % 3;
+    size_t prev_device_buffer_index = (frameIndex % 3 == 0) ? 2 : ((frameIndex % 3) - 1);
+
     size_t hostVisible_buffer_index = frameIndex % 3;
     std::vector<vk::DescriptorBufferInfo> vertices_descriptor_buffer_infos;
     std::vector<vk::DescriptorBufferInfo> prev_vertices_descriptor_buffer_infos;
