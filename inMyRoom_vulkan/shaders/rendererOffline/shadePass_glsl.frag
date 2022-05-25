@@ -18,8 +18,7 @@
 #define USE_INCREASING_MOLLIFICATION
 #define LIGHT_THRESHOLD 0.5e6f
 
-// #define SPECULAR_DIFFUSE_EVAL
-// #define DEBUG_MIS
+// define DEBUG_MIS
 
 #define INF_DIST 100000.f
 
@@ -276,21 +275,15 @@ void main()
 
         light_target = eval.light_target;
 
-        #ifdef SPECULAR_DIFFUSE_EVAL
-            light_factor = eval.next_bounce_light_factor_specular + eval.next_bounce_light_factor_diffuse;
-            light_sum += eval.light_return_specular + eval.light_return_diffuse;
-            light_hit_contribution = eval.light_target_contribution_specular + eval.light_target_contribution_diffuse;
-        #else
-            light_factor = eval.next_bounce_light_factor;
-            light_sum += eval.light_return;
-            light_hit_contribution = eval.light_target_contribution;
-        #endif
+        light_factor = eval.next_bounce_light_factor_specular + eval.next_bounce_light_factor_diffuse;
+        light_sum += eval.light_return_specular + eval.light_return_diffuse;
+        light_hit_contribution = eval.light_target_contribution_specular + eval.light_target_contribution_diffuse;
 
         if (light_factor == vec3(0.f))
             break;
 
         rayQueryEXT query;
-        rayQueryInitializeEXT(query, topLevelAS, 0, 0xFF, ray_origin, 0.0f, ray_dir, INF_DIST);
+        rayQueryInitializeEXT(query, topLevelAS, 0, MESH_MASK | LIGHT_MASK, ray_origin, 0.0f, ray_dir, INF_DIST);
         while (rayQueryProceedEXT(query)) {
             if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
                 ConfirmNonOpaqueIntersection(query);
@@ -306,11 +299,21 @@ void main()
             #endif
             break;
         } else {
-            // TODO: does it hit light?
             intersect_result.barycoords = rayQueryGetIntersectionBarycentricsEXT(query, true);
             intersect_result.distance = rayQueryGetIntersectionTEXT(query, true);
             primitive_instance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, true) + rayQueryGetIntersectionGeometryIndexEXT(query, true);
             triangle_index = rayQueryGetIntersectionPrimitiveIndexEXT(query, true);
+
+            uint light_offset = uint(primitivesInstancesParameters[primitive_instance].light);
+            if (light_offset != -1 && light_offset == light_target) {
+                #ifndef DEBUG_MIS
+                    light_sum += light_hit_contribution;
+                #else
+                    float light_hit_contribution_lum = Luminance(light_hit_contribution);
+                    light_sum += vec3(0.f, 0.f, light_hit_contribution_lum);
+                #endif
+                break;
+            }
         }
 
         i++;
@@ -334,6 +337,9 @@ void main()
         float factor = LIGHT_THRESHOLD / max_value;
         light_sum *= factor;
     }
+
+    // For testing lights combinations
+    // light_sum = vec3(1.e5f, 0.f, 0.f) * float(int(primitivesInstancesParameters[frag_pair.x].lightsCombinationsCount));
 
     // Color out
     if (alpha_one != 0) {

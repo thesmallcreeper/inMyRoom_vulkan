@@ -89,7 +89,7 @@ void ModelDrawCompEntity::AddDrawInfo(const LateNodeGlobalMatrixComp* nodeGlobal
 {
     if (shouldDraw)
     {
-        DrawInfo this_draw_info;
+        DrawInfo this_draw_info = {};
         this_draw_info.meshIndex = meshIndex;
         this_draw_info.dontCull = disableCulling;
 

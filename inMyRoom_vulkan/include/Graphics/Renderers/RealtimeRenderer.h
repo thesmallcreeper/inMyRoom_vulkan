@@ -51,7 +51,6 @@ private:
     std::pair<vk::Queue, uint32_t> exposureComputeQueue;
 
     size_t                  frameCount = 0;
-    size_t                  frameCountAccumulated = 0;
     LightsIndicesRange      coneLightsIndicesRange;
 
     std::unique_ptr<NRDintegration> NRDintegration_uptr;
@@ -153,11 +152,6 @@ private:
     vma::Allocation         linearViewZAllocation;
     vk::ImageView           linearViewZImageView;
     vk::ImageCreateInfo     linearViewZImageCreateInfo;
-
-    vk::Image               accumulateImage;
-    vma::Allocation         accumulateAllocation;
-    vk::ImageView           accumulateImageView;
-    vk::ImageCreateInfo     accumulateImageCreateInfo;
 
     std::unique_ptr<TLASbuilder> TLASbuilder_uptr;
 

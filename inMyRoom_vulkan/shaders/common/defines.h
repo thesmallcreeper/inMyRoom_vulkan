@@ -4,8 +4,8 @@
 #define LIGHT_CYLINDER  1
 #define LIGHT_CONE  2
 
-#define MESH_MASK 0x01;
-#define LIGHT_MASK 0x02;
+#define MESH_MASK 0x01
+#define LIGHT_MASK 0x02
 
 #define TEX_FILTERING_MAX_ROUGH 1.f
 #define TEX_FILTERING_MIN_ROUGH 0.01f

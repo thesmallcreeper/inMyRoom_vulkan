@@ -27,6 +27,7 @@ layout( std140, set = 1 , binding = 0 ) readonly buffer matricesBuffer
 layout (push_constant) uniform PushConstants
 {
     layout(offset = 0) uint matrixOffset;
+    layout(offset = 4) uint isDirectional;
 };
 
 //
@@ -34,17 +35,18 @@ layout (push_constant) uniform PushConstants
 void main()
 {
     mat4 pos_matrix = model_matrices[matrixOffset].positionMatrix;
-    #ifdef DIRECTIONAL_LIGHT
+    if (isDirectional != 0) {
         pos_matrix[0] = pos_matrix[0] * DIR_INF;
         pos_matrix[1] = pos_matrix[1] * DIR_INF;
         pos_matrix[2] = pos_matrix[2] * DIR_INF;
         pos_matrix[3] = vec4(pos_matrix[3].xyz * DIR_INF, 1.f);
-    #endif
-    vec4 view_position = pos_matrix * app_position;
-    vec4 projection = projectionMatrix * view_position;
-    #ifdef DIRECTIONAL_LIGHT
+
+        vec4 view_position = pos_matrix * app_position;
+        vec4 projection = projectionMatrix * view_position;
         gl_Position = projection.xyww;
-    #else
+    } else {
+        vec4 view_position = pos_matrix * app_position;
+        vec4 projection = projectionMatrix * view_position;
         gl_Position = projection;
-    #endif
+    }
 }

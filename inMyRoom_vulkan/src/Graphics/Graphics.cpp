@@ -409,15 +409,15 @@ void Graphics::InitGraphicsComponents()
 void Graphics::InitRenderer()
 {
     if (cfgFile["graphicsSettings"]["renderer"].as_string() == "offline") {
-        printf("-Renderer: offline\n");
+        printf("Renderer: offline\n");
         renderer_uptr = std::make_unique<OfflineRenderer>(this, device, vma_allocator);
     }
     else if (cfgFile["graphicsSettings"]["renderer"].as_string() == "realtime-reBLUR") {
-        printf("-Renderer: realtime-reBLUR");
+        printf("Renderer: realtime-reBLUR\n");
         renderer_uptr = std::make_unique<RealtimeRenderer>(this, device, vma_allocator, nrd::Method::REBLUR_DIFFUSE_SPECULAR);
     }
     else {
-        printf("-Renderer: realtime-reLAX");
+        printf("Renderer: realtime-reLAX\n");
         renderer_uptr = std::make_unique<RealtimeRenderer>(this, device, vma_allocator, nrd::Method::RELAX_DIFFUSE_SPECULAR);
     }
 }

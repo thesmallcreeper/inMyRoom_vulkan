@@ -1123,7 +1123,6 @@ void OfflineRenderer::InitLightsPipeline()
     printf("-Initializing \"Light-draw Pass\" pipeline\n");
 
     std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
-    shadersDefinitionStringPairs.emplace_back("DIRECTIONAL_LIGHT", "");
     shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
     shadersDefinitionStringPairs.emplace_back("INSTANCES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
 
@@ -1137,7 +1136,7 @@ void OfflineRenderer::InitLightsPipeline()
         pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
 
         std::vector<vk::PushConstantRange> push_constant_range;
-        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eVertex, 0, 4);
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eVertex, 0, 8);
         push_constant_range.emplace_back(vk::ShaderStageFlagBits::eFragment, 16, 16);
         pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
 
@@ -1999,13 +1998,17 @@ void OfflineRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buff
 
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, directionalLightSourcePipeline);
 
-        for (const DrawInfo& this_draw : drawDirectionalLightSources) {
+        std::vector<DrawInfo> light_draw;
+        std::copy(drawLocalLightSources.begin(), drawLocalLightSources.end(), std::back_inserter(light_draw));
+        std::copy(drawDirectionalLightSources.begin(), drawDirectionalLightSources.end(), std::back_inserter(light_draw));
+        for (const DrawInfo& this_draw : light_draw) {
             for (size_t primitive_index: graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
                 const PrimitiveInfo& primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(primitive_index);
                 const LightInfo& light_info = graphics_ptr->GetLights()->GetLightInfo(this_draw.lightIndex);
 
-                std::array<uint32_t, 1> data_vertex = {uint32_t(this_draw.matricesOffset)};
-                command_buffer.pushConstants(lightSourcesPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, 4, data_vertex.data());
+                std::array<uint32_t, 2> data_vertex = {uint32_t(this_draw.matricesOffset),
+                                                       uint32_t(light_info.lightType == LightType::Cone)};
+                command_buffer.pushConstants(lightSourcesPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, 8, data_vertex.data());
 
                 std::array<glm::vec4, 1> data_frag = {glm::vec4(light_info.luminance, 0.f)};
                 command_buffer.pushConstants(lightSourcesPipelineLayout, vk::ShaderStageFlagBits::eFragment, 16, 16, data_frag.data());

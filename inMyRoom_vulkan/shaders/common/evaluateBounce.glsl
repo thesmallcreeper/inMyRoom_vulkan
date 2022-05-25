@@ -21,23 +21,14 @@ struct BounceEvaluation {
     vec3 dir;
     RayDiffsDir dirDiffs;
 
-#ifdef SPECULAR_DIFFUSE_EVAL
     vec3 next_bounce_light_factor_specular;
     vec3 next_bounce_light_factor_diffuse;
     vec3 light_return_specular;
     vec3 light_return_diffuse;
-#else
-    vec3 next_bounce_light_factor;
-    vec3 light_return;
-#endif
 
     uint light_target;
-#ifdef SPECULAR_DIFFUSE_EVAL
     vec3 light_target_contribution_specular;
     vec3 light_target_contribution_diffuse;
-#else
-    vec3 light_target_contribution;
-#endif
 };
 
 void ConfirmNonOpaqueIntersection(rayQueryEXT query)
@@ -89,11 +80,16 @@ vec4 SampleTextureBarycentric(vec2 barycoords, BarycoordsDiffs bary_diffs,
 }
 
 float WeightLightBalance(float pdf, float other_pdf) {
-    float pdf_weight = pdf * pdf;
-    float other_pdf_weight = other_pdf * other_pdf;
+    float pdf_weight = pdf;
+    float other_pdf_weight = other_pdf;
     return pdf_weight / (pdf_weight + other_pdf_weight);
 }
 
+float WindowFunction(float dist, float range) {
+    float dist_range_ratio_pow = pow(dist / range, 4.f);
+    float clamped_sqrt = clamp(1.0f - dist_range_ratio_pow, 0.f, 1.f);
+    return clamped_sqrt * clamped_sqrt;
+}
 
 BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                                 uint primitive_instance, uint triangle_index,
@@ -264,18 +260,12 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
     return_bounce_evaluation.normal = normal;
     return_bounce_evaluation.roughness = roughness;
     return_bounce_evaluation.light_target = -1;
-#ifdef SPECULAR_DIFFUSE_EVAL
     return_bounce_evaluation.light_return_specular = vec3(0.f);
     return_bounce_evaluation.light_return_diffuse = vec3(0.f);
     return_bounce_evaluation.next_bounce_light_factor_specular = vec3(0.f);
     return_bounce_evaluation.next_bounce_light_factor_diffuse = vec3(0.f);
     return_bounce_evaluation.light_target_contribution_specular = vec3(0.f);
     return_bounce_evaluation.light_target_contribution_diffuse = vec3(0.f);
-#else
-    return_bounce_evaluation.light_return = vec3(0.f);
-    return_bounce_evaluation.next_bounce_light_factor = vec3(0.f);
-    return_bounce_evaluation.light_target_contribution = vec3(0.f);
-#endif
 
     // Viewvector / Origin
     mat3 normal_to_world_space_mat3 = mat3(normal_tangent, normal_bitangent, normal);
@@ -341,12 +331,9 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
     vec3 ray_bounce_dir = normal_to_world_space_mat3 * ray_bounce_normalspace;
     vec3 bounce_halfvector = normal_to_world_space_mat3 * bounce_halfvector_normalspace;
-#ifdef SPECULAR_DIFFUSE_EVAL
     vec3 bounce_light_factor_specular = vec3(0.f);
     vec3 bounce_light_factor_diffuse = vec3(0.f);
-#else
-    vec3 bounce_light_factor = vec3(0.f);
-#endif
+
     float ray_bounce_PDF = 0.f;
     if (ray_bounce_normalspace.z > DOT_ANGLE_SLACK
     && dot(viewVector_normalspace, bounce_halfvector_normalspace) > DOT_ANGLE_SLACK) {
@@ -359,36 +346,13 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
         BRDFresult BRDF_eval = BRDF(c_diff, f0, a_roughness, viewVector, ray_bounce_dir, normal);
 
-#ifdef SPECULAR_DIFFUSE_EVAL
         bounce_light_factor_specular = light_factor * BRDF_eval.f_specular * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
         bounce_light_factor_diffuse = light_factor * BRDF_eval.f_diffuse * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
-#else
-        bounce_light_factor = light_factor * (BRDF_eval.f_specular + BRDF_eval.f_diffuse) * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
-#endif
     }
 
-    // Pick light source
-    Reservoir light_reservoir = CreateReservoir();
-#ifdef SPECULAR_DIFFUSE_EVAL
-    vec3 reservoir_light_unshadowed_specular = vec3(0.f);
-    vec3 reservoir_light_unshadowed_diffuse = vec3(0.f);
-#else
-    vec3 reservoir_light_unshadowed = vec3(0.f);
-#endif
-    vec3 reservoir_ray_dir = vec3(0.f);
-    float reservoir_ray_t_max = 0.f;
-
-    float bounce_light_weight = 0.f;
-#ifdef SPECULAR_DIFFUSE_EVAL
-    vec3 bounce_light_unshadowed_specular = vec3(0.f);
-    vec3 bounce_light_unshadowed_diffuse = vec3(0.f);
-#else
-    vec3 bounce_light_unshadowed = vec3(0.f);
-#endif
-    float bounce_light_t_max = INF_DIST;
-    uint bounce_light_index = -1;
-
-    /// Check light cones
+    // Sum luminance from sources in order to balance RIS
+    /// From cones
+    float lights_illuminance_sum = 0.f;
     for (uint i = 0; i != lightConesIndices_size; ++i) {
         uint this_light_index = uint(lightsCombinations[lightConesIndices_offset + i]);
 
@@ -398,17 +362,82 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
         mat4 light_matrix = model_matrices[this_light_matricesOffset].normalMatrix;
         vec3 light_dir = -vec3(light_matrix[2]);
+
+        float angle_tan = this_light_radius;
+        vec2 angle_sin_cos = normalize(vec2(angle_tan, 1.f));
+
+        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x
+         && dot(light_dir, normal) > -angle_sin_cos.x) {
+            float lightcone_PDF = RandomDirInConePDF(angle_sin_cos.y);
+            lights_illuminance_sum += Luminance(this_light_luminance) / lightcone_PDF;
+        }
+    }
+    /// From local lights
+    uint local_lights_count = uint(primitivesInstancesParameters[primitive_instance].lightsCombinationsCount);
+    uint local_lights_offset = uint(primitivesInstancesParameters[primitive_instance].lightsCombinationsOffset);
+    for (uint i = 0; i != local_lights_count; ++i) {
+        uint this_light_index = uint(lightsCombinations[local_lights_offset + i]);
+
+        vec3 this_light_luminance = lightsParameters[this_light_index].luminance;
+        uint this_light_matricesOffset = uint(lightsParameters[this_light_index].matricesOffset);
+        float this_light_radius = lightsParameters[this_light_index].radius;
+        float this_light_range = lightsParameters[this_light_index].range;
+
+        mat4 light_matrix_pos = model_matrices[this_light_matricesOffset].positionMatrix;
+        mat4 light_matrix_normalized = model_matrices[this_light_matricesOffset].normalMatrix;
+
+        vec3 light_pos = vec3(light_matrix_pos[3]);
+        vec3 light_vec = light_pos - (origin_pos_offseted + vertexNormal_selfintersect_offset);
+        float light_dist = length(light_vec);
+        vec3 light_dir = light_vec / light_dist;
+
+        vec2 angle_sin_cos = vec2(this_light_radius / length(light_vec), 0.f);
+        angle_sin_cos.y = sqrt(1.f - angle_sin_cos.x * angle_sin_cos.x);
+
+        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x
+         && dot(light_dir, normal) > -angle_sin_cos.x) {
+            float lightcone_PDF = RandomDirInConePDF(angle_sin_cos.y);
+            float window_coeff = WindowFunction(light_dist, this_light_range);
+            lights_illuminance_sum += window_coeff * Luminance(this_light_luminance) / lightcone_PDF;
+        }
+    }
+
+    // Pick light source
+    Reservoir light_reservoir = CreateReservoir();
+    vec3 reservoir_light_unshadowed_specular = vec3(0.f);
+    vec3 reservoir_light_unshadowed_diffuse = vec3(0.f);
+    vec3 reservoir_ray_dir = vec3(0.f);
+    float reservoir_ray_t_max = 0.f;
+
+    float bounce_light_weight = 0.f;
+    vec3 bounce_light_unshadowed_specular = vec3(0.f);
+    vec3 bounce_light_unshadowed_diffuse = vec3(0.f);
+    float bounce_light_t_max = INF_DIST;
+    uint bounce_light_offset = -1;
+
+    /// Check light cones
+    for (uint i = 0; i != lightConesIndices_size; ++i) {
+        uint this_light_offset = uint(lightsCombinations[lightConesIndices_offset + i]);
+
+        vec3 this_light_luminance = lightsParameters[this_light_offset].luminance;
+        uint this_light_matricesOffset = uint(lightsParameters[this_light_offset].matricesOffset);
+        float this_light_radius = lightsParameters[this_light_offset].radius;
+
+        mat4 light_matrix = model_matrices[this_light_matricesOffset].normalMatrix;
+        vec3 light_dir = -vec3(light_matrix[2]);
         vec3 light_dir_tangent = +vec3(light_matrix[0]);
         vec3 light_dir_bitangent = -vec3(light_matrix[1]);
 
         float angle_tan = this_light_radius;
         vec2 angle_sin_cos = normalize(vec2(angle_tan, 1.f));
 
-        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x) {
+        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x
+         && dot(light_dir, normal) > -angle_sin_cos.x) {
             vec3 random_light_dir_zaxis = RandomDirInCone(angle_sin_cos.y, rng_state);
             vec3 random_light_dir = light_dir_bitangent * random_light_dir_zaxis.x + light_dir_tangent * random_light_dir_zaxis.y + light_dir * random_light_dir_zaxis.z;
 
             float lightcone_PDF = RandomDirInConePDF(angle_sin_cos.y);
+            float light_illuminance = Luminance(this_light_luminance) / lightcone_PDF;
 
             if (dot(random_light_dir, vertex_normal) > DOT_ANGLE_SLACK
             && dot(random_light_dir, normal) > DOT_ANGLE_SLACK) {
@@ -429,25 +458,18 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 }
 
                 BRDFresult BRDF_eval = BRDF(c_diff, f0, a_roughness, viewVector, random_light_dir, normal);
-#ifdef SPECULAR_DIFFUSE_EVAL
                 vec3 light_unshadowed_specular = this_light_luminance * light_factor * BRDF_eval.f_specular * dot(normal, random_light_dir) / lightcone_PDF;
                 vec3 light_unshadowed_diffuse = this_light_luminance * light_factor * BRDF_eval.f_diffuse * dot(normal, random_light_dir) / lightcone_PDF;
                 vec3 light_unshadowed = light_unshadowed_specular + light_unshadowed_diffuse;
-#else
-                vec3 light_unshadowed = this_light_luminance * light_factor * (BRDF_eval.f_specular + BRDF_eval.f_diffuse) * dot(normal, random_light_dir) / lightcone_PDF;
-#endif
 
-                float balance_factor = WeightLightBalance(lightcone_PDF, random_light_dir_PDF_bounce);
+                float balance_factor = WeightLightBalance(lightcone_PDF, (lights_illuminance_sum / light_illuminance) * random_light_dir_PDF_bounce);
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
                 if (should_swap) {
-#ifdef SPECULAR_DIFFUSE_EVAL
                     reservoir_light_unshadowed_specular = light_unshadowed_specular;
                     reservoir_light_unshadowed_diffuse = light_unshadowed_diffuse;
-#else
-                    reservoir_light_unshadowed = light_unshadowed;
-#endif
+
                     reservoir_ray_dir = random_light_dir;
                     reservoir_ray_t_max = INF_DIST;
                 }
@@ -455,97 +477,168 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
             // Bounce dir check for hitting light
             if (dot(ray_bounce_dir, light_dir) > angle_sin_cos.y) {
-#ifdef SPECULAR_DIFFUSE_EVAL
                 bounce_light_unshadowed_specular = this_light_luminance * bounce_light_factor_specular;
                 bounce_light_unshadowed_diffuse = this_light_luminance * bounce_light_factor_diffuse;
                 vec3 light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
-#else
-                bounce_light_unshadowed = this_light_luminance * bounce_light_factor;
-                vec3 light_unshadowed = bounce_light_unshadowed;
-#endif
 
-                float balance_factor = WeightLightBalance(ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
+                float balance_factor = WeightLightBalance((lights_illuminance_sum / light_illuminance) * ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bounce_light_weight = weight;
                 bounce_light_t_max = INF_DIST;
-                bounce_light_index = -1;            // Cones are inhittable at BVH
+                bounce_light_offset = -1;            // Cones are inhittable at BVH
+            }
+        }
+    }
+    /// Check local lights
+    for (uint i = 0; i != local_lights_count; ++i) {
+        uint this_light_index = uint(lightsCombinations[local_lights_offset + i]);
+
+        vec3 this_light_luminance = lightsParameters[this_light_index].luminance;
+        uint this_light_matricesOffset = uint(lightsParameters[this_light_index].matricesOffset);
+        float this_light_radius = lightsParameters[this_light_index].radius;
+        float this_light_range = lightsParameters[this_light_index].range;
+
+        mat4 light_matrix_pos = model_matrices[this_light_matricesOffset].positionMatrix;
+        mat4 light_matrix_normalized = model_matrices[this_light_matricesOffset].normalMatrix;
+
+        vec3 light_pos = vec3(light_matrix_pos[3]);
+        vec3 light_vec = light_pos - (origin_pos_offseted + vertexNormal_selfintersect_offset);
+        float light_dist = length(light_vec);
+        vec3 light_dir = light_vec / light_dist;
+
+        vec2 angle_sin_cos = vec2(this_light_radius / light_dist, 0.f);
+        angle_sin_cos.y = sqrt(1.f - angle_sin_cos.x * angle_sin_cos.x);
+
+        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x
+         && dot(light_dir, normal) > -angle_sin_cos.x
+         && light_dist < this_light_range) {
+            vec3 light_dir_tangent;
+            if (abs(dot(light_dir, vec3(light_matrix_normalized[0]))) < 0.5f) {    // 1/sqrt(3) = 0.5774
+                vec3 proposed_dir_tangent = vec3(light_matrix_normalized[0]);
+                light_dir_tangent = normalize(proposed_dir_tangent - dot(proposed_dir_tangent, light_dir) * light_dir);
+            } else if (abs(dot(light_dir, vec3(light_matrix_normalized[1]))) < 0.5f) {
+                vec3 proposed_dir_tangent = vec3(light_matrix_normalized[1]);
+                light_dir_tangent = normalize(proposed_dir_tangent - dot(proposed_dir_tangent, light_dir) * light_dir);
+            } else {
+                vec3 proposed_dir_tangent = vec3(light_matrix_normalized[2]);
+                light_dir_tangent = normalize(proposed_dir_tangent - dot(proposed_dir_tangent, light_dir) * light_dir);
+            }
+            vec3 light_dir_bitangent = cross(light_dir, light_dir_tangent);
+
+            vec3 random_light_dir_zaxis = RandomDirInCone(angle_sin_cos.y, rng_state);
+            vec3 random_light_dir = light_dir_bitangent * random_light_dir_zaxis.x + light_dir_tangent * random_light_dir_zaxis.y + light_dir * random_light_dir_zaxis.z;
+
+            float lightcone_PDF = RandomDirInConePDF(angle_sin_cos.y);
+            float window_coeff = WindowFunction(light_dist, this_light_range);
+            float light_illuminance = window_coeff * Luminance(this_light_luminance) / lightcone_PDF;
+
+            if (dot(random_light_dir, vertex_normal) > DOT_ANGLE_SLACK
+            && dot(random_light_dir, normal) > DOT_ANGLE_SLACK) {
+                float random_light_dir_PDF_bounce;
+                {
+                    float NdotL = dot(normal, random_light_dir);
+
+                    vec3 random_light_halfvector = normalize(viewVector + random_light_dir);
+                    float NdotLH = dot(normal, random_light_halfvector);
+                    float VdotLH = dot(viewVector, random_light_halfvector);
+
+                    float random_light_dir_PDF_cosin = RandomCosinWeightedHemiPDF(NdotL);
+
+                    float random_light_halfvector_PDF_GGX = RandomGXXhalfvectorPDF(a_roughness, NdotLH);
+                    float random_light_dir_PDF_GGX = random_light_halfvector_PDF_GGX / (4.f * VdotLH);
+
+                    random_light_dir_PDF_bounce = random_light_dir_PDF_cosin * diffuse_sample_chance + random_light_dir_PDF_GGX * (1.f - diffuse_sample_chance);
+                }
+
+                BRDFresult BRDF_eval = BRDF(c_diff, f0, a_roughness, viewVector, random_light_dir, normal);
+                vec3 light_unshadowed_specular = window_coeff * this_light_luminance * light_factor * BRDF_eval.f_specular * dot(normal, random_light_dir) / lightcone_PDF;
+                vec3 light_unshadowed_diffuse = window_coeff * this_light_luminance * light_factor * BRDF_eval.f_diffuse * dot(normal, random_light_dir) / lightcone_PDF;
+                vec3 light_unshadowed = light_unshadowed_specular + light_unshadowed_diffuse;
+
+                float balance_factor = WeightLightBalance(lightcone_PDF, (lights_illuminance_sum / light_illuminance) * random_light_dir_PDF_bounce);
+                float weight = balance_factor * Luminance(light_unshadowed);
+
+                bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
+                if (should_swap) {
+                    reservoir_light_unshadowed_specular = light_unshadowed_specular;
+                    reservoir_light_unshadowed_diffuse = light_unshadowed_diffuse;
+
+                    reservoir_ray_dir = random_light_dir;
+                    reservoir_ray_t_max = light_dist / random_light_dir_zaxis.z;
+                }
+            }
+
+            // Bounce dir check for hitting light
+            float bounce_dart_dist = light_dist / dot(ray_bounce_dir, light_dir);
+            if (dot(ray_bounce_dir, light_dir) > angle_sin_cos.y
+             && bounce_dart_dist < bounce_light_t_max) {
+                bounce_light_unshadowed_specular = window_coeff * this_light_luminance * bounce_light_factor_specular;
+                bounce_light_unshadowed_diffuse = window_coeff * this_light_luminance * bounce_light_factor_diffuse;
+                vec3 light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
+
+                float balance_factor = WeightLightBalance((lights_illuminance_sum / light_illuminance) * ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
+                float weight = balance_factor * Luminance(light_unshadowed);
+
+                bounce_light_weight = weight;
+                bounce_light_t_max = bounce_dart_dist;
+                bounce_light_offset = this_light_index;
             }
         }
     }
 
-    /// If its the last ray then RIS with bounce ray, else send it to next bounce hit
+    // If its the last ray then RIS with bounce ray, else send it to next bounce hit
     if (is_last_bounce) {
         if (bounce_light_weight != 0.f) {   // If bounce ray may hit light then merge
             bool should_swap = UpdateReservoir(bounce_light_weight, light_reservoir, rng_state);
             if (should_swap) {
-#ifdef SPECULAR_DIFFUSE_EVAL
                 reservoir_light_unshadowed_specular = bounce_light_unshadowed_specular;
                 reservoir_light_unshadowed_diffuse = bounce_light_unshadowed_diffuse;
-#else
-                reservoir_light_unshadowed = bounce_light_unshadowed;
-#endif
+
                 reservoir_ray_dir = ray_bounce_dir;
                 reservoir_ray_t_max = bounce_light_t_max;
             }
         } else {                            // Else sky is behind
-#ifdef SPECULAR_DIFFUSE_EVAL
             vec3 skylight_unshadowed_specular = sky_luminance * bounce_light_factor_specular;
             vec3 skylight_unshadowed_diffuse = sky_luminance * bounce_light_factor_diffuse;
             vec3 skylight_unshadowed = skylight_unshadowed_specular + skylight_unshadowed_diffuse;
-#else
-            vec3 skylight_unshadowed = sky_luminance * bounce_light_factor;
-#endif
+
             float weight = Luminance(skylight_unshadowed);
 
             bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
             if (should_swap) {
-#ifdef SPECULAR_DIFFUSE_EVAL
                 reservoir_light_unshadowed_specular = skylight_unshadowed_specular;
                 reservoir_light_unshadowed_diffuse = skylight_unshadowed_diffuse;
-#else
-                reservoir_light_unshadowed = skylight_unshadowed;
-#endif
+
                 reservoir_ray_dir = ray_bounce_dir;
                 reservoir_ray_t_max = INF_DIST;
             }
         }
     } else {
         if (bounce_light_weight != 0.f) {   // If bounce ray may hit return its contibution if finds a light
-            return_bounce_evaluation.light_target = bounce_light_index;
-#ifdef SPECULAR_DIFFUSE_EVAL
+            return_bounce_evaluation.light_target = bounce_light_offset;
+
             vec3 bounce_light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
             float bounce_light_unshadowed_lum = Luminance(bounce_light_unshadowed);
             return_bounce_evaluation.light_target_contribution_specular = bounce_light_unshadowed_specular * (bounce_light_weight / bounce_light_unshadowed_lum);
             return_bounce_evaluation.light_target_contribution_diffuse = bounce_light_unshadowed_diffuse * (bounce_light_weight / bounce_light_unshadowed_lum);
-#else
-            float bounce_light_unshadowed_lum = Luminance(bounce_light_unshadowed);
-            return_bounce_evaluation.light_target_contribution = bounce_light_unshadowed * (bounce_light_weight / bounce_light_unshadowed_lum);
-#endif
         } else {                            // Else sky is behind
             return_bounce_evaluation.light_target = -1;
-#ifdef SPECULAR_DIFFUSE_EVAL
+
             return_bounce_evaluation.light_target_contribution_specular = sky_luminance * bounce_light_factor_specular;
             return_bounce_evaluation.light_target_contribution_diffuse = sky_luminance * bounce_light_factor_diffuse;
-#else
-            return_bounce_evaluation.light_target_contribution = sky_luminance * bounce_light_factor;
-#endif
         }
     }
 
     // Evaluate light source
-#ifdef SPECULAR_DIFFUSE_EVAL
     vec3 direct_light_specular = vec3(0.f, 0.f, 0.f);
     vec3 direct_light_diffuse = vec3(0.f, 0.f, 0.f);
     vec3 reservoir_light_unshadowed = reservoir_light_unshadowed_specular + reservoir_light_unshadowed_diffuse;
-#else
-    vec3 direct_light = vec3(0.f, 0.f, 0.f);
-#endif
 
     if (reservoir_light_unshadowed != vec3(0.f))
     {
-        rayQueryEXT query;  // TODO: Change flags
-        rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, origin_pos_offseted + vertexNormal_selfintersect_offset, 0.0f, reservoir_ray_dir, reservoir_ray_t_max);
+        rayQueryEXT query;
+        rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, MESH_MASK, origin_pos_offseted + vertexNormal_selfintersect_offset, 0.0f, reservoir_ray_dir, reservoir_ray_t_max);
         while (rayQueryProceedEXT(query)) {
             if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
                 ConfirmNonOpaqueIntersection(query);
@@ -553,7 +646,6 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
         }
 
         if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT) {
-#ifdef SPECULAR_DIFFUSE_EVAL
             float reservoir_light_unshadowed_lum = Luminance(reservoir_light_unshadowed);
             #ifndef DEBUG_MIS
                 direct_light_specular = reservoir_light_unshadowed_specular * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
@@ -567,16 +659,6 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 float light_contribution_diffuse_lum = Luminance(light_contribution_diffuse);
                 direct_light_diffuse = vec3(light_contribution_diffuse_lum, 0.f, 0.f);
             #endif
-#else
-            float reservoir_light_unshadowed_lum = Luminance(reservoir_light_unshadowed);
-            #ifndef DEBUG_MIS
-                direct_light = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
-            #else
-                vec3 light_contribution = reservoir_light_unshadowed * (light_reservoir.weights_sum / reservoir_light_unshadowed_lum);
-                float light_contribution_lun = Luminance(light_contribution);
-                direct_light = vec3(light_contribution_lun, 0.f, 0.f);
-            #endif
-#endif
         }
     }
 
@@ -586,20 +668,13 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
     return_bounce_evaluation.dir = ray_bounce_dir;
     return_bounce_evaluation.dirDiffs = ReflectRayDiffsDir(ray_dirDiffs, bounce_halfvector);
-#ifdef SPECULAR_DIFFUSE_EVAL
+
     return_bounce_evaluation.light_return_specular = direct_light_specular;
     return_bounce_evaluation.light_return_diffuse = direct_light_diffuse;
-#else
-    return_bounce_evaluation.light_return = direct_light;
-#endif
 
     if (!is_last_bounce) {
-#ifdef SPECULAR_DIFFUSE_EVAL
         return_bounce_evaluation.next_bounce_light_factor_specular = bounce_light_factor_specular;
         return_bounce_evaluation.next_bounce_light_factor_diffuse = bounce_light_factor_diffuse;
-#else
-        return_bounce_evaluation.next_bounce_light_factor = bounce_light_factor;
-#endif
     }
 
     return return_bounce_evaluation;

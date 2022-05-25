@@ -21,14 +21,12 @@ layout (set = 1, binding = 2, rgb10_a2) uniform readonly image2D input_normalRou
 layout (set = 1, binding = 3, rgba8) uniform readonly image2D input_colorMetalness;
 
 layout (set = 1, binding = 10, rgba8) uniform image2D output_color;
-layout (set = 1, binding = 20, rgba32f) uniform image2D sum_store;
 
 layout (push_constant) uniform PushConstants
 {
     uint size_x;
     uint size_y;
 
-    uint accumulate;
     float mult_factor;
 
     vec4 dir_down_right;
@@ -93,12 +91,6 @@ void main()
     vec3 specular = demod_specular * envTerm;
 
     vec3 light = diffuse + specular;
-    if (accumulate != 0) {
-        light += imageLoad(sum_store, coords).xyz;
-        imageStore(sum_store, coords, vec4(light, 0.f));
-    } else {
-        imageStore(sum_store, coords, vec4(0.f));
-    }
     vec4 color_out_linear = vec4(ToneMap(mult_factor * light, 0.25f), 1.f);
 
     vec4 color_out = sRGBencode(color_out_linear);

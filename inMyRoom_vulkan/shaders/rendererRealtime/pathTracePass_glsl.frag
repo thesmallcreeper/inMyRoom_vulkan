@@ -253,7 +253,7 @@ void main()
             break;
 
         rayQueryEXT query;
-        rayQueryInitializeEXT(query, topLevelAS, 0, 0xFF, ray_origin, 0.0f, ray_dir, INF_DIST);
+        rayQueryInitializeEXT(query, topLevelAS, 0, MESH_MASK | LIGHT_MASK, ray_origin, 0.0f, ray_dir, INF_DIST);
         while (rayQueryProceedEXT(query)) {
             if (rayQueryGetIntersectionTypeEXT(query, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
                 ConfirmNonOpaqueIntersection(query);
@@ -289,11 +289,37 @@ void main()
             #endif
             break;
         } else {
-            // TODO: does it hit light?
             intersect_result.barycoords = rayQueryGetIntersectionBarycentricsEXT(query, true);
             intersect_result.distance = rayQueryGetIntersectionTEXT(query, true);
             primitive_instance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, true) + rayQueryGetIntersectionGeometryIndexEXT(query, true);
             triangle_index = rayQueryGetIntersectionPrimitiveIndexEXT(query, true);
+
+            uint light_offset = uint(primitivesInstancesParameters[primitive_instance].light);
+            if (light_offset != -1 && light_offset == light_target) {
+                #ifndef DEBUG_MIS
+                    if (i == 0) {
+                        light_sum_specular += light_target_contribution_specular;
+                        light_sum_diffuse += light_target_contribution_diffuse;
+                    } else {
+                        vec3 light_hit = light_target_contribution_specular + light_target_contribution_diffuse;
+                        light_sum_specular += indirect_specular_factor * light_hit;
+                        light_sum_diffuse += (vec3(1.f) - indirect_specular_factor) * light_hit;
+                    }
+                #else
+                    if (i == 0) {
+                        float light_hit_contribution_specular_lum = Luminance(light_target_contribution_specular);
+                        light_sum_specular += vec3(0.f, 0.f, light_hit_contribution_specular_lum);
+                        float light_hit_contribution_diffuse_lum = Luminance(light_target_contribution_diffuse);
+                        light_sum_diffuse +=  vec3(0.f, 0.f, light_hit_contribution_diffuse_lum);
+                    } else {
+                        vec3 light_hit = light_target_contribution_specular + light_target_contribution_diffuse;
+                        float light_hit_lum = Luminance(light_hit);
+                        light_sum_specular += indirect_specular_factor * vec3(0.f, 0.f, light_hit_lum);
+                        light_sum_diffuse += (vec3(1.f) - indirect_specular_factor) * vec3(0.f, 0.f, light_hit_lum);
+                    }
+                #endif
+                break;
+            }
         }
 
         i++;

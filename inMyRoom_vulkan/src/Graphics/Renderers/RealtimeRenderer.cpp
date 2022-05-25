@@ -90,9 +90,6 @@ RealtimeRenderer::~RealtimeRenderer()
     device.destroy(linearViewZImageView);
     vma_allocator.destroyImage(linearViewZImage, linearViewZAllocation);
 
-    device.destroy(accumulateImageView);
-    vma_allocator.destroyImage(accumulateImage, accumulateAllocation);
-
     vma_allocator.destroyBuffer(primitivesInstanceBuffer, primitivesInstanceAllocation);
     vma_allocator.destroyBuffer(fullscreenBuffer, fullscreenAllocation);
 }
@@ -517,42 +514,6 @@ void RealtimeRenderer::InitImages()
         linearViewZImageView = device.createImageView(imageView_create_info).value;
     }
 
-    // accumulate image
-    {
-        accumulateImageCreateInfo.imageType = vk::ImageType::e2D;
-        accumulateImageCreateInfo.format = vk::Format::eR32G32B32A32Sfloat;
-        accumulateImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
-        accumulateImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
-        accumulateImageCreateInfo.extent.depth = 1;
-        accumulateImageCreateInfo.mipLevels = 1;
-        accumulateImageCreateInfo.arrayLayers = 1;
-        accumulateImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
-        accumulateImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-        accumulateImageCreateInfo.usage = vk::ImageUsageFlagBits::eStorage;
-        accumulateImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
-        accumulateImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
-
-        vma::AllocationCreateInfo image_allocation_info;
-        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
-
-        auto createImage_result = vma_allocator.createImage(accumulateImageCreateInfo, image_allocation_info).value;
-        accumulateImage = createImage_result.first;
-        accumulateAllocation= createImage_result.second;
-
-        vk::ImageViewCreateInfo imageView_create_info;
-        imageView_create_info.image = accumulateImage;
-        imageView_create_info.viewType = vk::ImageViewType::e2D;
-        imageView_create_info.format = accumulateImageCreateInfo.format;
-        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity};
-        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
-                                                  0, 1,
-                                                  0, 1};
-
-        accumulateImageView = device.createImageView(imageView_create_info).value;
-    }
 }
 
 void RealtimeRenderer::InitNRD()
@@ -708,18 +669,9 @@ void RealtimeRenderer::InitDescriptors()
 
             bindings.emplace_back(attach_binding);
         }
-        {   // Accumulate attachment
-            vk::DescriptorSetLayoutBinding attach_binding;
-            attach_binding.binding = 10;
-            attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
-            attach_binding.descriptorCount = 1;
-            attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
-
-            bindings.emplace_back(attach_binding);
-        }
         {   // Output attachment
             vk::DescriptorSetLayoutBinding attach_binding;
-            attach_binding.binding = 20;
+            attach_binding.binding = 10;
             attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
             attach_binding.descriptorCount = 1;
             attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
@@ -810,16 +762,7 @@ void RealtimeRenderer::InitDescriptors()
             vk::WriteDescriptorSet write_descriptor_sets[5];
             vk::DescriptorImageInfo descriptor_image_infos[5];
 
-            descriptor_image_infos[0].imageLayout = vk::ImageLayout::eGeneral;
-            descriptor_image_infos[0].imageView = accumulateImageView;
-            descriptor_image_infos[0].sampler = nullptr;
-
-            write_descriptor_sets[0].dstSet = resolveDescriptorSets[i];
-            write_descriptor_sets[0].dstBinding = 20;
-            write_descriptor_sets[0].dstArrayElement = 0;
-            write_descriptor_sets[0].descriptorCount = 1;
-            write_descriptor_sets[0].descriptorType = vk::DescriptorType::eStorageImage;
-            write_descriptor_sets[0].pImageInfo = &descriptor_image_infos[0];
+            // TODO
 
             descriptor_image_infos[1].imageLayout = vk::ImageLayout::eGeneral;
             descriptor_image_infos[1].imageView = denoisedDiffuseDistanceImageView;
@@ -866,7 +809,7 @@ void RealtimeRenderer::InitDescriptors()
             write_descriptor_sets[4].pImageInfo = &descriptor_image_infos[4];
 
 
-            device.updateDescriptorSets(5, write_descriptor_sets,
+            device.updateDescriptorSets(4, write_descriptor_sets + 1,
                                         0, nullptr);
         }
     }
@@ -1632,12 +1575,6 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
     ++frameCount;
     size_t commandBuffer_index = frameCount % 3;
 
-    if (viewportFreeze) {
-        frameCountAccumulated++;
-    } else {
-        frameCountAccumulated = 0;
-    }
-
     if (frameCount == 1) {
         prevFrameViewport = in_viewport;
     } else {
@@ -2111,26 +2048,6 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
                                        0, nullptr,
                                        1, &image_memory_barrier);
     }
-    if (frameCount == 1) {
-        vk::ImageMemoryBarrier image_memory_barrier;
-        image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-        image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eShaderWrite;
-        image_memory_barrier.oldLayout = vk::ImageLayout::eUndefined;
-        image_memory_barrier.newLayout = vk::ImageLayout::eGeneral;
-        image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        image_memory_barrier.image = accumulateImage;
-        image_memory_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
-                                                 0, 1,
-                                                 0, 1};
-
-        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
-                                       vk::PipelineStageFlagBits::eComputeShader,
-                                       vk::DependencyFlagBits::eByRegion,
-                                       0, nullptr,
-                                       0, nullptr,
-                                       1, &image_memory_barrier);
-    }
 
     { // Dispatch compute
         uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
@@ -2142,14 +2059,13 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, resolveCompPipelineLayout, 0, descriptor_sets, {});
 
         struct push_constants_type{
-            std::array<uint32_t, 3> uint_constants = {};
+            std::array<uint32_t, 2> uint_constants = {};
             std::array<float, 1> float_constants = {};
             std::array<glm::vec4, 3> vec4_constants = {};
         } push_constants;
         push_constants.uint_constants = {width,
-                                         height,
-                                         frameCountAccumulated != 0};
-        push_constants.float_constants = {frameCountAccumulated == 0 ? 1.f : 1.f / float(frameCountAccumulated)};
+                                         height};
+        push_constants.float_constants = {1.f};
         push_constants.vec4_constants = viewport.GetFullscreenpassTriangleNormals();
         command_buffer.pushConstants(resolveCompPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(push_constants_type), &push_constants);
 
