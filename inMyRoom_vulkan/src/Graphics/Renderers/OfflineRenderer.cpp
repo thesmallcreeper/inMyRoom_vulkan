@@ -1190,7 +1190,7 @@ void OfflineRenderer::InitLightsPipeline()
         viewport_state_create_info.viewportCount = 1;
         viewport_state_create_info.pViewports = &viewport;
 
-        vk::Rect2D scissor{{0,     0},
+        vk::Rect2D scissor{{0,0},
                            {width, height}};
         viewport_state_create_info.scissorCount = 1;
         viewport_state_create_info.pScissors = &scissor;

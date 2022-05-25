@@ -503,7 +503,13 @@ void NRDintegration::PrepareNewFrame(size_t frame_index, const nrd::CommonSettin
         }
     }
 
-    // TODO: undefined for transient textures?
+    // Set transient textures as undefined (does it help performance?)
+    for (size_t i = 0; i != denoiser_desc.transientPoolSize; ++i) {
+        NRDtextureWrapper* this_texture_ptr = &privateTexturePool[i + denoiser_desc.permanentPoolSize];
+        assert(this_texture_ptr->IsValidTexture());
+        
+        this_texture_ptr->SetLayout(vk::ImageLayout::eUndefined);
+    }
 
     // Get denoiser dispatches
     nrd::Result result = nrd::GetComputeDispatches(*NRDdenoiser_ptr, commonSettings, NRDdispatches_ptr, NRDdispatches_count);
