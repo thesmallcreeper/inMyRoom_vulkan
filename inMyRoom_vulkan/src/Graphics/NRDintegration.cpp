@@ -507,7 +507,7 @@ void NRDintegration::PrepareNewFrame(size_t frame_index, const nrd::CommonSettin
     for (size_t i = 0; i != denoiser_desc.transientPoolSize; ++i) {
         NRDtextureWrapper* this_texture_ptr = &privateTexturePool[i + denoiser_desc.permanentPoolSize];
         assert(this_texture_ptr->IsValidTexture());
-        
+
         this_texture_ptr->SetLayout(vk::ImageLayout::eUndefined);
     }
 
@@ -549,6 +549,7 @@ void NRDintegration::PrepareNewFrame(size_t frame_index, const nrd::CommonSettin
     vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, descriptor_sets_layouts);
     descriptorSets[buffer_index] = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
 
+    // TODO: If first dispatch then printf in case user pool has a transition
     // Write descriptor sets and gather image barriers
     std::vector<vk::WriteDescriptorSet> descriptor_sets_writes;
     std::vector<std::unique_ptr<vk::DescriptorImageInfo>> descriptor_image_infos;

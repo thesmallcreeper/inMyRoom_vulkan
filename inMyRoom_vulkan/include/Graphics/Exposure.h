@@ -12,6 +12,7 @@ struct ExposureComputePushConstants {
 
     float min_luminance_log2;
     float max_luminance_log2;
+    float HDR_factor;
 };
 
 class Graphics;
@@ -24,7 +25,8 @@ public:
              const Graphics* graphics_ptr,
              std::tuple<vk::Image, vk::ImageView, vk::ImageCreateInfo> images[2],
              std::pair<vk::Queue, uint32_t> queue,
-             bool check_alpha = false);
+             bool check_alpha = false,
+             bool luminance_input = false);
     ~Exposure();
 
     void SetMinMaxLuminance(float min, float max) {minLuminance = min; maxLuminance = max;};
@@ -46,7 +48,8 @@ public:
 
     void RecordFrameHistogram(vk::CommandBuffer command_buffer,
                               uint32_t image_index,
-                              uint32_t frames_sum = 1) const;
+                              uint32_t frames_sum = 1,
+                              float HDR_factor = 1.f) const;
 
 private:
     void InitBuffers();
@@ -72,8 +75,8 @@ private:
 
     float                   currentExposure = 1.5e3f;
 
-    float                   minLuminance = 0.5e3;
-    float                   maxLuminance = 4.0e4;
+    float                   minLuminance = 0.35e3;
+    float                   maxLuminance = 2.0e4;
 
     float                   lowRobustness = 0.85f;
     float                   highRobustness = 0.98f;
@@ -81,6 +84,7 @@ private:
     float                   t63percent = 0.8f;
 
     const bool              checkAlpha;
+    const bool              luminanceInput;
 
     vk::Device              device;
     vma::Allocator          vma_allocator;

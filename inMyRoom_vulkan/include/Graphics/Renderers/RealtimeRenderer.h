@@ -4,6 +4,7 @@
 #include "Graphics/Lights.h"
 #include "Graphics/TLASbuilder.h"
 #include "Graphics/NRDintegration.h"
+#include "Graphics/Exposure.h"
 
 #include "Geometry/FrustumCulling.h"
 
@@ -26,7 +27,7 @@ private:
     void InitBuffers();
     void InitImages();
     void InitNRD();
-    // void InitExposure();
+    void InitExposure();
     void InitTLAS();
     void InitDescriptors();
     void InitRenderpasses();
@@ -35,6 +36,7 @@ private:
     void InitCommandBuffers();
     void InitPrimitivesSet();
     void InitPathTracePipeline();
+    void InitLightsDrawPipeline();
     void InitResolveComputePipeline();
 
     void RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
@@ -42,7 +44,7 @@ private:
                                      const FrustumCulling& frustum_culling);
     void WriteInitHostBuffers() const;
     void AssortDrawInfos();
-    void BindSwapImage(uint32_t frame_index, uint32_t swapchain_index);
+    void BindResolveImages(uint32_t frame_index, uint32_t swapchain_index);
     void PrepareNRDsettings();
 
 private:
@@ -74,6 +76,8 @@ private:
     vk::PipelineLayout      pathTracePipelineLayout;
     vk::Pipeline            resolveCompPipeline;
     vk::PipelineLayout      resolveCompPipelineLayout;
+    vk::Pipeline            lightDrawPipeline;
+    vk::PipelineLayout      lightDrawPipelineLayout;
 
     vk::CommandPool         graphicsCommandPool;
     vk::CommandBuffer       graphicsCommandBuffers[3];
@@ -153,7 +157,18 @@ private:
     vk::ImageView           linearViewZImageView;
     vk::ImageCreateInfo     linearViewZImageCreateInfo;
 
+    vk::Image               lightSourcesPassImage;
+    vma::Allocation         lightSourcesPassAllocation;
+    vk::ImageView           lightSourcesPassImageView;
+    vk::ImageCreateInfo     lightSourcesPassImageCreateInfo;
+
+    vk::Image               luminanceImages[2];
+    vma::Allocation         luminanceAllocations[2];
+    vk::ImageView           luminanceImageViews[2];
+    vk::ImageCreateInfo     luminanceImageCreateInfo;
+
     std::unique_ptr<TLASbuilder> TLASbuilder_uptr;
+    std::unique_ptr<Exposure> exposure_uptr;
 
     vk::DescriptorPool      descriptorPool;
     vk::DescriptorSet       hostDescriptorSets[3];

@@ -130,8 +130,7 @@ private:
     vk::Pipeline            shadePipeline;
     vk::PipelineLayout      shadePipelineLayout;
 
-    vk::Pipeline            directionalLightSourcePipeline;
-    vk::Pipeline            localLightSourcePipeline;
+    vk::Pipeline            lightSourcePipeline;
     vk::PipelineLayout      lightSourcesPipelineLayout;
 
     vk::Pipeline            toneMapPipeline;

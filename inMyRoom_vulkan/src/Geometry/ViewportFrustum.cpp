@@ -57,7 +57,7 @@ void ViewportFrustum::UpdateViewMatrix(glm::vec3 in_camera_position,
 #ifndef GAME_DLL
 std::array<Plane, 6> ViewportFrustum::GetWorldSpacePlanesOfFrustum() const
 {
-    // Copyied and modified code from here: https://github.com/SaschaWillems/Vulkan/blob/master/base/frustum.hpp
+    // Copied and modified code from here: https://github.com/SaschaWillems/Vulkan/blob/master/base/frustum.hpp
     // Creator's copyrights:
     /*
     *View frustum culling class
@@ -129,14 +129,6 @@ std::array<glm::vec4, 3> ViewportFrustum::GetFullscreenpassTriangleNormals() con
         down_right_normal = glm::normalize(backproject_pos - origin);
     }
 
-    glm::vec4 down_left_normal;
-    {
-        glm::vec4 backproject_pos = inv_pers_matrix * glm::vec4(-1.f, 1.f, 0.5f, 1.f);
-        backproject_pos /= backproject_pos.w;
-
-        down_left_normal = glm::normalize(backproject_pos - origin);
-    }
-
     glm::vec4 upper_left_normal;
     {
         glm::vec4 backproject_pos = inv_pers_matrix * glm::vec4(-1.f, -1.f, 0.5f, 1.f);
@@ -145,9 +137,17 @@ std::array<glm::vec4, 3> ViewportFrustum::GetFullscreenpassTriangleNormals() con
         upper_left_normal = glm::normalize(backproject_pos - origin);
     }
 
+    glm::vec4 down_left_normal;
+    {
+        glm::vec4 backproject_pos = inv_pers_matrix * glm::vec4(-1.f, 1.f, 0.5f, 1.f);
+        backproject_pos /= backproject_pos.w;
+
+        down_left_normal = glm::normalize(backproject_pos - origin);
+    }
+
     std::array<glm::vec4, 3> return_array = {2.f * down_right_normal - down_left_normal,
-                                             down_left_normal,
-                                             2.f * upper_left_normal - down_left_normal};
+                                             2.f * upper_left_normal - down_left_normal,
+                                             down_left_normal};
 
     return return_array;
 }
@@ -155,8 +155,8 @@ std::array<glm::vec4, 3> ViewportFrustum::GetFullscreenpassTriangleNormals() con
 std::array<glm::vec4, 3> ViewportFrustum::GetFullscreenpassTrianglePos() const
 {
     std::array<glm::vec4, 3> return_array = {glm::vec4( 3.f,  1.f, 0.5f, 1.f),  // down-right vector (offscreen)
-                                             glm::vec4(-1.f,  1.f, 0.5f, 1.f),  // down-left  vector (offscreen)
-                                             glm::vec4(-1.f, -3.f, 0.5f, 1.f)}; // upper-left vector (offscreen)
+                                             glm::vec4(-1.f, -3.f, 0.5f, 1.f),  // upper-left vector (offscreen)
+                                             glm::vec4(-1.f,  1.f, 0.5f, 1.f)}; // down-left  vector
 
     return return_array;
 }

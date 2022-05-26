@@ -8,16 +8,17 @@ Exposure::Exposure(vk::Device in_device,
                    const Graphics* in_graphics_ptr,
                    std::tuple<vk::Image, vk::ImageView, vk::ImageCreateInfo> *images_ptr,
                    std::pair<vk::Queue, uint32_t> in_queue,
-                   bool in_check_alpha)
+                   bool in_check_alpha,
+                   bool in_luminance_input)
     :device(in_device),
      vma_allocator(in_allocator),
      graphics_ptr(in_graphics_ptr),
      queue_family_index(in_queue.second),
      waveSize(graphics_ptr->GetSubgroupSize()),
      localSize(1024),
-     checkAlpha(in_check_alpha)
+     checkAlpha(in_check_alpha),
+     luminanceInput(in_luminance_input)
 {
-    // TODO!!! Fix for varying number
     images[0] = images_ptr[0];
     images[1] = images_ptr[1];
 
@@ -155,6 +156,8 @@ void Exposure::InitPipeline()
         definitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(localSize));
         if (checkAlpha)
             definitionStringPairs.emplace_back("CHECK_ALPHA", "");
+        if (luminanceInput)
+            definitionStringPairs.emplace_back("LUMINANCE_INPUT", "");
         if (std::get<2>(images[0]).samples != vk::SampleCountFlagBits::e1)
             definitionStringPairs.emplace_back("MULTISAMPLED_INPUT", vk::to_string(std::get<2>(images[0]).samples));
 
@@ -242,7 +245,7 @@ float Exposure::CalculateHistogram(Histogram histogram) const
     return float(std::pow(2., illuminance_average_log2));
 }
 
-void Exposure::RecordFrameHistogram(vk::CommandBuffer command_buffer, uint32_t image_index, uint32_t frames_sum) const
+void Exposure::RecordFrameHistogram(vk::CommandBuffer command_buffer, uint32_t image_index, uint32_t frames_sum, float HDR_factor) const
 {
     uint32_t hostVisible_buffer_index = frameCount % 3;
 
@@ -277,6 +280,7 @@ void Exposure::RecordFrameHistogram(vk::CommandBuffer command_buffer, uint32_t i
         push_constants.frame_count = frames_sum;
         push_constants.min_luminance_log2 = std::log2f(minLuminance);
         push_constants.max_luminance_log2 = std::log2f(maxLuminance);
+        push_constants.HDR_factor = HDR_factor;
 
         command_buffer.pushConstants(histogramPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(ExposureComputePushConstants), &push_constants);
 

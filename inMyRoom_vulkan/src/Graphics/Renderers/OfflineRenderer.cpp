@@ -1277,7 +1277,7 @@ void OfflineRenderer::InitLightsPipeline()
         pipeline_create_info.renderPass = renderpass;
         pipeline_create_info.subpass = 2;
 
-        directionalLightSourcePipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
+        lightSourcePipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
     }
 }
 
@@ -1996,11 +1996,11 @@ void OfflineRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buff
                                           descriptor_sets,
                                           {});
 
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, directionalLightSourcePipeline);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, lightSourcePipeline);
 
         std::vector<DrawInfo> light_draw;
-        std::copy(drawLocalLightSources.begin(), drawLocalLightSources.end(), std::back_inserter(light_draw));
         std::copy(drawDirectionalLightSources.begin(), drawDirectionalLightSources.end(), std::back_inserter(light_draw));
+        std::copy(drawLocalLightSources.begin(), drawLocalLightSources.end(), std::back_inserter(light_draw));
         for (const DrawInfo& this_draw : light_draw) {
             for (size_t primitive_index: graphics_ptr->GetMeshesOfNodesPtr()->GetMeshInfo(this_draw.meshIndex).primitivesIndex) {
                 const PrimitiveInfo& primitive_info = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(primitive_index);
@@ -2135,6 +2135,14 @@ void OfflineRenderer::AssortDrawInfos()
                 drawStaticMeshInfos.emplace_back(draw_info);
         }
     }
+
+    // Sort local light sources back to front
+    std::sort(drawLocalLightSources.begin(), drawLocalLightSources.end(), [this](const DrawInfo& light_a, const DrawInfo& light_b)
+    {
+        auto light_a_pos = glm::vec3(matrices[light_a.matricesOffset].positionMatrix[3]);
+        auto light_b_pos = glm::vec3(matrices[light_b.matricesOffset].positionMatrix[3]);
+        return glm::length(light_a_pos) > glm::length(light_b_pos);
+    });
 }
 
 void OfflineRenderer::WriteInitHostBuffers(uint32_t frame_count) const

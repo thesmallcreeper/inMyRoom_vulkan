@@ -335,6 +335,13 @@ void Graphics::InitShadersSetsFamiliesCache()
     }
     {
         ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Realtime Renderer - Light Draw Shaders";
+        this_shaderSetInitInfo.fragmentShaderSourceFilename = "rendererRealtime/lightDrawPass_glsl.frag";
+        this_shaderSetInitInfo.vertexShaderSourceFilename = "rendererRealtime/lightDrawPass_glsl.vert";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
         this_shaderSetInitInfo.shadersSetFamilyName = "Realtime Renderer - Resolve Shader";
         this_shaderSetInitInfo.computeShaderSourceFilename = "rendererRealtime/resolveShader_glsl.comp";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);

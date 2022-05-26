@@ -13,10 +13,16 @@ layout (set = 0, binding = 0) buffer histogramBuffer {
     Histogram histogram;
 };
 
-#ifdef MULTISAMPLED_INPUT
-layout (set = 0, binding = 1, rgba32f) uniform readonly image2DMS image_input;
+// LUMINANCE_INPUT is specific for realtime renderer
+
+#ifdef LUMINANCE_INPUT
+    layout (set = 0, binding = 1, r16f) uniform readonly image2D image_input;
 #else
-layout (set = 0, binding = 1, rgba32f) uniform readonly image2D image_input;
+    #ifdef MULTISAMPLED_INPUT
+    layout (set = 0, binding = 1, rgba32f) uniform readonly image2DMS image_input;
+    #else
+    layout (set = 0, binding = 1, rgba32f) uniform readonly image2D image_input;
+    #endif
 #endif
 
 // Shared
@@ -32,6 +38,7 @@ layout (push_constant) uniform PushConstants
 
     float min_luminance_log2;
     float max_luminance_log2;
+    float HRD_factor;
 };
 
 
@@ -56,46 +63,51 @@ void main()
         for (uint x = subgroup_invocation_id; x < size_x; x += WAVE_SIZE) {
             ivec2 coords = ivec2(x, y);
 
-            vec3 rgb_values = vec3(0.f);
-            #ifdef MULTISAMPLED_INPUT
-                uint max_samples_points = min(MULTISAMPLED_INPUT, framesCount);
-                for (int i = 0; i != max_samples_points; ++i) {
-                    vec4 in_color = imageLoad(image_input, coords, i);
+            float luminance;
+            #ifdef LUMINANCE_INPUT
+                float frameCountFactor = 1.f / float(framesCount);
+                luminance = HRD_factor * frameCountFactor * imageLoad(image_input, coords).x;
+            #else
+                vec3 rgb_values = vec3(0.f);
+                #ifdef MULTISAMPLED_INPUT
+                    uint max_samples_points = min(MULTISAMPLED_INPUT, framesCount);
+                    for (int i = 0; i != max_samples_points; ++i) {
+                        vec4 in_color = imageLoad(image_input, coords, i);
 
-                    uint complete_cycles = frameIndex / MULTISAMPLED_INPUT;
-                    uint cycle_modulo = frameIndex % MULTISAMPLED_INPUT;
+                        uint complete_cycles = frameIndex / MULTISAMPLED_INPUT;
+                        uint cycle_modulo = frameIndex % MULTISAMPLED_INPUT;
 
-                    uint evals_count = complete_cycles + ((i <= cycle_modulo)? 1 : 0);
-                    float this_frameCountFactor = 1.f / float(evals_count);
+                        uint evals_count = complete_cycles + ((i <= cycle_modulo)? 1 : 0);
+                        float this_frameCountFactor = 1.f / float(evals_count);
 
+                        #ifdef CHECK_ALPHA
+                            float alpha = in_color.a;
+                            if (alpha == 1.f) {
+                                rgb_values += HRD_factor * in_color.xyz;
+                            } else {
+                                rgb_values += HRD_factor * this_frameCountFactor * in_color.xyz;
+                            }
+                        #else
+                            rgb_values += HRD_factor * this_frameCountFactor * in_color.xyz;
+                        #endif
+                    }
+                    rgb_values /= float(max_samples_points);
+                #else
+                    float frameCountFactor = 1.f / float(framesCount);
+                    vec4 in_color = imageLoad(image_input, coords);
                     #ifdef CHECK_ALPHA
                         float alpha = in_color.a;
                         if (alpha == 1.f) {
-                            rgb_values += in_color.xyz;
+                            rgb_values = HRD_factor * in_color.xyz;
                         } else {
-                            rgb_values += this_frameCountFactor * in_color.xyz;
+                            rgb_values = HRD_factor * frameCountFactor * in_color.xyz;
                         }
                     #else
-                        rgb_values += this_frameCountFactor * in_color.xyz;
+                        rgb_values = HRD_factor * frameCountFactor * in_color.xyz;
                     #endif
-                }
-                rgb_values /= float(max_samples_points);
-            #else
-                float frameCountFactor = 1.f / float(framesCount);
-                vec4 in_color = imageLoad(image_input, coords);
-                #ifdef CHECK_ALPHA
-                    float alpha = in_color.a;
-                    if (alpha == 1.f) {
-                        rgb_values = in_color.xyz;
-                    } else {
-                        rgb_values = frameCountFactor * in_color.xyz;
-                    }
-                #else
-                    rgb_values = frameCountFactor * in_color.xyz;
                 #endif
+                luminance = Luminance(rgb_values);
             #endif
-
-            float luminance = Luminance(rgb_values);
 
             float max_value_log2 = log2(luminance);
 

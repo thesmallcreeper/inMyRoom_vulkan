@@ -145,9 +145,10 @@ layout (push_constant) uniform PushConstants
 {
     layout(offset = 0)  vec3 sky_luminance;
     layout(offset = 16) uvec2 viewportSize;
-    layout(offset = 24) uint frameIndex;
+    layout(offset = 24) uint frameCount;
     layout(offset = 28) uint lightConesIndices_offset;
     layout(offset = 32) uint lightConesIndices_size;
+    layout(offset = 36) float HDR_factor;
 };
 
 #define SPECULAR_DIFFUSE_EVAL
@@ -155,7 +156,7 @@ layout (push_constant) uniform PushConstants
 
 void main()
 {
-    uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameIndex);
+    uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameCount);
     float min_roughness = MIN_ROUGHNESS;
 
     uvec2 frag_pair = uvec2(subpassLoad(visibilityInput));
@@ -347,9 +348,9 @@ void main()
         light_sum_diffuse *= factor;
     }
 
-    // HDR range
-    light_sum_diffuse /= FP16_FACTOR;
-    light_sum_specular /= FP16_FACTOR;
+    // Exposure
+    light_sum_diffuse /= HDR_factor;
+    light_sum_specular /= HDR_factor;
 
     // Check if visible normal
     bool visible_normal = dot(-primary_ray_dir, normal) > DOT_ANGLE_SLACK;
