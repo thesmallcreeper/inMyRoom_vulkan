@@ -715,7 +715,7 @@ void RealtimeRenderer::InitImages()
     // luminance images
     {
         luminanceImageCreateInfo.imageType = vk::ImageType::e2D;
-        luminanceImageCreateInfo.format = vk::Format::eR32G32B32A32Sfloat;
+        luminanceImageCreateInfo.format = vk::Format::eR16Sfloat;
         luminanceImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
         luminanceImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
         luminanceImageCreateInfo.extent.depth = 1;
