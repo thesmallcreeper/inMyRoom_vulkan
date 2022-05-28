@@ -197,5 +197,5 @@ void mouse_cursor_glfw_callback(GLFWwindow* window, double xpos, double ypos)
 {
     assert(windowWithAsyncInput_static_ptr != nullptr);
     windowWithAsyncInput_static_ptr->CallbackMouseMovement(xpos, ypos);
-    
+
 }

@@ -29,6 +29,7 @@
 
 #define INF_DIST 100000.f
 #define FP16_MAX 65504.f
+#define FLT_EPSILON 1.192092896e-07f
 
 //
 // In
@@ -42,6 +43,9 @@ layout( location = 2 ) out vec4 normalRoughness_out;
 layout( location = 3 ) out vec4 colorMetalness_out;
 layout( location = 4 ) out vec4 motionVec_out;
 layout( location = 5 ) out float linearViewZ_out;
+#ifdef MORPHOLOGICAL_MSAA
+layout( location = 6 ) out uint morphologicalMask_out;
+#endif
 
 //
 // Descriptors
@@ -121,8 +125,11 @@ layout (set = 5, binding = 0) readonly buffer primitivesInstancesBufferDescripto
 };
 
 /// 6, 0
+#ifdef MORPHOLOGICAL_MSAA
+layout (input_attachment_index = 0, set = 6, binding = 0) uniform usubpassInputMS visibilityInput;
+#else
 layout (input_attachment_index = 0, set = 6, binding = 0) uniform usubpassInput visibilityInput;
-
+#endif
 
 /// 7, 0
 layout(set = 7, binding = 0) uniform accelerationStructureEXT topLevelAS;
@@ -159,9 +166,175 @@ void main()
     uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameCount);
     float min_roughness = MIN_ROUGHNESS;
 
-    uvec2 frag_pair = uvec2(subpassLoad(visibilityInput));
-    const uint first_bounce_primitive_instance = frag_pair.x;
-    const uint first_bounce_triangle_index = frag_pair.y;
+    vec2 sample_pixel_offset = vec2(0.f);
+    #ifdef MORPHOLOGICAL_MSAA
+        struct SamplesGroupInfoStruct {
+            uint mask;
+            uint primitiveInstance;
+            uint p[3];
+        } samplesGroupInfos [MORPHOLOGICAL_MSAA];
+
+        // Init
+        for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+            samplesGroupInfos[i].mask = 0;
+            samplesGroupInfos[i].primitiveInstance = 0;
+        }
+
+        // Create sample groups
+        for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+            uvec2 frag_pair = uvec2(subpassLoad(visibilityInput, i));
+            uint primitive_instance = frag_pair.x;
+            uint triangle_index = frag_pair.y;
+
+            if (primitive_instance != 0) {
+                uint indices_offset = primitivesInstancesParameters[primitive_instance].indicesOffset
+                    + uint(primitivesInstancesParameters[primitive_instance].indicesSetMultiplier) * triangle_index;
+                uint p_indices[3] = {uintVerticesBuffers[0].data[indices_offset],
+                                     uintVerticesBuffers[0].data[indices_offset + 1],
+                                     uintVerticesBuffers[0].data[indices_offset + 2]};
+
+                int groupIndex = 0;
+                bool groupFound = false;
+                while ((samplesGroupInfos[groupIndex].primitiveInstance != 0) && (groupFound == false)) {
+                    // If it is a different primitive instance
+                    if (samplesGroupInfos[groupIndex].primitiveInstance != primitive_instance) {
+                        groupIndex++;
+                        continue;
+                    }
+
+                    bool common_point = false;
+                    common_point = common_point || samplesGroupInfos[groupIndex].p[0] == p_indices[0] || samplesGroupInfos[groupIndex].p[1] == p_indices[1] || samplesGroupInfos[groupIndex].p[2] == p_indices[2];
+                    common_point = common_point || samplesGroupInfos[groupIndex].p[0] == p_indices[1] || samplesGroupInfos[groupIndex].p[1] == p_indices[2] || samplesGroupInfos[groupIndex].p[2] == p_indices[0];
+                    common_point = common_point || samplesGroupInfos[groupIndex].p[0] == p_indices[2] || samplesGroupInfos[groupIndex].p[1] == p_indices[0] || samplesGroupInfos[groupIndex].p[2] == p_indices[1];
+
+                    // "Paranoid" search
+                    if (!common_point)  {
+                        uint pos_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].positionDescriptorIndex);
+                        uint pos_offset = primitivesInstancesParameters[primitive_instance].positionOffset;
+
+                        uint normal_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].normalDescriptorIndex);
+                        uint normal_offset = primitivesInstancesParameters[primitive_instance].normalOffset;
+
+                        uint uv_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].texcoordsDescriptorIndex);
+                        uint uv_offset = primitivesInstancesParameters[primitive_instance].texcoordsOffset;
+
+                        uint uv_stepMult = uint(primitivesInstancesParameters[primitive_instance].texcoordsStepMultiplier);
+                        uint material_index = uint(primitivesInstancesParameters[primitive_instance].material);
+                        uint baseColor_TexCoord = materialsParameters[material_index].baseColorTexCoord;
+
+                        vec3 group_poss[3] = {vec3(vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + samplesGroupInfos[groupIndex].p[0]]),
+                                              vec3(vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + samplesGroupInfos[groupIndex].p[1]]),
+                                              vec3(vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + samplesGroupInfos[groupIndex].p[2]])};
+
+                        vec3 sample_poss[3] = {vec3(vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_indices[0]]),
+                                               vec3(vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_indices[1]]),
+                                               vec3(vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + p_indices[2]])};
+
+                        int group_p = -1;
+                        int sample_p = -1;
+
+                        // Crosscheck points
+                        for (int n = 0; n != 3; ++n) {
+                            for (int m = 0; m != 3; ++m)  {
+                                if ( all(lessThan(abs(group_poss[n] - sample_poss[m]), vec3(FLT_EPSILON) )) ) {
+                                    group_p = n;
+                                    sample_p = m;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Then check color UV and normal at common point
+                        if (group_p != -1) {
+                            vec3 group_normal = normalize(vec3(vec4verticesBuffers[normal_descriptorIndex].data[normal_offset + samplesGroupInfos[groupIndex].p[group_p]]));
+                            vec3 sample_normal = normalize(vec3(vec4verticesBuffers[normal_descriptorIndex].data[normal_offset + p_indices[sample_p]]));
+
+                            vec2 group_uv = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + samplesGroupInfos[groupIndex].p[group_p] * uv_stepMult + baseColor_TexCoord];
+                            vec2 sample_uv = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_indices[sample_p] * uv_stepMult + baseColor_TexCoord];
+
+                            if (dot(group_normal, sample_normal) > 0.99 && all(lessThan(abs(group_uv - sample_uv), vec2(FLT_EPSILON) ))) {
+                                common_point = true;
+                            }
+                        }
+                    }
+
+                    if (common_point)
+                        groupFound = true;
+                    else
+                        groupIndex++;
+                }
+
+                samplesGroupInfos[groupIndex].mask |= uint(1) << i;
+                if (samplesGroupInfos[groupIndex].primitiveInstance == 0) {
+                    samplesGroupInfos[groupIndex].primitiveInstance = primitive_instance;
+                    samplesGroupInfos[groupIndex].p[0] = p_indices[0];
+                    samplesGroupInfos[groupIndex].p[1] = p_indices[1];
+                    samplesGroupInfos[groupIndex].p[2] = p_indices[2];
+                }
+            }
+        }
+
+        // Find the biggest group
+        int  selected_group = -1;
+        uint selected_group_samplesCount = 0;
+        for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+            uint popcnt = bitCount(samplesGroupInfos[i].mask);
+            if (popcnt > selected_group_samplesCount) {
+                selected_group = i;
+                selected_group_samplesCount = popcnt;
+            }
+        }
+
+        // Get mean of samples positions and find the nearest triangle
+        uint first_bounce_primitive_instance;
+        uint first_bounce_triangle_index;
+        if (selected_group != -1) {
+            morphologicalMask_out = samplesGroupInfos[selected_group].mask;
+
+            vec2 group_pixel_pos = vec2(0.f);
+            for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+                uint sampleANDmask = uint(1) << i;
+                uint isSampleInGroup = samplesGroupInfos[selected_group].mask & sampleANDmask;
+                if (isSampleInGroup != 0) {
+                    group_pixel_pos += InputSamplesPositions(i);
+                }
+            }
+            group_pixel_pos /= selected_group_samplesCount;
+            sample_pixel_offset = group_pixel_pos - vec2(0.5f, 0.5f);
+
+            float min_distanceSq = 8.f;
+            int sample_triangle_from = 0;
+            for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+                uint sampleANDmask = uint(1) << i;
+                uint isSampleInGroup = samplesGroupInfos[selected_group].mask & sampleANDmask;
+                if (isSampleInGroup != 0) {
+                    vec2 proposed_sample_pos = InputSamplesPositions(i);
+
+                    vec2 distance_vec = proposed_sample_pos - group_pixel_pos;
+                    float distanceSq = dot(distance_vec, distance_vec);
+
+                    if (distanceSq < min_distanceSq) {
+                        min_distanceSq = distanceSq;
+                        sample_triangle_from = i;
+                    }
+                }
+            }
+            first_bounce_primitive_instance = samplesGroupInfos[selected_group].primitiveInstance;
+            first_bounce_triangle_index = uint(subpassLoad(visibilityInput, sample_triangle_from).y);
+
+        } else {
+            morphologicalMask_out = -1;
+
+            first_bounce_primitive_instance = 0;
+            first_bounce_triangle_index = 0;
+        }
+
+    #else
+        uvec2 frag_pair = uvec2(subpassLoad(visibilityInput));
+
+        const uint first_bounce_primitive_instance = frag_pair.x;
+        const uint first_bounce_triangle_index = frag_pair.y;
+    #endif
 
     uint primitive_instance = first_bounce_primitive_instance;
     uint triangle_index = first_bounce_triangle_index;
@@ -176,12 +349,16 @@ void main()
         return;
     }
 
-    const vec3 primary_ray_dir = normalize(vert_normal);
+    vec3 ray_dir_center = normalize(vert_normal);
+    vec3 ray_dir_center_dx = dFdx(ray_dir_center);
+    vec3 ray_dir_center_dy = dFdy(ray_dir_center);
+
+    const vec3 primary_ray_dir = normalize(ray_dir_center + sample_pixel_offset.x * ray_dir_center_dx + sample_pixel_offset.y * ray_dir_center_dy);
 
     vec3 ray_dir = primary_ray_dir;
     RayDiffsDir ray_dirDiffs;
-    ray_dirDiffs.dirDx = dFdx(primary_ray_dir);
-    ray_dirDiffs.dirDy = dFdy(primary_ray_dir);
+    ray_dirDiffs.dirDx = (1.f - 2.f * abs(sample_pixel_offset.x)) * ray_dir_center_dx;
+    ray_dirDiffs.dirDy = (1.f - 2.f * abs(sample_pixel_offset.y)) * ray_dir_center_dy;
 
     vec3 ray_origin = vec3(0.f);
     RayDiffsOrigin ray_originDiffs;

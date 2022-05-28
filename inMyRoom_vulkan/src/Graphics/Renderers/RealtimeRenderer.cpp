@@ -10,6 +10,7 @@ RealtimeRenderer::RealtimeRenderer(Graphics *in_graphics_ptr,
         : RendererBase(in_graphics_ptr, in_device, in_vma_allocator),
           graphicsQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
           NRDmethod(in_NRDmethod),
+          useMorphologicalAA(false),
 #ifdef ENABLE_ASYNC_COMPUTE
           meshComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[0]),
           exposureComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[1])
@@ -59,6 +60,7 @@ RealtimeRenderer::~RealtimeRenderer()
     device.destroy(hostDescriptorSetLayout);
     device.destroy(pathTraceDescriptorSetLayout);
     device.destroy(resolveDescriptorSetLayout);
+    device.destroy(morphologicalAAdescriptorSetsLayout);
 
     TLASbuilder_uptr.reset();
     NRDintegration_uptr.reset();
@@ -69,6 +71,14 @@ RealtimeRenderer::~RealtimeRenderer()
 
     device.destroy(visibilityImageView);
     vma_allocator.destroyImage(visibilityImage, visibilityAllocation);
+
+    if (useMorphologicalAA) {
+        device.destroy(depthResolvedImageView);
+        vma_allocator.destroyImage(depthResolvedImage, depthResolvedAllocation);
+
+        device.destroy(morphologicalMaskImageView);
+        vma_allocator.destroyImage(morphologicalMaskImage, morphologicalMaskAllocation);
+    }
 
     device.destroy(diffuseDistanceImageView);
     vma_allocator.destroyImage(diffuseDistanceImage, diffuseDistanceAllocation);
@@ -96,6 +106,9 @@ RealtimeRenderer::~RealtimeRenderer()
 
     device.destroy(lightSourcesPassImageView);
     vma_allocator.destroyImage(lightSourcesPassImage, lightSourcesPassAllocation);
+
+    device.destroy(resolveResultImageView);
+    vma_allocator.destroyImage(resolveResultImage, resolveResultAllocation);
 
     device.destroy(luminanceImageViews[0]);
     vma_allocator.destroyImage(luminanceImages[0], luminanceAllocations[0]);
@@ -157,7 +170,7 @@ void RealtimeRenderer::InitBuffers()
 void RealtimeRenderer::InitImages()
 {
     // z-buffer
-    {
+    {   // TODO: Change?
         depthImageCreateInfo.imageType = vk::ImageType::e2D;
         depthImageCreateInfo.format = vk::Format::eD32Sfloat;
         depthImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
@@ -165,7 +178,7 @@ void RealtimeRenderer::InitImages()
         depthImageCreateInfo.extent.depth = 1;
         depthImageCreateInfo.mipLevels = 1;
         depthImageCreateInfo.arrayLayers = 1;
-        depthImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        depthImageCreateInfo.samples = useMorphologicalAA ? MAAsamplesCount : vk::SampleCountFlagBits::e1;
         depthImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
         depthImageCreateInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
         depthImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
@@ -193,6 +206,43 @@ void RealtimeRenderer::InitImages()
         depthImageView = device.createImageView(imageView_create_info).value;
     }
 
+    // z-buffer resolved
+    if (useMorphologicalAA) {   // TODO: Change format?
+        depthResolvedImageCreateInfo.imageType = vk::ImageType::e2D;
+        depthResolvedImageCreateInfo.format = vk::Format::eD32Sfloat;
+        depthResolvedImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        depthResolvedImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        depthResolvedImageCreateInfo.extent.depth = 1;
+        depthResolvedImageCreateInfo.mipLevels = 1;
+        depthResolvedImageCreateInfo.arrayLayers = 1;
+        depthResolvedImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        depthResolvedImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        depthResolvedImageCreateInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+        depthResolvedImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        depthResolvedImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(depthResolvedImageCreateInfo, image_allocation_info).value;
+        depthResolvedImage = createImage_result.first;
+        depthResolvedAllocation = createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = depthResolvedImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = depthResolvedImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eDepth,
+                                                  0, 1,
+                                                  0, 1};
+
+        depthResolvedImageView = device.createImageView(imageView_create_info).value;
+    }
+
     // visibility image
     {
         visibilityImageCreateInfo.imageType = vk::ImageType::e2D;
@@ -202,7 +252,7 @@ void RealtimeRenderer::InitImages()
         visibilityImageCreateInfo.extent.depth = 1;
         visibilityImageCreateInfo.mipLevels = 1;
         visibilityImageCreateInfo.arrayLayers = 1;
-        visibilityImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        visibilityImageCreateInfo.samples = useMorphologicalAA ? MAAsamplesCount : vk::SampleCountFlagBits::e1;
         visibilityImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
         visibilityImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment;
         visibilityImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
@@ -228,6 +278,43 @@ void RealtimeRenderer::InitImages()
                                                   0, 1};
 
         visibilityImageView = device.createImageView(imageView_create_info).value;
+    }
+
+    // morphological mask image
+    if (useMorphologicalAA) {
+        morphologicalMaskImageCreateInfo.imageType = vk::ImageType::e2D;
+        morphologicalMaskImageCreateInfo.format = vk::Format::eR8Uint;
+        morphologicalMaskImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        morphologicalMaskImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        morphologicalMaskImageCreateInfo.extent.depth = 1;
+        morphologicalMaskImageCreateInfo.mipLevels = 1;
+        morphologicalMaskImageCreateInfo.arrayLayers = 1;
+        morphologicalMaskImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        morphologicalMaskImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        morphologicalMaskImageCreateInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage;
+        morphologicalMaskImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        morphologicalMaskImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(morphologicalMaskImageCreateInfo, image_allocation_info).value;
+        morphologicalMaskImage = createImage_result.first;
+        morphologicalMaskAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = morphologicalMaskImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = morphologicalMaskImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        morphologicalMaskImageView = device.createImageView(imageView_create_info).value;
     }
 
     // diffuse-distance image
@@ -563,6 +650,68 @@ void RealtimeRenderer::InitImages()
         lightSourcesPassImageView = device.createImageView(imageView_create_info).value;
     }
 
+    // resolve result image
+    {
+        resolveResultImageCreateInfo.imageType = vk::ImageType::e2D;
+        resolveResultImageCreateInfo.format = graphics_ptr->GetSwapchainCreateInfo().imageFormat;
+        resolveResultImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+        resolveResultImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+        resolveResultImageCreateInfo.extent.depth = 1;
+        resolveResultImageCreateInfo.mipLevels = 1;
+        resolveResultImageCreateInfo.arrayLayers = 1;
+        resolveResultImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
+        resolveResultImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+        resolveResultImageCreateInfo.usage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc;
+        resolveResultImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+        resolveResultImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        vma::AllocationCreateInfo image_allocation_info;
+        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
+
+        auto createImage_result = vma_allocator.createImage(resolveResultImageCreateInfo, image_allocation_info).value;
+        resolveResultImage = createImage_result.first;
+        resolveResultAllocation= createImage_result.second;
+
+        vk::ImageViewCreateInfo imageView_create_info;
+        imageView_create_info.image = resolveResultImage;
+        imageView_create_info.viewType = vk::ImageViewType::e2D;
+        imageView_create_info.format = resolveResultImageCreateInfo.format;
+        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity,
+                                            vk::ComponentSwizzle::eIdentity};
+        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                                  0, 1,
+                                                  0, 1};
+
+        resolveResultImageView = device.createImageView(imageView_create_info).value;
+
+        // Initialize
+        OneShotCommandBuffer one_shot_command_buffer(device);
+        vk::CommandBuffer command_buffer = one_shot_command_buffer.BeginCommandRecord(graphicsQueue);
+
+        vk::ImageMemoryBarrier init_image_barrier;
+        init_image_barrier.image = resolveResultImage;
+        init_image_barrier.srcAccessMask = vk::AccessFlagBits::eNoneKHR;
+        init_image_barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+        init_image_barrier.oldLayout = vk::ImageLayout::eUndefined;
+        init_image_barrier.newLayout = vk::ImageLayout::eGeneral;
+        init_image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        init_image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        init_image_barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor,
+                                               0, 1,
+                                               0, 1};
+
+        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+                                       vk::PipelineStageFlagBits::eAllCommands,
+                                       vk::DependencyFlagBits::eByRegion,
+                                       0, nullptr,
+                                       0, nullptr,
+                                       1, &init_image_barrier);
+
+        one_shot_command_buffer.EndAndSubmitCommands();
+    }
+
     // luminance images
     {
         luminanceImageCreateInfo.imageType = vk::ImageType::e2D;
@@ -716,8 +865,8 @@ void RealtimeRenderer::InitDescriptors()
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 3);
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eInputAttachment,  1);
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageImage,  3 * 7);
-        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 3 + 1 + 3,
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageImage,  3 * 7 + 3 * 2);
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 3 + 1 + 3 + 3,
                                                                  descriptor_pool_sizes);
 
         descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
@@ -822,6 +971,39 @@ void RealtimeRenderer::InitDescriptors()
         vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
         resolveDescriptorSetLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
     }
+    {   // Create morphological AA set layout
+        std::vector<vk::DescriptorSetLayoutBinding> bindings;
+        {   // Input image
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 0;
+            attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+            bindings.emplace_back(attach_binding);
+        }
+        {   // Morphological mask image
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 1;
+            attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+            bindings.emplace_back(attach_binding);
+        }
+        {   // Output
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 10;
+            attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+            bindings.emplace_back(attach_binding);
+        }
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info({}, bindings);
+        morphologicalAAdescriptorSetsLayout = device.createDescriptorSetLayout(descriptor_set_layout_create_info).value;
+    }
 
     {   // Allocate host sets
         std::vector<vk::DescriptorSetLayout> layouts;
@@ -854,6 +1036,18 @@ void RealtimeRenderer::InitDescriptors()
         resolveDescriptorSets[0] = descriptor_sets[0];
         resolveDescriptorSets[1] = descriptor_sets[1];
         resolveDescriptorSets[2] = descriptor_sets[2];
+    }
+    {   // Allocate morphological sets
+        std::vector<vk::DescriptorSetLayout> layouts;
+        layouts.emplace_back(morphologicalAAdescriptorSetsLayout);
+        layouts.emplace_back(morphologicalAAdescriptorSetsLayout);
+        layouts.emplace_back(morphologicalAAdescriptorSetsLayout);
+
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
+        std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
+        morphologicalAAdescriptorSets[0] = descriptor_sets[0];
+        morphologicalAAdescriptorSets[1] = descriptor_sets[1];
+        morphologicalAAdescriptorSets[2] = descriptor_sets[2];
     }
 
     {   // Write descriptors of host sets
@@ -899,10 +1093,8 @@ void RealtimeRenderer::InitDescriptors()
     }
     {   // Write compute resolve set
         for (size_t i = 0; i != 3; ++i) {
-            vk::WriteDescriptorSet write_descriptor_sets[5];
-            vk::DescriptorImageInfo descriptor_image_infos[5];
-
-            // TODO
+            vk::WriteDescriptorSet write_descriptor_sets[6];
+            vk::DescriptorImageInfo descriptor_image_infos[6];
 
             descriptor_image_infos[0].imageLayout = vk::ImageLayout::eGeneral;
             descriptor_image_infos[0].imageView = denoisedDiffuseDistanceImageView;
@@ -959,7 +1151,49 @@ void RealtimeRenderer::InitDescriptors()
             write_descriptor_sets[4].descriptorType = vk::DescriptorType::eStorageImage;
             write_descriptor_sets[4].pImageInfo = &descriptor_image_infos[4];
 
-            device.updateDescriptorSets(5, write_descriptor_sets,
+            descriptor_image_infos[5].imageLayout = vk::ImageLayout::eGeneral;
+            descriptor_image_infos[5].imageView = resolveResultImageView;
+            descriptor_image_infos[5].sampler = nullptr;
+
+            write_descriptor_sets[5].dstSet = resolveDescriptorSets[i];
+            write_descriptor_sets[5].dstBinding = 10;
+            write_descriptor_sets[5].dstArrayElement = 0;
+            write_descriptor_sets[5].descriptorCount = 1;
+            write_descriptor_sets[5].descriptorType = vk::DescriptorType::eStorageImage;
+            write_descriptor_sets[5].pImageInfo = &descriptor_image_infos[5];
+
+            device.updateDescriptorSets(6, write_descriptor_sets,
+                                        0, nullptr);
+        }
+    }
+    {   // Write morphological AA sets
+        for (size_t i = 0; i != 3; ++i) {
+            vk::WriteDescriptorSet write_descriptor_sets[2];
+            vk::DescriptorImageInfo descriptor_image_infos[2];
+
+            descriptor_image_infos[0].imageLayout = vk::ImageLayout::eGeneral;
+            descriptor_image_infos[0].imageView = resolveResultImageView;
+            descriptor_image_infos[0].sampler = nullptr;
+
+            write_descriptor_sets[0].dstSet = morphologicalAAdescriptorSets[i];
+            write_descriptor_sets[0].dstBinding = 0;
+            write_descriptor_sets[0].dstArrayElement = 0;
+            write_descriptor_sets[0].descriptorCount = 1;
+            write_descriptor_sets[0].descriptorType = vk::DescriptorType::eStorageImage;
+            write_descriptor_sets[0].pImageInfo = &descriptor_image_infos[0];
+
+            descriptor_image_infos[1].imageLayout = vk::ImageLayout::eGeneral;
+            descriptor_image_infos[1].imageView = morphologicalMaskImageView;
+            descriptor_image_infos[1].sampler = nullptr;
+
+            write_descriptor_sets[1].dstSet = morphologicalAAdescriptorSets[i];
+            write_descriptor_sets[1].dstBinding = 1;
+            write_descriptor_sets[1].dstArrayElement = 0;
+            write_descriptor_sets[1].descriptorCount = 1;
+            write_descriptor_sets[1].descriptorType = vk::DescriptorType::eStorageImage;
+            write_descriptor_sets[1].pImageInfo = &descriptor_image_infos[1];
+
+            device.updateDescriptorSets(2, write_descriptor_sets,
                                         0, nullptr);
         }
     }
@@ -967,12 +1201,12 @@ void RealtimeRenderer::InitDescriptors()
 
 void RealtimeRenderer::InitRenderpasses()
 {
-    std::vector<vk::AttachmentDescription> attachment_descriptions;
+    std::vector<vk::AttachmentDescription2> attachment_descriptions;
 
     {   // 0
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = visibilityImageCreateInfo.format;
-        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.samples = useMorphologicalAA ? MAAsamplesCount : vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eClear;
         attachment_description.storeOp = vk::AttachmentStoreOp::eDontCare;
         attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eClear;
@@ -982,9 +1216,9 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 1
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = depthImageCreateInfo.format;
-        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.samples = useMorphologicalAA ? MAAsamplesCount : vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eClear;
         attachment_description.storeOp = vk::AttachmentStoreOp::eDontCare;
         attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eClear;
@@ -994,7 +1228,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 2
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = diffuseDistanceImageCreateInfo.format;
         attachment_description.samples = vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
@@ -1006,7 +1240,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 3
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = specularDistanceImageCreateInfo.format;
         attachment_description.samples = vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
@@ -1018,7 +1252,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 4
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = normalRoughnessImageCreateInfo.format;
         attachment_description.samples = vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
@@ -1030,7 +1264,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 5
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = colorMetalnessImageCreateInfo.format;
         attachment_description.samples = vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
@@ -1042,7 +1276,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 6
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = motionImageCreateInfo.format;
         attachment_description.samples = vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
@@ -1054,7 +1288,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 7
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = linearViewZImageCreateInfo.format;
         attachment_description.samples = vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
@@ -1066,7 +1300,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 8
-        vk::AttachmentDescription attachment_description;
+        vk::AttachmentDescription2 attachment_description;
         attachment_description.format = lightSourcesPassImageCreateInfo.format;
         attachment_description.samples = vk::SampleCountFlagBits::e1;
         attachment_description.loadOp = vk::AttachmentLoadOp::eClear;
@@ -1077,34 +1311,72 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_description.finalLayout = vk::ImageLayout::eGeneral;
         attachment_descriptions.emplace_back(attachment_description);
     }
+    if (useMorphologicalAA) {   // 9
+        vk::AttachmentDescription2 attachment_description;
+        attachment_description.format = depthResolvedImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eDontCare;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
+    if (useMorphologicalAA) {   // 10
+        vk::AttachmentDescription2 attachment_description;
+        attachment_description.format = morphologicalMaskImageCreateInfo.format;
+        attachment_description.samples = vk::SampleCountFlagBits::e1;
+        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
+        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
+        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_descriptions.emplace_back(attachment_description);
+    }
+
 
     // Subpasses
-    std::vector<vk::SubpassDescription> subpasses;
-    std::vector<vk::SubpassDependency> dependencies;
+    std::vector<vk::SubpassDescription2> subpasses;
+    std::vector<vk::SubpassDependency2> dependencies;
 
     // ------------------------------------------------------------------------------
     // Subpass 0 (visibility)
-    std::vector<vk::AttachmentReference> visibility_colorAttachments_refs;
+    std::vector<vk::AttachmentReference2> visibility_colorAttachments_refs;
     {
-        vk::AttachmentReference visibilityAttach_ref;
+        vk::AttachmentReference2 visibilityAttach_ref;
         visibilityAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         visibilityAttach_ref.attachment = 0;
         visibility_colorAttachments_refs.emplace_back(visibilityAttach_ref);
     }
 
-    vk::AttachmentReference visibility_depthAttach_ref;
+    vk::AttachmentReference2 visibility_depthAttach_ref;
     visibility_depthAttach_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
     visibility_depthAttach_ref.attachment = 1;
 
-    vk::SubpassDescription visibility_subpass_description;
+    vk::SubpassDescription2 visibility_subpass_description;
     visibility_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
     visibility_subpass_description.setColorAttachments(visibility_colorAttachments_refs);
     visibility_subpass_description.pDepthStencilAttachment = &visibility_depthAttach_ref;
 
-    vk::SubpassDependency visibility_subpass_dependency;
+    // if useMorphologicalAA
+    vk::AttachmentReference2 depthResolved_ref;
+    depthResolved_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    depthResolved_ref.attachment = 9;
+
+    vk::SubpassDescriptionDepthStencilResolve depthResolve_description;
+    depthResolve_description.depthResolveMode = vk::ResolveModeFlagBits::eMin;
+    depthResolve_description.stencilResolveMode = vk::ResolveModeFlagBits::eNone;
+    depthResolve_description.pDepthStencilResolveAttachment = &depthResolved_ref;
+    if (useMorphologicalAA) {
+        visibility_subpass_description.pNext = &depthResolve_description;
+    }
+
+    vk::SubpassDependency2 visibility_subpass_dependency;
     visibility_subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     visibility_subpass_dependency.dstSubpass = 0;
-    visibility_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eAllGraphics;
+    visibility_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     visibility_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
     visibility_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
     visibility_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentRead;
@@ -1115,53 +1387,60 @@ void RealtimeRenderer::InitRenderpasses()
 
     // ------------------------------------------------------------------------------
     // Subpass 1 (path trace)
-    std::vector<vk::AttachmentReference> pathTrace_colorAttachments_refs;
+    std::vector<vk::AttachmentReference2> pathTrace_colorAttachments_refs;
     {
-        vk::AttachmentReference diffuseDistanceAttach_ref;
+        vk::AttachmentReference2 diffuseDistanceAttach_ref;
         diffuseDistanceAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         diffuseDistanceAttach_ref.attachment = 2;
         pathTrace_colorAttachments_refs.emplace_back(diffuseDistanceAttach_ref);
 
-        vk::AttachmentReference specularDistanceAttach_ref;
+        vk::AttachmentReference2 specularDistanceAttach_ref;
         specularDistanceAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         specularDistanceAttach_ref.attachment = 3;
         pathTrace_colorAttachments_refs.emplace_back(specularDistanceAttach_ref);
 
-        vk::AttachmentReference normalRoughnessAttach_ref;
+        vk::AttachmentReference2 normalRoughnessAttach_ref;
         normalRoughnessAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         normalRoughnessAttach_ref.attachment = 4;
         pathTrace_colorAttachments_refs.emplace_back(normalRoughnessAttach_ref);
 
-        vk::AttachmentReference colorMetalnessAttach_ref;
+        vk::AttachmentReference2 colorMetalnessAttach_ref;
         colorMetalnessAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         colorMetalnessAttach_ref.attachment = 5;
         pathTrace_colorAttachments_refs.emplace_back(colorMetalnessAttach_ref);
 
-        vk::AttachmentReference motionAttach_ref;
+        vk::AttachmentReference2 motionAttach_ref;
         motionAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         motionAttach_ref.attachment = 6;
         pathTrace_colorAttachments_refs.emplace_back(motionAttach_ref);
 
-        vk::AttachmentReference viewZAttach_ref;
+        vk::AttachmentReference2 viewZAttach_ref;
         viewZAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         viewZAttach_ref.attachment = 7;
         pathTrace_colorAttachments_refs.emplace_back(viewZAttach_ref);
     }
+    if (useMorphologicalAA) {
+        vk::AttachmentReference2 morphMask_ref;
+        morphMask_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        morphMask_ref.attachment = 10;
+        pathTrace_colorAttachments_refs.emplace_back(morphMask_ref);
+    }
 
-    std::vector<vk::AttachmentReference> pathTrace_inputAttachments_refs;
+    std::vector<vk::AttachmentReference2> pathTrace_inputAttachments_refs;
     {
-        vk::AttachmentReference inputAttach_ref;
+        vk::AttachmentReference2 inputAttach_ref;
         inputAttach_ref.layout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        inputAttach_ref.aspectMask = vk::ImageAspectFlagBits::eColor;
         inputAttach_ref.attachment = 0;
         pathTrace_inputAttachments_refs.emplace_back(inputAttach_ref);
     }
 
-    vk::SubpassDescription pathTrace_subpass_description;
+    vk::SubpassDescription2 pathTrace_subpass_description;
     pathTrace_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
     pathTrace_subpass_description.setColorAttachments(pathTrace_colorAttachments_refs);
     pathTrace_subpass_description.setInputAttachments(pathTrace_inputAttachments_refs);
 
-    vk::SubpassDependency pathTrace_subpass_dependency;
+    vk::SubpassDependency2 pathTrace_subpass_dependency;
     pathTrace_subpass_dependency.srcSubpass = 0;
     pathTrace_subpass_dependency.dstSubpass = 1;
     pathTrace_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -1175,29 +1454,31 @@ void RealtimeRenderer::InitRenderpasses()
 
     // ------------------------------------------------------------------------------
     // Subpass 2 (draw light sources)
-    std::vector<vk::AttachmentReference> lightDraw_colorAttachments_refs;
+    std::vector<vk::AttachmentReference2> lightDraw_colorAttachments_refs;
     {
-        vk::AttachmentReference lightDrawAttach_ref;
+        vk::AttachmentReference2 lightDrawAttach_ref;
         lightDrawAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
         lightDrawAttach_ref.attachment = 8;
         lightDraw_colorAttachments_refs.emplace_back(lightDrawAttach_ref);
     }
 
-    vk::AttachmentReference lightDraw_depthAttach_ref;
+    vk::AttachmentReference2 lightDraw_depthAttach_ref;
     lightDraw_depthAttach_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    lightDraw_depthAttach_ref.attachment = 1;
+    lightDraw_depthAttach_ref.attachment = useMorphologicalAA? 9 : 1;
 
-    vk::SubpassDescription lightDraw_subpass_description;
+    vk::SubpassDescription2 lightDraw_subpass_description;
     lightDraw_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
     lightDraw_subpass_description.setColorAttachments(lightDraw_colorAttachments_refs);
     lightDraw_subpass_description.pDepthStencilAttachment = &lightDraw_depthAttach_ref;
 
-    vk::SubpassDependency lightDraw_subpass_dependency;
+    vk::SubpassDependency2 lightDraw_subpass_dependency;
     lightDraw_subpass_dependency.srcSubpass = 0;
     lightDraw_subpass_dependency.dstSubpass = 2;
-    lightDraw_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eLateFragmentTests;
+    lightDraw_subpass_dependency.srcStageMask = useMorphologicalAA? vk::PipelineStageFlagBits::eColorAttachmentOutput
+                                                                  : vk::PipelineStageFlagBits::eLateFragmentTests;
     lightDraw_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
-    lightDraw_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+    lightDraw_subpass_dependency.srcAccessMask = useMorphologicalAA? vk::AccessFlagBits::eColorAttachmentWrite
+                                                                   : vk::AccessFlagBits::eDepthStencilAttachmentWrite;
     lightDraw_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead;
     lightDraw_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
@@ -1206,12 +1487,12 @@ void RealtimeRenderer::InitRenderpasses()
 
     // ------------------------------------------------------------------------------
     // Renderpass
-    vk::RenderPassCreateInfo renderpass_create_info;
+    vk::RenderPassCreateInfo2 renderpass_create_info;
     renderpass_create_info.setAttachments(attachment_descriptions);
     renderpass_create_info.setSubpasses(subpasses);
     renderpass_create_info.setDependencies(dependencies);
 
-    renderpass = device.createRenderPass(renderpass_create_info).value;
+    renderpass = device.createRenderPass2(renderpass_create_info).value;
 }
 
 void RealtimeRenderer::InitFramebuffers()
@@ -1226,6 +1507,10 @@ void RealtimeRenderer::InitFramebuffers()
     attachments.emplace_back(motionImageView);
     attachments.emplace_back(linearViewZImageView);
     attachments.emplace_back(lightSourcesPassImageView);
+    if (useMorphologicalAA) {
+        attachments.emplace_back(depthResolvedImageView);
+        attachments.emplace_back(morphologicalMaskImageView);
+    }
 
     vk::FramebufferCreateInfo framebuffer_createInfo;
     framebuffer_createInfo.renderPass = renderpass;
@@ -1347,7 +1632,7 @@ void RealtimeRenderer::InitCommandBuffers()
 void RealtimeRenderer::InitPrimitivesSet()
 {
     // Create primitives sets (shaders-pipelines for each kind of primitive)
-    printf("-Initializing \"Texture Pass\" primitives set\n");
+    printf("-Initializing \"Visibility Pass\" primitives set\n");
     for(size_t i = 0; i != graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitivesCount(); ++i)
     {
         const PrimitiveInfo& this_primitiveInfo = graphics_ptr->GetPrimitivesOfMeshes()->GetPrimitiveInfo(i);
@@ -1463,8 +1748,8 @@ void RealtimeRenderer::InitPrimitivesSet()
 
             // PipelineMultisampleStateCreateInfo
             vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
+            multisample_state_create_info.rasterizationSamples = useMorphologicalAA ? MAAsamplesCount : vk::SampleCountFlagBits::e1;
             multisample_state_create_info.sampleShadingEnable = VK_FALSE;
-            multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
             multisample_state_create_info.minSampleShading = 1.0f;
             multisample_state_create_info.pSampleMask = nullptr;
             multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
@@ -1550,6 +1835,8 @@ void RealtimeRenderer::InitPathTracePipeline()
     shadersDefinitionStringPairs.emplace_back("MAX_LIGHTS_COUNT", std::to_string(graphics_ptr->GetLights()->GetMaxLights()));
     shadersDefinitionStringPairs.emplace_back("MAX_COMBINATIONS_SIZE", std::to_string(graphics_ptr->GetLights()->GetLightsCombinationsSize()));
     shadersDefinitionStringPairs.emplace_back("FP16_FACTOR", std::to_string(FP16factor));
+    if (useMorphologicalAA)
+        shadersDefinitionStringPairs.emplace_back("MORPHOLOGICAL_MSAA", vk::to_string(MAAsamplesCount));
     if (NRDmethod == nrd::Method::REBLUR_DIFFUSE_SPECULAR)
         shadersDefinitionStringPairs.emplace_back("DENOISER_REBLUR", "");
 
@@ -1664,7 +1951,7 @@ void RealtimeRenderer::InitPathTracePipeline()
 
         // PipelineColorBlendAttachmentState
         vk::PipelineColorBlendStateCreateInfo color_blend_create_info;
-        vk::PipelineColorBlendAttachmentState color_blend_attachments[6];
+        vk::PipelineColorBlendAttachmentState color_blend_attachments[7];
         color_blend_attachments[0].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
                                                     vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
         color_blend_attachments[0].blendEnable = VK_FALSE;
@@ -1683,9 +1970,12 @@ void RealtimeRenderer::InitPathTracePipeline()
         color_blend_attachments[5].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
                                                     vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
         color_blend_attachments[5].blendEnable = VK_FALSE;
+        color_blend_attachments[6].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                    vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+        color_blend_attachments[6].blendEnable = VK_FALSE;
 
         color_blend_create_info.logicOpEnable = VK_FALSE;
-        color_blend_create_info.attachmentCount = 6;
+        color_blend_create_info.attachmentCount = useMorphologicalAA ? 7 : 6;
         color_blend_create_info.pAttachments = color_blend_attachments;
 
         pipeline_create_info.pColorBlendState = &color_blend_create_info;
@@ -1922,6 +2212,12 @@ void RealtimeRenderer::InitResolveComputePipeline()
     }
 }
 
+void RealtimeRenderer::InitMorphologicalAAcomputePipeline()
+{
+
+}
+
+
 void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
                                  std::vector<ModelMatrices> &&in_matrices,
                                  std::vector<LightInfo> &&in_light_infos,
@@ -2108,15 +2404,18 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
         auto graphics_wait_semaphores = std::make_unique<std::vector<vk::Semaphore>>();
         auto graphics_wait_pipeline_stages = std::make_unique<std::vector<vk::PipelineStageFlags>>();
         auto graphics_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
-        graphics_wait_semaphores->emplace_back(xLASupdateFinishTimelineSemaphore);
-        graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
+        graphics_wait_semaphores->emplace_back(transformsFinishTimelineSemaphore);
+        graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eVertexInput);
         graphics_wait_semaphores_values->emplace_back(frameCount);
-        graphics_wait_semaphores->emplace_back(presentImageAvailableSemaphores[commandBuffer_index]);
-        graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-        graphics_wait_semaphores_values->emplace_back(0);
+        graphics_wait_semaphores->emplace_back(xLASupdateFinishTimelineSemaphore);
+        graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eFragmentShader);
+        graphics_wait_semaphores_values->emplace_back(frameCount);
         graphics_wait_semaphores->emplace_back(histogramFinishTimelineSemaphore);
         graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eComputeShader);
         graphics_wait_semaphores_values->emplace_back(std::max(int64_t(frameCount - 2), int64_t(0)));
+        graphics_wait_semaphores->emplace_back(presentImageAvailableSemaphores[commandBuffer_index]);
+        graphics_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        graphics_wait_semaphores_values->emplace_back(0);
         graphics_submit_info.setWaitSemaphores(*graphics_wait_semaphores);
         graphics_submit_info.setWaitDstStageMask(*graphics_wait_pipeline_stages);
         graphics_timeline_semaphore_info->setWaitSemaphoreValues(*graphics_wait_semaphores_values);
@@ -2267,7 +2566,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
     render_pass_begin_info.clearValueCount = 9;
     render_pass_begin_info.pClearValues = clear_values;
 
-    command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
+    command_buffer.beginRenderPass2(render_pass_begin_info, vk::SubpassContents::eInline);
 
     // Visibility pass
     {
@@ -2385,7 +2684,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         }
     }
 
-    command_buffer.nextSubpass(vk::SubpassContents::eInline);
+    command_buffer.nextSubpass2({vk::SubpassContents::eInline}, {});
 
     // Path trace pass
     {
@@ -2435,7 +2734,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         command_buffer.draw(3, 1, 0, 0);
     }
 
-    command_buffer.nextSubpass(vk::SubpassContents::eInline);
+    command_buffer.nextSubpass2({vk::SubpassContents::eInline}, {});
 
     // Light sources draw
     {
@@ -2525,35 +2824,12 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         }
     }
 
-    command_buffer.endRenderPass();
+    command_buffer.endRenderPass2(vk::SubpassEndInfo());
 
     // Denoise
     NRDintegration_uptr->Denoise(command_buffer);
 
     // Resolve compute
-    {   // swapchain image -> Generic
-        vk::ImageMemoryBarrier image_memory_barrier;
-        image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
-        image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eShaderWrite;
-        image_memory_barrier.oldLayout = vk::ImageLayout::eUndefined;
-        image_memory_barrier.newLayout = vk::ImageLayout::eGeneral;
-        image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        image_memory_barrier.image = graphics_ptr->GetSwapchainImages()[swapchain_index];
-        image_memory_barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-        image_memory_barrier.subresourceRange.baseMipLevel = 0;
-        image_memory_barrier.subresourceRange.levelCount = 1;
-        image_memory_barrier.subresourceRange.layerCount = 1;
-
-        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
-                                       vk::PipelineStageFlagBits::eComputeShader,
-                                       vk::DependencyFlagBits::eByRegion,
-                                       0, nullptr,
-                                       0, nullptr,
-                                       1, &image_memory_barrier);
-    }
-
     { // Dispatch compute
         uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
         uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
@@ -2581,27 +2857,94 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         command_buffer.dispatch(groups_count_x, groups_count_y, 1);
     }
 
-    {   // swapchain image -> Present
-        vk::ImageMemoryBarrier image_memory_barrier;
-        image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
-        image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eNone;
-        image_memory_barrier.oldLayout = vk::ImageLayout::eGeneral;
-        image_memory_barrier.newLayout = vk::ImageLayout::ePresentSrcKHR;
-        image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        image_memory_barrier.image = graphics_ptr->GetSwapchainImages()[swapchain_index];
-        image_memory_barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-        image_memory_barrier.subresourceRange.baseMipLevel = 0;
-        image_memory_barrier.subresourceRange.levelCount = 1;
-        image_memory_barrier.subresourceRange.layerCount = 1;
+    if (useMorphologicalAA) {
+        // --
+    } else {
+        {   // prepare for copy
+            vk::ImageMemoryBarrier image_memory_barriers[2];
 
-        command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
-                                       vk::PipelineStageFlagBits::eAllCommands,
-                                       vk::DependencyFlagBits::eByRegion,
-                                       0, nullptr,
-                                       0, nullptr,
-                                       1, &image_memory_barrier);
+            image_memory_barriers[0].srcAccessMask = vk::AccessFlagBits::eNone;
+            image_memory_barriers[0].dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+            image_memory_barriers[0].oldLayout = vk::ImageLayout::eUndefined;
+            image_memory_barriers[0].newLayout = vk::ImageLayout::eTransferDstOptimal;
+            image_memory_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barriers[0].image = graphics_ptr->GetSwapchainImages()[swapchain_index];
+            image_memory_barriers[0].subresourceRange = { vk::ImageAspectFlagBits::eColor,
+                                                          0, 1,
+                                                          0, 1};
+
+            image_memory_barriers[1].srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+            image_memory_barriers[1].dstAccessMask = vk::AccessFlagBits::eTransferRead;
+            image_memory_barriers[1].oldLayout = vk::ImageLayout::eGeneral;
+            image_memory_barriers[1].newLayout = vk::ImageLayout::eTransferSrcOptimal;
+            image_memory_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barriers[1].image = resolveResultImage;
+            image_memory_barriers[1].subresourceRange = { vk::ImageAspectFlagBits::eColor,
+                                                          0, 1,
+                                                          0, 1};
+
+            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+                                           vk::PipelineStageFlagBits::eTransfer,
+                                           vk::DependencyFlagBits::eByRegion,
+                                           0, nullptr,
+                                           0, nullptr,
+                                           2, image_memory_barriers);
+        }
+
+        {   // copy
+            vk::ImageCopy image_copy_region;
+            image_copy_region.srcSubresource = { vk::ImageAspectFlagBits::eColor,
+                                                 0,0,1};
+            image_copy_region.srcOffset = VkOffset3D{0, 0};
+            image_copy_region.dstSubresource = { vk::ImageAspectFlagBits::eColor,
+                                                 0,0,1};
+            image_copy_region.dstOffset = VkOffset3D{0, 0};
+            image_copy_region.extent = VkExtent3D{graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
+                                                  graphics_ptr->GetSwapchainCreateInfo().imageExtent.height,
+                                                  1};
+
+            command_buffer.copyImage(resolveResultImage,
+                                     vk::ImageLayout::eTransferSrcOptimal,
+                                     graphics_ptr->GetSwapchainImages()[swapchain_index],
+                                     vk::ImageLayout::eTransferDstOptimal,
+                                     1, &image_copy_region);
+        }
+
+        {   // present and revert result to image
+            vk::ImageMemoryBarrier image_memory_barriers[2];
+
+            image_memory_barriers[0].srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+            image_memory_barriers[0].dstAccessMask = vk::AccessFlagBits::eNone;
+            image_memory_barriers[0].oldLayout = vk::ImageLayout::eTransferDstOptimal;
+            image_memory_barriers[0].newLayout = vk::ImageLayout::ePresentSrcKHR;
+            image_memory_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barriers[0].image = graphics_ptr->GetSwapchainImages()[swapchain_index];
+            image_memory_barriers[0].subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+            image_memory_barriers[0].subresourceRange = { vk::ImageAspectFlagBits::eColor,
+                                                      0, 1,
+                                                      0, 1};
+
+            image_memory_barriers[1].srcAccessMask = vk::AccessFlagBits::eTransferRead;
+            image_memory_barriers[1].dstAccessMask = vk::AccessFlagBits::eNone;
+            image_memory_barriers[1].oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+            image_memory_barriers[1].newLayout = vk::ImageLayout::eGeneral;
+            image_memory_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barriers[1].image = resolveResultImage;
+            image_memory_barriers[1].subresourceRange = { vk::ImageAspectFlagBits::eColor,
+                                                          0, 1,
+                                                          0, 1};
+
+            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                           vk::PipelineStageFlagBits::eAllCommands,
+                                           vk::DependencyFlagBits::eByRegion,
+                                           0, nullptr,
+                                           0, nullptr,
+                                           2, image_memory_barriers);
+        }
     }
 
     // Transfer ownership
@@ -2717,32 +3060,21 @@ void RealtimeRenderer::BindResolveImages(uint32_t frame_index, uint32_t swapchai
 {
     uint32_t buffer_index = frame_index % 3;
 
-    vk::WriteDescriptorSet write_descriptor_sets[2];
-    vk::DescriptorImageInfo descriptor_image_infos[2];
+    vk::WriteDescriptorSet write_descriptor_sets[1];
+    vk::DescriptorImageInfo descriptor_image_infos[1];
 
     descriptor_image_infos[0].imageLayout = vk::ImageLayout::eGeneral;
-    descriptor_image_infos[0].imageView = graphics_ptr->GetSwapchainImageViews()[swapchain_index];
+    descriptor_image_infos[0].imageView = luminanceImageViews[frame_index % 2];
     descriptor_image_infos[0].sampler = nullptr;
 
     write_descriptor_sets[0].dstSet = resolveDescriptorSets[buffer_index];
-    write_descriptor_sets[0].dstBinding = 10;
+    write_descriptor_sets[0].dstBinding = 11;
     write_descriptor_sets[0].dstArrayElement = 0;
     write_descriptor_sets[0].descriptorCount = 1;
     write_descriptor_sets[0].descriptorType = vk::DescriptorType::eStorageImage;
     write_descriptor_sets[0].pImageInfo = &descriptor_image_infos[0];
 
-    descriptor_image_infos[1].imageLayout = vk::ImageLayout::eGeneral;
-    descriptor_image_infos[1].imageView = luminanceImageViews[frame_index % 2];
-    descriptor_image_infos[1].sampler = nullptr;
-
-    write_descriptor_sets[1].dstSet = resolveDescriptorSets[buffer_index];
-    write_descriptor_sets[1].dstBinding = 11;
-    write_descriptor_sets[1].dstArrayElement = 0;
-    write_descriptor_sets[1].descriptorCount = 1;
-    write_descriptor_sets[1].descriptorType = vk::DescriptorType::eStorageImage;
-    write_descriptor_sets[1].pImageInfo = &descriptor_image_infos[1];
-
-    device.updateDescriptorSets(2, write_descriptor_sets,
+    device.updateDescriptorSets(1, write_descriptor_sets,
                                 0, nullptr);
 }
 

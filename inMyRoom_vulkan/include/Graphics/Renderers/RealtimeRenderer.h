@@ -38,6 +38,7 @@ private:
     void InitPathTracePipeline();
     void InitLightsDrawPipeline();
     void InitResolveComputePipeline();
+    void InitMorphologicalAAcomputePipeline();
 
     void RecordGraphicsCommandBuffer(vk::CommandBuffer command_buffer,
                                      uint32_t swapchain_index,
@@ -74,10 +75,12 @@ private:
     std::vector<vk::PipelineLayout> primitivesPipelineLayouts;
     vk::Pipeline            pathTracePipeline;
     vk::PipelineLayout      pathTracePipelineLayout;
-    vk::Pipeline            resolveCompPipeline;
-    vk::PipelineLayout      resolveCompPipelineLayout;
     vk::Pipeline            lightDrawPipeline;
     vk::PipelineLayout      lightDrawPipelineLayout;
+    vk::Pipeline            resolveCompPipeline;
+    vk::PipelineLayout      resolveCompPipelineLayout;
+    vk::Pipeline            morphologicalAAcompPipeline;
+    vk::PipelineLayout      morphologicalAAcompPipelineLayout;
 
     vk::CommandPool         graphicsCommandPool;
     vk::CommandBuffer       graphicsCommandBuffers[3];
@@ -112,10 +115,20 @@ private:
     vk::ImageCreateInfo     depthImageCreateInfo;
     vk::ImageView           depthImageView;
 
+    vk::Image               depthResolvedImage;
+    vma::Allocation         depthResolvedAllocation;
+    vk::ImageCreateInfo     depthResolvedImageCreateInfo;
+    vk::ImageView           depthResolvedImageView;
+
     vk::Image               visibilityImage;
     vma::Allocation         visibilityAllocation;
     vk::ImageCreateInfo     visibilityImageCreateInfo;
     vk::ImageView           visibilityImageView;
+
+    vk::Image               morphologicalMaskImage;
+    vma::Allocation         morphologicalMaskAllocation;
+    vk::ImageView           morphologicalMaskImageView;
+    vk::ImageCreateInfo     morphologicalMaskImageCreateInfo;
 
     vk::Image               diffuseDistanceImage;
     vma::Allocation         diffuseDistanceAllocation;
@@ -162,6 +175,11 @@ private:
     vk::ImageView           lightSourcesPassImageView;
     vk::ImageCreateInfo     lightSourcesPassImageCreateInfo;
 
+    vk::Image               resolveResultImage;
+    vma::Allocation         resolveResultAllocation;
+    vk::ImageView           resolveResultImageView;
+    vk::ImageCreateInfo     resolveResultImageCreateInfo;
+
     vk::Image               luminanceImages[2];
     vma::Allocation         luminanceAllocations[2];
     vk::ImageView           luminanceImageViews[2];
@@ -177,6 +195,11 @@ private:
     vk::DescriptorSetLayout pathTraceDescriptorSetLayout;
     vk::DescriptorSet       resolveDescriptorSets[3];
     vk::DescriptorSetLayout resolveDescriptorSetLayout;
+    vk::DescriptorSet       morphologicalAAdescriptorSets[3];
+    vk::DescriptorSetLayout morphologicalAAdescriptorSetsLayout;
+
+    const bool useMorphologicalAA = true;
+    const vk::SampleCountFlagBits MAAsamplesCount = vk::SampleCountFlagBits::e8;
 
     const float FP16factor = 0.5e3f;
     const uint32_t comp_dim_size = 16;
