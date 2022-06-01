@@ -10,7 +10,7 @@ RealtimeRenderer::RealtimeRenderer(Graphics *in_graphics_ptr,
         : RendererBase(in_graphics_ptr, in_device, in_vma_allocator),
           graphicsQueue(graphics_ptr->GetQueuesList().graphicsQueues[0]),
           NRDmethod(in_NRDmethod),
-          useMorphologicalAA(false),
+          useMorphologicalAA(true),
 #ifdef ENABLE_ASYNC_COMPUTE
           meshComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[0]),
           exposureComputeQueue(graphics_ptr->GetQueuesList().dedicatedComputeQueues[1])
@@ -33,6 +33,9 @@ RealtimeRenderer::RealtimeRenderer(Graphics *in_graphics_ptr,
     InitPathTracePipeline();
     InitLightsDrawPipeline();
     InitResolveComputePipeline();
+    if (useMorphologicalAA) {
+        InitMorphologicalAAcomputePipeline();
+    }
 }
 
 RealtimeRenderer::~RealtimeRenderer()
@@ -865,8 +868,8 @@ void RealtimeRenderer::InitDescriptors()
         std::vector<vk::DescriptorPoolSize> descriptor_pool_sizes;
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageBuffer, 3);
         descriptor_pool_sizes.emplace_back(vk::DescriptorType::eInputAttachment,  1);
-        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageImage,  3 * 7 + 3 * 2);
-        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 3 + 1 + 3 + 3,
+        descriptor_pool_sizes.emplace_back(vk::DescriptorType::eStorageImage,  2 * 8 + 3 * 3);
+        vk::DescriptorPoolCreateInfo descriptor_pool_create_info({}, 3 + 1 + 2 + 3,
                                                                  descriptor_pool_sizes);
 
         descriptorPool = device.createDescriptorPool(descriptor_pool_create_info).value;
@@ -943,6 +946,15 @@ void RealtimeRenderer::InitDescriptors()
         {   // Light sources
             vk::DescriptorSetLayoutBinding attach_binding;
             attach_binding.binding = 4;
+            attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
+            attach_binding.descriptorCount = 1;
+            attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+            bindings.emplace_back(attach_binding);
+        }
+        if (useMorphologicalAA) {   // morphological mask
+            vk::DescriptorSetLayoutBinding attach_binding;
+            attach_binding.binding = 5;
             attach_binding.descriptorType = vk::DescriptorType::eStorageImage;
             attach_binding.descriptorCount = 1;
             attach_binding.stageFlags = vk::ShaderStageFlagBits::eCompute;
@@ -1029,13 +1041,11 @@ void RealtimeRenderer::InitDescriptors()
         std::vector<vk::DescriptorSetLayout> layouts;
         layouts.emplace_back(resolveDescriptorSetLayout);
         layouts.emplace_back(resolveDescriptorSetLayout);
-        layouts.emplace_back(resolveDescriptorSetLayout);
 
         vk::DescriptorSetAllocateInfo descriptor_set_allocate_info(descriptorPool, layouts);
         std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info).value;
         resolveDescriptorSets[0] = descriptor_sets[0];
         resolveDescriptorSets[1] = descriptor_sets[1];
-        resolveDescriptorSets[2] = descriptor_sets[2];
     }
     {   // Allocate morphological sets
         std::vector<vk::DescriptorSetLayout> layouts;
@@ -1092,9 +1102,9 @@ void RealtimeRenderer::InitDescriptors()
                                     0, nullptr);
     }
     {   // Write compute resolve set
-        for (size_t i = 0; i != 3; ++i) {
-            vk::WriteDescriptorSet write_descriptor_sets[6];
-            vk::DescriptorImageInfo descriptor_image_infos[6];
+        for (size_t i = 0; i != 2; ++i) {
+            vk::WriteDescriptorSet write_descriptor_sets[8];
+            vk::DescriptorImageInfo descriptor_image_infos[8];
 
             descriptor_image_infos[0].imageLayout = vk::ImageLayout::eGeneral;
             descriptor_image_infos[0].imageView = denoisedDiffuseDistanceImageView;
@@ -1162,7 +1172,30 @@ void RealtimeRenderer::InitDescriptors()
             write_descriptor_sets[5].descriptorType = vk::DescriptorType::eStorageImage;
             write_descriptor_sets[5].pImageInfo = &descriptor_image_infos[5];
 
-            device.updateDescriptorSets(6, write_descriptor_sets,
+            descriptor_image_infos[6].imageLayout = vk::ImageLayout::eGeneral;
+            descriptor_image_infos[6].imageView = luminanceImageViews[i];
+            descriptor_image_infos[6].sampler = nullptr;
+
+            write_descriptor_sets[6].dstSet = resolveDescriptorSets[i];
+            write_descriptor_sets[6].dstBinding = 11;
+            write_descriptor_sets[6].dstArrayElement = 0;
+            write_descriptor_sets[6].descriptorCount = 1;
+            write_descriptor_sets[6].descriptorType = vk::DescriptorType::eStorageImage;
+            write_descriptor_sets[6].pImageInfo = &descriptor_image_infos[6];
+
+            // In case morphological AA is used
+            descriptor_image_infos[7].imageLayout = vk::ImageLayout::eGeneral;
+            descriptor_image_infos[7].imageView = morphologicalMaskImageView;
+            descriptor_image_infos[7].sampler = nullptr;
+
+            write_descriptor_sets[7].dstSet = resolveDescriptorSets[i];
+            write_descriptor_sets[7].dstBinding = 5;
+            write_descriptor_sets[7].dstArrayElement = 0;
+            write_descriptor_sets[7].descriptorCount = 1;
+            write_descriptor_sets[7].descriptorType = vk::DescriptorType::eStorageImage;
+            write_descriptor_sets[7].pImageInfo = &descriptor_image_infos[7];
+
+            device.updateDescriptorSets(useMorphologicalAA ? 8 : 7, write_descriptor_sets,
                                         0, nullptr);
         }
     }
@@ -2198,6 +2231,8 @@ void RealtimeRenderer::InitResolveComputePipeline()
         definitionStringPairs.emplace_back("FP16_FACTOR", std::to_string(FP16factor));
         definitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(comp_dim_size));
         definitionStringPairs.emplace_back("LOCAL_SIZE_Y", std::to_string(comp_dim_size));
+        if (useMorphologicalAA)
+            definitionStringPairs.emplace_back("MORPHOLOGICAL_MSAA", vk::to_string(MAAsamplesCount));
 
         ShadersSpecs shaders_specs = {"Realtime Renderer - Resolve Shader", definitionStringPairs};
         ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
@@ -2214,7 +2249,38 @@ void RealtimeRenderer::InitResolveComputePipeline()
 
 void RealtimeRenderer::InitMorphologicalAAcomputePipeline()
 {
+    printf("-Initializing \"Morphological Anti-alias Pass\" pipeline\n");
 
+    { // Create pipeline layout
+        vk::PipelineLayoutCreateInfo pipeline_layout_create_info;
+
+        std::vector<vk::DescriptorSetLayout> descriptor_sets_layouts;
+        descriptor_sets_layouts.emplace_back(morphologicalAAdescriptorSetsLayout);
+        pipeline_layout_create_info.setSetLayouts(descriptor_sets_layouts);
+
+        std::vector<vk::PushConstantRange> push_constant_range;
+        push_constant_range.emplace_back(vk::ShaderStageFlagBits::eCompute,0,2 * 4 );
+        pipeline_layout_create_info.setPushConstantRanges(push_constant_range);
+
+        morphologicalAAcompPipelineLayout = graphics_ptr->GetPipelineFactory()->GetPipelineLayout(pipeline_layout_create_info).first;
+    }
+    { // Create pipeline
+        std::vector<std::pair<std::string, std::string>> definitionStringPairs;
+        definitionStringPairs.emplace_back("MORPHOLOGICAL_MSAA", vk::to_string(MAAsamplesCount));
+        definitionStringPairs.emplace_back("LOCAL_SIZE_X", std::to_string(comp_dim_size));
+        definitionStringPairs.emplace_back("LOCAL_SIZE_Y", std::to_string(comp_dim_size));
+
+        ShadersSpecs shaders_specs = {"Realtime Renderer - Morphological AA Shader", definitionStringPairs};
+        ShadersSet shader_set = graphics_ptr->GetShadersSetsFamiliesCache()->GetShadersSet(shaders_specs);
+
+        vk::ComputePipelineCreateInfo compute_pipeline_create_info;
+        compute_pipeline_create_info.stage.stage = vk::ShaderStageFlagBits::eCompute;
+        compute_pipeline_create_info.stage.module = shader_set.computeShaderModule;
+        compute_pipeline_create_info.stage.pName = "main";
+        compute_pipeline_create_info.layout = morphologicalAAcompPipelineLayout;
+
+        morphologicalAAcompPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(compute_pipeline_create_info).first;
+    }
 }
 
 
@@ -2382,7 +2448,9 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
     uint32_t swapchain_index = device.acquireNextImageKHR(graphics_ptr->GetSwapchain(),
                                                           0,
                                                           presentImageAvailableSemaphores[commandBuffer_index]).value;
-    this->BindResolveImages(frameCount, swapchain_index);
+    // Bind swapchain image to descriptor
+    if (useMorphologicalAA)
+        this->BindMAAimages(frameCount, swapchain_index);
 
     std::vector<vk::SubmitInfo> graphics_submit_infos;
     {
@@ -2836,7 +2904,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
 
         std::vector<vk::DescriptorSet> descriptor_sets;
         descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(frameCount));
-        descriptor_sets.emplace_back(resolveDescriptorSets[frameCount % 3]);
+        descriptor_sets.emplace_back(resolveDescriptorSets[frameCount % 2]);
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, resolveCompPipelineLayout, 0, descriptor_sets, {});
 
         struct push_constants_type{
@@ -2858,7 +2926,66 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
     }
 
     if (useMorphologicalAA) {
-        // --
+        {   // swapchain image: none -> storage
+            vk::ImageMemoryBarrier image_memory_barrier;
+            image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eNone;
+            image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eShaderWrite;
+            image_memory_barrier.oldLayout = vk::ImageLayout::eUndefined;
+            image_memory_barrier.newLayout = vk::ImageLayout::eGeneral;
+            image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barrier.image = graphics_ptr->GetSwapchainImages()[swapchain_index];
+            image_memory_barrier.subresourceRange = { vk::ImageAspectFlagBits::eColor,
+                                                      0, 1,
+                                                      0, 1};
+
+            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
+                                           vk::PipelineStageFlagBits::eComputeShader,
+                                           vk::DependencyFlagBits::eByRegion,
+                                           0, nullptr,
+                                           0, nullptr,
+                                           1, &image_memory_barrier);
+        }
+
+        {   // morphological AA dispatch
+            uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
+            uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
+
+            std::vector<vk::DescriptorSet> descriptor_sets;
+            descriptor_sets.emplace_back(morphologicalAAdescriptorSets[frameCount % 3]);
+            command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, morphologicalAAcompPipelineLayout, 0, descriptor_sets, {});
+
+            std::array<uint32_t, 2> uint_push_constants = {width, height};
+            command_buffer.pushConstants(morphologicalAAcompPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(uint_push_constants), uint_push_constants.data());
+
+            command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, morphologicalAAcompPipeline);
+
+            uint32_t groups_count_x = (width + comp_dim_size - 1) / comp_dim_size;
+            uint32_t groups_count_y = (height + comp_dim_size - 1) / comp_dim_size;
+            command_buffer.dispatch(groups_count_x, groups_count_y, 1);
+        }
+
+        {   // swapchain image: storage -> present
+            vk::ImageMemoryBarrier image_memory_barrier;
+            image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+            image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eNone;
+            image_memory_barrier.oldLayout = vk::ImageLayout::eGeneral;
+            image_memory_barrier.newLayout = vk::ImageLayout::ePresentSrcKHR;
+            image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            image_memory_barrier.image = graphics_ptr->GetSwapchainImages()[swapchain_index];
+            image_memory_barrier.subresourceRange = { vk::ImageAspectFlagBits::eColor,
+                                                      0, 1,
+                                                      0, 1};
+
+            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
+                                           vk::PipelineStageFlagBits::eAllCommands,
+                                           vk::DependencyFlagBits::eByRegion,
+                                           0, nullptr,
+                                           0, nullptr,
+                                           1, &image_memory_barrier);
+        }
+
     } else {
         {   // prepare for copy
             vk::ImageMemoryBarrier image_memory_barriers[2];
@@ -2885,7 +3012,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
                                                           0, 1,
                                                           0, 1};
 
-            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+            command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
                                            vk::PipelineStageFlagBits::eTransfer,
                                            vk::DependencyFlagBits::eByRegion,
                                            0, nullptr,
@@ -3056,7 +3183,7 @@ void RealtimeRenderer::AssortDrawInfos()
     });
 }
 
-void RealtimeRenderer::BindResolveImages(uint32_t frame_index, uint32_t swapchain_index)
+void RealtimeRenderer::BindMAAimages(uint32_t frame_index, uint32_t swapchain_index)
 {
     uint32_t buffer_index = frame_index % 3;
 
@@ -3064,11 +3191,11 @@ void RealtimeRenderer::BindResolveImages(uint32_t frame_index, uint32_t swapchai
     vk::DescriptorImageInfo descriptor_image_infos[1];
 
     descriptor_image_infos[0].imageLayout = vk::ImageLayout::eGeneral;
-    descriptor_image_infos[0].imageView = luminanceImageViews[frame_index % 2];
+    descriptor_image_infos[0].imageView = graphics_ptr->GetSwapchainImageViews()[swapchain_index];
     descriptor_image_infos[0].sampler = nullptr;
 
-    write_descriptor_sets[0].dstSet = resolveDescriptorSets[buffer_index];
-    write_descriptor_sets[0].dstBinding = 11;
+    write_descriptor_sets[0].dstSet = morphologicalAAdescriptorSets[buffer_index];
+    write_descriptor_sets[0].dstBinding = 10;
     write_descriptor_sets[0].dstArrayElement = 0;
     write_descriptor_sets[0].descriptorCount = 1;
     write_descriptor_sets[0].descriptorType = vk::DescriptorType::eStorageImage;

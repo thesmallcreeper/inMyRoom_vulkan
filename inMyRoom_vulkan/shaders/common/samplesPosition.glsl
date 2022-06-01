@@ -1,16 +1,24 @@
 #ifndef FILE_SAMPLES_POSITIONS
 
+#ifdef MULTISAMPLED_INPUT
+#define SAMPLES_COUNT MULTISAMPLED_INPUT
+#endif
+
+#ifdef MORPHOLOGICAL_MSAA
+#define SAMPLES_COUNT MORPHOLOGICAL_MSAA
+#endif
+
 vec2 InputSamplesPositions(int i) {
-    #if !defined(MULTISAMPLED_INPUT)
+    #if !defined(SAMPLES_COUNT)
         return vec2(0.5f, 0.5f);
-    #elif MULTISAMPLED_INPUT == 2
+    #elif SAMPLES_COUNT == 2
         switch (i) {
             case 0:
                 return vec2(0.75f, 0.75f);
             case 1:
                 return vec2(0.25f, 0.25f);
         }
-    #elif MULTISAMPLED_INPUT == 4
+    #elif SAMPLES_COUNT == 4
         switch (i) {
             case 0:
                 return vec2(0.375f, 0.125f);
@@ -21,7 +29,7 @@ vec2 InputSamplesPositions(int i) {
             case 3:
                 return vec2(0.625f, 0.875f);
         }
-    #elif MULTISAMPLED_INPUT == 8
+    #elif SAMPLES_COUNT == 8
         switch (i) {
             case 0:
                 return vec2(0.5625, 0.3125);
@@ -40,7 +48,7 @@ vec2 InputSamplesPositions(int i) {
             case 7:
                 return vec2(0.9375, 0.0625);
         }
-    #elif MULTISAMPLED_INPUT == 16
+    #elif SAMPLES_COUNT == 16
         switch (i) {
             case 0:
                 return vec2(0.5625, 0.5625);

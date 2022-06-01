@@ -462,7 +462,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 vec3 light_unshadowed_diffuse = this_light_luminance * light_factor * BRDF_eval.f_diffuse * dot(normal, random_light_dir) / lightcone_PDF;
                 vec3 light_unshadowed = light_unshadowed_specular + light_unshadowed_diffuse;
 
-                float balance_factor = WeightLightBalance(lightcone_PDF, (lights_illuminance_sum / light_illuminance) * random_light_dir_PDF_bounce);
+                float balance_factor = WeightLightBalance(lightcone_PDF, (is_last_bounce ? 1.f : (lights_illuminance_sum / light_illuminance)) * random_light_dir_PDF_bounce);
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
@@ -481,7 +481,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 bounce_light_unshadowed_diffuse = this_light_luminance * bounce_light_factor_diffuse;
                 vec3 light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
 
-                float balance_factor = WeightLightBalance((lights_illuminance_sum / light_illuminance) * ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
+                float balance_factor = WeightLightBalance((is_last_bounce ? 1.f : (lights_illuminance_sum / light_illuminance)) * ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bounce_light_weight = weight;
@@ -556,7 +556,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 vec3 light_unshadowed_diffuse = window_coeff * this_light_luminance * light_factor * BRDF_eval.f_diffuse * dot(normal, random_light_dir) / lightcone_PDF;
                 vec3 light_unshadowed = light_unshadowed_specular + light_unshadowed_diffuse;
 
-                float balance_factor = WeightLightBalance(lightcone_PDF, (lights_illuminance_sum / light_illuminance) * random_light_dir_PDF_bounce);
+                float balance_factor = WeightLightBalance(lightcone_PDF, (is_last_bounce ? 1.f : (lights_illuminance_sum / light_illuminance)) * random_light_dir_PDF_bounce);
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
@@ -577,7 +577,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 bounce_light_unshadowed_diffuse = window_coeff * this_light_luminance * bounce_light_factor_diffuse;
                 vec3 light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
 
-                float balance_factor = WeightLightBalance((lights_illuminance_sum / light_illuminance) * ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
+                float balance_factor = WeightLightBalance((is_last_bounce ? 1.f : (lights_illuminance_sum / light_illuminance)) * ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bounce_light_weight = weight;

@@ -45,7 +45,7 @@ private:
                                      const FrustumCulling& frustum_culling);
     void WriteInitHostBuffers() const;
     void AssortDrawInfos();
-    void BindResolveImages(uint32_t frame_index, uint32_t swapchain_index);
+    void BindMAAimages(uint32_t frame_index, uint32_t swapchain_index);
     void PrepareNRDsettings();
 
 private:
@@ -193,7 +193,7 @@ private:
     vk::DescriptorSetLayout hostDescriptorSetLayout;
     vk::DescriptorSet       pathTraceDescriptorSet;
     vk::DescriptorSetLayout pathTraceDescriptorSetLayout;
-    vk::DescriptorSet       resolveDescriptorSets[3];
+    vk::DescriptorSet       resolveDescriptorSets[2];
     vk::DescriptorSetLayout resolveDescriptorSetLayout;
     vk::DescriptorSet       morphologicalAAdescriptorSets[3];
     vk::DescriptorSetLayout morphologicalAAdescriptorSetsLayout;

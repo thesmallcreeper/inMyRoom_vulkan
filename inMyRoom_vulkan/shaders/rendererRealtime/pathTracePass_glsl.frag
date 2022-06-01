@@ -20,7 +20,7 @@
 #endif
 
 #define MAX_DEPTH 3
-#define DOT_ANGLE_SLACK 0.0087265f      // cos(89.5 degs)
+#define DOT_ANGLE_SLACK 0.00390625f      // cos(89.78 degs)
 #define MIN_ROUGHNESS 0.02f
 #define USE_INCREASING_MOLLIFICATION
 #define LIGHT_THRESHOLD 0.5e6f
@@ -299,7 +299,7 @@ void main()
                     group_pixel_pos += InputSamplesPositions(i);
                 }
             }
-            group_pixel_pos /= selected_group_samplesCount;
+            group_pixel_pos /= float(selected_group_samplesCount);
             sample_pixel_offset = group_pixel_pos - vec2(0.5f, 0.5f);
 
             float min_distanceSq = 8.f;
@@ -323,7 +323,7 @@ void main()
             first_bounce_triangle_index = uint(subpassLoad(visibilityInput, sample_triangle_from).y);
 
         } else {
-            morphologicalMask_out = -1;
+            morphologicalMask_out = ( uint(1) << MORPHOLOGICAL_MSAA ) - 1;
 
             first_bounce_primitive_instance = 0;
             first_bounce_triangle_index = 0;

@@ -346,6 +346,12 @@ void Graphics::InitShadersSetsFamiliesCache()
         this_shaderSetInitInfo.computeShaderSourceFilename = "rendererRealtime/resolveShader_glsl.comp";
         shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
     }
+    {
+        ShadersSetsFamilyInitInfo this_shaderSetInitInfo;
+        this_shaderSetInitInfo.shadersSetFamilyName = "Realtime Renderer - Morphological AA Shader";
+        this_shaderSetInitInfo.computeShaderSourceFilename = "rendererRealtime/morphologicalAA_glsl.comp";
+        shadersSetsFamiliesCache_uptr->AddShadersSetsFamily(this_shaderSetInitInfo);
+    }
 }
 
 void Graphics::InitMeshesTree()

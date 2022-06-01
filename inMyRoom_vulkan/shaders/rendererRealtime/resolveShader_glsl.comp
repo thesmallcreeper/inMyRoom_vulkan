@@ -4,6 +4,7 @@
 #include "common/sRGBencode.glsl"
 #include "common/environmentTerm.glsl"
 #include "common/luminance.glsl"
+#include "common/samplesPosition.glsl"
 
 #include "NRD/helpers/NRD_packNormalRoughness.glsl"
 
@@ -21,6 +22,9 @@ layout (set = 1, binding = 1, rgba16f) uniform readonly image2D input_specular;
 layout (set = 1, binding = 2, rgb10_a2) uniform readonly image2D input_normalRoughness;
 layout (set = 1, binding = 3, rgba8) uniform readonly image2D input_colorMetalness;
 layout (set = 1, binding = 4, rgba16f) uniform readonly image2D input_lightSources;
+#ifdef MORPHOLOGICAL_MSAA
+layout (set = 1, binding = 5, r8ui) uniform readonly uimage2D input_mask;
+#endif
 
 layout (set = 1, binding = 10, rgba8) uniform writeonly image2D output_color;
 layout (set = 1, binding = 11, r16f) uniform writeonly image2D output_luminance;
@@ -66,8 +70,26 @@ void main()
         return;
     }
 
+    // Get subpixel pos
+    #ifdef MORPHOLOGICAL_MSAA
+        uint pixel_mask = imageLoad(input_mask, coords).x;
+        uint mask_popcnt = bitCount(pixel_mask);
+
+        vec2 subpixel_pos = vec2(0.f);
+        for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+            uint sampleANDmask = uint(1) << i;
+            uint isSampleInGroup = pixel_mask & sampleANDmask;
+            if (isSampleInGroup != 0) {
+                subpixel_pos += InputSamplesPositions(i);
+            }
+        }
+        subpixel_pos /= float (mask_popcnt);
+    #else
+        vec2 subpixel_pos = vec2(0.5f);
+    #endif
+
     // Get UV_coords
-    vec2 UV_coords = (vec2(coords) + vec2(0.5f)) / vec2(size_x, size_y);
+    vec2 UV_coords = (vec2(coords) + subpixel_pos) / vec2(size_x, size_y);
     vec3 barycoords = UVtoFullScreenTriangleBarycoords(UV_coords);
 
     vec3 primary_ray_dir = normalize(vec3(barycoords.x * dir_down_right + barycoords.y * dir_down_left + barycoords.z * dir_upper_left));

@@ -177,7 +177,7 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     CreateSwapchain(chosen_surface_format,
                     chosen_present_mode,
                     swapchain_images_count,
-                    vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst);
+                    vk::ImageUsageFlagBits::eColorAttachment  | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst);
 
 }
 

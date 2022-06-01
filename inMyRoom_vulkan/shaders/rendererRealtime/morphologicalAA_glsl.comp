@@ -1,0 +1,83 @@
+#version 460
+
+#include "common/sRGBencode.glsl"
+#include "common/samplesPosition.glsl"
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout (set = 0, binding = 0, rgba8) uniform readonly image2D input_color;
+layout (set = 0, binding = 1, r8ui) uniform readonly uimage2D input_mask;
+
+layout (set = 0, binding = 10, rgba8) uniform writeonly image2D output_color;
+
+layout (push_constant) uniform PushConstants
+{
+    uint size_x;
+    uint size_y;
+};
+
+void main()
+{
+    // TODO: Special cases for edge pixels?
+    const ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+    if (coords.x >= size_x || coords.y >= size_y) {
+        return;
+    }
+
+    uint full_mask = ( uint(1) << MORPHOLOGICAL_MSAA ) - 1;
+
+    vec4 in_color_sRGB = imageLoad(input_color, coords);
+    vec4 out_color_sRGB = vec4(0.f);
+
+    uint pixel_mask = imageLoad(input_mask, coords).x;
+    if (pixel_mask == full_mask
+     || coords.x == 0 ||  coords.x == size_x - 1
+     || coords.y == 0 ||  coords.y == size_y - 1) {
+        out_color_sRGB = in_color_sRGB;
+    } else {
+        uint mask_popcnt = bitCount(pixel_mask);
+        float pixel_weight = float(mask_popcnt) / float(MORPHOLOGICAL_MSAA);
+
+        vec2 group_pixel_pos = vec2(0.f);
+        for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+            uint sampleANDmask = uint(1) << i;
+            uint isSampleInGroup = pixel_mask & sampleANDmask;
+            if (isSampleInGroup != 0) {
+                group_pixel_pos += InputSamplesPositions(i);
+            }
+        }
+        group_pixel_pos /= float (mask_popcnt);
+        vec2 symmetric_sample_pixel_offset = -(group_pixel_pos - vec2(0.5f, 0.5f));
+
+        if (symmetric_sample_pixel_offset != vec2(0.f)) {
+            bool x_axis_major = abs(symmetric_sample_pixel_offset.x) > abs(symmetric_sample_pixel_offset.y);
+            bool right_side = symmetric_sample_pixel_offset.x > 0;
+            bool up_side = symmetric_sample_pixel_offset.y < 0;
+
+            vec2 neighboors_compass = symmetric_sample_pixel_offset / (x_axis_major ? abs(symmetric_sample_pixel_offset.x) : abs(symmetric_sample_pixel_offset.y));
+
+            ivec2 corner_offset;
+            corner_offset.x = right_side ? 1 : -1;
+            corner_offset.y = up_side ? -1 : 1;
+
+            ivec2 wasd_offset;
+            wasd_offset.x = x_axis_major ? corner_offset.x : 0;
+            wasd_offset.y = x_axis_major ? 0 : corner_offset.y;
+
+            float corner_weight = x_axis_major ? abs(neighboors_compass.y) : abs(neighboors_compass.x);
+
+            vec3 corner_color = sRGBdecode(imageLoad(input_color, coords + corner_offset)).xyz;
+            vec3 wasd_color = sRGBdecode(imageLoad(input_color, coords + wasd_offset)).xyz;
+            vec3 neighboor_mix = mix(wasd_color, corner_color, corner_weight);
+
+            vec3 pixel_color = sRGBdecode(in_color_sRGB).xyz;
+            vec3 color_final = mix(neighboor_mix, pixel_color, pixel_weight);
+
+            out_color_sRGB = sRGBencode(vec4(color_final, 1.f));
+        } else {
+            out_color_sRGB = in_color_sRGB;
+        }
+    }
+
+    imageStore(output_color, coords, out_color_sRGB);
+}
