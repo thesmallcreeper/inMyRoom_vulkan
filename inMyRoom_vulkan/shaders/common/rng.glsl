@@ -18,7 +18,7 @@ uint JenkinsHash(uint x) {
 }
 
 uint InitRNG(vec2 pixel_coords, uvec2 resolution, uint frame) {
-    uvec2 pixel = uvec2(pixel_coords * resolution);
+    uvec2 pixel = uvec2(floor(pixel_coords));
     uint rngState = JenkinsHash(pixel.x + pixel.y * resolution.x) ^ JenkinsHash(frame);
     return JenkinsHash(rngState);
 }

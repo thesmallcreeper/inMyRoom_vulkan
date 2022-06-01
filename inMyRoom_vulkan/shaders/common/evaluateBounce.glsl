@@ -8,6 +8,7 @@
 #include "common/reservoir.glsl"
 #include "common/luminance.glsl"
 #include "common/environmentTerm.glsl"
+#include "common/bayer.glsl"
 
 struct BounceEvaluation {
     vec3 baseColor;
@@ -29,6 +30,8 @@ struct BounceEvaluation {
     uint light_target;
     vec3 light_target_contribution_specular;
     vec3 light_target_contribution_diffuse;
+    
+    bool isDiffuseSample;
 };
 
 void ConfirmNonOpaqueIntersection(rayQueryEXT query)
@@ -266,6 +269,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
     return_bounce_evaluation.next_bounce_light_factor_diffuse = vec3(0.f);
     return_bounce_evaluation.light_target_contribution_specular = vec3(0.f);
     return_bounce_evaluation.light_target_contribution_diffuse = vec3(0.f);
+    return_bounce_evaluation.isDiffuseSample = true;
 
     // Viewvector / Origin
     mat3 normal_to_world_space_mat3 = mat3(normal_tangent, normal_bitangent, normal);
@@ -308,7 +312,24 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
     float diffuse_sample_chance = e_diffuse / (e_specular + e_diffuse);
 
-    float u_0 = RandomFloat(rng_state);
+    #ifdef MIN_DIFFUSE_CHANCE
+        diffuse_sample_chance = metallic == 1.f ? 0.f : max(MIN_DIFFUSE_CHANCE, diffuse_sample_chance);
+    #endif
+
+    #ifdef MIN_SPECULAR_CHANCE
+        diffuse_sample_chance = min(1.f - MIN_SPECULAR_CHANCE, diffuse_sample_chance);
+    #endif
+
+    float u_0 = 0.f;
+    #ifdef BAYER_1ST_BOUNCE
+        if (ray_depth == 0) {
+            u_0 = BayerNoise(gl_FragCoord.xy, frameCount, rng_state);
+        } else {
+            u_0 = RandomFloat(rng_state);
+        }
+    #else
+        u_0 = RandomFloat(rng_state);
+    #endif
     vec3 ray_bounce_normalspace;
     vec3 bounce_halfvector_normalspace;
     if ( u_0 < diffuse_sample_chance ) {
@@ -319,6 +340,8 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
         ray_bounce_normalspace = RandomCosinWeightedHemi(rng_state);
         bounce_halfvector_normalspace = normalize(ray_bounce_normalspace + viewVector_normalspace);
+
+        return_bounce_evaluation.isDiffuseSample = true;
     } else {
         // Specular
         #ifdef USE_INCREASING_MOLLIFICATION
@@ -327,6 +350,8 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
         bounce_halfvector_normalspace = RandomGXXhalfvector(a_roughness, rng_state);
         ray_bounce_normalspace = reflect(-viewVector_normalspace, bounce_halfvector_normalspace);
+
+        return_bounce_evaluation.isDiffuseSample = false;
     }
 
     vec3 ray_bounce_dir = normal_to_world_space_mat3 * ray_bounce_normalspace;
@@ -335,6 +360,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
     vec3 bounce_light_factor_diffuse = vec3(0.f);
 
     float ray_bounce_PDF = 0.f;
+    bool is_bounce_valid = false;
     if (ray_bounce_normalspace.z > DOT_ANGLE_SLACK
     && dot(viewVector_normalspace, bounce_halfvector_normalspace) > DOT_ANGLE_SLACK) {
         float ray_bounce_PDF_cosin = RandomCosinWeightedHemiPDF(ray_bounce_normalspace.z);
@@ -348,6 +374,11 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
         bounce_light_factor_specular = light_factor * BRDF_eval.f_specular * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
         bounce_light_factor_diffuse = light_factor * BRDF_eval.f_diffuse * dot(ray_bounce_dir, normal) / ray_bounce_PDF;
+
+        is_bounce_valid = true;
+    } else {
+        is_last_bounce = true;
+        is_bounce_valid = false;
     }
 
     // Sum luminance from sources in order to balance RIS
@@ -476,7 +507,8 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
             }
 
             // Bounce dir check for hitting light
-            if (dot(ray_bounce_dir, light_dir) > angle_sin_cos.y) {
+            if (is_bounce_valid
+             && dot(ray_bounce_dir, light_dir) > angle_sin_cos.y) {
                 bounce_light_unshadowed_specular = this_light_luminance * bounce_light_factor_specular;
                 bounce_light_unshadowed_diffuse = this_light_luminance * bounce_light_factor_diffuse;
                 vec3 light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
@@ -571,7 +603,8 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
 
             // Bounce dir check for hitting light
             float bounce_dart_dist = light_dist / dot(ray_bounce_dir, light_dir);
-            if (dot(ray_bounce_dir, light_dir) > angle_sin_cos.y
+            if (is_bounce_valid
+             && dot(ray_bounce_dir, light_dir) > angle_sin_cos.y
              && bounce_dart_dist < bounce_light_t_max) {
                 bounce_light_unshadowed_specular = window_coeff * this_light_luminance * bounce_light_factor_specular;
                 bounce_light_unshadowed_diffuse = window_coeff * this_light_luminance * bounce_light_factor_diffuse;

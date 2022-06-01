@@ -24,6 +24,9 @@
 #define MIN_ROUGHNESS 0.02f
 #define USE_INCREASING_MOLLIFICATION
 #define LIGHT_THRESHOLD 0.5e6f
+#define MIN_DIFFUSE_CHANCE 0.05f
+#define MIN_SPECULAR_CHANCE 0.25f
+#define BAYER_1ST_BOUNCE
 
 // #define DEBUG_MIS
 
@@ -371,6 +374,7 @@ void main()
     first_hit_intersect_result.distance = INF_DIST;
     first_hit_intersect_result.barycoords = vec2(0.3f);
 
+    bool first_bounce_wasDiffuse = true;
     float first_bounce_T = 0.f;
 
     vec3 baseColor = vec3(0.f);
@@ -413,6 +417,8 @@ void main()
             metallic = eval.metallic;
             normal = eval.normal;
             roughness = eval.roughness;
+
+            first_bounce_wasDiffuse = eval.isDiffuseSample;
 
             first_hit_intersect_result = intersect_result;
 

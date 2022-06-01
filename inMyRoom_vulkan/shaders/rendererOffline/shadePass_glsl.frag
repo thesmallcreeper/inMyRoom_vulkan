@@ -105,7 +105,7 @@ layout (push_constant) uniform PushConstants
 {
     layout(offset = 0)  vec3 sky_luminance;
     layout(offset = 16) uvec2 viewportSize;
-    layout(offset = 24) uint frameIndex;
+    layout(offset = 24) uint frameCount;
     layout(offset = 28) uint lightConesIndices_offset;
     layout(offset = 32) uint lightConesIndices_size;
 };
@@ -114,17 +114,17 @@ layout (push_constant) uniform PushConstants
 
 void main()
 {
-    uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameIndex);
+    uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameCount);
     float min_roughness = MIN_ROUGHNESS;
 
     // Read input attachment
     #ifdef MULTISAMPLED_INPUT
-        int sample_index = int(frameIndex % MULTISAMPLED_INPUT);
+        int sample_index = int(frameCount % MULTISAMPLED_INPUT);
         uvec2 frag_pair = uvec2(subpassLoad(visibilityInput, sample_index));
         uint primitive_instance = frag_pair.x;
         uint triangle_index = frag_pair.y;
 
-        uint alpha_one = uint(frameIndex < MULTISAMPLED_INPUT);
+        uint alpha_one = uint(frameCount < MULTISAMPLED_INPUT);
 
         // TODO: Output stuff
         uint sample_out_mask = 1 << sample_index;
@@ -229,7 +229,7 @@ void main()
         uint primitive_instance = frag_pair.x;
         uint triangle_index = frag_pair.y;
 
-        uint alpha_one = uint(frameIndex == 0);
+        uint alpha_one = uint(frameCount == 0);
 
         if (primitive_instance == 0) {
             if (alpha_one != 0) {
