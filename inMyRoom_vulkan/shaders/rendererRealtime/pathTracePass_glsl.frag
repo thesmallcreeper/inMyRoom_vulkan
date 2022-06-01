@@ -25,7 +25,7 @@
 #define USE_INCREASING_MOLLIFICATION
 #define LIGHT_THRESHOLD 0.5e6f
 #define MIN_DIFFUSE_CHANCE 0.05f
-#define MIN_SPECULAR_CHANCE 0.25f
+#define MIN_SPECULAR_CHANCE 0.15f
 #define BAYER_1ST_BOUNCE
 
 // #define DEBUG_MIS
@@ -161,11 +161,12 @@ layout (push_constant) uniform PushConstants
     layout(offset = 36) float HDR_factor;
 };
 
-#define SPECULAR_DIFFUSE_EVAL
 #include "common/evaluateBounce.glsl"
 
 void main()
 {
+    const float light_threshold = min(LIGHT_THRESHOLD, FP16_MAX * HDR_factor);
+
     uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameCount);
     float min_roughness = MIN_ROUGHNESS;
 
@@ -335,8 +336,8 @@ void main()
     #else
         uvec2 frag_pair = uvec2(subpassLoad(visibilityInput));
 
-        const uint first_bounce_primitive_instance = frag_pair.x;
-        const uint first_bounce_triangle_index = frag_pair.y;
+        uint first_bounce_primitive_instance = frag_pair.x;
+        uint first_bounce_triangle_index = frag_pair.y;
     #endif
 
     uint primitive_instance = first_bounce_primitive_instance;
@@ -356,7 +357,7 @@ void main()
     vec3 ray_dir_center_dx = dFdx(ray_dir_center);
     vec3 ray_dir_center_dy = dFdy(ray_dir_center);
 
-    const vec3 primary_ray_dir = normalize(ray_dir_center + sample_pixel_offset.x * ray_dir_center_dx + sample_pixel_offset.y * ray_dir_center_dy);
+    vec3 primary_ray_dir = normalize(ray_dir_center + sample_pixel_offset.x * ray_dir_center_dx + sample_pixel_offset.y * ray_dir_center_dy);
 
     vec3 ray_dir = primary_ray_dir;
     RayDiffsDir ray_dirDiffs;
@@ -418,8 +419,6 @@ void main()
             normal = eval.normal;
             roughness = eval.roughness;
 
-            first_bounce_wasDiffuse = eval.isDiffuseSample;
-
             first_hit_intersect_result = intersect_result;
 
             light_sum_specular += eval.light_return_specular;
@@ -445,6 +444,7 @@ void main()
         }
 
         if (i == 0) {
+            first_bounce_wasDiffuse = eval.isDiffuseSample;
             first_bounce_T = rayQueryGetIntersectionTEXT(query, true);
         }
 
@@ -512,7 +512,7 @@ void main()
         bool has_inf = isinf(light_sum.r) || isinf(light_sum.g) || isinf(light_sum.b);
         bool has_nan = isnan(light_sum.r) || isnan(light_sum.g) || isnan(light_sum.b);
         float max_value = max(light_sum.r, max(light_sum.g, light_sum.b));
-        if (has_inf || has_nan || max_value > LIGHT_THRESHOLD) {
+        if (has_inf || has_nan || max_value > light_threshold) {
             break;
         }
     }
@@ -525,8 +525,8 @@ void main()
         light_sum = vec3(0.f);
     }
     float max_value = max(light_sum.r, max(light_sum.g, light_sum.b));
-    if (max_value > LIGHT_THRESHOLD) {
-        float factor = LIGHT_THRESHOLD / max_value;
+    if (max_value > light_threshold) {
+        float factor = light_threshold / max_value;
         light_sum_specular *= factor;
         light_sum_diffuse *= factor;
     }
@@ -555,11 +555,11 @@ void main()
 
     // Get hit distances
     #ifdef DENOISER_REBLUR
-        float diffuse_hitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear);
-        float specular_hitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_T, view_Z_linear, roughness);
+        float diffuse_hitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_wasDiffuse ? first_bounce_T : 0.f, view_Z_linear);
+        float specular_hitDist = REBLUR_FrontEnd_GetNormHitDist(first_bounce_wasDiffuse ? 0.f : first_bounce_T, view_Z_linear, roughness);
     #else
-        float diffuse_hitDist = first_bounce_T;
-        float specular_hitDist = first_bounce_T;
+        float diffuse_hitDist = first_bounce_wasDiffuse ? first_bounce_T : 0.f;
+        float specular_hitDist = first_bounce_wasDiffuse ? 0.f : first_bounce_T;
     #endif
 
     // Transform normal to world-space
