@@ -2,6 +2,7 @@
 #include "Graphics/Graphics.h"
 
 #include <cmath>
+#include <numbers>
 
 Exposure::Exposure(vk::Device in_device,
                    vma::Allocator in_allocator,

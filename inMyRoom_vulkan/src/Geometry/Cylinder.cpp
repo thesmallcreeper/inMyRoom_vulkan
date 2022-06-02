@@ -1,6 +1,7 @@
 #include "Geometry/Cylinder.h"
 
 #include <cmath>
+#include <numbers>
 
 std::pair<std::vector<uint32_t>, std::vector<glm::vec3>> Cylinder::GetCylinderMesh(size_t quality)
 {
@@ -14,7 +15,7 @@ std::pair<std::vector<uint32_t>, std::vector<glm::vec3>> Cylinder::GetCylinderMe
         size_t upper_index = points.size();
         size_t lower_index = points.size() + 1;
 
-        float phi = 2.f * float(M_PI) * (float(i) / float(points_count));
+        float phi = 2.f * float(std::numbers::pi) * (float(i) / float(points_count));
         float cos_phi = std::cos(phi);
         float sin_phi = std::sin(phi);
 

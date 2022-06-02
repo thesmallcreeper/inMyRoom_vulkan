@@ -1,5 +1,7 @@
 #include "Geometry/Sphere.h"
 
+#include <numbers>
+
 Sphere::Sphere(const glm::vec3 &in_origin, float in_radius)
     :
     origin(in_origin),
@@ -80,13 +82,13 @@ std::pair<std::vector<uint32_t>, std::vector<glm::vec3>> Sphere::GetSphereMesh(s
                 indices.emplace_back(index_2);
             }
         } else {
-            float theta = float(M_PI) * (float(i) / float(quality));
+            float theta = float(std::numbers::pi) * (float(i) / float(quality));
             float cos_theta = std::cos(theta);
             float sin_theta = std::sin(theta);
 
             size_t points_count = 2 * quality;
             for (size_t j = 0; j != points_count; ++j) {
-                float phi = 2.f * float(M_PI) * (float(j) / float(points_count));
+                float phi = 2.f * float(std::numbers::pi) * (float(j) / float(points_count));
                 float cos_phi = std::cos(phi);
                 float sin_phi = std::sin(phi);
 

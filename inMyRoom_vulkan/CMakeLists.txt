@@ -61,7 +61,7 @@ include_directories(
         ../Configuru                                                       #Include configuru
         ../glm                                                             #Include glm
         ../eig3                                                            #Include eig3
-        ../RayTracingDenoiser                                              #Include NRD
+        ../RayTracingDenoiser/include                                      #Include NRD
 )
 
 SET(SRC #eig3    .h
@@ -243,9 +243,9 @@ add_dependencies(inMyRoom_vulkan glfw)
 
 if (WIN32)
     target_link_libraries(inMyRoom_vulkan glfw)
+    target_link_libraries(inMyRoom_vulkan NRD)
     target_link_libraries(inMyRoom_vulkan debug $ENV{VULKAN_SDK}/lib/shaderc_combinedd.lib
                                           optimized $ENV{VULKAN_SDK}/lib/shaderc_combined.lib)
-    # TODO!
 else ()
     target_link_libraries(inMyRoom_vulkan dl)
     target_link_libraries(inMyRoom_vulkan glfw)
