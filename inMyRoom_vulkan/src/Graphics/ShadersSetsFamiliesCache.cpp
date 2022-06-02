@@ -260,11 +260,13 @@ std::vector<uint32_t>
     std::string preprocessed_source = {result.cbegin(), result.cend()};
 
     // Optimizations
-#ifdef _DEBUG
+    // Win32 crash with optimization for performance
+#if defined(_NDEBUG) || defined(WIN32)
     options.SetOptimizationLevel(shaderc_optimization_level_zero);
     options.SetGenerateDebugInfo();
 #else
     options.SetOptimizationLevel(shaderc_optimization_level_performance);
+    options.SetGenerateDebugInfo();
 #endif
 
     // Compile to SPIRv
