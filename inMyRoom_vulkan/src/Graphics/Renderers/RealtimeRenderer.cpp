@@ -2907,14 +2907,14 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, resolveCompPipelineLayout, 0, descriptor_sets, {});
 
         struct push_constants_type{
+            std::array<glm::vec4, 3> vec4_constants = {};
             std::array<uint32_t, 2> uint_constants = {};
             std::array<float, 1> float_constants = {};
-            std::array<glm::vec4, 3> vec4_constants = {};
         } push_constants;
+        push_constants.vec4_constants = viewport.GetFullscreenpassTriangleNormals();
         push_constants.uint_constants = {width,
                                          height};
         push_constants.float_constants = {exposure_uptr->GetCurrectScale() * FP16factor};
-        push_constants.vec4_constants = viewport.GetFullscreenpassTriangleNormals();
         command_buffer.pushConstants(resolveCompPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(push_constants_type), &push_constants);
 
         command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, resolveCompPipeline);

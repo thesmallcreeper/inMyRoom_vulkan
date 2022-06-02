@@ -31,14 +31,14 @@ layout (set = 1, binding = 11, r16f) uniform writeonly image2D output_luminance;
 
 layout (push_constant) uniform PushConstants
 {
+    vec4 dir_down_right;
+    vec4 dir_upper_left;
+    vec4 dir_down_left;
+
     uint size_x;
     uint size_y;
 
     float mult_factor;
-
-    vec4 dir_down_right;
-    vec4 dir_upper_left;
-    vec4 dir_down_left;
 };
 
 float crossVec2(vec2 v, vec2 w) {
