@@ -2369,7 +2369,7 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
         auto transform_wait_semaphores_values = std::make_unique<std::vector<uint64_t>>();
         if (frameCount > 2) {
             transform_wait_semaphores->emplace_back(graphicsFinishTimelineSemaphore);
-            transform_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eTopOfPipe);
+            transform_wait_pipeline_stages->emplace_back(vk::PipelineStageFlagBits::eAllCommands);
             transform_wait_semaphores_values->emplace_back(frameCount - 2);
         }
         transform_submit_info.setWaitSemaphores(*transform_wait_semaphores);
@@ -3225,5 +3225,9 @@ void RealtimeRenderer::PrepareNRDsettings()
     else
         NRD_commonSettings.accumulationMode = nrd::AccumulationMode::CONTINUE;
 
+    NRD_commonSettings.cameraJitter[0] = 0.f;
+    NRD_commonSettings.cameraJitter[1] = 0.f;
+    NRD_commonSettings.inputSubrectOrigin[0] = 0.f;
+    NRD_commonSettings.inputSubrectOrigin[1] = 0.f;
     NRD_commonSettings.frameIndex = frameCount - 1;
 }
