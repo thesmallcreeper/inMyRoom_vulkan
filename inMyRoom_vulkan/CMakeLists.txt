@@ -6,7 +6,11 @@ add_subdirectory(../glfw "${CMAKE_CURRENT_BINARY_DIR}/glfw")
 
 set(NRD_STATIC_LIBRARY ON)
 set(NRD_SHADER_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/shaders/NRD/binary")
-set(NRD_USE_OCT_NORMAL_ENCODING "1")
+if (WIN32)
+    set(NRD_USE_OCT_NORMAL_ENCODING 1)
+else ()
+    set(NRD_USE_OCT_NORMAL_ENCODING "1")
+endif ()
 add_subdirectory(../RayTracingDenoiser "${CMAKE_CURRENT_BINARY_DIR}/RayTracingDenoiser")
 
 set(CMAKE_CXX_STANDARD 20)
