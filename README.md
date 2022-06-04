@@ -2,7 +2,6 @@
 This is an indie Vulkan graphics engine. Supports glTF 2.0 scenes and has both Windows and Linux support (tested only on x64).
 Still in early stage, hope you will find something interesting on it.
 
-Named after the mixtape of Greek hiphop artist 013, "In My Room".
 
 ![Screenshot_0](screenshots/after.png "")
 
