@@ -7,7 +7,8 @@ static WindowWithAsyncInput* windowWithAsyncInput_static_ptr = nullptr;
 
 WindowWithAsyncInput::WindowWithAsyncInput(const std::string&             in_title,
                                            unsigned int                   in_width,
-                                           unsigned int                   in_height)
+                                           unsigned int                   in_height,
+                                           bool                           fullscreen)
 {
     if (not hasGlfwInit)
         InitGlfw();
@@ -24,14 +25,18 @@ WindowWithAsyncInput::WindowWithAsyncInput(const std::string&             in_tit
                 std::lock_guard<std::mutex> thread_lk(controlMutex);
 
                 glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-                window = glfwCreateWindow(in_width, in_height, in_title.c_str(), nullptr, nullptr);
-                glfwSetWindowPos(window, 0, 0);
+                if (fullscreen) {
+                    window = glfwCreateWindow(in_width, in_height, in_title.c_str(), glfwGetPrimaryMonitor(), nullptr);
+                }
+                else {
+                    window = glfwCreateWindow(in_width, in_height, in_title.c_str(), nullptr, nullptr);
+                    glfwSetWindowPos(window, 0, 0);
+                }
                 glfwSetWindowAttrib(window, GLFW_RESIZABLE, GLFW_FALSE);
                 glfwSetWindowAttrib(window, GLFW_VISIBLE, GLFW_TRUE);
                 glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE);
                 glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
-                glfwSetWindowAttrib(window, GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
-                glfwSetWindowAttrib(window, GLFW_AUTO_ICONIFY, GLFW_FALSE);
+                glfwSetWindowAttrib(window, GLFW_SCALE_TO_MONITOR, GLFW_FALSE);;
 
 #ifdef NDEBUG // -------
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);

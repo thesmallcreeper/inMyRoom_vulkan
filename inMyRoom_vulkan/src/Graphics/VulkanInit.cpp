@@ -130,7 +130,11 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
 
     //
     // Create window!
-    CreateWindow_(appName, windowWidth, windowHeight);
+    bool fullscreen = false;
+    if (in_cfgFile["graphicsSettings"]["fullscreen"].is_bool()) 
+       fullscreen = in_cfgFile["graphicsSettings"]["fullscreen"].as_bool();
+
+    CreateWindow_(appName, windowWidth, windowHeight, fullscreen);
 
     //
     // Select present format !
@@ -404,9 +408,10 @@ void VulkanInit::InitializeVMA(vma::AllocatorCreateFlags allocator_flags,
 
 void VulkanInit::CreateWindow_(const std::string& title,
                                uint32_t width,
-                               uint32_t height)
+                               uint32_t height,
+                               bool fullscreen)
 {
-    windowAsync_uptr = std::make_unique<WindowWithAsyncInput>(title, width, height);
+    windowAsync_uptr = std::make_unique<WindowWithAsyncInput>(title, width, height, fullscreen);
 
     VkSurfaceKHR vk_surface;
     VkResult err = glfwCreateWindowSurface( static_cast<VkInstance>( vulkanInstance ), windowAsync_uptr->GetGlfwWindow(), nullptr, &vk_surface );

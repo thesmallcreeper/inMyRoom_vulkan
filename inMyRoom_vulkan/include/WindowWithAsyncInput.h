@@ -12,9 +12,10 @@
 class WindowWithAsyncInput
 {
 public:
-    WindowWithAsyncInput(const std::string&             in_title,
-                         unsigned int                   in_width,
-                         unsigned int                   in_height);
+    WindowWithAsyncInput(const std::string&             title,
+                         unsigned int                   width,
+                         unsigned int                   height,
+                         bool                           fullscreen);
     ~WindowWithAsyncInput();
 
     void CallbackKeyPressRelease(int key, int action);

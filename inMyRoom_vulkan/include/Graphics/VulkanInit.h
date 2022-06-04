@@ -66,7 +66,8 @@ private:
 
     void CreateWindow_(const std::string& title,
                        uint32_t width,
-                       uint32_t height);
+                       uint32_t height,
+                       bool fullscreen);
 
     void CreateSwapchain(vk::SurfaceFormatKHR surface_format,
                          vk::PresentModeKHR present_mode,
