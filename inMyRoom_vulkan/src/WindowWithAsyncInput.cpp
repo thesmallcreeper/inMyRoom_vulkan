@@ -32,7 +32,6 @@ WindowWithAsyncInput::WindowWithAsyncInput(const std::string&             in_tit
                     window = glfwCreateWindow(in_width, in_height, in_title.c_str(), nullptr, nullptr);
                     glfwSetWindowPos(window, 0, 0);
                     glfwSetWindowAttrib(window, GLFW_RESIZABLE, GLFW_FALSE);
-                    glfwSetWindowAttrib(window, GLFW_VISIBLE, GLFW_TRUE);
                     glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE);
                     glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
                     glfwSetWindowAttrib(window, GLFW_SCALE_TO_MONITOR, GLFW_FALSE);

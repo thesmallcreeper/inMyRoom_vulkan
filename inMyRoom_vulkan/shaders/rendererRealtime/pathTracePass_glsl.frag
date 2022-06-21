@@ -20,6 +20,8 @@
 #endif
 
 #define MAX_DEPTH 3
+#define MIN_RUSSIAN_DEPTH 2
+
 #define DOT_ANGLE_SLACK 0.00390625f      // cos(89.78 degs)
 #define MIN_ROUGHNESS 0.02f
 #define USE_INCREASING_MOLLIFICATION

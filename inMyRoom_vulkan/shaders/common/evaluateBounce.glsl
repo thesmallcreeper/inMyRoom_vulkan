@@ -83,8 +83,8 @@ vec4 SampleTextureBarycentric(vec2 barycoords, BarycoordsDiffs bary_diffs,
 }
 
 float WeightLightBalance(float pdf, float other_pdf) {
-    float pdf_weight = pdf;
-    float other_pdf_weight = other_pdf;
+    float pdf_weight = pdf * pdf;
+    float other_pdf_weight = other_pdf * other_pdf;
     return pdf_weight / (pdf_weight + other_pdf_weight);
 }
 
@@ -303,8 +303,6 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
     }
 
     // Bounce!
-    bool is_last_bounce = (ray_depth + 1 == MAX_DEPTH);
-
     float NdotV = dot(normal, viewVector);
     float e_specular = Luminance(EnvironmentTerm(f0, NdotV, a_roughness));
 
@@ -360,6 +358,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
     vec3 bounce_light_factor_diffuse = vec3(0.f);
 
     float ray_bounce_PDF = 0.f;
+    bool is_last_bounce = false;
     bool is_bounce_valid = false;
     if (ray_bounce_normalspace.z > DOT_ANGLE_SLACK
     && dot(viewVector_normalspace, bounce_halfvector_normalspace) > DOT_ANGLE_SLACK) {
@@ -381,57 +380,23 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
         is_bounce_valid = false;
     }
 
-    // Sum luminance from sources in order to balance RIS
-    /// From cones
-    float lights_illuminance_sum = 0.f;
-    for (uint i = 0; i != lightConesIndices_size; ++i) {
-        uint this_light_index = uint(lightsCombinations[lightConesIndices_offset + i]);
+    // Russian roulette
+    is_last_bounce = is_last_bounce || (ray_depth + 1 == MAX_DEPTH);
+    float path_continue_factor = 1.f;
+    #ifdef MIN_RUSSIAN_DEPTH
+        if (!is_last_bounce && ray_depth + 1 >= MIN_RUSSIAN_DEPTH) {
+            vec3 bounce_light_factor = bounce_light_factor_specular + bounce_light_factor_diffuse;
+            float bounce_light_luminance_factor = Luminance(bounce_light_factor);
 
-        vec3 this_light_luminance = lightsParameters[this_light_index].luminance;
-        uint this_light_matricesOffset = uint(lightsParameters[this_light_index].matricesOffset);
-        float this_light_radius = lightsParameters[this_light_index].radius;
+            float path_continue_chance = min(1.f, bounce_light_luminance_factor);
+            if (path_continue_chance < RandomFloat(rng_state)) {
+                is_last_bounce = true;
+            }
 
-        mat4 light_matrix = model_matrices[this_light_matricesOffset].normalMatrix;
-        vec3 light_dir = -vec3(light_matrix[2]);
-
-        float angle_tan = this_light_radius;
-        vec2 angle_sin_cos = normalize(vec2(angle_tan, 1.f));
-
-        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x
-         && dot(light_dir, normal) > -angle_sin_cos.x) {
-            float lightcone_PDF = RandomDirInConePDF(angle_sin_cos.y);
-            lights_illuminance_sum += Luminance(this_light_luminance) / lightcone_PDF;
+            // Will multiply with 1/path_continue_chance for next non-light bounce
+            path_continue_factor = 1.f / path_continue_chance;
         }
-    }
-    /// From local lights
-    uint local_lights_count = uint(primitivesInstancesParameters[primitive_instance].lightsCombinationsCount);
-    uint local_lights_offset = uint(primitivesInstancesParameters[primitive_instance].lightsCombinationsOffset);
-    for (uint i = 0; i != local_lights_count; ++i) {
-        uint this_light_index = uint(lightsCombinations[local_lights_offset + i]);
-
-        vec3 this_light_luminance = lightsParameters[this_light_index].luminance;
-        uint this_light_matricesOffset = uint(lightsParameters[this_light_index].matricesOffset);
-        float this_light_radius = lightsParameters[this_light_index].radius;
-        float this_light_range = lightsParameters[this_light_index].range;
-
-        mat4 light_matrix_pos = model_matrices[this_light_matricesOffset].positionMatrix;
-        mat4 light_matrix_normalized = model_matrices[this_light_matricesOffset].normalMatrix;
-
-        vec3 light_pos = vec3(light_matrix_pos[3]);
-        vec3 light_vec = light_pos - (origin_pos_offseted + vertexNormal_selfintersect_offset);
-        float light_dist = length(light_vec);
-        vec3 light_dir = light_vec / light_dist;
-
-        vec2 angle_sin_cos = vec2(this_light_radius / length(light_vec), 0.f);
-        angle_sin_cos.y = sqrt(1.f - angle_sin_cos.x * angle_sin_cos.x);
-
-        if (dot(light_dir, vertex_normal) > -angle_sin_cos.x
-         && dot(light_dir, normal) > -angle_sin_cos.x) {
-            float lightcone_PDF = RandomDirInConePDF(angle_sin_cos.y);
-            float window_coeff = WindowFunction(light_dist, this_light_range);
-            lights_illuminance_sum += window_coeff * Luminance(this_light_luminance) / lightcone_PDF;
-        }
-    }
+    #endif
 
     // Pick light source
     Reservoir light_reservoir = CreateReservoir();
@@ -493,7 +458,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 vec3 light_unshadowed_diffuse = this_light_luminance * light_factor * BRDF_eval.f_diffuse * dot(normal, random_light_dir) / lightcone_PDF;
                 vec3 light_unshadowed = light_unshadowed_specular + light_unshadowed_diffuse;
 
-                float balance_factor = WeightLightBalance(lightcone_PDF, (is_last_bounce ? 1.f : (lights_illuminance_sum / light_illuminance)) * random_light_dir_PDF_bounce);
+                float balance_factor = WeightLightBalance(lightcone_PDF, random_light_dir_PDF_bounce);
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
@@ -513,7 +478,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 bounce_light_unshadowed_diffuse = this_light_luminance * bounce_light_factor_diffuse;
                 vec3 light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
 
-                float balance_factor = WeightLightBalance((is_last_bounce ? 1.f : (lights_illuminance_sum / light_illuminance)) * ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
+                float balance_factor = WeightLightBalance(ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bounce_light_weight = weight;
@@ -523,6 +488,8 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
         }
     }
     /// Check local lights
+    uint local_lights_count = uint(primitivesInstancesParameters[primitive_instance].lightsCombinationsCount);
+    uint local_lights_offset = uint(primitivesInstancesParameters[primitive_instance].lightsCombinationsOffset);
     for (uint i = 0; i != local_lights_count; ++i) {
         uint this_light_index = uint(lightsCombinations[local_lights_offset + i]);
 
@@ -588,7 +555,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 vec3 light_unshadowed_diffuse = window_coeff * this_light_luminance * light_factor * BRDF_eval.f_diffuse * dot(normal, random_light_dir) / lightcone_PDF;
                 vec3 light_unshadowed = light_unshadowed_specular + light_unshadowed_diffuse;
 
-                float balance_factor = WeightLightBalance(lightcone_PDF, (is_last_bounce ? 1.f : (lights_illuminance_sum / light_illuminance)) * random_light_dir_PDF_bounce);
+                float balance_factor = WeightLightBalance(lightcone_PDF, random_light_dir_PDF_bounce);
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bool should_swap = UpdateReservoir(weight, light_reservoir, rng_state);
@@ -610,7 +577,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 bounce_light_unshadowed_diffuse = window_coeff * this_light_luminance * bounce_light_factor_diffuse;
                 vec3 light_unshadowed = bounce_light_unshadowed_specular + bounce_light_unshadowed_diffuse;
 
-                float balance_factor = WeightLightBalance((is_last_bounce ? 1.f : (lights_illuminance_sum / light_illuminance)) * ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
+                float balance_factor = WeightLightBalance(ray_bounce_PDF, lightcone_PDF);  // lightcone PDF is constant
                 float weight = balance_factor * Luminance(light_unshadowed);
 
                 bounce_light_weight = weight;
@@ -706,8 +673,8 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
     return_bounce_evaluation.light_return_diffuse = direct_light_diffuse;
 
     if (!is_last_bounce) {
-        return_bounce_evaluation.next_bounce_light_factor_specular = bounce_light_factor_specular;
-        return_bounce_evaluation.next_bounce_light_factor_diffuse = bounce_light_factor_diffuse;
+        return_bounce_evaluation.next_bounce_light_factor_specular = path_continue_factor * bounce_light_factor_specular;
+        return_bounce_evaluation.next_bounce_light_factor_diffuse = path_continue_factor * bounce_light_factor_diffuse;
     }
 
     return return_bounce_evaluation;
