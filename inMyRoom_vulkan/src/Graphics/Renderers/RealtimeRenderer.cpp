@@ -817,24 +817,22 @@ void RealtimeRenderer::InitNRD()
 
     // Set method settings
     if (NRDmethod == nrd::Method::REBLUR_DIFFUSE_SPECULAR) {
+        //  NRD_reBLURsettings.stabilizationStrength = 0.98f;
         NRD_reBLURsettings.antilagIntensitySettings.sensitivityToDarkness = 2.5f;
         NRD_reBLURsettings.antilagIntensitySettings.enable = true;
-        NRD_reBLURsettings.stabilizationStrength = 0.98f;
         NRD_reBLURsettings.enableAntiFirefly = true;
-        NRD_reBLURsettings.blurRadius = 25.f;
-        NRD_reBLURsettings.minConvergedStateBaseRadiusScale = 0.15f;
         NRD_reBLURsettings.maxAccumulatedFrameNum = 41;
+        NRD_reBLURsettings.hitDistanceReconstructionMode = nrd::HitDistanceReconstructionMode::AREA_5X5;
         NRDintegration_uptr->SetMethodSettings(nrd::Method::REBLUR_DIFFUSE_SPECULAR, &NRD_reBLURsettings);
     } else {
-        NRD_reLAXsettings.diffusePrepassBlurRadius = 5.f;
-        NRD_reLAXsettings.specularPrepassBlurRadius = 20.f;
+        NRD_reLAXsettings.diffusePrepassBlurRadius = 10.f;
+        NRD_reLAXsettings.specularPrepassBlurRadius = 40.f;
         NRD_reLAXsettings.diffuseMaxAccumulatedFrameNum = 41;
         NRD_reLAXsettings.specularMaxAccumulatedFrameNum = 41;
-        NRD_reLAXsettings.specularPhiLuminance = 0.7f;
+        NRD_reLAXsettings.specularPhiLuminance = 0.8f;
         NRD_reLAXsettings.diffusePhiLuminance = 1.f;
-        NRD_reLAXsettings.specularLobeAngleSlack = 0.35f;
         NRD_reLAXsettings.enableAntiFirefly = true;
-        NRD_reLAXsettings.enableSpecularHitDistanceReconstruction = true;
+        NRD_reLAXsettings.hitDistanceReconstructionMode = nrd::HitDistanceReconstructionMode::AREA_5X5;
         NRDintegration_uptr->SetMethodSettings(nrd::Method::RELAX_DIFFUSE_SPECULAR, &NRD_reLAXsettings);
     }
 

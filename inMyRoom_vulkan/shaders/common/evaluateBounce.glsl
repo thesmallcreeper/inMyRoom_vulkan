@@ -388,7 +388,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
             vec3 bounce_light_factor = bounce_light_factor_specular + bounce_light_factor_diffuse;
             float bounce_light_luminance_factor = Luminance(bounce_light_factor);
 
-            float path_continue_chance = min(1.f, bounce_light_luminance_factor);
+            float path_continue_chance = min(1.f, RUSSIAN_CHANCE_FACTOR * bounce_light_luminance_factor);
             if (path_continue_chance < RandomFloat(rng_state)) {
                 is_last_bounce = true;
             }
