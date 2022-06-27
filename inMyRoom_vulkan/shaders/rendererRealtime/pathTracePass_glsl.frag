@@ -222,12 +222,14 @@ void main()
                         uint normal_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].normalDescriptorIndex);
                         uint normal_offset = primitivesInstancesParameters[primitive_instance].normalOffset;
 
-                        uint uv_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].texcoordsDescriptorIndex);
-                        uint uv_offset = primitivesInstancesParameters[primitive_instance].texcoordsOffset;
+                        #ifdef MLAA_CHECK_UV
+                            uint uv_descriptorIndex = uint(primitivesInstancesParameters[primitive_instance].texcoordsDescriptorIndex);
+                            uint uv_offset = primitivesInstancesParameters[primitive_instance].texcoordsOffset;
 
-                        uint uv_stepMult = uint(primitivesInstancesParameters[primitive_instance].texcoordsStepMultiplier);
-                        uint material_index = uint(primitivesInstancesParameters[primitive_instance].material);
-                        uint baseColor_TexCoord = materialsParameters[material_index].baseColorTexCoord;
+                            uint uv_stepMult = uint(primitivesInstancesParameters[primitive_instance].texcoordsStepMultiplier);
+                            uint material_index = uint(primitivesInstancesParameters[primitive_instance].material);
+                            uint baseColor_TexCoord = materialsParameters[material_index].baseColorTexCoord;
+                        #endif
 
                         vec3 group_poss[3] = {vec3(vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + samplesGroupInfos[groupIndex].p[0]]),
                                               vec3(vec4verticesBuffers[pos_descriptorIndex].data[pos_offset + samplesGroupInfos[groupIndex].p[1]]),
@@ -253,13 +255,19 @@ void main()
 
                         // Then check color UV and normal at common point
                         if (group_p != -1) {
-                            vec3 group_normal = normalize(vec3(vec4verticesBuffers[normal_descriptorIndex].data[normal_offset + samplesGroupInfos[groupIndex].p[group_p]]));
-                            vec3 sample_normal = normalize(vec3(vec4verticesBuffers[normal_descriptorIndex].data[normal_offset + p_indices[sample_p]]));
+                            vec3 group_normal = vec3(vec4verticesBuffers[normal_descriptorIndex].data[normal_offset + samplesGroupInfos[groupIndex].p[group_p]]);
+                            vec3 sample_normal = vec3(vec4verticesBuffers[normal_descriptorIndex].data[normal_offset + p_indices[sample_p]]);
 
-                            vec2 group_uv = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + samplesGroupInfos[groupIndex].p[group_p] * uv_stepMult + baseColor_TexCoord];
-                            vec2 sample_uv = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_indices[sample_p] * uv_stepMult + baseColor_TexCoord];
+                            #ifdef MLAA_CHECK_UV
+                                vec2 group_uv = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + samplesGroupInfos[groupIndex].p[group_p] * uv_stepMult + baseColor_TexCoord];
+                                vec2 sample_uv = vec2verticesBuffers[uv_descriptorIndex].data[uv_offset + p_indices[sample_p] * uv_stepMult + baseColor_TexCoord];
+                            #endif
 
-                            if (dot(group_normal, sample_normal) > 0.99 && all(lessThan(abs(group_uv - sample_uv), vec2(FLT_EPSILON) ))) {
+                            if (dot(group_normal, sample_normal) > 0.99
+                            #ifdef MLAA_CHECK_UV
+                             && all(lessThan(abs(group_uv - sample_uv), vec2(FLT_EPSILON) ))
+                            #endif
+                            ) {
                                 common_point = true;
                             }
                         }
