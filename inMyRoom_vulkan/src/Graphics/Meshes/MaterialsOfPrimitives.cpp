@@ -174,6 +174,8 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
 
     std::unordered_map<NormalTextureSpecs, NormalImage> normalTextureSpecsToNormalImage_umap;
 
+    float gaussian_sigma = 0.95f;
+
     for (size_t this_material_index = 0; this_material_index != model.materials.size(); ++this_material_index) {
         const tinygltf::Material& this_material = model.materials[this_material_index];
 
@@ -231,7 +233,8 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
                                               (this_material.name.size() ? this_material.name : std::to_string(this_material_index)) + "_colorTexture",
                                               model_folder,
                                               colorTextureSpecs.wrap_S,
-                                              colorTextureSpecs.wrap_T};
+                                              colorTextureSpecs.wrap_T,
+                                              gaussian_sigma};
 
                     color_image.RetrieveMipmaps(16, 16);
                     size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(color_image.GetMipmaps(),
@@ -272,7 +275,8 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
                                                 model_folder,
                                                 normalTextureSpecs.wrap_S,
                                                 normalTextureSpecs.wrap_T,
-                                                normalTextureSpecs.scale};
+                                                normalTextureSpecs.scale,
+                                                gaussian_sigma};
 
                     normal_image.RetrieveMipmaps(16, 16);
                     size_t texture_index = texturesOfMaterials_ptr->AddTextureAndMipmaps(normal_image.GetMipmaps(),
@@ -335,7 +339,8 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
                                                                       metallicRoughnessTextureSpecs.wrap_T,
                                                                       metallicRoughnessTextureSpecs.metallic_factor,
                                                                       metallicRoughnessTextureSpecs.roughness_factor,
-                                                                      width_to_length_data};
+                                                                      width_to_length_data,
+                                                                      gaussian_sigma};
 
                     metallicRoughness_image.RetrieveMipmaps(16, 16);
 
@@ -390,7 +395,8 @@ void MaterialsOfPrimitives::AddMaterialsOfModel(const tinygltf::Model& model, co
                                                                       metallicRoughnessTextureSpecs.roughness_factor,
                                                                       (normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs) != normalTextureSpecsToNormalImage_umap.end()) ?
                                                                             normalTextureSpecsToNormalImage_umap.find(metallicRoughnessTextureSpecs.normalTextureSpecs)->second.GetWidthToLengthsDataUmap() :
-                                                                            std::unordered_map<uint32_t, ImageData>()};
+                                                                            std::unordered_map<uint32_t, ImageData>(),
+                                                                      gaussian_sigma};
 
                     metallicRoughness_image.RetrieveMipmaps(16, 16);
 

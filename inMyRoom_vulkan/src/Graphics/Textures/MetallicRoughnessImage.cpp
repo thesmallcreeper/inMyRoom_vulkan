@@ -72,25 +72,23 @@ ImageData MetallicRoughnessImage::CreateMipmap(const ImageData &reference, size_
         float sigma = filterSigma;
         for (int x = 0; x != mipmap_imageData.GetWidth(); ++x) {
             for (int y = 0; y != mipmap_imageData.GetWidth(); ++y) {
-                float roughness_sum = 0.f;
+                float roughnessLength_sum = 0.f;
                 float metallic_sum = 0.f;
                 float factor_sum = 0.f;
                 for (int i = 0; i != 3; ++i) {
                     for (int j = 0; j != 3; ++j) {
                         float factor = GaussianFilterFactor( float(i) + 0.5f, float(j) + 0.5f, sigma);
 
-                        roughness_sum += reference.GetComponent(2 * x + i + 1, 2 * y + j + 1, 1) * factor;
+                        roughnessLength_sum += RoughnessToLength(reference.GetComponent(2 * x + i + 1, 2 * y + j + 1, 1)) * factor;
                         metallic_sum += reference.GetComponent(2 * x + i + 1, 2 * y + j + 1, 2) * factor;
 
-                        roughness_sum += reference.GetComponent(2 * x - i, 2 * y + j + 1, 1) * factor;
+                        roughnessLength_sum += RoughnessToLength(reference.GetComponent(2 * x - i, 2 * y + j + 1, 1)) * factor;
                         metallic_sum += reference.GetComponent(2 * x - i, 2 * y + j + 1, 2) * factor;
 
-
-                        roughness_sum += reference.GetComponent(2 * x + i + 1, 2 * y - j, 1) * factor;
+                        roughnessLength_sum += RoughnessToLength(reference.GetComponent(2 * x + i + 1, 2 * y - j, 1)) * factor;
                         metallic_sum += reference.GetComponent(2 * x + i + 1, 2 * y - j, 2) * factor;
 
-
-                        roughness_sum += reference.GetComponent(2 * x - i, 2 * y - j, 1) * factor;
+                        roughnessLength_sum += RoughnessToLength(reference.GetComponent(2 * x - i, 2 * y - j, 1)) * factor;
                         metallic_sum += reference.GetComponent(2 * x - i, 2 * y - j, 2) * factor;
 
                         factor_sum += 4.f * factor;
@@ -98,20 +96,15 @@ ImageData MetallicRoughnessImage::CreateMipmap(const ImageData &reference, size_
                 }
 
                 float metallic_value = metallic_sum / factor_sum;
-                float roughness_value = roughness_sum / factor_sum;
+                float roughnessLength_value = roughnessLength_sum / factor_sum;
 
                 // Correcting roughness
                 if (should_apply_roughness_normal_correction) {
-                    float roughness_length = RoughnessToLength(roughness_value);
                     float normal_length = length_imageData_ptr->GetComponent(x, y, 0);
-
-                    float roughness_corrected_length = roughness_length * normal_length;
-                    float roughness_corrected = LengthToRoughness(roughness_corrected_length);
-
-                    roughness_value = roughness_corrected;
+                    roughnessLength_value = roughnessLength_value * normal_length;
                 }
                 mipmap_imageData.SetComponent(x, y, 0, 1.f);
-                mipmap_imageData.SetComponent(x, y, 1, roughness_value);
+                mipmap_imageData.SetComponent(x, y, 1, LengthToRoughness(roughnessLength_value));
                 mipmap_imageData.SetComponent(x, y, 2, metallic_value);
                 mipmap_imageData.SetComponent(x, y, 3, 1.f);
             }

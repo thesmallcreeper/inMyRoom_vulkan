@@ -828,7 +828,7 @@ void RealtimeRenderer::InitNRD()
         NRDintegration_uptr->SetMethodSettings(nrd::Method::REBLUR_DIFFUSE_SPECULAR, &NRD_reBLURsettings);
     } else {
         NRD_reLAXsettings.diffusePrepassBlurRadius = 10.f;
-        NRD_reLAXsettings.specularPrepassBlurRadius = 40.f;
+        NRD_reLAXsettings.specularPrepassBlurRadius = 30.f;
         NRD_reLAXsettings.diffuseMaxAccumulatedFrameNum = 41;
         NRD_reLAXsettings.specularMaxAccumulatedFrameNum = 41;
         NRD_reLAXsettings.specularPhiLuminance = 0.8f;
