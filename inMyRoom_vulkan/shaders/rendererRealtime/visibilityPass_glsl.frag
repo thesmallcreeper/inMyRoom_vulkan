@@ -1,6 +1,7 @@
 #version 460
 
 #include "common/structs/MaterialParameters.h"
+#include "common/visibilityBufferPack.glsl"
 
 //
 // In
@@ -10,7 +11,7 @@ layout( location = 0 ) in vec2 vert_texcoord;
 
 //
 // Out
-layout( location = 0 ) out uvec2 visibility_out;
+layout( location = 0 ) out uint visibility_out;
 
 //
 // Descriptors
@@ -49,6 +50,5 @@ void main()
             discard;
     #endif
 
-    visibility_out.x = primitiveInstance;
-    visibility_out.y = gl_PrimitiveID;
+    visibility_out = PackVisibilityBuffer(primitiveInstance, gl_PrimitiveID);
 }

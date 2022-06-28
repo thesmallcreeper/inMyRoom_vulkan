@@ -12,6 +12,7 @@
 #include "common/structs/LightParameters.h"
 #include "common/samplesPosition.glsl"
 #include "common/sRGBencode.glsl"
+#include "common/visibilityBufferPack.glsl"
 
 #include "NRD/helpers/NRD_packNormalRoughness.glsl"
 
@@ -189,7 +190,7 @@ void main()
 
         // Create sample groups
         for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
-            uvec2 frag_pair = uvec2(subpassLoad(visibilityInput, i));
+            uvec2 frag_pair = UnpackVisibilityBuffer(uint(subpassLoad(visibilityInput, i)));
             uint primitive_instance = frag_pair.x;
             uint triangle_index = frag_pair.y;
 
@@ -335,7 +336,7 @@ void main()
                 }
             }
             first_bounce_primitive_instance = samplesGroupInfos[selected_group].primitiveInstance;
-            first_bounce_triangle_index = uint(subpassLoad(visibilityInput, sample_triangle_from).y);
+            first_bounce_triangle_index = UnpackVisibilityBuffer(uint(subpassLoad(visibilityInput, sample_triangle_from))).y;
 
         } else {
             morphologicalMask_out = ( uint(1) << MORPHOLOGICAL_MSAA ) - 1;
@@ -345,7 +346,7 @@ void main()
         }
 
     #else
-        uvec2 frag_pair = uvec2(subpassLoad(visibilityInput));
+        uvec2 frag_pair = UnpackVisibilityBuffer(uint(subpassLoad(visibilityInput)));
 
         uint first_bounce_primitive_instance = frag_pair.x;
         uint first_bounce_triangle_index = frag_pair.y;

@@ -203,4 +203,5 @@ private:
 
     const float FP16factor = 0.5e3f;
     const uint32_t comp_dim_size = 16;
+    const uint32_t visibilityBufferTriangleBits = 20;
 };

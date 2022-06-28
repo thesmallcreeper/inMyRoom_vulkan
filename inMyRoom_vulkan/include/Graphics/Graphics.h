@@ -133,5 +133,5 @@ private:
     Engine* const           engine_ptr;
     configuru::Config&      cfgFile;
 
-    const size_t maxInstances = std::numeric_limits<uint16_t>::max();
+    const size_t maxInstances = 4096;
 };

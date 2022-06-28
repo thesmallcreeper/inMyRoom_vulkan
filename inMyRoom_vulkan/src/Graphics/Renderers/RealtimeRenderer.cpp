@@ -19,6 +19,8 @@ RealtimeRenderer::RealtimeRenderer(Graphics *in_graphics_ptr,
           exposureComputeQueue(graphics_ptr->GetQueuesList().graphicsQueues[0])
 #endif
 {
+    assert(uint32_t(1) << (32 - visibilityBufferTriangleBits) >= graphics_ptr->GetMaxInstancesCount());
+
     InitBuffers();
     InitImages();
     InitNRD();
@@ -212,7 +214,7 @@ void RealtimeRenderer::InitImages()
     // z-buffer resolved
     if (useMorphologicalAA) {   // TODO: Change format?
         depthResolvedImageCreateInfo.imageType = vk::ImageType::e2D;
-        depthResolvedImageCreateInfo.format = vk::Format::eD32Sfloat;
+        depthResolvedImageCreateInfo.format = depthImageCreateInfo.format;
         depthResolvedImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
         depthResolvedImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
         depthResolvedImageCreateInfo.extent.depth = 1;
@@ -249,7 +251,7 @@ void RealtimeRenderer::InitImages()
     // visibility image
     {
         visibilityImageCreateInfo.imageType = vk::ImageType::e2D;
-        visibilityImageCreateInfo.format = vk::Format::eR32G32Uint;
+        visibilityImageCreateInfo.format = vk::Format::eR32Uint;
         visibilityImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
         visibilityImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
         visibilityImageCreateInfo.extent.depth = 1;
@@ -1677,6 +1679,7 @@ void RealtimeRenderer::InitPrimitivesSet()
 
         std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs = this_material.definitionStringPairs;
         shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
+        shadersDefinitionStringPairs.emplace_back("VISIBILITY_BUFFER_TRIANGLE_BITS", std::to_string( visibilityBufferTriangleBits ));
 
         // Pipeline layout
         vk::PipelineLayout this_pipeline_layout;
@@ -1865,6 +1868,7 @@ void RealtimeRenderer::InitPathTracePipeline()
     shadersDefinitionStringPairs.emplace_back("MAX_LIGHTS_COUNT", std::to_string(graphics_ptr->GetLights()->GetMaxLights()));
     shadersDefinitionStringPairs.emplace_back("MAX_COMBINATIONS_SIZE", std::to_string(graphics_ptr->GetLights()->GetLightsCombinationsSize()));
     shadersDefinitionStringPairs.emplace_back("FP16_FACTOR", std::to_string(FP16factor));
+    shadersDefinitionStringPairs.emplace_back("VISIBILITY_BUFFER_TRIANGLE_BITS", std::to_string( visibilityBufferTriangleBits ));
     if (useMorphologicalAA)
         shadersDefinitionStringPairs.emplace_back("MORPHOLOGICAL_MSAA", vk::to_string(MAAsamplesCount));
     if (NRDmethod == nrd::Method::REBLUR_DIFFUSE_SPECULAR)
