@@ -1,6 +1,7 @@
 #include "ECS/GeneralCompEntities/CameraDefaultInputCompEntity.h"
 
 #include "ECS/ECSwrapper.h"
+#include <iostream>
 
 #include <glm/gtx/rotate_vector.hpp>
 
@@ -88,6 +89,9 @@ void CameraDefaultInputCompEntity::Update(CameraComp* const cameraComp_ptr,
         this_cameraCompEntity.UpdateCameraViewMatrix(globalPosition,
                                                      globalDirection,
                                                      upDirection);
+
+    //    std::cout << "Global Pos: " << globalPosition.x << ", " << globalPosition.y << ", " << globalPosition.z << "\n";
+    //    std::cout << "Global Dir: " << globalDirection.x << ", " << globalDirection.y << ", " << globalDirection.z << "\n\n";
     }
 }
 

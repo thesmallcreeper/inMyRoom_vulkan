@@ -20,7 +20,7 @@
 #define MIN_DIFFUSE_CHANCE 0.05f
 #define MIN_SPECULAR_CHANCE 0.15f
 
-// define DEBUG_MIS
+// #define DEBUG_MIS
 
 #define INF_DIST 100000.f
 

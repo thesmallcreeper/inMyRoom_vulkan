@@ -169,7 +169,7 @@ layout (push_constant) uniform PushConstants
 
 void main()
 {
-    float light_threshold = min(LIGHT_THRESHOLD, FP16_MAX * HDR_factor);
+    float light_threshold = min(LIGHT_THRESHOLD, 0.99f * FP16_MAX * HDR_factor);
 
     uint rng_state = InitRNG(gl_FragCoord.xy, viewportSize, frameCount);
     float min_roughness = MIN_ROUGHNESS;
