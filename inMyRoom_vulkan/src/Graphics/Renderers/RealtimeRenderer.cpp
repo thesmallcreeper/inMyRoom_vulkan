@@ -2638,6 +2638,9 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
     command_buffer.beginRenderPass2(render_pass_begin_info, vk::SubpassContents::eInline);
 
     // Visibility pass
+    vk::DebugUtilsLabelEXT visibilityPass_laber_info;
+    visibilityPass_laber_info.pLabelName = "Visibility Pass";
+    command_buffer.beginDebugUtilsLabelEXT(visibilityPass_laber_info);
     {
         std::vector<DrawInfo> visibility_draw;
         std::copy(drawStaticMeshInfos.begin(), drawStaticMeshInfos.end(), std::back_inserter(visibility_draw));
@@ -2754,8 +2757,12 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
     }
 
     command_buffer.nextSubpass2({vk::SubpassContents::eInline}, {});
+    command_buffer.endDebugUtilsLabelEXT();
 
     // Path trace pass
+    vk::DebugUtilsLabelEXT pathTracePass_laber_info;
+    pathTracePass_laber_info.pLabelName = "Path-Trace Pass";
+    command_buffer.beginDebugUtilsLabelEXT(pathTracePass_laber_info);
     {
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pathTracePipeline);
 
@@ -2801,11 +2808,16 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         command_buffer.bindVertexBuffers(0, buffers, offsets);
 
         command_buffer.draw(3, 1, 0, 0);
+
     }
 
     command_buffer.nextSubpass2({vk::SubpassContents::eInline}, {});
+    command_buffer.endDebugUtilsLabelEXT();
 
     // Light sources draw
+    vk::DebugUtilsLabelEXT lightsDrawPass_laber_info;
+    lightsDrawPass_laber_info.pLabelName = "Lights Draw Pass";
+    command_buffer.beginDebugUtilsLabelEXT(lightsDrawPass_laber_info);
     {
         // Sky draw
         {
@@ -2894,11 +2906,15 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
     }
 
     command_buffer.endRenderPass2(vk::SubpassEndInfo());
+    command_buffer.endDebugUtilsLabelEXT();
 
     // Denoise
     NRDintegration_uptr->Denoise(command_buffer);
 
     // Resolve compute
+    vk::DebugUtilsLabelEXT resolve_laber_info;
+    resolve_laber_info.pLabelName = "Resolve";
+    command_buffer.beginDebugUtilsLabelEXT(resolve_laber_info);
     { // Dispatch compute
         uint32_t width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
         uint32_t height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
@@ -2925,7 +2941,11 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
         uint32_t groups_count_y = (height + comp_dim_size - 1) / comp_dim_size;
         command_buffer.dispatch(groups_count_x, groups_count_y, 1);
     }
+    command_buffer.endDebugUtilsLabelEXT();
 
+    vk::DebugUtilsLabelEXT morphological_laber_info;
+    morphological_laber_info.pLabelName = "Morphological Anti-Alias";
+    command_buffer.beginDebugUtilsLabelEXT(morphological_laber_info);
     if (useMorphologicalAA) {
         {   // swapchain image: none -> storage
             vk::ImageMemoryBarrier image_memory_barrier;
@@ -2986,7 +3006,6 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
                                            0, nullptr,
                                            1, &image_memory_barrier);
         }
-
     } else {
         {   // prepare for copy
             vk::ImageMemoryBarrier image_memory_barriers[2];
@@ -3074,6 +3093,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
                                            2, image_memory_barriers);
         }
     }
+    command_buffer.endDebugUtilsLabelEXT();
 
     // Transfer ownership
     std::vector<vk::BufferMemoryBarrier> ownership_transfer_memory_barriers;

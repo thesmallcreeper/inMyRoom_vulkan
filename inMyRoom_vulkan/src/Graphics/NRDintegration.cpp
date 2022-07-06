@@ -628,6 +628,10 @@ void NRDintegration::Denoise(vk::CommandBuffer command_buffer, vk::PipelineStage
 {
     uint32_t buffer_index = (frameIndex % 3);
 
+    vk::DebugUtilsLabelEXT denoise_laber_info;
+    denoise_laber_info.pLabelName = "Denoise";
+    command_buffer.beginDebugUtilsLabelEXT(denoise_laber_info);
+
     // Dispatch
     for (size_t i = 0; i != NRDdispatches_count; ++i) {
         const nrd::DispatchDesc& this_dispatch = NRDdispatches_ptr[i];
@@ -671,4 +675,6 @@ void NRDintegration::Denoise(vk::CommandBuffer command_buffer, vk::PipelineStage
                                    {},
                                    {},
                                    final_imageBarriers);
+
+    command_buffer.endDebugUtilsLabelEXT();
 }

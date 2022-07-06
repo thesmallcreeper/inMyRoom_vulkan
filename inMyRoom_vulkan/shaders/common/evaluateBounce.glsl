@@ -598,7 +598,7 @@ BounceEvaluation EvaluateBounce(inout IntersectTriangleResult intersect_result,
                 reservoir_ray_dir = ray_bounce_dir;
                 reservoir_ray_t_max = bounce_light_t_max;
             }
-        } else {                            // Else sky is behind
+        } else if (is_bounce_valid) {                            // Else sky is behind
             vec3 skylight_unshadowed_specular = sky_luminance * bounce_light_factor_specular;
             vec3 skylight_unshadowed_diffuse = sky_luminance * bounce_light_factor_diffuse;
             vec3 skylight_unshadowed = skylight_unshadowed_specular + skylight_unshadowed_diffuse;
