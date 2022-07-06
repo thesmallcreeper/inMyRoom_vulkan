@@ -61,8 +61,12 @@ end
 plot(lengths, results);
 
 % compare!
-plot(z_average, roughnesses);
-scatter(z_average, roughnesses);
+%plot(z_average, roughnesses);
+%scatter(z_average, roughnesses);
 
-legend("Function (float accuracy)", "Data (line)", "Data (points)");
+
+title('Length To Roughness')
+xlabel('Length') 
+ylabel('Roughness') 
+%legend("Function (float accuracy)", "Data (line)", "Data (points)");
 hold off

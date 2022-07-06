@@ -1,4 +1,4 @@
-function [vector] = f_GGXsample(roughness)
+function [vector] = f_GGXxCOSsample(roughness)
     a = roughness * roughness;
 
     u_0 = rand(1);
