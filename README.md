@@ -1,16 +1,18 @@
 # inMyRoom_vulkan
-This is an indie Vulkan graphics engine. Supports glTF 2.0 scenes and has both Windows and Linux support (tested only on x64).
-Still in early stage, hope you will find something interesting on it.
-
-
-![Screenshot_0](screenshots/after.png "")
+An indie Game Engine using Vulkan API. Windows and Linux support.
 
 ### Noticeable Features
-* Realtime Path-tracing and Denoising using NRD's reLAX method
-* Morphological Anti-Aliasing using Visibility Buffer Multisampling
-* 100% homemade collision detection.
-* 100% homemade ECS.
+* Realtime Path-tracing and Denoising using NRD's reLAX method.
+* Morphological Anti-Aliasing using Visibility Buffer Multisampling.
+* Tone Mapping with Dynamic Exposure.
+* Entity Component System with Collision Detection.
+* Texture Filtering that preserves Normal Map roughness.
+* Support for glTF 2.0 scenes and models. Including Morph Targets and Skinning.
 * Coded with care and love. Debugged with salt and tears.
+
+Demo: https://www.youtube.com/watch?v=gT_DVOUPm7A
+
+![Screenshot_0](screenshots/after.png "")
 
 ### Deps - Submodules
 * VulkanMemoryAllocator-Hpp , the usual VMA library but with Vulkan-Hpp binding.
