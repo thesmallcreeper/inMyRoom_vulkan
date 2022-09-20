@@ -10,7 +10,8 @@ An indie Game Engine using Vulkan API. Windows and Linux support.
 * Support for glTF 2.0 scenes and models. Including Morph Targets and Skinning.
 * Coded with care and love. Debugged with salt and tears.
 
-Demo: https://www.youtube.com/watch?v=gT_DVOUPm7A
+More about rendering system and MLAA applied at [RENDERING.md](./RENDERING.md) <br />
+Demo: https://www.youtube.com/watch?v=gT_DVOUPm7A  
 
 ![Screenshot_0](screenshots/after.png "")
 
