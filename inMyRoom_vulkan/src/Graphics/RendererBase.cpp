@@ -16,6 +16,14 @@ std::vector<RendererBase::PrimitiveInstanceParameters> RendererBase::CreatePrimi
     default_instance_parameters.tangentOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().tangentByteOffset / sizeof(glm::vec4);
     default_instance_parameters.texcoordsOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().texcoordsByteOffset / sizeof(glm::vec2);
     default_instance_parameters.colorOffset = graphics_ptr->GetPrimitivesOfMeshes()->GetDefaultPrimitiveInfo().colorByteOffset / sizeof(glm::vec4);
+    default_instance_parameters.positionDescriptorIndex = 0;
+    default_instance_parameters.normalDescriptorIndex = 0;
+    default_instance_parameters.tangentDescriptorIndex = 0;
+    default_instance_parameters.texcoordsDescriptorIndex = 0;
+    default_instance_parameters.colorDescriptorIndex = 0;
+    default_instance_parameters.indicesSetMultiplier = 3;
+    default_instance_parameters.texcoordsStepMultiplier = 1;
+    default_instance_parameters.colorStepMultiplier = 1;
     return_vector.emplace_back(default_instance_parameters);
 
     for (DrawInfo& this_draw_info : drawInfos) {
