@@ -176,25 +176,55 @@ void main()
     float min_roughness = MIN_ROUGHNESS;
 
     vec2 sample_pixel_offset = vec2(0.f);
+
     #ifdef MORPHOLOGICAL_MSAA
+
+    // Cluster samples
+    struct SamplesClusterDirty {
+        uint visibility_pair;
+        uint mask;
+        bool is_latest;
+    } samplesClusters_dirty[MORPHOLOGICAL_MSAA];
+    [[unroll]] for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+        samplesClusters_dirty[i].visibility_pair = uint(subpassLoad(visibilityInput, i));
+        samplesClusters_dirty[i].is_latest = true;
+
+        uint cluster_mask = 0;
+        [[unroll]] for (int j = 0; j != i; ++j) {
+            if (samplesClusters_dirty[i].visibility_pair == samplesClusters_dirty[j].visibility_pair) {
+                cluster_mask = samplesClusters_dirty[j].mask;
+                samplesClusters_dirty[j].is_latest = false;
+            }
+        }
+        samplesClusters_dirty[i].mask = cluster_mask | uint(1) << i;
+    }
+
+    struct SamplesCluster {
+        uint visibility_pair;
+        uint mask;
+    } samplesClusters[MORPHOLOGICAL_MSAA];
+    uint samplesClusters_count = 0;
+    [[unroll]] for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+        if (samplesClusters_dirty[i].is_latest == true) {
+            samplesClusters[samplesClusters_count].visibility_pair = samplesClusters_dirty[i].visibility_pair;
+            samplesClusters[samplesClusters_count].mask = samplesClusters_dirty[i].mask;
+            samplesClusters_count++;
+        }
+    }
+
+    // Init
     struct SamplesGroupInfoStruct {
         uint mask;
         uint primitiveInstance;
         uvec3 p;
     };
 
-    // Init
-    SamplesGroupInfoStruct samplesGroupInfos [MORPHOLOGICAL_MSAA];
-    for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
-        samplesGroupInfos[i].mask = 0;
-        samplesGroupInfos[i].primitiveInstance = 0;
-    }
-
     // Create sample groups
-    [[unroll]] for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
-        uvec2 frag_pair = UnpackVisibilityBuffer(uint(subpassLoad(visibilityInput, i)));
-        const uint primitive_instance = frag_pair.x;
-        const uint triangle_index = frag_pair.y;
+    SamplesGroupInfoStruct samplesGroupInfos [MORPHOLOGICAL_MSAA];
+    [[unroll]] for (int i = 0; i != MORPHOLOGICAL_MSAA && i != samplesClusters_count; ++i) {
+        uvec2 frag_pair = UnpackVisibilityBuffer(samplesClusters[i].visibility_pair);
+        uint primitive_instance = frag_pair.x;
+        uint triangle_index = frag_pair.y;
 
         uint indices_offset = primitivesInstancesParameters[primitive_instance].indicesOffset
             + uint(primitivesInstancesParameters[primitive_instance].indicesSetMultiplier) * triangle_index;
@@ -212,6 +242,7 @@ void main()
                  || any(equal(samplesGroupInfos[j].p, p_indices.zxy)))
                 {
                     best_sampleGroup = samplesGroupInfos[j];
+                    samplesGroupInfos[j].primitiveInstance = 0;
                 }
                 else // "Paranoid" search
                 {
@@ -269,6 +300,7 @@ void main()
                         #endif
                         ) {
                             best_sampleGroup = samplesGroupInfos[j];
+                            samplesGroupInfos[j].primitiveInstance = 0;
                         }
                     }
                 }
@@ -276,7 +308,7 @@ void main()
         }
 
         samplesGroupInfos[i].primitiveInstance = best_sampleGroup.primitiveInstance;
-        samplesGroupInfos[i].mask = best_sampleGroup.mask | (uint(1) << i);
+        samplesGroupInfos[i].mask = best_sampleGroup.mask | samplesClusters[i].mask;
         samplesGroupInfos[i].p = best_sampleGroup.p;
     }
 
@@ -284,7 +316,7 @@ void main()
     SamplesGroupInfoStruct selected_group;
     selected_group.mask = 0;
     uint selected_group_samplesCount = 0;
-    for (int i = 0; i != MORPHOLOGICAL_MSAA; ++i) {
+    for (int i = 0; i != MORPHOLOGICAL_MSAA && i != samplesClusters_count; ++i) {
         uint popcnt = bitCount(samplesGroupInfos[i].mask);
         if (samplesGroupInfos[i].primitiveInstance != 0 && popcnt > selected_group_samplesCount) {
             selected_group = samplesGroupInfos[i];
