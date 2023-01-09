@@ -16,5 +16,6 @@ layout (push_constant) uniform PushConstants
 
 void main()
 {
-    color_out = vec4(luminance.xyz, 1.f);
+    float alpha = 1.f;
+    color_out = vec4(luminance.xyz, alpha);
 }

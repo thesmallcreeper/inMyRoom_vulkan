@@ -81,9 +81,20 @@ VulkanInit::VulkanInit(const configuru::Config& in_cfgFile,
     vulkan_device_extensions.emplace_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
     vulkan_device_extensions.emplace_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+    vulkan_device_extensions.emplace_back(VK_EXT_POST_DEPTH_COVERAGE_EXTENSION_NAME);
+    if (vendorId == VendorID::NVIDIA) {
+        vulkan_device_extensions.emplace_back(VK_NV_FRAMEBUFFER_MIXED_SAMPLES_EXTENSION_NAME);
+    } else if (vendorId == VendorID::AMD) {
+        vulkan_device_extensions.emplace_back(VK_AMD_MIXED_ATTACHMENT_SAMPLES_EXTENSION_NAME);
+        std::cout << "Hasn't been tested on AMD GPU, please fill an issue if you find a bug. Thank you <3 \n";
+    } else if (vendorId == VendorID::INTEL) {
+        std::cout << "No support for Intel GPU: Multisampling Mixed Samples support. \n";
+    } else {
+        std::cout << "Not recognizable GPU vendor! \n";
+    }
 
 
-    vk::PhysicalDeviceFeatures vulkan_device_features;
+        vk::PhysicalDeviceFeatures vulkan_device_features;
     vulkan_device_features.samplerAnisotropy = VK_TRUE;
     vulkan_device_features.geometryShader = VK_TRUE;
     vulkan_device_features.shaderStorageImageMultisample = VK_TRUE;

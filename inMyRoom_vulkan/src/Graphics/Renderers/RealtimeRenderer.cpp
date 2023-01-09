@@ -32,8 +32,8 @@ RealtimeRenderer::RealtimeRenderer(Graphics *in_graphics_ptr,
     InitSemaphoresAndFences();
     InitCommandBuffers();
     InitPrimitivesSet();
-    InitPathTracePipeline();
     InitLightsDrawPipeline();
+    InitPathTracePipeline();
     InitResolveComputePipeline();
     if (useMorphologicalAA) {
         InitMorphologicalAAcomputePipeline();
@@ -78,9 +78,6 @@ RealtimeRenderer::~RealtimeRenderer()
     vma_allocator.destroyImage(visibilityImage, visibilityAllocation);
 
     if (useMorphologicalAA) {
-        device.destroy(depthResolvedImageView);
-        vma_allocator.destroyImage(depthResolvedImage, depthResolvedAllocation);
-
         device.destroy(morphologicalMaskImageView);
         vma_allocator.destroyImage(morphologicalMaskImage, morphologicalMaskAllocation);
     }
@@ -209,43 +206,6 @@ void RealtimeRenderer::InitImages()
                                                   0, 1};
 
         depthImageView = device.createImageView(imageView_create_info).value;
-    }
-
-    // z-buffer resolved
-    if (useMorphologicalAA) {   // TODO: Change format?
-        depthResolvedImageCreateInfo.imageType = vk::ImageType::e2D;
-        depthResolvedImageCreateInfo.format = depthImageCreateInfo.format;
-        depthResolvedImageCreateInfo.extent.width = graphics_ptr->GetSwapchainCreateInfo().imageExtent.width;
-        depthResolvedImageCreateInfo.extent.height = graphics_ptr->GetSwapchainCreateInfo().imageExtent.height;
-        depthResolvedImageCreateInfo.extent.depth = 1;
-        depthResolvedImageCreateInfo.mipLevels = 1;
-        depthResolvedImageCreateInfo.arrayLayers = 1;
-        depthResolvedImageCreateInfo.samples = vk::SampleCountFlagBits::e1;
-        depthResolvedImageCreateInfo.tiling = vk::ImageTiling::eOptimal;
-        depthResolvedImageCreateInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
-        depthResolvedImageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
-        depthResolvedImageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
-
-        vma::AllocationCreateInfo image_allocation_info;
-        image_allocation_info.usage = vma::MemoryUsage::eGpuOnly;
-
-        auto createImage_result = vma_allocator.createImage(depthResolvedImageCreateInfo, image_allocation_info).value;
-        depthResolvedImage = createImage_result.first;
-        depthResolvedAllocation = createImage_result.second;
-
-        vk::ImageViewCreateInfo imageView_create_info;
-        imageView_create_info.image = depthResolvedImage;
-        imageView_create_info.viewType = vk::ImageViewType::e2D;
-        imageView_create_info.format = depthResolvedImageCreateInfo.format;
-        imageView_create_info.components = {vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity,
-                                            vk::ComponentSwizzle::eIdentity};
-        imageView_create_info.subresourceRange = {vk::ImageAspectFlagBits::eDepth,
-                                                  0, 1,
-                                                  0, 1};
-
-        depthResolvedImageView = device.createImageView(imageView_create_info).value;
     }
 
     // visibility image
@@ -801,16 +761,16 @@ void RealtimeRenderer::InitNRD()
 
     // Bind textures
     NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_MV, motionImage, motionImageCreateInfo,
-                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+                                     vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eUndefined);
     NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_NORMAL_ROUGHNESS, normalRoughnessImage, normalRoughnessImageCreateInfo,
-                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+                                     vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eGeneral);
     NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_VIEWZ, linearViewZImage, linearViewZImageCreateInfo,
-                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+                                     vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eUndefined);
 
     NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_DIFF_RADIANCE_HITDIST, diffuseDistanceImage, diffuseDistanceImageCreateInfo,
-                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+                                     vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eUndefined);
     NRDintegration_uptr->BindTexture(nrd::ResourceType::IN_SPEC_RADIANCE_HITDIST, specularDistanceImage, specularDistanceImageCreateInfo,
-                                     vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral);
+                                     vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eUndefined);
 
     NRDintegration_uptr->BindTexture(nrd::ResourceType::OUT_DIFF_RADIANCE_HITDIST, denoisedDiffuseDistanceImage, denoisedDiffuseDistanceImageCreateInfo,
                                      vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
@@ -832,7 +792,7 @@ void RealtimeRenderer::InitNRD()
         NRD_reLAXsettings.diffuseMaxAccumulatedFrameNum = 41;
         NRD_reLAXsettings.specularMaxAccumulatedFrameNum = 41;
         NRD_reLAXsettings.specularPhiLuminance = 0.8f;
-        NRD_reLAXsettings.diffusePhiLuminance = 1.f;
+        NRD_reLAXsettings.diffusePhiLuminance = 1.2f;
         NRD_reLAXsettings.enableAntiFirefly = true;
         NRD_reLAXsettings.hitDistanceReconstructionMode = nrd::HitDistanceReconstructionMode::AREA_5X5;
         NRDintegration_uptr->SetMethodSettings(nrd::Method::RELAX_DIFFUSE_SPECULAR, &NRD_reLAXsettings);
@@ -1268,7 +1228,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
         attachment_description.initialLayout = vk::ImageLayout::eUndefined;
-        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_description.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 3
@@ -1280,7 +1240,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
         attachment_description.initialLayout = vk::ImageLayout::eUndefined;
-        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_description.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 4
@@ -1292,7 +1252,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
         attachment_description.initialLayout = vk::ImageLayout::eUndefined;
-        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_description.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 5
@@ -1316,7 +1276,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
         attachment_description.initialLayout = vk::ImageLayout::eUndefined;
-        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_description.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 7
@@ -1328,7 +1288,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
         attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eStore;
         attachment_description.initialLayout = vk::ImageLayout::eUndefined;
-        attachment_description.finalLayout = vk::ImageLayout::eGeneral;
+        attachment_description.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         attachment_descriptions.emplace_back(attachment_description);
     }
     {   // 8
@@ -1343,19 +1303,7 @@ void RealtimeRenderer::InitRenderpasses()
         attachment_description.finalLayout = vk::ImageLayout::eGeneral;
         attachment_descriptions.emplace_back(attachment_description);
     }
-    if (useMorphologicalAA) {   // 9
-        vk::AttachmentDescription2 attachment_description;
-        attachment_description.format = depthResolvedImageCreateInfo.format;
-        attachment_description.samples = vk::SampleCountFlagBits::e1;
-        attachment_description.loadOp = vk::AttachmentLoadOp::eDontCare;
-        attachment_description.storeOp = vk::AttachmentStoreOp::eDontCare;
-        attachment_description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-        attachment_description.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-        attachment_description.initialLayout = vk::ImageLayout::eUndefined;
-        attachment_description.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-        attachment_descriptions.emplace_back(attachment_description);
-    }
-    if (useMorphologicalAA) {   // 10
+    if (useMorphologicalAA) {  // 9
         vk::AttachmentDescription2 attachment_description;
         attachment_description.format = morphologicalMaskImageCreateInfo.format;
         attachment_description.samples = vk::SampleCountFlagBits::e1;
@@ -1392,19 +1340,6 @@ void RealtimeRenderer::InitRenderpasses()
     visibility_subpass_description.setColorAttachments(visibility_colorAttachments_refs);
     visibility_subpass_description.pDepthStencilAttachment = &visibility_depthAttach_ref;
 
-    // if useMorphologicalAA
-    vk::AttachmentReference2 depthResolved_ref;
-    depthResolved_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    depthResolved_ref.attachment = 9;
-
-    vk::SubpassDescriptionDepthStencilResolve depthResolve_description;
-    depthResolve_description.depthResolveMode = vk::ResolveModeFlagBits::eMin;
-    depthResolve_description.stencilResolveMode = vk::ResolveModeFlagBits::eNone;
-    depthResolve_description.pDepthStencilResolveAttachment = &depthResolved_ref;
-    if (useMorphologicalAA) {
-        visibility_subpass_description.pNext = &depthResolve_description;
-    }
-
     vk::SubpassDependency2 visibility_subpass_dependency;
     visibility_subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     visibility_subpass_dependency.dstSubpass = 0;
@@ -1418,7 +1353,38 @@ void RealtimeRenderer::InitRenderpasses()
     dependencies.emplace_back(visibility_subpass_dependency);
 
     // ------------------------------------------------------------------------------
-    // Subpass 1 (path trace)
+    // Subpass 1 (draw light sources)
+    std::vector<vk::AttachmentReference2> lightDraw_colorAttachments_refs;
+    {
+        vk::AttachmentReference2 lightDrawAttach_ref;
+        lightDrawAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+        lightDrawAttach_ref.attachment = 8;
+        lightDraw_colorAttachments_refs.emplace_back(lightDrawAttach_ref);
+    }
+
+    vk::AttachmentReference2 lightDraw_depthAttach_ref;
+    lightDraw_depthAttach_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    lightDraw_depthAttach_ref.attachment = 1;
+
+    vk::SubpassDescription2 lightDraw_subpass_description;
+    lightDraw_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    lightDraw_subpass_description.setColorAttachments(lightDraw_colorAttachments_refs);
+    lightDraw_subpass_description.pDepthStencilAttachment = &lightDraw_depthAttach_ref;
+
+    vk::SubpassDependency2 lightDraw_subpass_dependency;
+    lightDraw_subpass_dependency.srcSubpass = 0;
+    lightDraw_subpass_dependency.dstSubpass = 1;
+    lightDraw_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eLateFragmentTests;
+    lightDraw_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+    lightDraw_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+    lightDraw_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead;
+    lightDraw_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+    subpasses.emplace_back(lightDraw_subpass_description);
+    dependencies.emplace_back(lightDraw_subpass_dependency);
+
+    // ------------------------------------------------------------------------------
+    // Subpass 2 (path trace)
     std::vector<vk::AttachmentReference2> pathTrace_colorAttachments_refs;
     {
         vk::AttachmentReference2 diffuseDistanceAttach_ref;
@@ -1454,7 +1420,7 @@ void RealtimeRenderer::InitRenderpasses()
     if (useMorphologicalAA) {
         vk::AttachmentReference2 morphMask_ref;
         morphMask_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
-        morphMask_ref.attachment = 10;
+        morphMask_ref.attachment = 9;
         pathTrace_colorAttachments_refs.emplace_back(morphMask_ref);
     }
 
@@ -1474,7 +1440,7 @@ void RealtimeRenderer::InitRenderpasses()
 
     vk::SubpassDependency2 pathTrace_subpass_dependency;
     pathTrace_subpass_dependency.srcSubpass = 0;
-    pathTrace_subpass_dependency.dstSubpass = 1;
+    pathTrace_subpass_dependency.dstSubpass = 2;
     pathTrace_subpass_dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     pathTrace_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
     pathTrace_subpass_dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
@@ -1483,39 +1449,6 @@ void RealtimeRenderer::InitRenderpasses()
 
     subpasses.emplace_back(pathTrace_subpass_description);
     dependencies.emplace_back(pathTrace_subpass_dependency);
-
-    // ------------------------------------------------------------------------------
-    // Subpass 2 (draw light sources)
-    std::vector<vk::AttachmentReference2> lightDraw_colorAttachments_refs;
-    {
-        vk::AttachmentReference2 lightDrawAttach_ref;
-        lightDrawAttach_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
-        lightDrawAttach_ref.attachment = 8;
-        lightDraw_colorAttachments_refs.emplace_back(lightDrawAttach_ref);
-    }
-
-    vk::AttachmentReference2 lightDraw_depthAttach_ref;
-    lightDraw_depthAttach_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    lightDraw_depthAttach_ref.attachment = useMorphologicalAA? 9 : 1;
-
-    vk::SubpassDescription2 lightDraw_subpass_description;
-    lightDraw_subpass_description.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    lightDraw_subpass_description.setColorAttachments(lightDraw_colorAttachments_refs);
-    lightDraw_subpass_description.pDepthStencilAttachment = &lightDraw_depthAttach_ref;
-
-    vk::SubpassDependency2 lightDraw_subpass_dependency;
-    lightDraw_subpass_dependency.srcSubpass = 0;
-    lightDraw_subpass_dependency.dstSubpass = 2;
-    lightDraw_subpass_dependency.srcStageMask = useMorphologicalAA? vk::PipelineStageFlagBits::eColorAttachmentOutput
-                                                                  : vk::PipelineStageFlagBits::eLateFragmentTests;
-    lightDraw_subpass_dependency.dstStageMask = vk::PipelineStageFlagBits::eEarlyFragmentTests;
-    lightDraw_subpass_dependency.srcAccessMask = useMorphologicalAA? vk::AccessFlagBits::eColorAttachmentWrite
-                                                                   : vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-    lightDraw_subpass_dependency.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead;
-    lightDraw_subpass_dependency.dependencyFlags = vk::DependencyFlagBits::eByRegion;
-
-    subpasses.emplace_back(lightDraw_subpass_description);
-    dependencies.emplace_back(lightDraw_subpass_dependency);
 
     // ------------------------------------------------------------------------------
     // Renderpass
@@ -1540,7 +1473,6 @@ void RealtimeRenderer::InitFramebuffers()
     attachments.emplace_back(linearViewZImageView);
     attachments.emplace_back(lightSourcesPassImageView);
     if (useMorphologicalAA) {
-        attachments.emplace_back(depthResolvedImageView);
         attachments.emplace_back(morphologicalMaskImageView);
     }
 
@@ -2039,7 +1971,7 @@ void RealtimeRenderer::InitPathTracePipeline()
         // etc
         pipeline_create_info.layout = pathTracePipelineLayout;
         pipeline_create_info.renderPass = renderpass;
-        pipeline_create_info.subpass = 1;
+        pipeline_create_info.subpass = 2;
 
         pathTracePipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
     }
@@ -2052,6 +1984,8 @@ void RealtimeRenderer::InitLightsDrawPipeline()
     std::vector<std::pair<std::string, std::string>> shadersDefinitionStringPairs;
     shadersDefinitionStringPairs.emplace_back("MATRICES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
     shadersDefinitionStringPairs.emplace_back("INSTANCES_COUNT", std::to_string(graphics_ptr->GetMaxInstancesCount()));
+    if (useMorphologicalAA)
+        shadersDefinitionStringPairs.emplace_back("MORPHOLOGICAL_MSAA", vk::to_string(MAAsamplesCount));
 
     // Pipeline layout
     {
@@ -2138,7 +2072,7 @@ void RealtimeRenderer::InitLightsDrawPipeline()
         // PipelineMultisampleStateCreateInfo
         vk::PipelineMultisampleStateCreateInfo multisample_state_create_info;
         multisample_state_create_info.sampleShadingEnable = VK_FALSE;
-        multisample_state_create_info.rasterizationSamples = vk::SampleCountFlagBits::e1;
+        multisample_state_create_info.rasterizationSamples = useMorphologicalAA ? MAAsamplesCount :  vk::SampleCountFlagBits::e1;
         multisample_state_create_info.minSampleShading = 1.0f;
         multisample_state_create_info.pSampleMask = nullptr;
         multisample_state_create_info.alphaToCoverageEnable = VK_FALSE;
@@ -2202,7 +2136,7 @@ void RealtimeRenderer::InitLightsDrawPipeline()
         // etc
         pipeline_create_info.layout = lightDrawPipelineLayout;
         pipeline_create_info.renderPass = renderpass;
-        pipeline_create_info.subpass = 2;
+        pipeline_create_info.subpass = 1;
 
         lightDrawPipeline = graphics_ptr->GetPipelineFactory()->GetPipeline(pipeline_create_info).first;
     }
@@ -2340,7 +2274,8 @@ void RealtimeRenderer::DrawFrame(const ViewportFrustum &in_viewport,
     primitive_instance_parameters = CreatePrimitivesInstanceParameters();
 
     PrepareNRDsettings();
-    NRDintegration_uptr->PrepareNewFrame(frameCount, NRD_commonSettings);
+    NRDintegration_uptr->PrepareNewFrame(frameCount, NRD_commonSettings,
+                                         vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eComputeShader);
 
     AssortDrawInfos();
     std::vector<DrawInfo> TLAS_draw_infos;
@@ -2620,7 +2555,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
 
     // Render begin
     vk::RenderPassBeginInfo render_pass_begin_info;
-    vk::ClearValue clear_values[9];
+    vk::ClearValue clear_values[9] = {};
     render_pass_begin_info.renderPass = renderpass;
     render_pass_begin_info.framebuffer = frameBuffer;
     render_pass_begin_info.renderArea.offset = vk::Offset2D(0, 0);
@@ -2759,61 +2694,6 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
     command_buffer.nextSubpass2({vk::SubpassContents::eInline}, {});
     command_buffer.endDebugUtilsLabelEXT();
 
-    // Path trace pass
-    vk::DebugUtilsLabelEXT pathTracePass_laber_info;
-    pathTracePass_laber_info.pLabelName = "Path-Trace Pass";
-    command_buffer.beginDebugUtilsLabelEXT(pathTracePass_laber_info);
-    {
-        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pathTracePipeline);
-
-        std::vector<vk::DescriptorSet> descriptor_sets;
-        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(frameCount));
-        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(frameCount));
-        descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorSet());
-        descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetPrevDescriptorSet());
-        descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
-        descriptor_sets.emplace_back(hostDescriptorSets[frameCount % 3]);
-        descriptor_sets.emplace_back(pathTraceDescriptorSet);
-        descriptor_sets.emplace_back(TLASbuilder_uptr->GetDescriptorSet(frameCount));
-        descriptor_sets.emplace_back(graphics_ptr->GetLights()->GetDescriptorSet());
-
-        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                          pathTracePipelineLayout,
-                                          0,
-                                          descriptor_sets,
-                                          {});
-
-        struct push_constants_type{
-            std::array<glm::vec4,1> vec4_constants = {};
-            std::array<uint32_t, 5> uint_constants = {};
-            std::array<float, 1> float_constants = {};
-        } push_constants;
-
-        push_constants.vec4_constants = {glm::vec4(graphics_ptr->GetLights()->GetUniformLuminance(), 0.f)};
-        push_constants.uint_constants = {graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
-                                         graphics_ptr->GetSwapchainCreateInfo().imageExtent.height,
-                                         (uint32_t)frameCount,
-                                         coneLightsIndicesRange.offset,
-                                         coneLightsIndicesRange.size};
-        push_constants.float_constants = {FP16factor};
-
-        command_buffer.pushConstants(pathTracePipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(push_constants_type), &push_constants);
-
-        std::vector<vk::Buffer> buffers;
-        std::vector<vk::DeviceSize> offsets;
-
-        buffers.emplace_back(fullscreenBuffer);
-        offsets.emplace_back((frameCount % 3) * fullscreenBufferPartSize);
-
-        command_buffer.bindVertexBuffers(0, buffers, offsets);
-
-        command_buffer.draw(3, 1, 0, 0);
-
-    }
-
-    command_buffer.nextSubpass2({vk::SubpassContents::eInline}, {});
-    command_buffer.endDebugUtilsLabelEXT();
-
     // Light sources draw
     vk::DebugUtilsLabelEXT lightsDrawPass_laber_info;
     lightsDrawPass_laber_info.pLabelName = "Lights Draw Pass";
@@ -2844,7 +2724,7 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
             push_VS_constants.uint_constants = {0, 0, 1};
             command_buffer.pushConstants(lightDrawPipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(push_VS_constants_type), &push_VS_constants);
 
-            push_FS_constants.vec4_constants = {glm::vec4(graphics_ptr->GetLights()->GetUniformLuminance() / FP16factor, 1.f)};
+            push_FS_constants.vec4_constants = {glm::vec4(graphics_ptr->GetLights()->GetUniformLuminance() / FP16factor, 0.f)};
             command_buffer.pushConstants(lightDrawPipelineLayout, vk::ShaderStageFlagBits::eFragment, 16, sizeof(push_FS_constants_type), &push_FS_constants);
 
             std::vector<vk::Buffer> buffers;
@@ -2852,6 +2732,8 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
 
             buffers.emplace_back(fullscreenBuffer);
             offsets.emplace_back((frameCount % 3) * fullscreenBufferPartSize);
+
+            command_buffer.bindVertexBuffers(0, buffers, offsets);
 
             command_buffer.draw(3, 1, 0, 0);
         }
@@ -2903,6 +2785,60 @@ void RealtimeRenderer::RecordGraphicsCommandBuffer(vk::CommandBuffer command_buf
                 }
             }
         }
+    }
+    command_buffer.nextSubpass2({vk::SubpassContents::eInline}, {});
+    command_buffer.endDebugUtilsLabelEXT();
+
+    // Path trace pass
+    vk::DebugUtilsLabelEXT pathTracePass_laber_info;
+    pathTracePass_laber_info.pLabelName = "Path-Trace Pass";
+    command_buffer.beginDebugUtilsLabelEXT(pathTracePass_laber_info);
+    {
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pathTracePipeline);
+
+        std::vector<vk::DescriptorSet> descriptor_sets;
+        descriptor_sets.emplace_back(graphics_ptr->GetCameraDescriptionSet(frameCount));
+        descriptor_sets.emplace_back(graphics_ptr->GetMatricesDescriptionSet(frameCount));
+        descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetDescriptorSet());
+        descriptor_sets.emplace_back(graphics_ptr->GetDynamicMeshes()->GetPrevDescriptorSet());
+        descriptor_sets.emplace_back(graphics_ptr->GetMaterialsOfPrimitives()->GetDescriptorSet());
+        descriptor_sets.emplace_back(hostDescriptorSets[frameCount % 3]);
+        descriptor_sets.emplace_back(pathTraceDescriptorSet);
+        descriptor_sets.emplace_back(TLASbuilder_uptr->GetDescriptorSet(frameCount));
+        descriptor_sets.emplace_back(graphics_ptr->GetLights()->GetDescriptorSet());
+
+        command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                          pathTracePipelineLayout,
+                                          0,
+                                          descriptor_sets,
+                                          {});
+
+        struct push_constants_type{
+            std::array<glm::vec4,1> vec4_constants = {};
+            std::array<uint32_t, 5> uint_constants = {};
+            std::array<float, 1> float_constants = {};
+        } push_constants;
+
+        push_constants.vec4_constants = {glm::vec4(graphics_ptr->GetLights()->GetUniformLuminance(), 0.f)};
+        push_constants.uint_constants = {graphics_ptr->GetSwapchainCreateInfo().imageExtent.width,
+                                         graphics_ptr->GetSwapchainCreateInfo().imageExtent.height,
+                                         (uint32_t)frameCount,
+                                         coneLightsIndicesRange.offset,
+                                         coneLightsIndicesRange.size};
+        push_constants.float_constants = {FP16factor};
+
+        command_buffer.pushConstants(pathTracePipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(push_constants_type), &push_constants);
+
+        std::vector<vk::Buffer> buffers;
+        std::vector<vk::DeviceSize> offsets;
+
+        buffers.emplace_back(fullscreenBuffer);
+        offsets.emplace_back((frameCount % 3) * fullscreenBufferPartSize);
+
+        command_buffer.bindVertexBuffers(0, buffers, offsets);
+
+        command_buffer.draw(3, 1, 0, 0);
+
     }
 
     command_buffer.endRenderPass2(vk::SubpassEndInfo());

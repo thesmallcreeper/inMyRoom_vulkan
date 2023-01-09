@@ -35,8 +35,8 @@ private:
     void InitSemaphoresAndFences();
     void InitCommandBuffers();
     void InitPrimitivesSet();
-    void InitPathTracePipeline();
     void InitLightsDrawPipeline();
+    void InitPathTracePipeline();
     void InitResolveComputePipeline();
     void InitMorphologicalAAcomputePipeline();
 
@@ -114,11 +114,6 @@ private:
     vma::Allocation         depthAllocation;
     vk::ImageCreateInfo     depthImageCreateInfo;
     vk::ImageView           depthImageView;
-
-    vk::Image               depthResolvedImage;
-    vma::Allocation         depthResolvedAllocation;
-    vk::ImageCreateInfo     depthResolvedImageCreateInfo;
-    vk::ImageView           depthResolvedImageView;
 
     vk::Image               visibilityImage;
     vma::Allocation         visibilityAllocation;

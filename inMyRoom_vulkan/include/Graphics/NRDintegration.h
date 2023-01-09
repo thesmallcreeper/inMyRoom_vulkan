@@ -39,7 +39,7 @@ class NRDintegration
         NRDtextureWrapper(NRDtextureWrapper&& other) noexcept;
         NRDtextureWrapper& operator=(NRDtextureWrapper&& other) noexcept;
 
-        std::vector<vk::ImageMemoryBarrier> SetLayout(vk::ImageLayout dst_layout, uint32_t mip_offset = 0, uint32_t mip_count = VK_REMAINING_MIP_LEVELS);
+        std::vector<vk::ImageMemoryBarrier> SetLayout(vk::ImageLayout dst_layout, uint32_t mip_offset = 0, uint32_t mip_count = VK_REMAINING_MIP_LEVELS, vk::PipelineStageFlagBits src_stage = vk::PipelineStageFlagBits::eComputeShader);
         vk::DescriptorImageInfo GetDescriptorImageInfo(uint32_t mip_offset = 0, uint32_t mip_count = 0);
 
         bool IsValidTexture() const {return isValidTexture;}
@@ -76,10 +76,10 @@ public:
     void BindTexture(nrd::ResourceType nrd_resource_type, vk::Image image, vk::ImageCreateInfo image_info,
                      vk::ImageLayout initial_layout, vk::ImageLayout final_layout);
     void SetMethodSettings(nrd::Method method, const void* methodSettings);
-    void PrepareNewFrame(size_t frame_index, const nrd::CommonSettings& commonSettings);
-    void Denoise(vk::CommandBuffer command_buffer,
-                 vk::PipelineStageFlagBits src_stage = vk::PipelineStageFlagBits::eAllCommands,
-                 vk::PipelineStageFlagBits dst_stage = vk::PipelineStageFlagBits::eAllCommands);
+    void PrepareNewFrame(size_t frame_index, const nrd::CommonSettings& commonSettings,
+                         vk::PipelineStageFlagBits src_stage = vk::PipelineStageFlagBits::eAllCommands,
+                         vk::PipelineStageFlagBits dst_stage = vk::PipelineStageFlagBits::eAllCommands);
+    void Denoise(vk::CommandBuffer command_buffer);
 private:
     void Initialize(const nrd::DenoiserCreationDesc& denoiserCreationDesc);
     void CreateLayoutsAndPipelines();
@@ -87,6 +87,9 @@ private:
     void CreateTexturesBuffers();
 
 private:
+    vk::PipelineStageFlagBits src_stage;
+    vk::PipelineStageFlagBits dst_stage;
+
     const nrd::DispatchDesc* NRDdispatches_ptr = nullptr;
     uint32_t NRDdispatches_count = 0;
     std::vector<std::vector<vk::ImageMemoryBarrier>> imageBarriersPerDispatch;
