@@ -27,8 +27,6 @@ Demo: https://www.youtube.com/watch?v=gT_DVOUPm7A
 # Installation (Compiling)
 
   First of all, you need a Vulkan-ready graphics driver, a modern C++ compiler, CMake, Git, Vulkan SDK installed and environment variables `VULKAN_SDK_PATH`/`VULKAN_SDK` pointing to the installation path of the SDK.
-
-#### Version Vulkan SDK 1.3.204.1 is preferred
   
   On Linux glfw need X11 development packages installed.
   * On Ubuntu you need:

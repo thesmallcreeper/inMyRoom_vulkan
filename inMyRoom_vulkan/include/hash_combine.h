@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include <cstdint>
 
 template <class T>
 inline void hash_combine(std::size_t & s, const T & v)

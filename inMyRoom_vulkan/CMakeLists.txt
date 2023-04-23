@@ -27,7 +27,7 @@ else ()
     set(COMMON_FLAGS "-m64")
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${COMMON_FLAGS} -D_DEBUG")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMMON_FLAGS} -D_DEBUG")
-    set(OPT_FLAGS "-O3 -ffast-math -march=corei7-avx -DNDEBUG")
+    set(OPT_FLAGS "-O3 -ffast-math -march=native -DNDEBUG")
     set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} ${COMMON_FLAGS} ${OPT_FLAGS}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_FLAGS}  ${OPT_FLAGS}")
 endif()
@@ -55,7 +55,8 @@ include_directories(
         ${inMyRoom_vulkan_SOURCE_DIR}/include
         ${inMyRoom_vulkan_SOURCE_DIR}/shaders
         $ENV{VULKAN_SDK}/include                                           #Include Vulkan Sdk
-        ../VulkanMemoryAllocator-Hpp                                       #Include VMA
+        ../VulkanMemoryAllocator-Hpp/VulkanMemoryAllocator/include         #Include VMA
+        ../VulkanMemoryAllocator-Hpp/include                               #Include VMA-hpp
         ../glfw/include                                                    #Include glfw
         ../tinygltf                                                        #Include tinyglTF
         ../Configuru                                                       #Include configuru

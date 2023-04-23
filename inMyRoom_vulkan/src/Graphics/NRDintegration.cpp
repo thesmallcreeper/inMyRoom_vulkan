@@ -1,6 +1,7 @@
 #include "Graphics/NRDintegration.h"
 
 #include <vector>
+#include <memory>
 
 NRDintegration::NRDstaticSamplers::NRDstaticSamplers(vk::Device vk_device)
     :device(vk_device)
