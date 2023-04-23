@@ -5,9 +5,9 @@
 
 struct SweepAndPruneEntry
 {
-    size_t index;
-    bool shouldCallback;
     std::pair<float, float> minMaxProjection;
+    Entity index;
+    bool shouldCallback;
 };
 
 struct hash_pair
