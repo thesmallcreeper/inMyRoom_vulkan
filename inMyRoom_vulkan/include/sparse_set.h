@@ -142,7 +142,7 @@ public:
 
     void add_elements(const sparse_set& other, index_T offset = 0)
     {
-        if (other.sparse_arrazy_offset == index_T(-1))
+        if (other.sparse_array_offset == index_T(-1))
             return;
 
         extent_array(other.sparse_array_offset + offset, other.sparse_array_offset + other.sparse_array.size() - 1 + offset);
